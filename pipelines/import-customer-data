@@ -1,36 +1,18 @@
-@dm:empty
- --> @dm:addrow name="xnor_pack_commands_collections" and max_rows="500"
- --> #dm:query-persistent-stream *
- --> *dm:filter name="finaltest"
- ## --> @dm:replace-data columns="commands" and expr="'" and replace='"'
 
- --> @dm:explode-json column="commands"
- --> @dm:add-missing-columns columns = 'commoncolumn' & value = "commonkey"
- --> @dm:save name = "test-split-command"
- --> @exec:get-input
- --> @dm:add-missing-columns columns = 'commoncolumn' & value = "commonkey"
- --> @dm:save name = "test-input-data"
- --> @dm:add-missing-columns columns="Upgradeid,start_time,status,action_type"
- --> @dm:eval Upgradeid="f'UPGRADE_{uuid()[:8]}'"
- --> @dm:eval start_time="start_time or now().isoformat()"
- --> @dm:eval status="status or 'Triggered'"
- --> @dm:eval action_type="action_type or 'Upgrade'"
- --> @dm:selectcolumns include="^Node_Name$|^Node_Type$|^IP_Address$|^SW_Version$|^target$|^Upgradeid$|^status$|^__uuid$|^action_type$"
- --> @dm:save name = "xnor-upgrade-details"
- --> @c:new-block
- --> @dm:recall name="test-split-command"
- --> @dm:enrich dict="test-input-data" &
-src_key_cols="commoncolumn" &
-dict_key_cols="commoncolumn" &
-enrich_cols="IP_Address"
- --> @dm:save name="test-split-command"
+ ## ========================
+
+ ## Main: Get user input
+
+ ## Format time
+
+ ## ========================
+@c:new-block
  --> @dm:empty
- --> @dm:addrow name="xnor_pack_commands_collections" and max_rows="500"
- --> #dm:query-persistent-stream *
- --> *dm:filter name="finaltest"
- --> @dm:explode-json column="commands"
- --> @dm:add-missing-columns columns = 'commoncolumn' & value = "commonkey"
- --> @dm:explode-json column="rules" and prefix_parent_key="yes"
- --> @dm:save name="test-spilt-rules"
- --> @c:new-block
- --> @exec:run-pipeline name = "xnor_pack_command_collection_main"
+ ## Get submitted form fields
+
+ --> @exec:get-input
+ ## Exclude label as it contains unneeded info that should not be written to stream later
+
+ --> @dm:selectcolumns exclude='.*_label'
+ --> @dm:save name='temp-input_data'
+ --> @dm:save name='upload-input_data'

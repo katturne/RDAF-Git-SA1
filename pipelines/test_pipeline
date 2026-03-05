@@ -1,11 +1,19 @@
-folder: Default
-name: nagios-enrichment
-description: ''
-data_path: draft-pipelines/data/nagios-enrichment/2025_12_12_1/data.json
-usecase: ''
-category: null
-sources: []
-artifacts: []
-version: '2025_12_12_1'
-file_type: json
-checksum: 76cff00d
+@dm:empty
+ --> @exec:get-input
+ ## Save text input
+
+ --> @dm:save name="test_data_add"
+ --> @rn:write-stream name="test_data"
+ ## Uploaded file processing
+
+ --> @dm:save name="test_upload1"
+ --> @dm:selectcolumns include="fileUpload"
+ --> @dm:explode-json column="fileUpload"
+ --> @dm:save name="temp-test-upload2"
+ --> @dm:save name="test_upload2"
+ ## Loop over uploaded file info
+
+ --> @c:data-loop dataset="temp-test-upload2" and columns="bucketName,objectName,displayName"
+ --> @dm:get-from-location path="$bucketName/$objectName"
+ --> @dm:save name="test_upload3"
+ --> @rn:write-stream name="test_data"

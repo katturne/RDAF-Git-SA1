@@ -1,36 +1,13 @@
-@dm:empty
- --> @dm:addrow name="xnor_pack_commands_collections" and max_rows="500"
- --> #dm:query-persistent-stream *
- --> *dm:filter name="finaltest"
- ## --> @dm:replace-data columns="commands" and expr="'" and replace='"'
-
- --> @dm:explode-json column="commands"
- --> @dm:add-missing-columns columns = 'commoncolumn' & value = "commonkey"
- --> @dm:save name = "test-split-command"
- --> @exec:get-input
- --> @dm:add-missing-columns columns = 'commoncolumn' & value = "commonkey"
- --> @dm:save name = "test-input-data"
- --> @dm:add-missing-columns columns="Upgradeid,start_time,status,action_type"
- --> @dm:eval Upgradeid="f'UPGRADE_{uuid()[:8]}'"
- --> @dm:eval start_time="start_time or now().isoformat()"
- --> @dm:eval status="status or 'Triggered'"
- --> @dm:eval action_type="action_type or 'Upgrade'"
- --> @dm:selectcolumns include="^Node_Name$|^Node_Type$|^IP_Address$|^SW_Version$|^target$|^Upgradeid$|^status$|^__uuid$|^action_type$"
- --> @dm:save name = "xnor-upgrade-details"
- --> @c:new-block
- --> @dm:recall name="test-split-command"
- --> @dm:enrich dict="test-input-data" &
-src_key_cols="commoncolumn" &
-dict_key_cols="commoncolumn" &
-enrich_cols="IP_Address"
- --> @dm:save name="test-split-command"
+@c:new-block
  --> @dm:empty
- --> @dm:addrow name="xnor_pack_commands_collections" and max_rows="500"
- --> #dm:query-persistent-stream *
- --> *dm:filter name="finaltest"
- --> @dm:explode-json column="commands"
- --> @dm:add-missing-columns columns = 'commoncolumn' & value = "commonkey"
- --> @dm:explode-json column="rules" and prefix_parent_key="yes"
- --> @dm:save name="test-spilt-rules"
+ --> @exec:define-function name="generate_access_token"
+ --> @exec:run-pipeline name ="edc_generate_token" & ignore_failures = "no"
+ --> @dm:addrow key='key'
+ --> @dm:eval current_time_ms="int(time_now_as_ms())"
+ --> @dm:eval token_expiry_time='current_time_ms+3000000'
+ --> @dm:save name='temp-expiry-time'
+ --> @exec:end-function
  --> @c:new-block
- --> @exec:run-pipeline name = "xnor_pack_command_collection_main"
+ --> @dm:empty
+ --> @exec:call-function name='generate_access_token'
+ --> @dm:save name='temp-expiry-time'
