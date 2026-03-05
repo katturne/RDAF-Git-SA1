@@ -1,159 +1,208 @@
+
+ ## snow-to-oia
 @c:new-block
- --> @dm:recall name="edc_license_domains"
- --> *dm:filter customer is 'ATT'
- --> @dm:save name='temp-cust-domains-trial'
- ## Collect Consumption
+ --> @exec:get-input
+ ## sourceName
 
- --> @c:data-loop columns='top_level_domain,customer' and dataset='temp-cust-domains-trial'
- --> @snowflake:native-query dbname is "CX_DB" and warehouse is "CX_DMP_RPT_WH" and query is "SELECT * FROM CX_DB.CX_DMP_BR.PV_DMP_LICENSE_CONSUMPTION WHERE TOP_LEVEL_DOMAIN = '$top_level_domain';"
- --> @dm:add-missing-columns columns="execution_status"
- --> *dm:filter execution_status =="Success"
- --> @dm:skip-block-if-shape column_count = 3
- --> @dm:rename-columns billingType="billing_type" &
-license="feature_display_name"
- --> @dm:fixnull columns = 'license_class,licensed_feature_key,license_device_key,reservation_type,pak_item_id,billingType,license,feature_description,license_sku_id,domain_name,smart_account_name,virtual_account_name' and value='NA' and apply_for_empty="yes"
- --> @dm:to_type columns = 'consumed_quantity' & type  = 'int'
- --> @dm:change-time-format columns="consumption_date,consumption_update_date" and from_format="datetimestr" and to_format="%Y-%m-%d"
- ## create column for unique customer
-
- --> @dm:manipulate-string to="customer_name" and func="eval" and value="'$customer'"
- --> @dm:selectcolumns exclude="attempt_count|execution_reason|execution_status"
- --> @dm:save name="temp-license_consumption-trial" and append = "yes"
- ## Collect entitlement
-
- --> @c:data-loop columns='top_level_domain,customer' and dataset='temp-cust-domains-trial'
- --> @snowflake:native-query dbname is "CX_DB" and warehouse is "CX_DMP_RPT_WH" and query is "SELECT * FROM CX_DB.CX_DMP_BR.PV_DMP_LICENSE_ENTITLEMENT WHERE TOP_LEVEL_DOMAIN = '$top_level_domain';"
- --> @dm:add-missing-columns columns="execution_status"
- --> *dm:filter execution_status =="Success"
- --> @dm:skip-block-if-shape column_count = 3
- --> @dm:fixnull columns = 'license_start_date,license_end_date,transaction_date,transaction_update_date' and value = '1970-01-01T00:00:01' and apply_for_empty="yes"
- --> @dm:fixnull columns = 'license_type,billing_type,entitlement_type,feature_description,feature_display_name,product_family,license_sku,subscription_reference_id,business_entity,sub_business_entity,virtual_account_name' and value='NA' and apply_for_empty="yes"
- --> @dm:change-time-format columns="license_start_date,license_end_date,transaction_date,transaction_update_date" and from_format="datetimestr" and to_format="%Y-%m-%d"
- --> @dm:to_type columns = 'entitled_quantity' and type  = 'int'
- --> @dm:rename-columns billingType="billing_type" &
-licenseType="license_type" &
-startDate="license_start_date" &
-endDate="license_end_date" &
-subscriptionId="subscription_reference_id" &
-license="feature_display_name" &
-licenseSku="license_sku" &
-smart_account_key="smart_accounts_key" &
-license_sku_id="smart_license_sku_id" &
-sales_order_int="bk_so_number_int"
- ## create column for unique customer
-
- --> @dm:manipulate-string to="customer_name" and func="eval" and value="'$customer'"
- --> @dm:eval unique_key = "str(customer_name) + str(smart_account_key) +str(virtual_account_key)+  str(licensed_feature_key) +str(endDate) +str(startDate) +str(license_sku_id) + str(subscriptionId) + str(sales_order_line_key)+str(license_entitlement_key)"
- --> @dm:selectcolumns exclude="attempt_count|execution_reason|execution_status|transaction_date|transaction_update_date"
- --> @dm:save name="temp-license_entitlement-trial" and append = "yes"
- ## consolidate consumption into single record for smtAcct-virtualAcct-licensedFeature
+ --> *dm:filter (u_cfx_source == 'Alert Group')
+ --> @dm:skip-pipeline-if-shape row_count = 0
+ --> @dm:add-missing-columns columns = 'sourceName,payload,u_cfx_source'
+ --> @dm:eval sourceName="sourceName if sourceName else u_cfx_source"
+ --> @dm:save name="temp-input-data"
+ ## prepare empty-datasets to avoid runtime errors. some datasets are prepared based on conditional filters
 
  --> @c:new-block
- --> @dm:recall name="temp-license_consumption-trial"
- --> @dm:selectcolumns include="customer_name|domain_name|smart_account_name|smart_account_key|virtual_account_key|virtual_account_name|licensed_feature_key|pak_item_id|^license$|reservation_type|billingType|license_class|license_sku_id|consumed_quantity"
- --> @dm:groupby columns="customer_name,domain_name,smart_account_name,smart_account_key,virtual_account_name,virtual_account_key,licensed_feature_key,pak_item_id,license,reservation_type,billingType,license_class,license_sku_id" and agg='sum'
- --> @dm:save name="temp-license_consumed_grp-trial"
- ## # Build dict for License to Business Entity
+ --> @dm:empty
+ --> @dm:save name="temp-input-payload"
+ --> @dm:save name="temp-input-teamincident"
+ --> @dm:save name="temp-teamincidents"
+ --> @dm:save name="temp-input-teamincident-irm"
+ ## Prepare all required fields
 
  --> @c:new-block
- --> @dm:recall name="temp-license_entitlement-trial"
- --> *dm:filter license_class is 'SMART'
- --> *dm:filter business_entity is not 'NA'
- --> @dm:selectcolumns include="license$|business_entity|sub_business_entity|product_family"
- --> @dm:groupby columns="license,business_entity,sub_business_entity"
- --> @dm:rename-columns tot_count="product_family" &
-common_BE="business_entity" &
-common_SBE="sub_business_entity"
- --> @dm:sort columns="license,tot_count" and order="asc"
- --> @dm:dedup columns = 'license' and keep="last"
- --> @dm:selectcolumns exclude="tot_count"
- --> @dm:save name="temp-business_dict-trial"
- ## # Create expiration column for entitlement
+ --> @dm:recall name="temp-input-data"
+ --> @dm:skip-block-if-shape row_count = 0
+ --> @dm:add-missing-columns columns = 'priority,severity,urgency,state,impact,number,work_notes'
+ ## --> @dm:explode-json column = 'payload' & prefix_parent_key="yes"
+
+ ## Sometime, we are not seeing payload from the input
+
+ --> @dm:copy-columns to="payload_comments" & from="comments"
+ --> @dm:copy-columns to="payload_comments_and_work_notes" & from="comments_and_work_notes"
+ --> @dm:copy-columns to="payload_number" & from="number"
+ --> @dm:copy-columns to="payload_work_notes" & from="work_notes"
+ --> @dm:copy-columns to="payload_state" & from="state"
+ --> @dm:copy-columns to="payload_impact" & from="impact"
+ --> @dm:copy-columns to="payload_priority" & from="priority"
+ --> @dm:copy-columns to="payload_severity" & from="severity"
+ --> @dm:copy-columns to="payload_urgency" & from="urgency"
+ --> @dm:copy-columns to="payload_close_notes" & from="close_notes"
+ --> @dm:copy-columns to="payload_closed_at" & from="closed_at"
+ --> @dm:copy-columns to="payload_closed_by" & from="closed_by"
+ --> @dm:copy-columns to="payload_sys_updated_by" & from="sys_updated_by"
+ --> @dm:copy-columns to="payload_resolved_at" & from="resolved_at"
+ --> @dm:copy-columns to="payload_sys_updated_on" & from="sys_updated_on"
+ --> @dm:copy-columns to="payload_resolved_by" & from="resolved_by"
+ --> @dm:copy-columns to="payload_close_code" & from="close_code"
+ --> @dm:selectcolumns include="payload|close|resolved|sys|urgency|severity|priority|impact|state|work|number|source"
+ --> @dm:save name="temp-input-data"
+ ## Apply filters on Input-Data
 
  --> @c:new-block
- --> @dm:recall name="temp-license_entitlement-trial"
- --> @dm:fixnull columns = 'endDate' and value = '1970-01-01'
- --> @dm:fixnull-regex value='NA'
- --> @dm:eval days_to_expire = " 20000 if licenseType=='PERPETUAL' else (to_datetime(endDate) - utcnow()).days"
- --> @dm:eval endTime = "utcnow()"
- --> @dm:change-time-format columns="endTime" and from_format="datetimestr" and to_format="%A, %m-%d-%Y %I:%M:%S %p %Z"
- --> @dm:eval endTime = "str(endTime)+str(    'UTC')"
- --> @dm:eval expiration_color = " '#79BAEC' if (licenseType =='PERPETUAL' or days_to_expire < -19000 ) else '#BB0000' if (days_to_expire < 90 or days_to_expire == 90) else  '#00BB00' if days_to_expire > 90 else '#b0bec5' "
- --> @dm:eval sort_number = " '3' if (licenseType =='PERPETUAL' or days_to_expire < -19000 ) else '1' if (days_to_expire < 90 or days_to_expire == 90) else  '2' if days_to_expire > 90 else '4' "
- --> @dm:eval expiration_status = " 'Valid Indefinitely' if (licenseType =='PERPETUAL' or days_to_expire < -19000 ) else  'Already Expired' if (days_to_expire< 0  and days_to_expire > -19000)  else  'Expiring within 90 days' if (days_to_expire < 90 or days_to_expire == 90) else 'Expiring after 90 days' if days_to_expire > 90  else '#b0bec5' "
- --> @dm:manipulate-string to="source" and func="eval" and value="'entitled'"
- ## Enrich with consumption
+ --> @dm:recall name="temp-input-data"
+ --> @dm:skip-block-if-shape row_count = 0
+ --> @dm:check-columns must_contain="payload_number" & action="skip-block"
+ ## Any extra filter like Company etc...apply here to further narrow down
 
- --> @dm:enrich dict="temp-license_consumed_grp" and src_key_cols="customer_name,smart_account_key,virtual_account_key,licensed_feature_key" and dict_key_cols="customer_name,smart_account_key,virtual_account_key,licensed_feature_key" and enrich_cols="consumed_quantity,reservation_type,pak_item_id"
- --> @dm:fixnull columns = 'reservation_type,pak_item_id' and value='NA' and apply_for_empty="yes"
- --> @dm:fixnull columns = 'consumed_quantity' and value=0 and apply_for_empty="yes"
- --> @dm:eval available_quantity= "(entitled_quantity - consumed_quantity)"
- --> @dm:save name="temp-license_entitlement-trial"
- ## Evaluate if all consumed records have an associated entitlement
+ ## To AVOID Update-LOOP, lets check work_notes and look for [code] in it. This means, this update is triggered by CFX and Snow is looping it back.
 
- --> @c:new-block
- --> @dm:recall name="temp-license_consumed_grp-trial"
- --> @dm:enrich dict="temp-license_entitlement" and src_key_cols="customer_name,smart_account_key,virtual_account_key,licensed_feature_key" and dict_key_cols="customer_name,smart_account_key,virtual_account_key,licensed_feature_key" and enrich_cols="sales_order_line_key,sales_order_int"
- --> *dm:filter sales_order_line_key is null
- --> @dm:eval entitled_quantity= "0"
- --> @dm:eval available_quantity= "(entitled_quantity - consumed_quantity)"
- --> @dm:eval days_to_expire = "-1"
- --> @dm:add-missing-columns columns="subscriptionId,status,licenseType,licenseSku,business_entity,sub_business_entity,product_family"
- --> @dm:fixnull columns="subscriptionId,status,licenseType,licenseSku,business_entity,sub_business_entity,product_family" and value='NA' and apply_for_empty="yes"
- --> @dm:eval sort_number = "4"
- --> @dm:manipulate-string to="source" and func="eval" and value="'consumed'"
- --> @dm:eval unique_key = "str(customer_name) + str(smart_account_key) + str(virtual_account_key)+  str(licensed_feature_key) + str(pak_item_id) + str(reservation_type) + str(license_sku_id)+str(billingType)"
- --> @dm:save name="temp-license_consumption_missing-trial"
- ## Concatenate
+ --> *dm:filter payload_work_notes is null or (payload_work_notes == '' or payload_work_notes not contains 'code')
+ ## We need to differentiate between Snow initiated ones and CFX ones.
 
- --> @c:new-block
- --> @dm:concat names="temp-license_entitlement-trial|temp-license_consumption_missing-trial"
- --> @dm:fixnull columns = 'sales_order_line_key,sales_order_int' and value = '-1' and apply_for_empty="yes"
- --> @dm:save name = "temp-license_details-trial"
- --> @rn:write-stream name='edc_license_details-trial' and direct_to_opensearch="yes"
- --> @dm:sleep seconds = 5
- --> @c:new-block
- --> @dm:recall name="temp-license_details-trial"
- --> @dm:selectcolumns include="customer_name|smart_account_name|domain_name|smart_account_key|virtual_account_key|virtual_account_name|^license$|license_class|licensed_feature_key|entitled_quantity"
- --> @dm:groupby columns="customer_name,smart_account_name,domain_name,smart_account_key,virtual_account_key,virtual_account_name,license,license_class,licensed_feature_key" and agg='sum'
- ## Bring available and consumed
+ --> @dm:to_type columns = 'payload_state,payload_impact,payload_priority,payload_severity,payload_urgency' & type  = 'int'
+ ## Resolved or Closed or Cancelled
 
- --> @dm:enrich dict="temp-license_consumed_grp" and src_key_cols="customer_name,smart_account_key,virtual_account_key,licensed_feature_key" and dict_key_cols="customer_name,smart_account_key,virtual_account_key,licensed_feature_key" and enrich_cols="consumed_quantity"
- ## Bring most used business entity for license
+ --> *dm:filter payload_number != '' and (payload_state > 5)
+ --> @dm:skip-block-if-shape row_count = 0
+ ## Record The Step
 
- --> @dm:enrich dict="temp-business_dict" and src_key_cols="license" and dict_key_cols="license" and enrich_cols="common_BE,common_SBE"
- --> @dm:fixnull columns = 'consumed_quantity' and value=0 and apply_for_empty="yes"
- --> @dm:eval available_quantity= "(entitled_quantity - consumed_quantity)"
- --> @dm:save name="temp-grouping-trial"
- --> @c:new-block
- --> @dm:recall name="temp-license_details-trial"
- --> @dm:selectcolumns include="customer_name|smart_account_key|virtual_account_key|days_to_expire|licenseType|^license$|licensed_feature_key|source"
- --> @dm:groupby columns="customer_name,smart_account_key,virtual_account_key,license,licensed_feature_key,source" and agg='min'
- --> @dm:eval exp_status = " 'Valid Indefinitely' if ((licenseType =='PERPETUAL' or days_to_expire < -19000) and source == 'entitled') else 'One or more Expired Licenses' if (days_to_expire< 0  and days_to_expire > -19000 and source == 'entitled')    else  'Expiring within 90 days' if ((days_to_expire < 90 or days_to_expire == 90) and source == 'entitled') else 'Expiring after 90 days' if (days_to_expire > 90 and source == 'entitled') else 'NA' "
- --> @dm:eval sort_number = " '3' if ((licenseType =='PERPETUAL' or days_to_expire < -19000) and source == 'entitled' ) else '1' if (days_to_expire< 0  and days_to_expire > -19000 and source == 'entitled')    else  '1' if ((days_to_expire < 90 or days_to_expire == 90) and source == 'entitled') else '2' if (days_to_expire > 90 and source == 'entitled') else '4' "
- --> @dm:eval expiration_color = " '#79BAEC' if ((licenseType =='PERPETUAL' or days_to_expire < -19000) and source == 'entitled' ) else '#BB0000' if ((days_to_expire < 90 or days_to_expire == 90) and source == 'entitled') else  '#00BB00' if (days_to_expire > 90 and source == 'entitled') else '#b0bec5'  "
- --> @dm:save name="temp-grouping2-trial"
- --> @c:new-block
- --> @dm:recall name="temp-grouping2-trial"
- --> @dm:enrich dict="license_tap_dict" and src_key_cols="license" and dict_key_cols="license" and enrich_cols="TAP"
- --> @dm:fixnull columns = 'license,common_BE,common_product_family' and value='Not Available' and apply_for_empty="yes"
- --> @dm:save name="edc_license_summary_test"
- ## Enrich grouping for summary with message for expiration
+ --> @dm:eval pipeline="'snow-to-oia'" & step="'Source Data'" & stage="'Webhook Data'" & status_comments="'Ticket ' + payload_number + ', State:' + str(payload_state)" & status="'INFO'"
+ --> @exec:run-pipeline name="oia-incident-status-tracker-stream" & ignore_failures="yes"
+ ## Revisit HACK TODO    ## Pick Latest Record per each Incident/Ticket
+
+ --> @dm:dedup columns="payload_number" & keep="last"
+ --> @dm:save name="temp-input-payload"
+ --> @dm:save name="sto-input-payload"
+ ## Get the mapping CFX number for the external-ticket
+
+ --> @c:data-loop dataset="temp-input-payload" & columns="payload_number,sys_id"
+ --> @dm:empty
+ --> @dm:addrow name="oia-incidents-external-tickets-stream" & max_rows="10"
+ ## Columns: | team_id | customer_id | project_id  | incident_id  | collab_type | ticket_number | shared_time | ticket_id  | link |
+
+ --> #dm:query-persistent-stream ticket_number is '$payload_number' & collab_type is 'ServiceNow' & ticket_id is '$sys_id'
+ --> @dm:skip-block-if-shape row_count = 0
+ --> @dm:check-columns must_contain="ticket_number" & action="skip-block"
+ --> *dm:filter ticket_number is not null and incident_id is not null
+ ## helps in join. Unique for every record received
+
+ --> @dm:save name="temp-teamincidents" & append="yes"
+ ## Enrich InputData with TeamIncident
 
  --> @c:new-block
- --> @dm:recall name="edc_license_summary_test"
- --> @dm:enrich dict="edc_license_summary_test" and src_key_cols="customer_name,smart_account_key,virtual_account_key,licensed_feature_key" and dict_key_cols="customer_name,smart_account_key,virtual_account_key,licensed_feature_key" and enrich_cols="exp_status,expiration_color,sort_number"
- ## evaluate Alerts
+ --> @dm:recall name="temp-teamincidents"
+ --> @dm:skip-block-if-shape row_count = 0
+ ## Revisit HACK TODO Why dups are coming
 
- --> @dm:eval alert_status = " 'Licenses Expired' if (exp_status == 'One or more Expired Licenses') else 'Insufficient Licenses' if (available_quantity<0 ) else 'Licenses Expiring'  if (exp_status == 'Expiring within 90 days') else 'NA' "
- --> @dm:eval alert_color = " '#FF0000' if (exp_status == 'One or more Expired Licenses') else  '#FFA500' if (available_quantity<0 ) else '#F4C430' if (exp_status == 'Expiring within 90 days') else '#b0bec5'  "
- --> @dm:save name="temp-summary-details-trial"
+ --> @dm:dedup columns="ticket_number" & keep="last"
+ --> @dm:save name="temp-teamincidents"
+ --> @dm:save name="sto-teamincidents"
+ --> @dm:recall name="temp-input-payload"
+ --> @dm:skip-block-if-shape row_count = 0
+ --> @dm:enrich dict='temp-teamincidents' & dict_key_cols='ticket_number' & src_key_cols='payload_number' & enrich_cols='incident_id,project_id,ticket_id,team_id,team_name,collab_type,customer_id'
+ ## Record The Step
+
+ --> @dm:eval pipeline="'snow-to-oia'" & step="'External-To-CFX'" & stage="'External-to-CFX Mapping'" & status_comments="'External:' + ticket_number + ',CFX:' + incident_id + ',Team:' + team_name" & status="'INFO'"
+ --> @exec:run-pipeline name="oia-incident-status-tracker-stream" & ignore_failures="yes"
+ ## InputData + TeamIncident
+
+ --> @dm:save name="temp-input-teamincident"
+ --> @dm:save name="sto-input-teamincident"
+ ## Get the CFX IRM Record
+
+ --> @c:data-loop dataset="temp-input-teamincident" & columns="project_id,incident_id,ticket_number,ticket_id"
+ ## get latest IRM record for this incident
+
+ --> @dm:empty
+ ## Change-Here: Enter corresponding db name. make sure we have mysql bot
+
+ --> @dm:addrow table="incident" & dbname="4f0e13b909c44cd8b503962c22029ffb_cfxdimensions_app_irm_service"
+ --> #mysql:read incidentId is '$incident_id' & roomId is '$project_id'
+ --> @dm:skip-block-if-shape row_count = 0
+ ## Returns: incidentid, roomid, customerid, priority, state, resolved_user, resolved_at, resolution_code, closed_user, closed_at, sourceKey
+
+ --> @dm:check-columns must_contain="incidentid" & action="skip-block"
+ --> @dm:selectcolumns include="incident|room|customer|project|resolved|resolution_code|closed|state|source|priority"
+ --> @dm:rename-columns irm_closed_at = "closed_at"
+ --> @dm:rename-columns irm_closed_user = "closed_user"
+ --> @dm:rename-columns irm_resolved_user = "resolved_user"
+ --> @dm:rename-columns irm_resolved_at = "resolved_at"
+ --> @dm:rename-columns irm_priority = "priority"
+ --> @dm:rename-columns irm_state = "state"
+ --> @dm:rename-columns irm_resolution_code = "resolution_code"
+ ## Record The Step
+
+ --> @dm:eval pipeline="'snow-to-oia'" & step="'IRM-CFXIncident'" & stage="'IRM-CFXIncident'" & status_comments="'External:$ticket_number' + ',CFX:' + incidentid + ',State:' + irm_state" & status="'INFO'"
+ --> @exec:run-pipeline name="oia-incident-status-tracker-stream" & ignore_failures="yes"
+ ## PAYLOAD + TeamIncident + IRM - on a single record
+
+ --> @dm:save name="temp-irm-record"
+ --> @dm:recall name="temp-input-teamincident"
+ --> @dm:enrich dict='temp-irm-record' & src_key_cols='project_id,incident_id' & dict_key_cols='roomid,incidentid' & enrich_cols='customerid,irm_resolved_user,irm_resolved_at,irm_resolution_code,irm_closed_user,irm_closed_at,irm_state,source,sourceKey,irm_priority'
+ ## InputData + TeamIncident + IRM Record
+
+ --> @dm:save name="temp-input-teamincident-irm" & append="yes"
  --> @c:new-block
- --> @dm:recall name="temp-summary-details-trial"
- --> @dm:eval unique_key = "str(customer_name) + str(smart_account_key) +str(virtual_account_key)+  str(license) +  str(license_class) + str(licensed_feature_key)"
- --> @dm:eval endTime = "utcnow()"
- --> @dm:change-time-format columns="endTime" and from_format="datetimestr" and to_format="%A, %m-%d-%Y %I:%M:%S %p %Z"
- --> @dm:eval endTime = "str(endTime)+str(    'UTC')"
- --> @dm:fixnull-regex value='NA'
- --> @rn:write-stream name='edc_license_summary-trial' and direct_to_opensearch="yes"
- --> @dm:sleep seconds = 5
+ --> @dm:recall name="temp-input-teamincident-irm"
+ ## revisit HACK TODO
+
+ --> @dm:dedup columns="ticket_number" & keep="last"
+ --> @dm:save name="temp-input-teamincident-irm"
+ ## Lets update AlertProc & IRM record
+
+ --> @c:data-loop dataset="temp-input-teamincident-irm" & columns="project_id,incident_id,ticket_number,ticket_id,sourceKey"
+ --> @dm:recall name="temp-input-teamincident-irm"
+ --> *dm:filter project_id='$project_id' and incident_id='$incident_id' and ticket_number='$ticket_number'
+ ## External to CFX Mapping
+
+ --> @dm:to_type columns = 'payload_state,payload_impact,payload_priority,payload_severity,payload_urgency' & type  = 'int'
+ --> @dm:eval payload_state_str="'Open' if (payload_state == 1) else ('In Progress' if (payload_state == 2) else ('On Hold' if (payload_state == 3) else ('Resolved' if (payload_state == 6) else ('Closed' if (payload_state == 7) else ('Canceled' if (payload_state == 8) else 'Open')))))"
+ --> @dm:copy-columns to="state" & from="payload_state_str"
+ --> @dm:eval resolved_user = "payload_resolved_by if (payload_state_str == 'Resolved' and payload_resolved_by != '') else ( payload_sys_updated_by if (payload_state_str == 'Resolved') else irm_resolved_user)"
+ --> @dm:copy-columns to="resolved_by" & from="resolved_user"
+ --> @dm:eval resolved_at = "payload_resolved_at if (payload_state_str == 'Resolved' and payload_resolved_at != '') else ( payload_sys_updated_on if (payload_state_str == 'Resolved') else irm_resolved_at)"
+ --> @dm:change-time-format columns="resolved_at" & from_format="datetimestr" & to_format="ms"
+ --> @dm:eval closed_user = "payload_closed_by if (payload_state_str == 'Closed' and payload_closed_by != '') else ( payload_sys_updated_by if (payload_state_str == 'Closed') else irm_closed_user)"
+ --> @dm:eval closed_at = "payload_closed_at if (payload_state_str == 'Closed' and payload_closed_at != '') else ( payload_sys_updated_on if (payload_state_str == 'Closed') else irm_closed_at)"
+ --> @dm:change-time-format columns="closed_at" & from_format="datetimestr" & to_format="ms"
+ --> @dm:eval comments="payload_close_notes if (payload_close_notes != '' and (payload_state_str == 'Resolved' or payload_state_str == 'Closed')) else payload_comments"
+ --> @dm:eval resolution_code="payload_close_code if (payload_close_code != '' and (payload_state_str == 'Resolved' or payload_state_str == 'Closed')) else irm_resolution_code"
+ --> @dm:eval priority="'1 - Critical' if (payload_priority == 1) else ('2 - High' if (payload_priority == 2) else ('3 - Moderate' if (payload_priority == 3) else ('4 - Low' if (payload_priority == 4) else (priority))))"
+ ## Ready for IRM update.
+
+ --> @dm:save name="temp-irm-ready"
+ ## Update the Corresponding Alerts
+
+ --> @dm:copy-columns to="alertid" & from="sourceKey"
+ --> @agent:agent-alertproc:alertprocagent:clearAlerts alert_id="alertid" and cleared_notes="comments" and cleared_by="resolved_user"
+ --> @dm:eval incidentid="'$incident_id'"
+ --> @dm:eval projectid="'$project_id'"
+ ## Record The Step
+
+ --> @dm:eval pipeline="'snow-to-oia'" & step="'AlertProc-Clear-Alerts'" & stage="'AlertProc-Clear'" & status_comments="'External:$ticket_number' + ',CFX:$incident_id' + ',SourceKey:$sourceKey'" & status="'SUCCESS'"
+ --> @exec:run-pipeline name="oia-incident-status-tracker-stream" & ignore_failures="yes"
+ ## If you want to update any more - add here.
+
+ --> @dm:recall name="temp-irm-ready"
+ --> @dm:selectcolumns include="roomid|incidentid|state|resolved|priority|comments|resolution_code"
+ --> @agent:agent-irm:irmagent:updateIncidents
+ ## Record The Step
+
+ --> @dm:eval pipeline="'snow-to-oia'" & step="'IRM Updated'" & stage="'Updated Record'" & status_comments="'External:$ticket_number' + ',CFX:' + incidentid + ',State:' + state + ',Priority:' + priority" & status="'SUCCESS'"
+ --> @exec:run-pipeline name="oia-incident-status-tracker-stream" & ignore_failures="yes"
+ ## Notify Collab
+
+ --> @dm:recall name="temp-irm-ready"
+ --> @dm:copy-columns to="projectId" & from="project_id"
+ --> @dm:copy-columns to="source_system" & from="sourceName"
+ --> @dm:eval notification_subject="'Successfully updated Incident ' + incident_id"
+ --> @dm:eval notification_message="'Successfully updated Incident ' + incident_id"
+ --> @dm:eval summary="'Successfully Updated Incident ' + incident_id + ' with updates from External Ticket $ticket_number, System:' + sourceName"
+ --> @dm:map to="creator" & func="fixed" & value="RDA"
+ --> @dm:copy-columns to="notification_message" & from="summary"
+ --> @dm:selectcolumns include="notification_message|customerid|roomid|projectId|incidentid|summary|creator|notification_subject"
+ --> @rn:write-stream compression="auto" & name="oia-incident-collab-message-stream"
+ ## Record The Step
+
+ --> @dm:eval pipeline="'snow-to-oia'" & step="'Collab Notified'" & stage="'Collab Notified'" & status_comments="'Incident:$incident_id. External:$ticket_number' " & status="'SUCCESS'"
+ --> @exec:run-pipeline name="oia-incident-status-tracker-stream" & ignore_failures="yes"

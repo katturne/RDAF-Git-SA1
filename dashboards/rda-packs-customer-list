@@ -1,182 +1,449 @@
 {
-  "name": "rda-packs-customer-list",
-  "label": "Customer List RDA Packs",
-  "description": "RDA Packs: Customer List",
+  "name": "rda_system_single_snapshot_details",
+  "label": "Snapshot Details",
+  "description": "Snapshot Details",
   "dashboard_folder": "System",
+  "version": "1.0.2",
+  "live_edit": true,
   "enabled": false,
-  "stream": "rda_system_organizations",
-  "extra_filter": "customerName is not 'cfx_rda_quarantine'",
-  "dashboard_type": "dashboard",
+  "stream": "rda_system_snapshots_details",
+  "dashboard_type": "template",
+  "template_variables": {
+    "SNAPSHOT_NAME": {
+      "contextId": "snapshot_name"
+    }
+  },
   "dashboard_filters": {
     "time_filter": true,
     "default_time_filter_labels": [
-      "Last 12 months"
+      "All Time"
     ],
+    "extra_filter": "snapshot_name is '{{SNAPSHOT_NAME}}'",
     "columns_filter": [
       {
-        "id": "customerName",
-        "label": "Name",
+        "id": "artifact_name",
+        "label": "Artifact Name",
         "type": "TEXT"
       },
       {
-        "id": "tag1",
-        "label": "Tag",
+        "id": "artifact_type",
+        "label": "Artifact Type",
         "type": "TEXT"
+      },
+      {
+        "id": "artifact_version_visibility",
+        "label": "Artifact Checksum In Snapshot Repo",
+        "type": "TEXT"
+      },
+      {
+        "id": "checksum",
+        "label": "Checksum",
+        "type": "TEXT"
+      },
+      {
+        "id": "object_name",
+        "label": "Object Name",
+        "type": "TEXT"
+      },
+      {
+        "id": "snapshot_name",
+        "label": "Snapshot Name",
+        "type": "TEXT"
+      },
+      {
+        "id": "snapshot_type",
+        "label": "Snapshot Type",
+        "type": "TEXT"
+      },
+      {
+        "id": "size",
+        "label": "Size",
+        "type": "DOUBLE"
+      }
+    ],
+    "group_filters": [
+      {
+        "stream": "rda_system_snapshots_details",
+        "title": "Artifact Type",
+        "duration_hours": 87600,
+        "limit": 200,
+        "extra_filter": "snapshot_name is '{{SNAPSHOT_NAME}}'",
+        "group_by": [
+          "artifact_type"
+        ],
+        "ts_column": "timestamp",
+        "agg": "sum",
+        "column": "count_",
+        "type": "int"
+      },
+      {
+        "stream": "rda_system_snapshots_details",
+        "title": "Artifact Checksum In Snapshot Repo",
+        "duration_hours": 87600,
+        "limit": 200,
+        "extra_filter": "snapshot_name is '{{SNAPSHOT_NAME}}'",
+        "group_by": [
+          "artifact_version_visibility"
+        ],
+        "ts_column": "timestamp",
+        "agg": "sum",
+        "column": "count_",
+        "type": "int"
       }
     ]
   },
   "dashboard_sections": [
     {
-      "title": "RDA Packs Customer List",
+      "title": "rda_system_snapshots_details",
       "show_filter": true,
       "widgets": [
         {
-          "title": "Customer List",
-          "widget_type": "tabular",
-          "remote_searchable": true,
-          "remote_searchable_cols": [
-            "customerName",
-            "tag1",
-            "customerId"
-          ],
-          "sorting": [
+          "widget_type": "label",
+          "min_width": 3,
+          "height": 3,
+          "max_width": 6,
+          "label": "{% raw %}<div><div style='color: #00aa00; font-size: 20px;'>Changes Since Last Snapshot: {{new_count|int}}</div><div style='color: #888888; font-size: 20px;'>Unchanged: {{unchanged_count|int}}</div></div>{% endraw %}",
+          "segments": [
             {
-              "createdAt": "desc"
+              "stream": "rda_system_snapshots_details",
+              "variable": "new_count",
+              "ts_column": "timestamp",
+              "extra_filter": "artifact_version_visibility == 'new' AND snapshot_name is '{{SNAPSHOT_NAME}}'",
+              "agg": "sum",
+              "group_by0": "artifact_version_visibility",
+              "column": "count_"
+            },
+            {
+              "stream": "rda_system_snapshots_details",
+              "variable": "unchanged_count",
+              "ts_column": "timestamp",
+              "extra_filter": "artifact_version_visibility == 'unchanged' AND snapshot_name is '{{SNAPSHOT_NAME}}'",
+              "agg": "sum",
+              "group_by0": "artifact_version_visibility",
+              "column": "count_"
             }
           ],
-          "ts_column": "createdAt",
-          "paginated": true,
-          "height": 10,
+          "widget_id": "23af24fa"
+        },
+        {
+          "widget_type": "pie_chart",
+          "title": "Artifact Type",
+          "stream": "rda_system_snapshots_details",
+          "ts_column": "timestamp",
+          "extra_filter": "snapshot_name is '{{SNAPSHOT_NAME}}'",
+          "column": "count_",
+          "agg": "sum",
+          "group_by": [
+            "artifact_type"
+          ],
+          "type": "int",
+          "min_width": 3,
+          "height": 3,
+          "max_width": 6,
+          "widget_id": "cc2794c5"
+        },
+        {
+          "title": "Snapshot Manifest",
+          "widget_type": "tabular",
+          "duration_hours": 87600,
           "max_width": 12,
+          "height": 8,
           "min_width": 12,
-          "stream": "rda_system_organizations",
-          "extra_filter": "customerName is not 'cfx_rda_quarantine'",
+          "paginated": true,
+          "stream": "rda_system_snapshots_details",
+          "ts_column": "timestamp",
+          "extra_filter": "snapshot_name is '{{SNAPSHOT_NAME}}'",
           "columns": {
-            "customerName": {
-              "title": "Name",
+            "snapshot_type": {
+              "title": "Snapshot Type",
               "type": "TEXT",
-              "key": true,
               "hidden": false
             },
-            "tag1": {
-              "title": "Tag",
+            "snapshot_name": {
+              "title": "Snapshot Name",
               "type": "TEXT",
-              "key": true,
               "hidden": false
             },
-            "customerId": {
-              "title": "Customer ID",
+            "artifact_type": {
+              "title": "Artifact Type",
               "type": "TEXT",
-              "key": true,
+              "hidden": false,
+              "key": true
+            },
+            "artifact_name": {
+              "title": "Artifact Name",
+              "type": "TEXT",
+              "hidden": false,
+              "key": true
+            },
+            "artifact_version_visibility": {
+              "title": "Artifact Checksum In Snapshot Repo",
+              "type": "TEXT",
               "hidden": false
+            },
+            "size": {
+              "title": "Size",
+              "type": "DOUBLE",
+              "hidden": false
+            },
+            "checksum": {
+              "title": "Checksum",
+              "type": "TEXT",
+              "hidden": false
+            },
+            "object_name": {
+              "title": "Object Name",
+              "type": "TEXT",
+              "visible": false,
+              "key": true
+            },
+            "timestamp": {
+              "title": "Timestamp",
+              "type": "DATETIME"
             }
           },
           "actions": [
             {
-              "permission": "rda:rdapacks:view",
-              "appName": "user-dashboard/rda-packs-customer-all",
-              "drillDownLinkField": "customerName",
-              "identifier": "launch.dashboard.view-pack-detail",
+              "title": "View",
+              "type": "POPUP_FORM",
               "selectionType": "SINGLE",
-              "title": "Manage",
-              "contextParamList": {
-                "contextParams": [
+              "permission": "rda:dataset:view",
+              "identifier": "rda.saas.snapshot.obj.view",
+              "api-endpoint": {
+                "service-name": "saas-reports",
+                "methodName": "getForm",
+                "stringified-params": true,
+                "parse-output": false,
+                "params": [
                   {
-                    "paramKey": "tag1",
-                    "paramId": "customer_tag"
-                  },
-                  {
-                    "paramKey": "tag1",
-                    "paramId": "customerTag"
-                  },
-                  {
-                    "paramKey": "customerId",
-                    "paramId": "customer_id"
+                    "formId": "rda.saas.snapshot.obj.view"
                   }
                 ]
-              },
-              "type": "GO_TO_APP_STATE"
+              }
             }
           ],
-          "widget_id": "e55d1d08"
+          "widget_id": "7089a9ae"
+        },
+        {
+          "title": "Snapshot Errors",
+          "widget_type": "tabular",
+          "max_width": 12,
+          "height": 8,
+          "min_width": 12,
+          "paginated": true,
+          "stream": "rda_system_snapshots_errors",
+          "ts_column": "timestamp",
+          "extra_filter0": "snapshot_name is '{{SNAPSHOT_NAME}}'",
+          "columns": {
+            "snapshot_type": {
+              "title": "Snapshot Type",
+              "type": "TEXT",
+              "hidden": false
+            },
+            "snapshot_name": {
+              "title": "Snapshot Name",
+              "type": "TEXT",
+              "hidden": false
+            },
+            "artifact_type": {
+              "title": "Artifact Type",
+              "type": "TEXT",
+              "hidden": false
+            },
+            "artifact_name": {
+              "title": "Artifact Name",
+              "type": "TEXT",
+              "hidden": false
+            },
+            "message": {
+              "title": "Message",
+              "type": "TEXT",
+              "hidden": false
+            },
+            "timestamp": {
+              "title": "Timestamp",
+              "type": "DATETIME"
+            }
+          },
+          "widget_id": "53447b4f"
         }
       ]
     }
   ],
   "pstream_dashboards": [
     {
-      "title": "RDA Packs Customer List",
+      "title": "rda_system_snapshots_details",
       "show_filter": true,
       "widgets": [
         {
-          "title": "Customer List",
-          "widget_type": "tabular",
-          "remote_searchable": true,
-          "remote_searchable_cols": [
-            "customerName",
-            "tag1",
-            "customerId"
-          ],
-          "sorting": [
+          "widget_type": "label",
+          "min_width": 3,
+          "height": 3,
+          "max_width": 6,
+          "label": "{% raw %}<div><div style='color: #00aa00; font-size: 20px;'>Changes Since Last Snapshot: {{new_count|int}}</div><div style='color: #888888; font-size: 20px;'>Unchanged: {{unchanged_count|int}}</div></div>{% endraw %}",
+          "segments": [
             {
-              "createdAt": "desc"
+              "stream": "rda_system_snapshots_details",
+              "variable": "new_count",
+              "ts_column": "timestamp",
+              "extra_filter": "artifact_version_visibility == 'new' AND snapshot_name is '{{SNAPSHOT_NAME}}'",
+              "agg": "sum",
+              "group_by0": "artifact_version_visibility",
+              "column": "count_"
+            },
+            {
+              "stream": "rda_system_snapshots_details",
+              "variable": "unchanged_count",
+              "ts_column": "timestamp",
+              "extra_filter": "artifact_version_visibility == 'unchanged' AND snapshot_name is '{{SNAPSHOT_NAME}}'",
+              "agg": "sum",
+              "group_by0": "artifact_version_visibility",
+              "column": "count_"
             }
           ],
-          "ts_column": "createdAt",
-          "paginated": true,
-          "height": 10,
+          "widget_id": "23af24fa"
+        },
+        {
+          "widget_type": "pie_chart",
+          "title": "Artifact Type",
+          "stream": "rda_system_snapshots_details",
+          "ts_column": "timestamp",
+          "extra_filter": "snapshot_name is '{{SNAPSHOT_NAME}}'",
+          "column": "count_",
+          "agg": "sum",
+          "group_by": [
+            "artifact_type"
+          ],
+          "type": "int",
+          "min_width": 3,
+          "height": 3,
+          "max_width": 6,
+          "widget_id": "cc2794c5"
+        },
+        {
+          "title": "Snapshot Manifest",
+          "widget_type": "tabular",
+          "duration_hours": 87600,
           "max_width": 12,
+          "height": 8,
           "min_width": 12,
-          "stream": "rda_system_organizations",
-          "extra_filter": "customerName is not 'cfx_rda_quarantine'",
+          "paginated": true,
+          "stream": "rda_system_snapshots_details",
+          "ts_column": "timestamp",
+          "extra_filter": "snapshot_name is '{{SNAPSHOT_NAME}}'",
           "columns": {
-            "customerName": {
-              "title": "Name",
+            "snapshot_type": {
+              "title": "Snapshot Type",
               "type": "TEXT",
-              "key": true,
               "hidden": false
             },
-            "tag1": {
-              "title": "Tag",
+            "snapshot_name": {
+              "title": "Snapshot Name",
               "type": "TEXT",
-              "key": true,
               "hidden": false
             },
-            "customerId": {
-              "title": "Customer ID",
+            "artifact_type": {
+              "title": "Artifact Type",
               "type": "TEXT",
-              "key": true,
+              "hidden": false,
+              "key": true
+            },
+            "artifact_name": {
+              "title": "Artifact Name",
+              "type": "TEXT",
+              "hidden": false,
+              "key": true
+            },
+            "artifact_version_visibility": {
+              "title": "Artifact Checksum In Snapshot Repo",
+              "type": "TEXT",
               "hidden": false
+            },
+            "size": {
+              "title": "Size",
+              "type": "DOUBLE",
+              "hidden": false
+            },
+            "checksum": {
+              "title": "Checksum",
+              "type": "TEXT",
+              "hidden": false
+            },
+            "object_name": {
+              "title": "Object Name",
+              "type": "TEXT",
+              "visible": false,
+              "key": true
+            },
+            "timestamp": {
+              "title": "Timestamp",
+              "type": "DATETIME"
             }
           },
           "actions": [
             {
-              "permission": "rda:rdapacks:view",
-              "appName": "user-dashboard/rda-packs-customer-all",
-              "drillDownLinkField": "customerName",
-              "identifier": "launch.dashboard.view-pack-detail",
+              "title": "View",
+              "type": "POPUP_FORM",
               "selectionType": "SINGLE",
-              "title": "Manage",
-              "contextParamList": {
-                "contextParams": [
+              "permission": "rda:dataset:view",
+              "identifier": "rda.saas.snapshot.obj.view",
+              "api-endpoint": {
+                "service-name": "saas-reports",
+                "methodName": "getForm",
+                "stringified-params": true,
+                "parse-output": false,
+                "params": [
                   {
-                    "paramKey": "tag1",
-                    "paramId": "customer_tag"
-                  },
-                  {
-                    "paramKey": "tag1",
-                    "paramId": "customerTag"
-                  },
-                  {
-                    "paramKey": "customerId",
-                    "paramId": "customer_id"
+                    "formId": "rda.saas.snapshot.obj.view"
                   }
                 ]
-              },
-              "type": "GO_TO_APP_STATE"
+              }
             }
           ],
-          "widget_id": "e55d1d08"
+          "widget_id": "7089a9ae"
+        },
+        {
+          "title": "Snapshot Errors",
+          "widget_type": "tabular",
+          "max_width": 12,
+          "height": 8,
+          "min_width": 12,
+          "paginated": true,
+          "stream": "rda_system_snapshots_errors",
+          "ts_column": "timestamp",
+          "extra_filter0": "snapshot_name is '{{SNAPSHOT_NAME}}'",
+          "columns": {
+            "snapshot_type": {
+              "title": "Snapshot Type",
+              "type": "TEXT",
+              "hidden": false
+            },
+            "snapshot_name": {
+              "title": "Snapshot Name",
+              "type": "TEXT",
+              "hidden": false
+            },
+            "artifact_type": {
+              "title": "Artifact Type",
+              "type": "TEXT",
+              "hidden": false
+            },
+            "artifact_name": {
+              "title": "Artifact Name",
+              "type": "TEXT",
+              "hidden": false
+            },
+            "message": {
+              "title": "Message",
+              "type": "TEXT",
+              "hidden": false
+            },
+            "timestamp": {
+              "title": "Timestamp",
+              "type": "DATETIME"
+            }
+          },
+          "widget_id": "53447b4f"
         }
       ]
     }
