@@ -1,0 +1,179 @@
+
+ ## get the uploaded sw data
+@c:new-block
+ --> @exec:get-input
+ --> @dm:add-missing-columns columns="key" and value='key'
+ --> @dm:add-missing-columns columns="source" and value='software'
+ --> @dm:eval sw_os_type="('IOS XR' if sw_os_type=='IOS-XR' else sw_os_type)"
+ --> @dm:save name='temp-uploaded-data'
+ ## declaring child pipelines
+
+ --> @c:new-block
+ --> @dm:empty
+ --> @exec:define-function name="define_child_pipelines"
+ --> @exec:run-pipeline name ="edc_oi_get_product_alerts" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_oi_product_alerts_raw" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_oi_product_alerts_run_scan" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_oi_generate_token" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_oi_process_sw_data" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_oi_get_sweol_data" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_oi_get_security_advisories_data" & ignore_failures = "no"
+ --> @exec:end-function
+ ## function to generate the access token
+
+ --> @c:new-block
+ --> @dm:empty
+ --> @exec:define-function name="generate_access_token"
+ --> @dm:recall name='generate_token_creds'
+ --> @exec:run-pipeline name ="edc_oi_generate_token" & ignore_failures = "no"
+ --> @dm:addrow key='key'
+ --> @dm:eval current_time_ms="int(time_now_as_ms())"
+ --> @dm:eval token_expiry_time='current_time_ms+3000000'
+ --> @dm:save name='temp-token-details'
+ --> @exec:end-function
+ ## get the dataset with unique sw_version,sw_os_type,product_id combinations to make the API call
+
+ --> @c:new-block
+ --> @dm:recall name='temp-uploaded-data'
+ --> @dm:add-missing-columns columns="key" and value='key'
+ --> @dm:manipulate-string from="sw_version,sw_os_type,product_id" and func="concat_columns" and to="unique_payload_inputs"
+ --> @dm:dedup columns ='unique_payload_inputs'
+ --> @dm:save name='temp-unique-rows-list'
+ ## gneerate the access token
+
+ --> @c:new-block
+ --> @dm:empty
+ --> @exec:call-function name='generate_access_token'
+ ## get the API output for the above created dataset
+
+ --> @c:data-loop columns='sw_version,sw_os_type,product_id,source' and dataset='temp-unique-rows-list'
+ ## --> @dm:recall name='temp-unique-rows-list'
+
+ --> @dm:empty
+ --> @dm:addrow key='key'
+ --> @dm:eval current_time_ms_loop="int(time_now_as_ms())"
+ --> @dm:save name='temp-current-time'
+ --> @dm:enrich dict='temp-token-details' and src_key_cols='key' and dict_key_cols='key' and enrich_cols='token_expiry_time,access_token,expires_in,token_type'
+ --> *exec:if-condition token_expiry_time is null or current_time_ms_loop  is greater than or equal to token_expiry_time
+ --> @exec:call-function name='generate_access_token'
+ --> @exec:end-if
+ --> @dm:dropnull columns='access_token'
+ --> @dm:add-missing-columns columns='sw_version' and value='$sw_version'
+ --> @dm:add-missing-columns columns='sw_os_type' and value='$sw_os_type'
+ --> @dm:add-missing-columns columns='product_id' and value='$product_id'
+ --> @dm:add-missing-columns columns='source' and value='$source'
+ --> *exec:if-condition sw_version is not null and sw_os_type is not null and product_id is not null
+ --> @exec:run-pipeline name ="edc_oi_product_alerts_run_scan" & ignore_failures = "yes"
+ --> @dm:save name='temp-token-updates'
+ --> @dm:save name='temp-api-op-before-explode' and append='yes'
+ --> @exec:end-if
+ --> @c:new-block
+ --> @dm:recall name='temp-api-op-before-explode'
+ --> @dm:save name='api-op-raw'
+ ## filter out the rows whose API output is empty
+
+ --> @c:new-block
+ --> @dm:recall name='temp-api-op-before-explode'
+ --> @dm:dedup columns='product_id,sw_os_type,sw_version'
+ --> @dm:copy-columns from='issues' and to='issues_str'
+ --> @dm:to-type columns='issues_str' and type='str'
+ --> *dm:filter issues_str is '[]'
+ --> @dm:selectcolumns exclude='^issues_str$|^timestampl$'
+ --> @dm:save name='temp-api-op-before-explode-empty'
+ ## enrich to add API output to rows with same sw_version,sw_os_type,product_id combination but different contract_number
+
+ --> @c:new-block
+ --> @dm:recall name='temp-api-op-before-explode-empty'
+ --> *exec:if-condition source=='software'
+ --> @dm:recall name='temp-uploaded-data'
+ --> @dm:enrich dict='temp-api-op-before-explode-empty' and src_key_cols='product_id,sw_os_type,sw_version' and dict_key_cols='product_id,sw_os_type,sw_version' and enrich_cols='issues,transaction_id,id,last_updated_time' and how_type='inner' and dedup_dict='no'
+ --> @dm:add-missing-columns columns="sw_status,lastDayOfSupportDate,EndOfSoftwareVulnerabilityOrSecuritySupportDate,endOfSoftwareMaintenanceReleasesDate,endOfServiceContractRenewalDate,endOfNewServiceAttachmentDate,endOfLifeAnnouncementDate,endOfSaleDate,bulletinUrl,bulletinNumber,bulletinTitle,softwareEOXId"
+ --> @dm:eval sw_status="'No EOL'"
+ --> @dm:fixnull columns="sw_status,lastDayOfSupportDate,EndOfSoftwareVulnerabilityOrSecuritySupportDate,endOfSoftwareMaintenanceReleasesDate,endOfServiceContractRenewalDate,endOfNewServiceAttachmentDate,endOfLifeAnnouncementDate,endOfSaleDate,bulletinUrl,bulletinNumber,bulletinTitle,softwareEOXId" and value="Not Available" and apply_for_empty="yes"
+ --> @dm:save name='temp-api-exploded-empty-sw'
+ --> @dm:save name='api-exploded-empty-sw'
+ --> @exec:end-if
+ --> @c:new-block
+ --> @dm:recall name='temp-api-op-before-explode-empty'
+ --> *exec:if-condition source=='security_advisory'
+ --> @dm:recall name='temp-uploaded-data'
+ --> @dm:enrich dict='temp-api-op-before-explode-empty' and src_key_cols='product_id,sw_os_type,sw_version' and dict_key_cols='product_id,sw_os_type,sw_version' and enrich_cols='issues,transaction_id,id,last_updated_time' and how_type='inner' and dedup_dict='no'
+ --> @dm:add-missing-columns columns="PsirtID,BulletinURL,advisoryId,AdvisoryId,bulletinTitle,SeverityLevelName,matchConfidence"
+ --> @dm:fixnull columns="PsirtID,BulletinURL,advisoryId,AdvisoryId,bulletinTitle,SeverityLevelName,matchConfidence" and value="Not Available" and apply_for_empty="yes"
+ --> @dm:save name='temp-api-exploded-empty-sa'
+ --> @dm:save name='api-exploded-empty-sa'
+ --> @exec:end-if
+ ## filter out the rows whose API output is not empty
+
+ --> @c:new-block
+ --> @dm:recall name='temp-api-op-before-explode'
+ --> @dm:dedup columns='product_id,sw_os_type,sw_version'
+ --> @dm:copy-columns from='issues' and to='issues_str'
+ --> @dm:to-type columns='issues_str' and type='str'
+ --> *dm:filter issues_str is not '[]'
+ --> @dm:selectcolumns exclude='^issues_str$|^timestampl$'
+ --> @dm:save name='temp-api-op-before-explode-dedup'
+ ## enrich to add API output to rows with same sw_version,sw_os_type,product_id combination but different contract_number
+
+ --> @c:new-block
+ --> @dm:recall name='temp-uploaded-data'
+ --> @dm:enrich dict='temp-api-op-before-explode-dedup' and src_key_cols='product_id,sw_os_type,sw_version' and dict_key_cols='product_id,sw_os_type,sw_version' and enrich_cols='issues,transaction_id,id,last_updated_time' and how_type='inner' and dedup_dict='no'
+ --> @dm:save name='temp-edc-run-scan-op-enriched'
+ ## Explode the API output for software data
+
+ --> @c:new-block
+ --> @dm:recall name='temp-edc-run-scan-op-enriched'
+ --> *exec:if-condition source=='software'
+ --> @dm:recall name='temp-edc-run-scan-op-enriched'
+ --> @dm:save name='sw-be-edc-run-scan-op-enriched'
+ ## --> @dm:eval issues='eval(issues)'
+
+ --> @dm:eval issues='json_dumps(issues)'
+ --> @dm:explode-json column="issues"
+ --> @dm:eval eoXAlert='json_dumps(eoXAlert)'
+ --> @dm:explode-json column="eoXAlert"
+ --> @dm:selectcolumns exclude='^timestamp$'
+ --> @dm:save name='temp-exploded-api-op'
+ ## --> @dm:save name='exploded-api-op-sw'
+
+ --> @exec:end-if
+ ## Logging the repeated counts of the data from run scan api
+
+ --> @c:new-block
+ --> @dm:recall name='temp-edc-run-scan-op-enriched'
+ --> *exec:if-condition source=='software'
+ --> @dm:recall name="temp-exploded-api-op"
+ --> @dm:to-type columns="BulletinNumber" and type="str"
+ --> @dm:implode key_columns='product_id,sw_version,sw_os_type' and merge_columns='BulletinNumber' and dedup_merge_values='no' and keep_columns='id,transaction_id'
+ --> @dm:eval BulletinNumber="str(BulletinNumber).split(',')"
+ --> @dm:eval total_records = "len(BulletinNumber)"
+ --> *dm:filter total_records > 1
+ --> @dm:skip-block-if-shape row_count=0
+ --> @dm:eval duplicate_record_count="total_records-1"
+ --> @dm:eval unique_key="str(product_id)+'_'+str(sw_version)+'_'+str(sw_os_type)"
+ --> @rn:write-stream name="edc_run_scan_duplicate_records"
+ --> @exec:end-if
+ ## Explode the API output for security advisory data
+
+ --> @c:new-block
+ --> @dm:recall name='temp-edc-run-scan-op-enriched'
+ --> *exec:if-condition source=='security_advisory'
+ --> @dm:recall name='temp-edc-run-scan-op-enriched'
+ --> @dm:eval issues='json_dumps(issues)'
+ --> @dm:explode-json column="issues"
+ --> @dm:eval psirtAlert='json_dumps(psirtAlert)'
+ --> @dm:explode-json column="psirtAlert"
+ --> @dm:selectcolumns exclude='^timestamp$'
+ --> @dm:save name='temp-exploded-api-op'
+ ## --> @dm:save name='exploded-api-op-sa'
+
+ --> @exec:end-if
+ --> @c:new-block
+ --> @dm:recall name="temp-exploded-api-op"
+ --> @dm:save name='temp-api-exploded-not-empty'
+ ## --> @dm:save name='api-exploded-not-empty'
+
+ --> @c:new-block
+ --> @dm:concat names='temp-api-exploded-.*'
+ --> @dm:save name='temp-api-response'
+ --> @dm:save name='api-response'
