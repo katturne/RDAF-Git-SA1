@@ -1,31 +1,38 @@
 {
-  "name": "incident-details-alerts",
-  "label": "Incident Alerts",
-  "description": "OIA Alerts in Incident",
-  "version": "23.2.13",
+  "name": "oia-alert-group-view-details-os",
+  "label": "OIA Alert Group View details",
+  "description": "OIA Alert Group View details Dashboard",
+  "version": "23.1.2",
   "enabled": true,
-  "exportable": false,
   "dashboard_style": "auto",
+  "status_poller": {},
+  "stream": "oia-alerts-stream",
   "dashboard_type": "template",
   "template_variables": {
     "PROJECT_ID": {
       "default": null,
-      "contextId": "projectid"
+      "contextId": "project_id"
+    },
+    "CORRELATION_PARENT_ID": {
+      "default": null,
+      "contextId": "a_id",
+      "type": "stack"
     },
     "INCIDENT_ID": {
       "default": null,
-      "contextId": "incidentid"
+      "contextId": "a_incident_id",
+      "type": "stack"
     },
     "SOURCE_DASHBOARD_ID": {
-      "default": "user-dashboard-incident-details-alerts",
+      "default": "user-dashboard-oia-alert-group-view-details-os",
       "contextId": "sourceDashboardId"
     }
   },
-  "custom_context": {
-    "alert-context": true
-  },
   "dashboard_filters": {
     "time_filter": false,
+    "extra_filter": "a_correlation_parent is '{{CORRELATION_PARENT_ID}}'",
+    "default_time_filter_non_removable": true,
+    "show_default_time_filter": false,
     "additional_datetime_column_filters": [
       {
         "id": "a_created_ts",
@@ -267,33 +274,92 @@
         "label": "Revived From Policy",
         "type": "TEXT"
       }
-    ],
-    "extra_filter": "a_source_systemname is not-in 'Alert Group' and a_correlation_status not-in 'AGGREGATE' and project_id is '{{PROJECT_ID}}' and a_incident_id is '{{INCIDENT_ID}}'"
+    ]
   },
   "import": [
     {
       "from": "oia-alerts-os",
       "as": "alerts"
+    },
+    {
+      "from": "oia-alerts-os",
+      "as": "alerts_source_timeseries"
+    },
+    {
+      "from": "oia-alerts-os",
+      "as": "alerts_severity_timeseries"
     }
   ],
   "dashboard_sections": [
     {
       "title": "alerts",
       "show_filter": true,
+      "projects": [
+        "ACME"
+      ],
       "widgets": [
         {
-          "extends": [
-            "alerts:alerts_tabular",
-            "alerts:actions_lib.alerts_tabular_actions"
-          ],
-          "extend_vars": {
-            "alerts_tabular_extra_filter": "a_source_systemname is not-in 'Alert Group' and a_correlation_status not-in 'AGGREGATE' and project_id is '{{PROJECT_ID}}' and a_incident_id is '{{INCIDENT_ID}}'",
-            "clear_alerts_extra_filter": "a_status is not 'CLEARED' and a_source_systemname is not-in 'Alert Group' and a_correlation_status not-in 'AGGREGATE' and project_id is '{{PROJECT_ID}}' and a_incident_id is '{{INCIDENT_ID}}'"
-          },
+          "title": "Correlated Alerts",
+          "widget_type": "custom_counter",
+          "stream": "oia-alerts-stream",
+          "max_width": 4,
+          "height": 3,
+          "min_width": 4,
+          "ts_column": "a_updated_ts",
+          "duration_hours": 1000,
+          "column": "a_id",
+          "agg": "cardinality",
+          "type": "str",
+          "widget_id": "02be1e20"
+        },
+        {
+          "title": "Impacted Assets",
+          "widget_type": "custom_counter",
+          "stream": "oia-alerts-stream",
+          "max_width": 4,
+          "height": 3,
+          "min_width": 4,
+          "ts_column": "a_updated_ts",
+          "duration_hours": 1000,
+          "column": "a_asset_name",
+          "agg": "cardinality",
+          "type": "str",
+          "widget_id": "c1343580"
+        },
+        {
+          "title": "Alert Sources",
+          "widget_type": "custom_counter",
+          "stream": "oia-alerts-stream",
+          "max_width": 4,
+          "height": 3,
+          "min_width": 4,
+          "ts_column": "a_updated_ts",
+          "duration_hours": 1000,
+          "column": "a_source_systemname",
+          "agg": "cardinality",
+          "type": "str",
+          "widget_id": "7d509138"
+        },
+        {
+          "extends": "alerts_source_timeseries:alerts_by_source_timeseries",
+          "min_width": 6,
+          "height": 6,
+          "max_width": 6,
+          "widget_id": "94a3fc11"
+        },
+        {
+          "extends": "alerts_severity_timeseries:alerts_by_severity_timeseries",
+          "min_width": 6,
+          "height": 6,
+          "max_width": 6,
+          "widget_id": "1b94aab1"
+        },
+        {
+          "extends": "alerts:alerts_tabular",
           "min_width": 12,
           "height": 12,
           "max_width": 12,
-          "widget_id": "94a3fc11"
+          "widget_id": "13ef28ac"
         }
       ]
     }
@@ -302,20 +368,72 @@
     {
       "title": "alerts",
       "show_filter": true,
+      "projects": [
+        "ACME"
+      ],
       "widgets": [
         {
-          "extends": [
-            "alerts:alerts_tabular",
-            "alerts:actions_lib.alerts_tabular_actions"
-          ],
-          "extend_vars": {
-            "alerts_tabular_extra_filter": "a_source_systemname is not-in 'Alert Group' and a_correlation_status not-in 'AGGREGATE' and project_id is '{{PROJECT_ID}}' and a_incident_id is '{{INCIDENT_ID}}'",
-            "clear_alerts_extra_filter": "a_status is not 'CLEARED' and a_source_systemname is not-in 'Alert Group' and a_correlation_status not-in 'AGGREGATE' and project_id is '{{PROJECT_ID}}' and a_incident_id is '{{INCIDENT_ID}}'"
-          },
+          "title": "Correlated Alerts",
+          "widget_type": "custom_counter",
+          "stream": "oia-alerts-stream",
+          "max_width": 4,
+          "height": 3,
+          "min_width": 4,
+          "ts_column": "a_updated_ts",
+          "duration_hours": 1000,
+          "column": "a_id",
+          "agg": "cardinality",
+          "type": "str",
+          "widget_id": "02be1e20"
+        },
+        {
+          "title": "Impacted Assets",
+          "widget_type": "custom_counter",
+          "stream": "oia-alerts-stream",
+          "max_width": 4,
+          "height": 3,
+          "min_width": 4,
+          "ts_column": "a_updated_ts",
+          "duration_hours": 1000,
+          "column": "a_asset_name",
+          "agg": "cardinality",
+          "type": "str",
+          "widget_id": "c1343580"
+        },
+        {
+          "title": "Alert Sources",
+          "widget_type": "custom_counter",
+          "stream": "oia-alerts-stream",
+          "max_width": 4,
+          "height": 3,
+          "min_width": 4,
+          "ts_column": "a_updated_ts",
+          "duration_hours": 1000,
+          "column": "a_source_systemname",
+          "agg": "cardinality",
+          "type": "str",
+          "widget_id": "7d509138"
+        },
+        {
+          "extends": "alerts_source_timeseries:alerts_by_source_timeseries",
+          "min_width": 6,
+          "height": 6,
+          "max_width": 6,
+          "widget_id": "94a3fc11"
+        },
+        {
+          "extends": "alerts_severity_timeseries:alerts_by_severity_timeseries",
+          "min_width": 6,
+          "height": 6,
+          "max_width": 6,
+          "widget_id": "1b94aab1"
+        },
+        {
+          "extends": "alerts:alerts_tabular",
           "min_width": 12,
           "height": 12,
           "max_width": 12,
-          "widget_id": "94a3fc11"
+          "widget_id": "13ef28ac"
         }
       ]
     }
