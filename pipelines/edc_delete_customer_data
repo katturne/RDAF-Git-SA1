@@ -1,96 +1,58 @@
-
- ## --> @dm:save name="test-retrieve-dataset-first-childpl"
-@c:new-block
- --> @dm:recall name="edc_customer_names"
- ## --> @dm:recall name="temp-retrieve-dataset"
-
- --> *dm:filter savm_level =="SAVM_SALES_LEVEL_4_NAME"
- --> *dm:filter savm_name =="STR_ASP ATT"
- --> @dm:save name='temp-level4-name'
+@dm:empty
+ --> @exec:get-input
+ --> @dm:save name="temp-dataset"
  --> @c:new-block
- --> @dm:recall name="edc_customer_names"
- ## --> @dm:recall name="temp-retrieve-dataset"
+ --> @dm:recall name="temp-dataset"
+ --> @dm:check_columns must_contain = 'customer' &action ='skip-block'
+ ## --> @dm:save name="test-del-dataset"
 
- --> *dm:filter savm_level =="SAVM_SALES_LEVEL_5_NAME"
- --> @dm:save name='temp-level5-name'
- --> @c:new-block
- --> @dm:recall name="edc_customer_names"
- ## --> @dm:recall name="temp-retrieve-dataset"
-
- --> *dm:filter savm_level =="SAVM_SALES_LEVEL_6_NAME"
- --> @dm:save name='temp-level6-name'
+ --> @dm:save name="temp-del-dataset"
  --> @c:new-block
  --> @dm:empty
  --> @dm:save name='edc_status'
- --> @dm:save name='edc_status'
- --> @c:data-loop columns='savm_name,customer' and dataset='temp-level4-name' and return_empty='yes'
+ ## delete enriched stream
+
+ --> @c:data-loop columns='customer' and dataset='temp-del-dataset' and return_empty='yes'
+ ## --> @dm:recall name="temp-row-del-dataset"
+
+ ## --> @dm:check_columns must_contain = 'customer' &action ='skip-block'
+
+ ## --> *dm:filter customer_name = '$customer_name'
+
  --> @dm:recall name='edc_status' and return_empty = 'yes'
  --> @dm:addrow dummy='key'
  --> @dm:add-missing-columns columns='customer_name' and  value="$customer"
- --> @dm:manipulate-string to="status" and func="eval" and value="'Starting to fetch the data'"
+ --> @dm:manipulate-string to="status" and func="eval" and value="'Starting to delete the data'"
  --> @rn:write-stream name ='edc_update_status'
- --> @snowflake:native-query dbname is "CX_DB" and warehouse is "CX_DMP_RPT_WH" and query is "WITH ranked_rows AS (SELECT INSTANCE_ID, GU_NAME, SAVM_SALES_LEVEL_4_NAME, CONTRACT_NUMBER, PRODUCT_NAME, COVERAGE, COVERED_LINE_STATUS, BUSINESS_ENTITY, BUSINESS_SUB_ENTITY, BK_END_OF_LIFE_REQUEST_NUM, BK_EOL_BULLETIN_PRODUCT_TYP_CD, END_OF_NEW_SVC_ATTACHMENT_DT, END_OF_ROUTINE_FAIL_ANLYSYS_DT, END_OF_SOFTWARE_MAINTENANCE_DT, END_OF_SVC_CONTRACT_RNWL_DT, EOL_EXTERNAL_ANNOUNCE_DT, EOL_PRODUCT_NAME, ITEM_TYPE, LAST_DATE_OF_SALE, LAST_DATE_OF_SUPPORT, PRODUCT_DESCRIPTION, PRODUCT_FAMILY, PRODUCT_FAMILY_DESCRIPTION, PRODUCT_TYPE,  PRODUCT_LIST_PRICE, ASSET_TYPE, PORTFOLIO_DESC, USAGE_CODE, ROW_NUMBER() OVER (PARTITION BY INSTANCE_ID ORDER BY COVERED_LINE_STATUS ASC ) AS row_num FROM CX_DB.CX_DMP_BR.PV_DMP_ASSET WHERE SAVM_SALES_LEVEL_4_NAME = '$savm_name'  AND ASSET_TYPE = 'Hardware'), UniqueCombinations AS (    SELECT GU_NAME, SAVM_SALES_LEVEL_4_NAME, CONTRACT_NUMBER, PRODUCT_NAME, COVERAGE, COVERED_LINE_STATUS, BUSINESS_ENTITY, BUSINESS_SUB_ENTITY, PRODUCT_LIST_PRICE, COALESCE(CONTRACT_NUMBER, COVERED_LINE_STATUS, PRODUCT_LIST_PRICE), COUNT(*) AS combination_count    FROM ranked_rows    WHERE SAVM_SALES_LEVEL_4_NAME = '$savm_name'      AND ASSET_TYPE = 'Hardware' AND row_num = 1   GROUP BY GU_NAME, SAVM_SALES_LEVEL_4_NAME, CONTRACT_NUMBER, PRODUCT_NAME, COVERAGE, COVERED_LINE_STATUS, BUSINESS_ENTITY, BUSINESS_SUB_ENTITY, PRODUCT_LIST_PRICE) SELECT DISTINCT a.GU_NAME, a.SAVM_SALES_LEVEL_4_NAME, a.CONTRACT_NUMBER, a.PRODUCT_NAME, a.COVERAGE, a.COVERED_LINE_STATUS, a.BUSINESS_ENTITY, a.BUSINESS_SUB_ENTITY, a.BK_END_OF_LIFE_REQUEST_NUM, a.BK_EOL_BULLETIN_PRODUCT_TYP_CD, a.END_OF_NEW_SVC_ATTACHMENT_DT, a.END_OF_ROUTINE_FAIL_ANLYSYS_DT, a.END_OF_SOFTWARE_MAINTENANCE_DT, a.END_OF_SVC_CONTRACT_RNWL_DT, a.EOL_EXTERNAL_ANNOUNCE_DT, a.EOL_PRODUCT_NAME, a.ITEM_TYPE, a.LAST_DATE_OF_SALE, a.LAST_DATE_OF_SUPPORT, a.PRODUCT_DESCRIPTION, a.PRODUCT_FAMILY, a.PRODUCT_FAMILY_DESCRIPTION, a.PRODUCT_TYPE,  a.PRODUCT_LIST_PRICE , a.PORTFOLIO_DESC, a.USAGE_CODE, u.combination_count FROM ranked_rows a LEFT JOIN UniqueCombinations u ON a.GU_NAME = u.GU_NAME AND a.SAVM_SALES_LEVEL_4_NAME = u.SAVM_SALES_LEVEL_4_NAME AND COALESCE(a.CONTRACT_NUMBER, 'NULL') = COALESCE(u.CONTRACT_NUMBER, 'NULL') AND a.PRODUCT_NAME = u.PRODUCT_NAME AND a.COVERAGE = u.COVERAGE AND COALESCE(a.COVERED_LINE_STATUS, 'NULL') = COALESCE(u.COVERED_LINE_STATUS, 'NULL') AND a.BUSINESS_ENTITY = u.BUSINESS_ENTITY AND a.BUSINESS_SUB_ENTITY = u.BUSINESS_SUB_ENTITY AND COALESCE(a.PRODUCT_LIST_PRICE, 0) = COALESCE(u.PRODUCT_LIST_PRICE, 0) WHERE a.SAVM_SALES_LEVEL_4_NAME = '$savm_name'  AND a.row_num = 1;"
- --> @dm:eval timestamp = "utc_time_now_as_isoformat()"
- --> @dm:add-missing-columns columns="execution_status"
- --> *dm:filter execution_status =="Success"
- --> @dm:skip-block-if-shape column_count = 3
- --> @dm:to_type columns = 'product_list_price,combination_count' & type  = 'int'
- --> @dm:fixnull columns="product_list_price" and value="0" and apply_for_empty="yes"
- --> @dm:save name="edc_inventory"
- --> @dm:fixnull columns="covered_line_status,coverage,portfolio_desc,usage_code" and value="Not Available" and apply_for_empty="yes"
- --> @dm:eval total_product_list_price = "(product_list_price * combination_count)"
- ## create column for unique customer
-
- --> @dm:manipulate-string to="customer_name" and func="eval" and value="'$customer'"
- ## new column product_id
-
- --> @dm:copy-columns from="product_name" and to="product_id"
- --> @dm:eval product_id = "product_id.replace('=', '')"
- --> @dm:eval tokens = "product_id.rsplit('-', 1)"
- --> @dm:eval product_id = "tokens[0] if len(tokens) > 1 and tokens[1] in ['RF'] else product_id"
- --> @dm:selectcolumns exclude = "tokens"
- --> @dm:eval unique_key = "str(gu_name) + str(savm_sales_level_4_name) + str(contract_number) + str(product_name) + str(coverage) + str (covered_line_status) + str(business_entity) + str (business_sub_entity) + str (product_list_price)"
- --> @dm:change-time-format columns="end_of_new_svc_attachment_dt,end_of_routine_fail_anlysys_dt,end_of_software_maintenance_dt,end_of_svc_contract_rnwl_dt,eol_external_announce_dt,last_date_of_sale,last_date_of_support" and from_format="datetimestr" and to_format="%Y-%m-%d"
- --> @dm:save name="temp-edc-inventory-level4"
- ## --> @dm:selectcolumns include="contract_number|product_name|coverage|covered_line_status|business_entity|business_sub_entity	bk_end_of_life_request_num|bk_eol_bulletin_product_typ_cd|end_of_new_svc_attachment_dt"
-
- ## --> @rn:write-stream name="edc_oi_inventory_grouped"
-
- --> @rn:write-stream name="edc_oi_inventory_grouped" and direct_to_opensearch="yes"
- --> @dm:recall name='edc_status' and return_empty = 'yes'
- --> @dm:addrow dummy='key'
- --> @dm:add-missing-columns columns='customer_name' and  value="$customer"
- --> @dm:manipulate-string to="status" and func="eval" and value="'Data fetch completed'"
- --> @rn:write-stream name ='edc_update_status'
- --> @dm:recall name='edc_status' and return_empty = 'yes'
- --> @dm:addrow dummy='key'
- --> @dm:manipulate-string to="status" and func="eval" and value="'Processing EOL data'"
- --> @dm:add-missing-columns columns='customer_name' and  value="$customer"
- --> @rn:write-stream name ='edc_update_status'
- --> @dm:recall name='temp-edc-inventory-level4'
- --> @exec:run-pipeline name='edc_combined'
- ## Process data for Unique PIDs. We use product_id to consolidate similar PIDs.
-
- --> @c:data-loop columns='customer' and dataset='edc_customer_names'
  --> @dm:empty
- --> @dm:addrow name="edc_oi_inventory_grouped" and limit=0
- --> #dm:query-persistent-stream customer_name="$customer" and item_type is 'CHASSIS' and product_type in ['ROUTER','SWITCH','FUNCSYSTM','MULTIPROD'] and coverage is 'COVERED'
- --> @dm:save name='temp-unique-customer-pid' and append = "yes"
- --> @c:new-block
- --> @dm:recall name="temp-unique-customer-pid"
- --> *dm:filter contract_number is not NULL
- --> @dm:selectcolumns include='customer_name|contract_number|product_name|product_id|combination_count'
- --> @dm:groupby columns ="customer_name,contract_number,product_name,product_id" and agg="sum"
- --> @dm:add-missing-columns columns="sw_os_type,sw_version"
- --> @dm:eval unique_key = "str(customer_name) + str(contract_number) + str(product_name)"
- --> @dm:save name='temp-unique-customer-pid'
- ## Delete old records
-
- --> @c:new-block
+ --> @dm:addrow name = "edc_oi_inventory_grouped" & conflicts = "proceed" & timeout = 1200
+ --> #dm:pstream-delete-data-by-query customer_name=="$customer"
  --> @dm:empty
- --> @dm:addrow name='edc_cust_contract_pid'
- --> #dm:pstream-delete-data-by-query customer_name is not None
+ --> @dm:addrow name = "edc_oi_inventory_enriched" & conflicts = "proceed" & timeout = 1200
+ --> #dm:pstream-delete-data-by-query customer_name=="$customer"
  --> @dm:sleep seconds = 5
+ --> @dm:recall name='edc_status' and return_empty = 'yes'
+ --> @dm:addrow dummy='key'
+ --> @dm:add-missing-columns columns='customer_name' and  value="$customer"
+ --> @dm:manipulate-string to="status" and func="eval" and value="'Completed data deletion'"
+ --> @rn:write-stream name ='edc_update_status'
  --> @c:new-block
- --> @dm:recall name="temp-unique-customer-pid"
- --> @rn:write-stream name='edc_cust_contract_pid' and direct_to_opensearch="yes"
+ --> @dm:recall name="temp-del-dataset"  and return_empty='yes'
+ --> @dm:check_columns must_not_contain = 'customer' &action ='skip-block'
+ --> @dm:recall name='edc_status' and return_empty = 'yes'
+ --> @dm:addrow dummy='key'
+ --> @dm:add-missing-columns columns='customer_name' and  value="$customer"
+ --> @dm:manipulate-string to="status" and func="eval" and value="'Starting to delete data for all customers'"
+ --> @rn:write-stream name ='edc_update_status'
+ --> @dm:empty
+ --> @dm:addrow name = "edc_oi_inventory_grouped" & conflicts = "proceed" & timeout = 1200
+ --> #dm:pstream-delete-data-by-query count_ is 1
+ --> @dm:empty
+ --> @dm:addrow name = "edc_oi_inventory_enriched" & conflicts = "proceed" & timeout = 1200
+ --> #dm:pstream-delete-data-by-query count_ is 1
+ --> @dm:sleep seconds = 5
+ --> @dm:recall name='edc_status' and return_empty = 'yes'
+ --> @dm:addrow dummy='key'
+ --> @dm:add-missing-columns columns='customer_name' and  value="$customer"
+ --> @dm:manipulate-string to="status" and func="eval" and value="'Data deleted for all customers'"
+ --> @rn:write-stream name ='edc_update_status'

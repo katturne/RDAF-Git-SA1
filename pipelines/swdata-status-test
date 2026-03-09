@@ -1,23 +1,14 @@
-folder: Default
-name: xnor_pack_run_collection_pipeline
-description: test pipeline
-data_path: pipelines/data/xnor_pack_run_collection_pipeline/2025.05.26.1/data.json
-usecase: ''
-category: ''
-sources: {}
-artifacts:
-- artifact_type: dataset
-  artifact_name: test-spilt-rules
-  access: write
-- artifact_type: dataset
-  artifact_name: xnor-upgrade-details
-  access: write
-- artifact_type: dataset
-  artifact_name: test-split-command
-  access: write
-- artifact_type: pipeline
-  artifact_name: xnor_pack_command_collection_main
-  access: read
-version: 2025.05.26.1
-file_type: json
-checksum: 969ab174
+@dm:empty
+ --> @dm:recall name="10dataset"
+ --> @dm:save name="test-status"
+ --> @dm:sleep seconds = 20
+ --> #dm:query-persistent-stream pipeline_name is "swdata-status-test" with-input name="rda_system_worker_traces"
+ --> @dm:sort columns = 'timestamp' and order = "descending"
+ --> @dm:head n = 1
+ --> @dm:selectcolumns include = 'status_type|pipeline_name|jobid|timestamp'
+ --> @dm:save name="temp-tempo"
+ --> @dm:recall name="temp-tempo"
+ --> @dm:enrich dict ="temp1-temp" & src_key_cols="pipeline_name" & dict_key_cols="pipeline_name" &
+enrich_cols="USER_ID,proj_name,customer_name"
+ --> @dm:save name="temp1-temp" and append="no"
+ --> @rn:write-stream name = "status-stream"
