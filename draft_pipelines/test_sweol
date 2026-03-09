@@ -1,24 +1,10 @@
 
- ## Queries data for the customer from edc_oi_enriched_stream
+ ## One time Migration
+
+ ## teamincidents-to-stream
 @c:new-block
  --> @dm:empty
- --> @dm:addrow name='edc_oi_inventory_enriched' and limit=0 and groupby='contract_number,customer_name,product_id' and aggs='sum:combination_count'
- --> #dm:query-persistent-stream coverage=='COVERED' and customer_name is 'ATT'
- --> @dm:save name='temp-hw-eol-details-grouped' and append='yes'
- --> @c:new-block
- --> @dm:recall name='temp-hw-eol-details-grouped'
- --> @dm:to-type columns='contract_number' and type='int'
- --> @dm:save name='temp-hw-eol-details-grouped'
- ## enriches the processed columns to edc_oi_inventory_enriched
-
- --> @c:new-block
- --> @dm:recall name='test-sw-eol-details'
- ## --> @dm:eval product_name="product_id if product_name is 'Not Available' else product_name"
-
- --> @dm:enrich dict='temp-hw-eol-details-grouped' and dict_key_cols='contract_number,customer_name,product_id' and src_key_cols='contract_number,customer,product_id' and enrich_cols='combination_count_sum' and how_type='left'
- --> @dm:eval unique_key='str(customer) + str(sw_os_type) + str(sw_version) + str(contract_number) + str(product_id)'
- --> @dm:to-type columns='combination_count_sum' and type='int'
- --> @dm:dropnull columns='sw_status'
- --> @dm:save name='final-enrich'
- --> @dm:save name='temp-edc-sweol-data'
- --> @rn:write-stream name='edc_sweol_data'
+ --> @dm:addrow table is 'teamincident' and dbname is '335b7f8cb56d46419c3e7c70286c4b19_cfxdimensions_app_collaboratio'
+ --> #mysqlv2:read order by shared_time desc
+ --> @dm:change-time-format columns="shared_time" & from_format="datetimestr" & to_format="ms"
+ --> @rn:write-stream name="oia-incidents-external-tickets-stream"
