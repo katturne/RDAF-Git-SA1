@@ -1,31 +1,60 @@
 
- ## snow-to-oia-main
+ ## .
 
- ## 
+ ## collab-db-to-pstream-processor
 
- ## A work around is to mention all child and dependent pipelines here.
+ ## .
 @c:new-block
- --> @dm:empty
- --> @dm:skip-block-if-shape row_count = 0 & column_count = 0
- --> @exec:run-pipeline name="oia-incident-status-tracker-stream" & ignore_failures="no"
- --> @exec:run-pipeline name="snow-to-oia" & ignore_failures="no"
- --> @c:bookmark-loop bookmark = 'snow-to-oia-bkmrk' & initial_value = '-1 minute'
- --> @dm:empty
- --> @dm:addrow name="snow_ticket_notifications" & max_rows="1000"
- ## Query records from Stream
+ --> @exec:get-input
+ --> @dm:save name="temp-irm-incident-ids-concat"
+ --> @c:data-loop dataset="temp-irm-incident-ids-concat" & columns="incident_id,project_id"
+ ## .
 
- --> #dm:query-persistent-stream timestamp is after '${bookmark}' and u_cfx_source is 'Alert Group'
- --> @dm:save name="temp-raw-input"
- --> @dm:skip-block-if-shape row_count = 0 & column_count = 0
- --> @rn:write-stream compression="auto" & name="debug-external-to-oia-main-1"
- ## Record The Step
-
- --> @dm:eval pipeline="'snow-to-oia-main'" & step="'snow_ticket_notifications'" & stage="'bookmark ${bookmark}'" & status_comments="'External:' + number" & status="'INFO'"
- --> @exec:run-pipeline name="oia-incident-status-tracker-stream" & ignore_failures="yes"
- ## Load the corresponding Handler
-
- --> @exec:run-pipeline name="snow-to-oia" & ignore_failures="no"
- --> @dm:recall name="temp-raw-input"
- --> @dm:save_bookmark name = 'snow-to-oia-bkmrk' & value_column = 'timestamp' & value_type = 'timestamp' & value_func = 'max'
- --> @dm:sleep seconds=5
  --> @dm:empty
+ --> @dm:addrow current_loop="${loop_index}" & incidents="$incident_id" & projectids="$project_id"
+ --> @mysqlv2:native-query dbname="0bde1fc06a7542c3a6a4c47d85f64d9d_cfxdimensions_app_collaboratio" & query="select * from message where incidentid in ($incident_id) and projectid in ($project_id)"
+ --> @dm:skip-block-if-shape row_count=0
+ --> @dm:check-columns must_contain="incidentid" & action="skip-block"
+ --> @dm:selectcolumns exclude="execution_status|execution_reason|attempt_count"
+ --> @dm:save name="temp-collab-msgs-db-${loop_index}"
+ --> @c:data-loop dataset="temp-irm-incident-ids-concat" & columns="incident_id,project_id"
+ ## .
+
+ --> @dm:empty
+ --> @dm:addrow current_loop="${loop_index}" & incidents="$incident_id" & projectids="$project_id"
+ --> @mysqlv2:native-query dbname="0bde1fc06a7542c3a6a4c47d85f64d9d_cfxdimensions_app_collaboratio" & query="select ms.*, m.customerid, m.projectid, m.incidentid from irmessagesharing ms inner join message m on m.messageid=ms.message_id where m.incidentid in ($incident_id) and m.projectid in ($project_id)"
+ --> @dm:skip-block-if-shape row_count=0
+ --> @dm:check-columns must_contain="incidentid" & action="skip-block"
+ --> @dm:selectcolumns exclude="execution_status|execution_reason|attempt_count"
+ --> @dm:save name="temp-collab-irmsharing-db-${loop_index}"
+ --> @c:data-loop dataset="temp-irm-incident-ids-concat" & columns="incident_id,project_id"
+ ## .
+
+ --> @dm:empty
+ --> @dm:addrow current_loop="${loop_index}" & incidents="$incident_id" & projectids="$project_id"
+ --> @mysqlv2:native-query dbname="0bde1fc06a7542c3a6a4c47d85f64d9d_cfxdimensions_app_collaboratio" & query="select * from teamincident where incident_id in ($incident_id) and project_id in ($project_id)"
+ --> @dm:skip-block-if-shape row_count=0
+ --> @dm:check-columns must_contain="incident_id" & action="skip-block"
+ --> @dm:selectcolumns exclude="execution_status|execution_reason|attempt_count"
+ --> @dm:save name="temp-collab-teamincidents-db-${loop_index}"
+ --> @c:new-block
+ --> @dm:concat names="temp-collab-msgs-db-*"
+ --> @dm:skip-block-if-shape row_count=0
+ --> @dm:change-time-format columns="createdat,updatedat" & from_format="datetimestr" & to_format="datetimestr"
+ --> @dm:copy-columns to="timestamp" & from="updatedat"
+ --> @dm:fixnull-regex
+ --> @rn:write-stream name="oia-incidents-collaboration-stream"
+ --> @c:new-block
+ --> @dm:concat names="temp-collab-irmsharing-db-*"
+ --> @dm:skip-block-if-shape row_count=0
+ --> @dm:change-time-format columns="shared_time" & from_format="datetimestr" & to_format="datetimestr"
+ --> @dm:copy-columns to="timestamp" & from="shared_time"
+ --> @dm:fixnull-regex
+ --> @rn:write-stream name="oia-collab-messagesharing-stream"
+ --> @c:new-block
+ --> @dm:concat names="temp-collab-teamincidents-db-*"
+ --> @dm:skip-block-if-shape row_count=0
+ --> @dm:change-time-format columns="shared_time" & from_format="datetimestr" & to_format="datetimestr"
+ --> @dm:copy-columns to="timestamp" & from="shared_time"
+ --> @dm:fixnull-regex
+ --> @rn:write-stream name="oia-incidents-external-tickets-stream"
