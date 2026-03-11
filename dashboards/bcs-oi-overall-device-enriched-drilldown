@@ -1,339 +1,1205 @@
 {
-  "name": "incident-collaboration",
-  "description": "Incident Collaboration",
-  "label": "Incident Collaboration",
-  "enabled": true,
-  "exportable": false,
-  "dashboard_type": "template",
+  "name": "bcs-oi-overall-device-enriched-drilldown",
+  "label": "Device Details",
+  "description": "BCS Device Drilldown Details",
+  "version": "2023-07-13-01",
+  "enabled": false,
+  "context_label_id": "deviceName",
+  "dashboard_folder": "bcs_oi_device_drilldown_details",
   "dashboard_style": "auto",
-  "version": "22.10.7.1",
-  "template_variables": {
-    "STACK_NAME": {
-      "contextId": "stack_name"
-    },
-    "PROJECT_ID": {
-      "contextId": "projectId"
-    }
-  },
-  "custom_context": {
-    "alert-context": true
-  },
+  "live_edit": true,
+  "dashboard_type": "template",
+  "dashboard_pages": [],
   "dashboard_filters": {
-    "time_filter": true,
-    "extra_filter": "projectid in {{PROJECT_ID}}",
-    "columns_filter": [
-      {
-        "id": "incidentid",
-        "label": "Incident ID",
-        "type": "TEXT"
-      },
-      {
-        "id": "activity",
-        "label": "Activity",
-        "type": "TEXT"
-      },
-      {
-        "id": "sourcesystemname",
-        "label": "Source System",
-        "type": "TEXT"
-      },
-      {
-        "id": "target",
-        "label": "Target System",
-        "type": "TEXT"
-      },
-      {
-        "id": "content",
-        "label": "Message",
-        "type": "TEXT"
-      },
-      {
-        "id": "senderid",
-        "label": "User",
-        "type": "TEXT"
-      },
-      {
-        "id": "createdat",
-        "label": "Created",
-        "type": "DATETIME"
-      },
-      {
-        "id": "subject",
-        "label": "Subject",
-        "type": "TEXT"
-      },
-      {
-        "id": "activity",
-        "label": "Activity",
-        "type": "TEXT"
-      }
-    ],
+    "time_filter": false,
     "default_time_filter_labels": [
-      "Last 24 hours"
-    ]
+      "Last 12 months"
+    ],
+    "columns_filter": [],
+    "group_filters": []
   },
   "dashboard_sections": [
     {
-      "title": "Activity",
+      "title": "Device Details",
       "show_filter": true,
       "widgets": [
         {
-          "widget_type": "bar_chart",
-          "title": "Collaboration Messages By Activity",
-          "stream": "oia-incidents-collaboration-stream",
-          "ts_column": "timestamp",
-          "duration_hours": 24,
-          "min_width": 6,
-          "height": 4,
-          "max_width": 6,
-          "extra_filter": "activity is not 'Endpoint Response' and activity is not 'Update Incident' and subject is not 'Incident Updated'",
-          "group_by": [
-            "activity"
-          ],
-          "agg": "sum",
-          "column": "count_",
-          "type": "int",
-          "chartProperties": {
-            "legendLocation": "none",
-            "xAxisLabel": null,
-            "yAxisLabel": null
-          },
-          "widget_id": "6dc8340e"
-        },
-        {
-          "widget_type": "bar_chart",
-          "title": "Collaboration Messages By Target",
-          "stream": "oia-incidents-collaboration-stream",
-          "ts_column": "timestamp",
-          "duration_hours": 24,
-          "min_width": 6,
-          "extra_filter": "activity is not 'Endpoint Response' and activity is not 'Update Incident' and subject is not 'Incident Updated'",
-          "height": 4,
-          "max_width": 6,
-          "group_by": [
-            "target"
-          ],
-          "agg": "sum",
-          "column": "count_",
-          "type": "int",
-          "chartProperties": {
-            "legendLocation": "none",
-            "xAxisLabel": null,
-            "yAxisLabel": null
-          },
-          "widget_id": "e36576b7"
-        },
-        {
-          "title": "Collaboration Messages",
+          "title": "Field Notices",
           "widget_type": "tabular",
           "max_width": 12,
-          "height": 12,
-          "min_width": 6,
-          "stream": "oia-incidents-collaboration-stream",
+          "height": 6,
+          "min_width": 12,
+          "include_context_in_query": true,
+          "include_context_keys": [
+            "deviceId"
+          ],
+          "stream": "bcs_oi_productAlerts-enriched",
+          "duration_hours": 1080,
           "ts_column": "timestamp",
-          "paginated": true,
-          "resizableColumns": false,
-          "remote_searchable": true,
-          "remote_searchable_cols": [
-            "subject",
-            "content",
-            "sendername",
-            "sourcesystemname",
-            "target",
-            "incidentid"
-          ],
-          "extra_filter": "activity is not 'Endpoint Response' and activity is not 'Update Incident' and subject is not 'Incident Updated'",
-          "duration_hours": 24,
-          "sorting": [
-            {
-              "timestamp": "desc"
-            }
-          ],
+          "extra_filter": "(source in 'fieldNotices') and (`fieldNotice_matchConfidence` not in \"Not Vulnerable\")",
           "columns": {
-            "subject": "Subject",
-            "content": "Message",
-            "sendername": "User",
-            "timestamp": {
-              "title": "Timestamp",
+            "fieldNoticeId": {
+              "title": "Field Notice ID",
+              "type": "DOUBLE"
+            },
+            "fieldnotice_confidence_color": {
+              "type": "COLOR-MAP",
+              "source-column": "fieldNotice_matchConfidence",
+              "color-map": {
+                "Not Vulnerable": "#00BB00",
+                "Vulnerable": "#BB0000",
+                "Potentially Vulnerable": "#F6C309"
+              }
+            },
+            "fieldNotice_matchConfidence": {
+              "title": "Confidence",
+              "type": "TEXT",
+              "htmlTemplateForRow": "{% raw %}<span class='badge' style='background-color: {{ row.fieldnotice_confidence_color }}' > {{ row.fieldNotice_matchConfidence }} </span>{% endraw %}",
+              "visible": true
+            },
+            "matchConfidenceReason": "Confidence Reason",
+            "deviceId": {
+              "title": "Device ID",
+              "type": "TEXT",
+              "visible": true
+            },
+            "deviceName": "Asset Name",
+            "deviceIp": "Asset IP",
+            "productId": "Product ID",
+            "serialNumber": "Serial Number",
+            "physicalAssetType": {
+              "title": "Equipment Type",
+              "type": "TEXT"
+            },
+            "productFamily": "Product Family",
+            "softwareVersion": "SW Version",
+            "productType": {
+              "title": "Product Type",
+              "type": "TEXT",
+              "visible": true
+            },
+            "physicalAssetId": {
+              "title": "Physical Asset ID",
+              "type": "DOUBLE",
+              "visible": false
+            },
+            "deviceType": {
+              "title": "Device Type",
+              "type": "TEXT",
+              "visible": false
+            },
+            "deviceStatus": {
+              "title": "Device Status",
+              "type": "TEXT",
+              "visible": false
+            },
+            "ipAddress": {
+              "title": "IP Address",
+              "type": "TEXT",
+              "visible": false
+            },
+            "fieldNoticeType": {
+              "title": "Type",
+              "type": "TEXT"
+            },
+            "bulletinTitle": "Title",
+            "bulletinUrl": {
+              "title": "URL",
+              "type": "TEXT",
+              "visible": false
+            },
+            "problemDescription": {
+              "title": "Description",
+              "type": "TEXT",
+              "visible": false
+            },
+            "bulletinMappingCaveat": {
+              "title": "Caveat",
+              "type": "TEXT",
+              "visible": false
+            },
+            "bulletinFirstPublishedTimestamp": {
+              "title": "FN Published Timestammp",
               "type": "DATETIME"
             },
-            "sourcesystemname": "Source",
-            "target": "Target",
-            "incidentid": {
-              "title": "Incident ID",
-              "key": true
+            "bulletinLastUpdatedTimestamp": {
+              "title": "FN Last Updated Timestammp",
+              "type": "DATETIME"
             }
           },
-          "severity_columns": [
-            "severity"
+          "widget_id": "6889a924"
+        },
+        {
+          "title": "Security Advisories",
+          "widget_type": "tabular",
+          "max_width": 12,
+          "height": 6,
+          "min_width": 12,
+          "stream": "bcs_oi_productAlerts-enriched",
+          "include_context_in_query": true,
+          "include_context_keys": [
+            "deviceId"
           ],
-          "actions": [
-            {
-              "title": "View Incident",
-              "type": "GO_TO_APP_STATE",
-              "stateName": "app.featureapp",
-              "appName": "user-dashboard/incident-details-app",
-              "selectionType": "SINGLE",
-              "drillDownLinkField": "incidentid",
-              "drillDownContext": "incidentid",
-              "destinationContext": "incidentid",
-              "displayLabelColumnId": "Incident ID",
-              "contextParamList": {
-                "contextParams": [
-                  {
-                    "paramKey": "projectid",
-                    "paramId": "id"
-                  },
-                  {
-                    "paramKey": "incidentid",
-                    "paramId": "incidentid"
-                  },
-                  {
-                    "paramKey": "projectid",
-                    "paramId": "roomid"
-                  },
-                  {
-                    "paramKey": "projectid",
-                    "paramId": "projectId"
-                  }
-                ]
+          "duration_hours": 1080,
+          "ts_column": "timestamp",
+          "extra_filter": "(source in 'securityAdvisories') and (`secAdv_matchConfidence` not in \"Not Vulnerable\")",
+          "columns": {
+            "securityAdvisoryColdId": {
+              "title": "Security Advisory Col ID",
+              "type": "DOUBLE"
+            },
+            "securityAdvisoryId": {
+              "title": "Security Advisory ID",
+              "type": "TEXT"
+            },
+            "bulletinTitle": "Title",
+            "secAdv_confidence_color": {
+              "type": "COLOR-MAP",
+              "source-column": "secAdv_matchConfidence",
+              "color-map": {
+                "Not Vulnerable": "#00BB00",
+                "Vulnerable": "#BB0000",
+                "Potentially Vulnerable": "#F6C309"
               }
+            },
+            "secAdv_matchConfidence": {
+              "title": "Confidence",
+              "type": "TEXT",
+              "htmlTemplateForRow": "{% raw %}<span class='badge' style='background-color: {{ row.secAdv_confidence_color }}' > {{ row.secAdv_matchConfidence }} </span>{% endraw %}",
+              "visible": true
+            },
+            "secAdv_impact_rating_color": {
+              "type": "COLOR-MAP",
+              "source-column": "secAdv_securityImpactRating",
+              "color-map": {
+                "Critical": "#8B0000",
+                "High": "#FF4500"
+              }
+            },
+            "secAdv_securityImpactRating": {
+              "title": "Impact Rating",
+              "type": "TEXT",
+              "htmlTemplateForRow": "{% raw %}<span class='badge' style='background-color: {{ row.secAdv_impact_rating_color }}' > {{ row.secAdv_securityImpactRating }} </span>{% endraw %}",
+              "visible": true
+            },
+            "deviceName": "Asset Name",
+            "deviceIp": "Asset IP",
+            "productId": "Product ID",
+            "serialNumber": "Serial Number",
+            "physicalAssetType": {
+              "title": "Equipment Type",
+              "type": "TEXT"
+            },
+            "productFamily": "Product Family",
+            "softwareVersion": "SW Version",
+            "productType": {
+              "title": "Product Type",
+              "type": "TEXT",
+              "visible": false
+            },
+            "physicalAssetId": {
+              "title": "Physical Asset ID",
+              "type": "DOUBLE",
+              "visible": false
+            },
+            "deviceType": {
+              "title": "Device Type",
+              "type": "TEXT",
+              "visible": false
+            },
+            "deviceStatus": {
+              "title": "Device Status",
+              "type": "TEXT",
+              "visible": false
+            },
+            "ipAddress": {
+              "title": "IP Address",
+              "type": "TEXT",
+              "visible": false
+            },
+            "bugIds": {
+              "title": "Bug IDs",
+              "type": "TEXT"
+            },
+            "cveIds": {
+              "title": "CVE IDs",
+              "type": "TEXT"
+            },
+            "matchConfidenceReason": "Confidence Reason",
+            "bulletinFirstPublishedTimestamp": {
+              "title": "Published",
+              "type": "DATETIME"
+            },
+            "bulletinLastUpdatedTimestamp": {
+              "title": "Last Updated",
+              "type": "DATETIME"
+            },
+            "bulletinVersion": {
+              "title": "Version",
+              "type": "TEXT"
+            },
+            "bulletinUrl": {
+              "title": "URL",
+              "type": "TEXT",
+              "visible": false
+            },
+            "bulletinSummary": {
+              "title": "Summary",
+              "type": "TEXT",
+              "visible": false
+            },
+            "bulletinMappingCaveat": {
+              "title": "Caveat",
+              "type": "TEXT"
+            },
+            "commonVulnerabilityScoringSystemBaseScore": {
+              "title": "Vulnerability Base Score",
+              "type": "TEXT"
+            },
+            "commonVulnerabilityScoringSystemTemporalScore": {
+              "title": "Vulnerability Temporal Score",
+              "type": "TEXT"
             }
+          },
+          "widget_id": "df2cf4b0"
+        },
+        {
+          "title": "Software Advisories",
+          "widget_type": "tabular",
+          "max_width": 12,
+          "height": 6,
+          "min_width": 12,
+          "stream": "bcs_oi_productAlerts-enriched",
+          "include_context_in_query": true,
+          "include_context_keys": [
+            "deviceId"
           ],
-          "widget_id": "a7f6e486"
+          "duration_hours": 1080,
+          "ts_column": "timestamp",
+          "extra_filter": "source in 'softwareAdvisories'",
+          "columns": {
+            "softwareVersion": {
+              "title": "Software Version",
+              "type": "TEXT"
+            },
+            "softwareType": {
+              "title": "Software Type",
+              "type": "TEXT"
+            },
+            "swAdv_confidence_color": {
+              "type": "COLOR-MAP",
+              "source-column": "swAdv_softwareAlertType",
+              "color-map": {
+                "SA": "#F6C309",
+                "DF": "#BB0000"
+              }
+            },
+            "swAdv_softwareAlertType": {
+              "title": "Confidence",
+              "type": "TEXT",
+              "htmlTemplateForRow": "{% raw %}<span class='badge' style='background-color: {{ row.swAdv_confidence_color }}' > {{ row.swAdv_softwareAlertType }} </span>{% endraw %}",
+              "visible": true
+            },
+            "deviceName": "Asset Name",
+            "deviceIp": "Asset IP",
+            "productId": "Product ID",
+            "serialNumber": "Serial Number",
+            "physicalAssetType": {
+              "title": "Equipment Type",
+              "type": "TEXT"
+            },
+            "productFamily": "Product Family",
+            "productType": {
+              "title": "Product Type",
+              "type": "TEXT",
+              "visible": false
+            },
+            "physicalAssetId": {
+              "title": "Physical Asset ID",
+              "type": "DOUBLE",
+              "visible": false
+            },
+            "deviceType": {
+              "title": "Device Type",
+              "type": "TEXT",
+              "visible": false
+            },
+            "deviceStatus": {
+              "title": "Device Status",
+              "type": "TEXT",
+              "visible": false
+            },
+            "ipAddress": {
+              "title": "IP Address",
+              "type": "TEXT",
+              "visible": false
+            },
+            "imageName": {
+              "title": "Image Name",
+              "type": "TEXT"
+            },
+            "softwareAlertUrl": {
+              "title": "Software Alert Url",
+              "type": "TEXT",
+              "visible": false
+            }
+          },
+          "widget_id": "c7e070cc"
+        },
+        {
+          "title": "HW EOLs",
+          "widget_type": "tabular",
+          "max_width": 12,
+          "height": 6,
+          "min_width": 12,
+          "stream": "bcs_oi_productAlerts-enriched",
+          "include_context_in_query": true,
+          "include_context_keys": [
+            "deviceId"
+          ],
+          "extra_filter": "source in 'hwEOL'",
+          "duration_hours": 1080,
+          "ts_column": "timestamp",
+          "columns": {
+            "hardwareEndOfLifeId": {
+              "title": "HW EOL ID",
+              "type": "DOUBLE"
+            },
+            "hw_status_color": {
+              "type": "COLOR-MAP",
+              "source-column": "hw_status",
+              "color-map": {
+                "Expired": "#BB0000",
+                "Expiring in a Quarter": "#F6C309",
+                "Expiring in 8 Quarters": "#FF9800",
+                "Expiring after 8 Quarters": "#1ECBE1",
+                "No EOL": "#00BB00"
+              }
+            },
+            "hw_status": {
+              "title": "HW Status",
+              "type": "TEXT",
+              "htmlTemplateForRow": "{% raw %}<span class='badge' style='background-color: {{ row.hw_status_color }}' > {{ row.hw_status }} </span>{% endraw %}",
+              "visible": true
+            },
+            "deviceId": {
+              "title": "Device ID",
+              "type": "TEXT"
+            },
+            "deviceName": "Asset Name",
+            "deviceIp": "Asset IP",
+            "productId": "Product Id",
+            "serialNumber": "Serial Number",
+            "cfx_physicalAssetType": {
+              "title": "Equipment Type",
+              "type": "TEXT"
+            },
+            "productFamily": "Product Family",
+            "softwareVersion": "SW Version",
+            "productType": {
+              "title": "Product Type",
+              "type": "TEXT",
+              "visible": false
+            },
+            "physicalAssetId": {
+              "title": "Physical Asset ID",
+              "type": "DOUBLE",
+              "visible": false
+            },
+            "deviceType": {
+              "title": "Device Type",
+              "type": "TEXT",
+              "visible": false
+            },
+            "deviceStatus": {
+              "title": "Device Status",
+              "type": "TEXT",
+              "visible": false
+            },
+            "ipAddress": {
+              "title": "IP Address",
+              "type": "TEXT",
+              "visible": false
+            },
+            "hwEOL_currentEndOfLifeMilestone": {
+              "title": "Current EOL Milestone",
+              "type": "TEXT"
+            },
+            "hwEOL_currentEndOfLifeMilestoneDate": {
+              "title": "Current EOL",
+              "type": "DATETIME"
+            },
+            "hwEOL_nextEndOfLifeMilestone": {
+              "title": "Next EOL Milestone",
+              "type": "TEXT"
+            },
+            "hwEOL_nextEndOfLifeMilestoneDate": {
+              "title": "Next EOL",
+              "type": "DATETIME"
+            },
+            "hwEOL_endOfSaleDate": {
+              "title": "End Of Sale",
+              "type": "DATETIME"
+            },
+            "hwEOL_lastDayOfSupportDate": {
+              "title": "LDoS",
+              "type": "DATETIME"
+            },
+            "hwEOL_endOfLifeAnnouncementDate": {
+              "title": "EOL Announcement",
+              "type": "DATETIME"
+            },
+            "hwEOL_endOfServiceContractRenewalDate": {
+              "title": "End Of Service Contract Renewal",
+              "type": "DATETIME"
+            },
+            "hwEOL_endOfNewServiceAttachmentDate": {
+              "title": "End Of New Service Attachment",
+              "type": "DATETIME"
+            },
+            "hwEOL_endOfRoutineFailureAnalysisDate": {
+              "title": "End Of Routine Failure Analysis",
+              "type": "DATETIME"
+            },
+            "hwEOL_endOfSoftwareMaintenanceReleasesDate": {
+              "title": "End Of Software Maintenance Releases",
+              "type": "DATETIME"
+            },
+            "hwEOL_endOfVulnerabilitySecuritySupportDate": {
+              "title": "End Of Vulnerability Security Support",
+              "type": "DATETIME"
+            },
+            "hwEOL_lastShipDate": {
+              "title": "Last Ship Date",
+              "type": "DATETIME",
+              "visible": false
+            }
+          },
+          "widget_id": "2ce138af"
+        },
+        {
+          "title": "SW EOLs",
+          "widget_type": "tabular",
+          "max_width": 12,
+          "height": 6,
+          "min_width": 12,
+          "stream": "bcs_oi_productAlerts-enriched",
+          "include_context_in_query": true,
+          "include_context_keys": [
+            "deviceId"
+          ],
+          "extra_filter": "source in 'swEOL'",
+          "duration_hours": 1080,
+          "ts_column": "timestamp",
+          "columns": {
+            "softwareEndOfLifeId": {
+              "title": "SW EOL ID",
+              "type": "DOUBLE"
+            },
+            "sw_status_color": {
+              "type": "COLOR-MAP",
+              "source-column": "sw_status",
+              "color-map": {
+                "Expired": "#BB0000",
+                "Expiring in a Quarter": "#F6C309",
+                "Expiring in 8 Quarters": "#FF9800",
+                "Expiring after 8 Quarters": "#1ECBE1",
+                "No EOL": "#00BB00"
+              }
+            },
+            "softwareVersion": "SW Version",
+            "sw_status": {
+              "title": "SW Status",
+              "type": "TEXT",
+              "htmlTemplateForRow": "{% raw %}<span class='badge' style='background-color: {{ row.sw_status_color }}' > {{ row.sw_status }} </span>{% endraw %}",
+              "visible": true
+            },
+            "deviceId": {
+              "title": "Device ID",
+              "type": "TEXT"
+            },
+            "deviceName": "Asset Name",
+            "deviceIp": "Asset IP",
+            "productId": "Product Id",
+            "serialNumber": "Serial Number",
+            "cfx_physicalAssetType": {
+              "title": "Equipment Type",
+              "type": "TEXT"
+            },
+            "productFamily": "Product Family",
+            "productType": {
+              "title": "Product Type",
+              "type": "TEXT",
+              "visible": false
+            },
+            "physicalAssetId": {
+              "title": "Physical Asset ID",
+              "type": "DOUBLE",
+              "visible": false
+            },
+            "deviceType": {
+              "title": "Device Type",
+              "type": "TEXT",
+              "visible": false
+            },
+            "deviceStatus": {
+              "title": "Device Status",
+              "type": "TEXT",
+              "visible": false
+            },
+            "ipAddress": {
+              "title": "IP Address",
+              "type": "TEXT",
+              "visible": false
+            },
+            "swEOL_currentEndOfLifeMilestone": {
+              "title": "Current EOL Milestone",
+              "type": "TEXT"
+            },
+            "swEOL_currentEndOfLifeMilestoneDate": {
+              "title": "Current EOL",
+              "type": "DATETIME"
+            },
+            "swEOL_nextEndOfLifeMilestone": {
+              "title": "Next EOL Milestone",
+              "type": "TEXT"
+            },
+            "swEOL_nextEndOfLifeMilestoneDate": {
+              "title": "Next EOL",
+              "type": "DATETIME"
+            },
+            "swEOL_endOfSaleDate": {
+              "title": "End Of Sale",
+              "type": "DATETIME"
+            },
+            "swEOL_lastDayOfSupportDate": {
+              "title": "LDoS",
+              "type": "DATETIME"
+            },
+            "swEOL_endOfLifeAnnouncementDate": {
+              "title": "EOL Announcement",
+              "type": "DATETIME"
+            },
+            "swEOL_endOfServiceContractRenewalDate": {
+              "title": "End Of Service Contract Renewal",
+              "type": "DATETIME"
+            },
+            "swEOL_endOfNewServiceAttachmentDate": {
+              "title": "End Of New Service Attachment",
+              "type": "DATETIME"
+            },
+            "swEOL_endOfRoutineFailureAnalysisDate": {
+              "title": "End Of Routine Failure Analysis",
+              "type": "DATETIME"
+            },
+            "swEOL_endOfSoftwareMaintenanceReleasesDate": {
+              "title": "End Of Software Maintenance Releases",
+              "type": "DATETIME"
+            },
+            "swEOL_endOfVulnerabilitySecuritySupportDate": {
+              "title": "End Of Vulnerability Security Support",
+              "type": "DATETIME"
+            },
+            "swEOL_lastShipDate": {
+              "title": "Last Ship Date",
+              "type": "DATETIME",
+              "visible": false
+            }
+          },
+          "widget_id": "ce843ad0"
         }
       ]
     }
   ],
   "pstream_dashboards": [
     {
-      "title": "Activity",
+      "title": "Device Details",
       "show_filter": true,
       "widgets": [
         {
-          "widget_type": "bar_chart",
-          "title": "Collaboration Messages By Activity",
-          "stream": "oia-incidents-collaboration-stream",
-          "ts_column": "timestamp",
-          "duration_hours": 24,
-          "min_width": 6,
-          "height": 4,
-          "max_width": 6,
-          "extra_filter": "activity is not 'Endpoint Response' and activity is not 'Update Incident' and subject is not 'Incident Updated'",
-          "group_by": [
-            "activity"
-          ],
-          "agg": "sum",
-          "column": "count_",
-          "type": "int",
-          "chartProperties": {
-            "legendLocation": "none",
-            "xAxisLabel": null,
-            "yAxisLabel": null
-          },
-          "widget_id": "6dc8340e"
-        },
-        {
-          "widget_type": "bar_chart",
-          "title": "Collaboration Messages By Target",
-          "stream": "oia-incidents-collaboration-stream",
-          "ts_column": "timestamp",
-          "duration_hours": 24,
-          "min_width": 6,
-          "extra_filter": "activity is not 'Endpoint Response' and activity is not 'Update Incident' and subject is not 'Incident Updated'",
-          "height": 4,
-          "max_width": 6,
-          "group_by": [
-            "target"
-          ],
-          "agg": "sum",
-          "column": "count_",
-          "type": "int",
-          "chartProperties": {
-            "legendLocation": "none",
-            "xAxisLabel": null,
-            "yAxisLabel": null
-          },
-          "widget_id": "e36576b7"
-        },
-        {
-          "title": "Collaboration Messages",
+          "title": "Field Notices",
           "widget_type": "tabular",
           "max_width": 12,
-          "height": 12,
-          "min_width": 6,
-          "stream": "oia-incidents-collaboration-stream",
+          "height": 6,
+          "min_width": 12,
+          "include_context_in_query": true,
+          "include_context_keys": [
+            "deviceId"
+          ],
+          "stream": "bcs_oi_productAlerts-enriched",
+          "duration_hours": 1080,
           "ts_column": "timestamp",
-          "paginated": true,
-          "resizableColumns": false,
-          "remote_searchable": true,
-          "remote_searchable_cols": [
-            "subject",
-            "content",
-            "sendername",
-            "sourcesystemname",
-            "target",
-            "incidentid"
-          ],
-          "extra_filter": "activity is not 'Endpoint Response' and activity is not 'Update Incident' and subject is not 'Incident Updated'",
-          "duration_hours": 24,
-          "sorting": [
-            {
-              "timestamp": "desc"
-            }
-          ],
+          "extra_filter": "(source in 'fieldNotices') and (`fieldNotice_matchConfidence` not in \"Not Vulnerable\")",
           "columns": {
-            "subject": "Subject",
-            "content": "Message",
-            "sendername": "User",
-            "timestamp": {
-              "title": "Timestamp",
+            "fieldNoticeId": {
+              "title": "Field Notice ID",
+              "type": "DOUBLE"
+            },
+            "fieldnotice_confidence_color": {
+              "type": "COLOR-MAP",
+              "source-column": "fieldNotice_matchConfidence",
+              "color-map": {
+                "Not Vulnerable": "#00BB00",
+                "Vulnerable": "#BB0000",
+                "Potentially Vulnerable": "#F6C309"
+              }
+            },
+            "fieldNotice_matchConfidence": {
+              "title": "Confidence",
+              "type": "TEXT",
+              "htmlTemplateForRow": "{% raw %}<span class='badge' style='background-color: {{ row.fieldnotice_confidence_color }}' > {{ row.fieldNotice_matchConfidence }} </span>{% endraw %}",
+              "visible": true
+            },
+            "matchConfidenceReason": "Confidence Reason",
+            "deviceId": {
+              "title": "Device ID",
+              "type": "TEXT",
+              "visible": true
+            },
+            "deviceName": "Asset Name",
+            "deviceIp": "Asset IP",
+            "productId": "Product ID",
+            "serialNumber": "Serial Number",
+            "physicalAssetType": {
+              "title": "Equipment Type",
+              "type": "TEXT"
+            },
+            "productFamily": "Product Family",
+            "softwareVersion": "SW Version",
+            "productType": {
+              "title": "Product Type",
+              "type": "TEXT",
+              "visible": true
+            },
+            "physicalAssetId": {
+              "title": "Physical Asset ID",
+              "type": "DOUBLE",
+              "visible": false
+            },
+            "deviceType": {
+              "title": "Device Type",
+              "type": "TEXT",
+              "visible": false
+            },
+            "deviceStatus": {
+              "title": "Device Status",
+              "type": "TEXT",
+              "visible": false
+            },
+            "ipAddress": {
+              "title": "IP Address",
+              "type": "TEXT",
+              "visible": false
+            },
+            "fieldNoticeType": {
+              "title": "Type",
+              "type": "TEXT"
+            },
+            "bulletinTitle": "Title",
+            "bulletinUrl": {
+              "title": "URL",
+              "type": "TEXT",
+              "visible": false
+            },
+            "problemDescription": {
+              "title": "Description",
+              "type": "TEXT",
+              "visible": false
+            },
+            "bulletinMappingCaveat": {
+              "title": "Caveat",
+              "type": "TEXT",
+              "visible": false
+            },
+            "bulletinFirstPublishedTimestamp": {
+              "title": "FN Published Timestammp",
               "type": "DATETIME"
             },
-            "sourcesystemname": "Source",
-            "target": "Target",
-            "incidentid": {
-              "title": "Incident ID",
-              "key": true
+            "bulletinLastUpdatedTimestamp": {
+              "title": "FN Last Updated Timestammp",
+              "type": "DATETIME"
             }
           },
-          "severity_columns": [
-            "severity"
+          "widget_id": "6889a924"
+        },
+        {
+          "title": "Security Advisories",
+          "widget_type": "tabular",
+          "max_width": 12,
+          "height": 6,
+          "min_width": 12,
+          "stream": "bcs_oi_productAlerts-enriched",
+          "include_context_in_query": true,
+          "include_context_keys": [
+            "deviceId"
           ],
-          "actions": [
-            {
-              "title": "View Incident",
-              "type": "GO_TO_APP_STATE",
-              "stateName": "app.featureapp",
-              "appName": "user-dashboard/incident-details-app",
-              "selectionType": "SINGLE",
-              "drillDownLinkField": "incidentid",
-              "drillDownContext": "incidentid",
-              "destinationContext": "incidentid",
-              "displayLabelColumnId": "Incident ID",
-              "contextParamList": {
-                "contextParams": [
-                  {
-                    "paramKey": "projectid",
-                    "paramId": "id"
-                  },
-                  {
-                    "paramKey": "incidentid",
-                    "paramId": "incidentid"
-                  },
-                  {
-                    "paramKey": "projectid",
-                    "paramId": "roomid"
-                  },
-                  {
-                    "paramKey": "projectid",
-                    "paramId": "projectId"
-                  }
-                ]
+          "duration_hours": 1080,
+          "ts_column": "timestamp",
+          "extra_filter": "(source in 'securityAdvisories') and (`secAdv_matchConfidence` not in \"Not Vulnerable\")",
+          "columns": {
+            "securityAdvisoryColdId": {
+              "title": "Security Advisory Col ID",
+              "type": "DOUBLE"
+            },
+            "securityAdvisoryId": {
+              "title": "Security Advisory ID",
+              "type": "TEXT"
+            },
+            "bulletinTitle": "Title",
+            "secAdv_confidence_color": {
+              "type": "COLOR-MAP",
+              "source-column": "secAdv_matchConfidence",
+              "color-map": {
+                "Not Vulnerable": "#00BB00",
+                "Vulnerable": "#BB0000",
+                "Potentially Vulnerable": "#F6C309"
               }
+            },
+            "secAdv_matchConfidence": {
+              "title": "Confidence",
+              "type": "TEXT",
+              "htmlTemplateForRow": "{% raw %}<span class='badge' style='background-color: {{ row.secAdv_confidence_color }}' > {{ row.secAdv_matchConfidence }} </span>{% endraw %}",
+              "visible": true
+            },
+            "secAdv_impact_rating_color": {
+              "type": "COLOR-MAP",
+              "source-column": "secAdv_securityImpactRating",
+              "color-map": {
+                "Critical": "#8B0000",
+                "High": "#FF4500"
+              }
+            },
+            "secAdv_securityImpactRating": {
+              "title": "Impact Rating",
+              "type": "TEXT",
+              "htmlTemplateForRow": "{% raw %}<span class='badge' style='background-color: {{ row.secAdv_impact_rating_color }}' > {{ row.secAdv_securityImpactRating }} </span>{% endraw %}",
+              "visible": true
+            },
+            "deviceName": "Asset Name",
+            "deviceIp": "Asset IP",
+            "productId": "Product ID",
+            "serialNumber": "Serial Number",
+            "physicalAssetType": {
+              "title": "Equipment Type",
+              "type": "TEXT"
+            },
+            "productFamily": "Product Family",
+            "softwareVersion": "SW Version",
+            "productType": {
+              "title": "Product Type",
+              "type": "TEXT",
+              "visible": false
+            },
+            "physicalAssetId": {
+              "title": "Physical Asset ID",
+              "type": "DOUBLE",
+              "visible": false
+            },
+            "deviceType": {
+              "title": "Device Type",
+              "type": "TEXT",
+              "visible": false
+            },
+            "deviceStatus": {
+              "title": "Device Status",
+              "type": "TEXT",
+              "visible": false
+            },
+            "ipAddress": {
+              "title": "IP Address",
+              "type": "TEXT",
+              "visible": false
+            },
+            "bugIds": {
+              "title": "Bug IDs",
+              "type": "TEXT"
+            },
+            "cveIds": {
+              "title": "CVE IDs",
+              "type": "TEXT"
+            },
+            "matchConfidenceReason": "Confidence Reason",
+            "bulletinFirstPublishedTimestamp": {
+              "title": "Published",
+              "type": "DATETIME"
+            },
+            "bulletinLastUpdatedTimestamp": {
+              "title": "Last Updated",
+              "type": "DATETIME"
+            },
+            "bulletinVersion": {
+              "title": "Version",
+              "type": "TEXT"
+            },
+            "bulletinUrl": {
+              "title": "URL",
+              "type": "TEXT",
+              "visible": false
+            },
+            "bulletinSummary": {
+              "title": "Summary",
+              "type": "TEXT",
+              "visible": false
+            },
+            "bulletinMappingCaveat": {
+              "title": "Caveat",
+              "type": "TEXT"
+            },
+            "commonVulnerabilityScoringSystemBaseScore": {
+              "title": "Vulnerability Base Score",
+              "type": "TEXT"
+            },
+            "commonVulnerabilityScoringSystemTemporalScore": {
+              "title": "Vulnerability Temporal Score",
+              "type": "TEXT"
             }
+          },
+          "widget_id": "df2cf4b0"
+        },
+        {
+          "title": "Software Advisories",
+          "widget_type": "tabular",
+          "max_width": 12,
+          "height": 6,
+          "min_width": 12,
+          "stream": "bcs_oi_productAlerts-enriched",
+          "include_context_in_query": true,
+          "include_context_keys": [
+            "deviceId"
           ],
-          "widget_id": "a7f6e486"
+          "duration_hours": 1080,
+          "ts_column": "timestamp",
+          "extra_filter": "source in 'softwareAdvisories'",
+          "columns": {
+            "softwareVersion": {
+              "title": "Software Version",
+              "type": "TEXT"
+            },
+            "softwareType": {
+              "title": "Software Type",
+              "type": "TEXT"
+            },
+            "swAdv_confidence_color": {
+              "type": "COLOR-MAP",
+              "source-column": "swAdv_softwareAlertType",
+              "color-map": {
+                "SA": "#F6C309",
+                "DF": "#BB0000"
+              }
+            },
+            "swAdv_softwareAlertType": {
+              "title": "Confidence",
+              "type": "TEXT",
+              "htmlTemplateForRow": "{% raw %}<span class='badge' style='background-color: {{ row.swAdv_confidence_color }}' > {{ row.swAdv_softwareAlertType }} </span>{% endraw %}",
+              "visible": true
+            },
+            "deviceName": "Asset Name",
+            "deviceIp": "Asset IP",
+            "productId": "Product ID",
+            "serialNumber": "Serial Number",
+            "physicalAssetType": {
+              "title": "Equipment Type",
+              "type": "TEXT"
+            },
+            "productFamily": "Product Family",
+            "productType": {
+              "title": "Product Type",
+              "type": "TEXT",
+              "visible": false
+            },
+            "physicalAssetId": {
+              "title": "Physical Asset ID",
+              "type": "DOUBLE",
+              "visible": false
+            },
+            "deviceType": {
+              "title": "Device Type",
+              "type": "TEXT",
+              "visible": false
+            },
+            "deviceStatus": {
+              "title": "Device Status",
+              "type": "TEXT",
+              "visible": false
+            },
+            "ipAddress": {
+              "title": "IP Address",
+              "type": "TEXT",
+              "visible": false
+            },
+            "imageName": {
+              "title": "Image Name",
+              "type": "TEXT"
+            },
+            "softwareAlertUrl": {
+              "title": "Software Alert Url",
+              "type": "TEXT",
+              "visible": false
+            }
+          },
+          "widget_id": "c7e070cc"
+        },
+        {
+          "title": "HW EOLs",
+          "widget_type": "tabular",
+          "max_width": 12,
+          "height": 6,
+          "min_width": 12,
+          "stream": "bcs_oi_productAlerts-enriched",
+          "include_context_in_query": true,
+          "include_context_keys": [
+            "deviceId"
+          ],
+          "extra_filter": "source in 'hwEOL'",
+          "duration_hours": 1080,
+          "ts_column": "timestamp",
+          "columns": {
+            "hardwareEndOfLifeId": {
+              "title": "HW EOL ID",
+              "type": "DOUBLE"
+            },
+            "hw_status_color": {
+              "type": "COLOR-MAP",
+              "source-column": "hw_status",
+              "color-map": {
+                "Expired": "#BB0000",
+                "Expiring in a Quarter": "#F6C309",
+                "Expiring in 8 Quarters": "#FF9800",
+                "Expiring after 8 Quarters": "#1ECBE1",
+                "No EOL": "#00BB00"
+              }
+            },
+            "hw_status": {
+              "title": "HW Status",
+              "type": "TEXT",
+              "htmlTemplateForRow": "{% raw %}<span class='badge' style='background-color: {{ row.hw_status_color }}' > {{ row.hw_status }} </span>{% endraw %}",
+              "visible": true
+            },
+            "deviceId": {
+              "title": "Device ID",
+              "type": "TEXT"
+            },
+            "deviceName": "Asset Name",
+            "deviceIp": "Asset IP",
+            "productId": "Product Id",
+            "serialNumber": "Serial Number",
+            "cfx_physicalAssetType": {
+              "title": "Equipment Type",
+              "type": "TEXT"
+            },
+            "productFamily": "Product Family",
+            "softwareVersion": "SW Version",
+            "productType": {
+              "title": "Product Type",
+              "type": "TEXT",
+              "visible": false
+            },
+            "physicalAssetId": {
+              "title": "Physical Asset ID",
+              "type": "DOUBLE",
+              "visible": false
+            },
+            "deviceType": {
+              "title": "Device Type",
+              "type": "TEXT",
+              "visible": false
+            },
+            "deviceStatus": {
+              "title": "Device Status",
+              "type": "TEXT",
+              "visible": false
+            },
+            "ipAddress": {
+              "title": "IP Address",
+              "type": "TEXT",
+              "visible": false
+            },
+            "hwEOL_currentEndOfLifeMilestone": {
+              "title": "Current EOL Milestone",
+              "type": "TEXT"
+            },
+            "hwEOL_currentEndOfLifeMilestoneDate": {
+              "title": "Current EOL",
+              "type": "DATETIME"
+            },
+            "hwEOL_nextEndOfLifeMilestone": {
+              "title": "Next EOL Milestone",
+              "type": "TEXT"
+            },
+            "hwEOL_nextEndOfLifeMilestoneDate": {
+              "title": "Next EOL",
+              "type": "DATETIME"
+            },
+            "hwEOL_endOfSaleDate": {
+              "title": "End Of Sale",
+              "type": "DATETIME"
+            },
+            "hwEOL_lastDayOfSupportDate": {
+              "title": "LDoS",
+              "type": "DATETIME"
+            },
+            "hwEOL_endOfLifeAnnouncementDate": {
+              "title": "EOL Announcement",
+              "type": "DATETIME"
+            },
+            "hwEOL_endOfServiceContractRenewalDate": {
+              "title": "End Of Service Contract Renewal",
+              "type": "DATETIME"
+            },
+            "hwEOL_endOfNewServiceAttachmentDate": {
+              "title": "End Of New Service Attachment",
+              "type": "DATETIME"
+            },
+            "hwEOL_endOfRoutineFailureAnalysisDate": {
+              "title": "End Of Routine Failure Analysis",
+              "type": "DATETIME"
+            },
+            "hwEOL_endOfSoftwareMaintenanceReleasesDate": {
+              "title": "End Of Software Maintenance Releases",
+              "type": "DATETIME"
+            },
+            "hwEOL_endOfVulnerabilitySecuritySupportDate": {
+              "title": "End Of Vulnerability Security Support",
+              "type": "DATETIME"
+            },
+            "hwEOL_lastShipDate": {
+              "title": "Last Ship Date",
+              "type": "DATETIME",
+              "visible": false
+            }
+          },
+          "widget_id": "2ce138af"
+        },
+        {
+          "title": "SW EOLs",
+          "widget_type": "tabular",
+          "max_width": 12,
+          "height": 6,
+          "min_width": 12,
+          "stream": "bcs_oi_productAlerts-enriched",
+          "include_context_in_query": true,
+          "include_context_keys": [
+            "deviceId"
+          ],
+          "extra_filter": "source in 'swEOL'",
+          "duration_hours": 1080,
+          "ts_column": "timestamp",
+          "columns": {
+            "softwareEndOfLifeId": {
+              "title": "SW EOL ID",
+              "type": "DOUBLE"
+            },
+            "sw_status_color": {
+              "type": "COLOR-MAP",
+              "source-column": "sw_status",
+              "color-map": {
+                "Expired": "#BB0000",
+                "Expiring in a Quarter": "#F6C309",
+                "Expiring in 8 Quarters": "#FF9800",
+                "Expiring after 8 Quarters": "#1ECBE1",
+                "No EOL": "#00BB00"
+              }
+            },
+            "softwareVersion": "SW Version",
+            "sw_status": {
+              "title": "SW Status",
+              "type": "TEXT",
+              "htmlTemplateForRow": "{% raw %}<span class='badge' style='background-color: {{ row.sw_status_color }}' > {{ row.sw_status }} </span>{% endraw %}",
+              "visible": true
+            },
+            "deviceId": {
+              "title": "Device ID",
+              "type": "TEXT"
+            },
+            "deviceName": "Asset Name",
+            "deviceIp": "Asset IP",
+            "productId": "Product Id",
+            "serialNumber": "Serial Number",
+            "cfx_physicalAssetType": {
+              "title": "Equipment Type",
+              "type": "TEXT"
+            },
+            "productFamily": "Product Family",
+            "productType": {
+              "title": "Product Type",
+              "type": "TEXT",
+              "visible": false
+            },
+            "physicalAssetId": {
+              "title": "Physical Asset ID",
+              "type": "DOUBLE",
+              "visible": false
+            },
+            "deviceType": {
+              "title": "Device Type",
+              "type": "TEXT",
+              "visible": false
+            },
+            "deviceStatus": {
+              "title": "Device Status",
+              "type": "TEXT",
+              "visible": false
+            },
+            "ipAddress": {
+              "title": "IP Address",
+              "type": "TEXT",
+              "visible": false
+            },
+            "swEOL_currentEndOfLifeMilestone": {
+              "title": "Current EOL Milestone",
+              "type": "TEXT"
+            },
+            "swEOL_currentEndOfLifeMilestoneDate": {
+              "title": "Current EOL",
+              "type": "DATETIME"
+            },
+            "swEOL_nextEndOfLifeMilestone": {
+              "title": "Next EOL Milestone",
+              "type": "TEXT"
+            },
+            "swEOL_nextEndOfLifeMilestoneDate": {
+              "title": "Next EOL",
+              "type": "DATETIME"
+            },
+            "swEOL_endOfSaleDate": {
+              "title": "End Of Sale",
+              "type": "DATETIME"
+            },
+            "swEOL_lastDayOfSupportDate": {
+              "title": "LDoS",
+              "type": "DATETIME"
+            },
+            "swEOL_endOfLifeAnnouncementDate": {
+              "title": "EOL Announcement",
+              "type": "DATETIME"
+            },
+            "swEOL_endOfServiceContractRenewalDate": {
+              "title": "End Of Service Contract Renewal",
+              "type": "DATETIME"
+            },
+            "swEOL_endOfNewServiceAttachmentDate": {
+              "title": "End Of New Service Attachment",
+              "type": "DATETIME"
+            },
+            "swEOL_endOfRoutineFailureAnalysisDate": {
+              "title": "End Of Routine Failure Analysis",
+              "type": "DATETIME"
+            },
+            "swEOL_endOfSoftwareMaintenanceReleasesDate": {
+              "title": "End Of Software Maintenance Releases",
+              "type": "DATETIME"
+            },
+            "swEOL_endOfVulnerabilitySecuritySupportDate": {
+              "title": "End Of Vulnerability Security Support",
+              "type": "DATETIME"
+            },
+            "swEOL_lastShipDate": {
+              "title": "Last Ship Date",
+              "type": "DATETIME",
+              "visible": false
+            }
+          },
+          "widget_id": "ce843ad0"
         }
       ]
     }
