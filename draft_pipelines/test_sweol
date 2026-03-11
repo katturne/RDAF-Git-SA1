@@ -1,24 +1,80 @@
-
- ## Queries data for the customer from edc_oi_enriched_stream
-@c:new-block
- --> @dm:empty
- --> @dm:addrow name='edc_oi_inventory_enriched' and limit=0 and groupby='contract_number,customer_name,product_id' and aggs='sum:combination_count'
- --> #dm:query-persistent-stream coverage=='COVERED' and customer_name is 'ATT'
- --> @dm:save name='temp-hw-eol-details-grouped' and append='yes'
- --> @c:new-block
- --> @dm:recall name='temp-hw-eol-details-grouped'
- --> @dm:to-type columns='contract_number' and type='int'
- --> @dm:save name='temp-hw-eol-details-grouped'
- ## enriches the processed columns to edc_oi_inventory_enriched
-
- --> @c:new-block
- --> @dm:recall name='test-sw-eol-details'
- ## --> @dm:eval product_name="product_id if product_name is 'Not Available' else product_name"
-
- --> @dm:enrich dict='temp-hw-eol-details-grouped' and dict_key_cols='contract_number,customer_name,product_id' and src_key_cols='contract_number,customer,product_id' and enrich_cols='combination_count_sum' and how_type='left'
- --> @dm:eval unique_key='str(customer) + str(sw_os_type) + str(sw_version) + str(contract_number) + str(product_id)'
- --> @dm:to-type columns='combination_count_sum' and type='int'
- --> @dm:dropnull columns='sw_status'
- --> @dm:save name='final-enrich'
- --> @dm:save name='temp-edc-sweol-data'
- --> @rn:write-stream name='edc_sweol_data'
+{
+  "name": "customer_kpi_workbench",
+  "label": "KPI Workbench",
+  "description": "Workbench for KPIs",
+  "enabled": true,
+  "version": "24.1.1.1",
+  "dashboard_type": "template",
+  "template_variables": {
+    "CUST_ID": {
+      "contextId": "customer_id"
+    },
+    "PROJ_ID": {
+      "contextId": "project_id"
+    },
+    "PROJ_ID_SINGLE": {
+      "contextId": "project_id"
+    },
+    "CUST_TAG": {
+      "contextId": "customer_tag"
+    }
+  },
+  "dashboard_folder": "NetworkDevicePack",
+  "custom_context": {
+    "formEndpoint": "dynamic_form.preview_kpi_dashboard",
+    "previewEndpoint": "preview_kpi_dashboard"
+  },
+  "dashboard_filters": {
+    "time_filter": false
+  },
+  "dashboard_sections": [
+    {
+      "title": "KPI Workbench",
+      "show_filter": false,
+      "widgets": [
+        {
+          "widget_type": "label",
+          "max_width": 12,
+          "height": 0.5,
+          "min_width": 12,
+          "label": "<div style='text-align:center;width:100%;'><h1><a style='text-decoration:none;color:#0066ff;' target='_blank'>Customer Metrics(Workbench)</a></h1></div>",
+          "widget_id": "33317e49"
+        },
+        {
+          "title": "KPI Workbench",
+          "widget_type": "portal_html",
+          "widget_template": "app-rda/kpi-workbench",
+          "reportId": "benchmark.actions.list.tabular",
+          "height": 12,
+          "min_wdith": 12,
+          "widget_id": "d767314b"
+        }
+      ]
+    }
+  ],
+  "pstream_dashboards": [
+    {
+      "title": "KPI Workbench",
+      "show_filter": false,
+      "widgets": [
+        {
+          "widget_type": "label",
+          "max_width": 12,
+          "height": 0.5,
+          "min_width": 12,
+          "label": "<div style='text-align:center;width:100%;'><h1><a style='text-decoration:none;color:#0066ff;' target='_blank'>Customer Metrics(Workbench)</a></h1></div>",
+          "widget_id": "33317e49"
+        },
+        {
+          "title": "KPI Workbench",
+          "widget_type": "portal_html",
+          "widget_template": "app-rda/kpi-workbench",
+          "reportId": "benchmark.actions.list.tabular",
+          "height": 12,
+          "min_wdith": 12,
+          "widget_id": "d767314b"
+        }
+      ]
+    }
+  ]
+}
