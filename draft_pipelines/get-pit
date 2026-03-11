@@ -1,52 +1,54 @@
 @c:new-block
- --> @exec:get-input
- --> @dm:add-missing-columns columns="key" and value='key'
- --> @dm:save name='temp-sw-data'
- --> @dm:save name='added-sw-data-1'
- --> @c:new-block
- --> @dm:empty
- --> @exec:define-function name="generate_access_token"
- --> @dm:recall name='generate_token_creds'
+ --> @dm:recall name='before-explode-sweol'
+ --> @dm:dedup columns='product_id,sw_os_type,sw_version'
+ --> *dm:filter issues is not '[]'
+ --> @dm:save name='before-explode-sweol-new'
+ --> @dm:eval issues='eval(issues)'
+ --> @dm:eval issues='json_dumps(issues)'
+ --> @dm:explode-json column="issues"
+ --> @dm:eval eoXAlert='json_dumps(eoXAlert)'
+ --> @dm:explode-json column="eoXAlert"
+ --> @dm:save name='temp-sweol'
+ ## --> @dm:save name='exploded-sweol'
+
+ ## --> @c:new-block
+
+ ## --> @dm:recall name='added-sw-data'
+
+ ## --> @dm:addrow product_id='AIR-AP2802E-B-K9' and sw_version='17.12.4.208' and sw_os_type='IOS-XE' and contract_number='9517555'
+
+ ## --> @dm:enrich dict='before-explode-sweol-new' and src_key_cols='product_id,sw_os_type,sw_version' and dict_key_cols='product_id,sw_os_type,sw_version' and enrich_cols='issues' and how_type='inner' and dedup_dict='no'
+
+ ## --> @dm:save name='test-sweol_cn_enriched'
+
  ## --> @dm:empty
 
- --> @exec:run-pipeline name ="edc_generate_token" & ignore_failures = "no"
- --> @dm:addrow key='key'
- --> @dm:eval current_time_ms="int(time_now_as_ms())"
- --> @dm:eval token_expiry_time='current_time_ms+3000000'
- --> @dm:save name='temp-expiry-time'
- --> @exec:end-function
- --> @c:new-block
- --> @dm:recall name='temp-sw-data'
- --> @dm:add-missing-columns columns="key" and value='key'
- --> @dm:manipulate-string from="sw_version,sw_os_type" and func="concat_columns" and to="unique_payload_inputs"
- --> @dm:dedup columns ='unique_payload_inputs'
- --> @dm:eval id1='uuid()'
- --> @dm:eval id2='uuid()'
- --> @dm:eval id2="id2.strip().split('-')[0]"
- --> @dm:eval id1="id1.replace('-', '')"
- --> @dm:eval transaction_id ='id1+id2'
- --> @dm:save name='temp-unique-sw-data'
- --> @dm:save name='added-sw-data'
- --> @c:new-block
- --> @dm:empty
- --> @exec:call-function name='generate_access_token'
- --> @c:data-loop columns='sw_version,sw_os_type,transaction_id' and dataset='temp-unique-sw-data'
- ## --> @dm:recall name='temp-unique-sw-data'
+ ## --> @dm:addrow name='edc_oi_inventory_enriched' and limit=0
 
- --> @dm:empty
- --> @dm:addrow key='key'
- --> @dm:eval current_time_ms_loop="int(time_now_as_ms())"
- --> @dm:save name='temp-loop-time'
- --> @dm:enrich dict='temp-expiry-time' and src_key_cols='key' and dict_key_cols='key' and enrich_cols='token_expiry_time,access_token,expires_in,token_type'
- --> *exec:if-condition token_expiry_time is null or current_time_ms_loop  is greater than or equal to token_expiry_time
- --> @exec:call-function name='generate_access_token'
- --> @exec:end-if
- --> @dm:add-missing-columns columns='sw_version' and value='$sw_version'
- --> @dm:add-missing-columns columns='sw_os_type' and value='$sw_os_type'
- --> @dm:eval sw_os_type="('IOS XR' if sw_os_type=='IOS-XR' else sw_os_type)"
- --> @dm:add-missing-columns columns='transaction_id' and value='$transaction_id'
- --> @exec:run-pipeline name ="edc_sw_get_data" & ignore_failures = "no"
- --> @dm:save name='sweol-data-run-scan'
- --> @dm:save name='test-sweol' and append='yes'
- --> @dm:save name='temp-sweol'
- --> @dm:save name='temp-expiry-time'
+ ## --> #dm:query-persistent-stream customer_name=='ATT'
+
+ ## --> @dm:save name='temp-hw-data'
+
+ ## --> @c:new-block
+
+ ## --> @dm:recall name='temp-hw-data'
+
+ ## --> @dm:to-type columns='contract_number' and type='int'
+
+ ## --> @dm:save name='temp-hw-data'
+
+ ## --> @c:new-block
+
+ ## --> @dm:recall name='test-sweol_cn_enriched'
+
+ ## --> @dm:to-type columns='contract_number' and type='int'
+
+ ## --> @dm:enrich dict='temp-hw-data' and src_key_cols='product_id,contract_number,customer' and dict_key_cols='product_id,contract_number,customer_name' and enrich_cols='gu_name,savm_sales_level_4_name,coverage,covered_line_status,business_entity,business_sub_entity,bk_end_of_life_request_num,bk_eol_bulletin_product_typ_cd,hwEOL_endOfNewServiceAttachmentDate,hwEOL_endOfRoutineFailureAnalysisDate,hwEOL_endOfSoftwareMaintenanceReleasesDate,hwEOL_endOfServiceContractRenewalDate,hwEOL_endOfLifeAnnouncementDate,eol_product_name,item_type,hwEOL_endOfSaleDate,hwEOL_lastDayOfSupportDate,product_description,product_family,product_family_description,product_type,product_list_price,portfolio_desc,usage_code,combination_count,execution_status,total_product_list_price,unique_key,hw_status,hw_expiring_qtr,hw_expiring_year,last_updated_time,product_name' and how_type='inner' and replace_values='yes'
+
+ ## --> @dm:save name='enriched-op-35-inv'
+
+ --> @dm:recall name='temp-sweol'
+ --> *dm:filter customer == 'ATT'
+ --> @exec:run-pipeline name='edc_processing_sw_data'
+ --> @dm:to-type columns='contract_number' and type='int'
+ --> @dm:save name='processed-sw-op'
