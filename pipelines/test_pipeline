@@ -1,5 +1,19 @@
-@dm:empty columns="attr_name,attr_value,start_time_utc,end_time_utc"
- --> @dm:addrow attr_name = 'componentname' and attr_value = 'Processor'
- --> @dm:map to="start_time_utc" and func="evaluate" and expr="utc_time_now_as_isoformat()"
- --> @dm:map to="end_time_utc" and func="evaluate" and expr="(utcnow() + timedelta(minutes=60)).isoformat()"
- --> @rn:write-stream name="alert-suppression-policies"
+@dm:empty
+ --> @exec:get-input
+ ## Save text input
+
+ --> @dm:save name="test_data_add"
+ --> @rn:write-stream name="test_data"
+ ## Uploaded file processing
+
+ --> @dm:save name="test_upload1"
+ --> @dm:selectcolumns include="fileUpload"
+ --> @dm:explode-json column="fileUpload"
+ --> @dm:save name="temp-test-upload2"
+ --> @dm:save name="test_upload2"
+ ## Loop over uploaded file info
+
+ --> @c:data-loop dataset="temp-test-upload2" and columns="bucketName,objectName,displayName"
+ --> @dm:get-from-location path="$bucketName/$objectName"
+ --> @dm:save name="test_upload3"
+ --> @rn:write-stream name="test_data"

@@ -1,5 +1,13 @@
-@dm:empty columns="attr_name,attr_value,start_time_utc,end_time_utc"
- --> @dm:addrow attr_name = 'componentname' and attr_value = 'Processor'
- --> @dm:map to="start_time_utc" and func="evaluate" and expr="utc_time_now_as_isoformat()"
- --> @dm:map to="end_time_utc" and func="evaluate" and expr="(utcnow() + timedelta(minutes=60)).isoformat()"
- --> @rn:write-stream name="alert-suppression-policies"
+@c:new-block
+ --> @dm:empty
+ --> @exec:define-function name="generate_access_token"
+ --> @exec:run-pipeline name ="edc_generate_token" & ignore_failures = "no"
+ --> @dm:addrow key='key'
+ --> @dm:eval current_time_ms="int(time_now_as_ms())"
+ --> @dm:eval token_expiry_time='current_time_ms+3000000'
+ --> @dm:save name='temp-expiry-time'
+ --> @exec:end-function
+ --> @c:new-block
+ --> @dm:empty
+ --> @exec:call-function name='generate_access_token'
+ --> @dm:save name='temp-expiry-time'
