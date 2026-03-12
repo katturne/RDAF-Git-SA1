@@ -1,6 +1,24 @@
+
+ ## Queries data for the customer from edc_oi_enriched_stream
 @c:new-block
- --> @dm:query-persistent-stream-from-bookmark name="fsm-oia-snow-ticket-inputs" and bookmark="fsm-att-oia-to-snow-create-bkmrk" and query="timestamp is after -24 hours and fsmFirableEventName is 'create-ticket'"
- --> @dm:save name="temp-create-input"
- --> @dm:map to="step" & func="fixed" & value="c0"
- --> @rn:write-stream compression="auto" & name="debug-fsm-att"
- --> @exec:run-pipeline name="create_snow_ticket_processor" & ignore_failures="no"
+ --> @dm:empty
+ --> @dm:addrow name='edc_oi_inventory_enriched' and limit=0 and groupby='contract_number,customer_name,product_id' and aggs='sum:combination_count'
+ --> #dm:query-persistent-stream coverage=='COVERED' and customer_name is 'ATT'
+ --> @dm:save name='temp-hw-eol-details-grouped' and append='yes'
+ --> @c:new-block
+ --> @dm:recall name='temp-hw-eol-details-grouped'
+ --> @dm:to-type columns='contract_number' and type='int'
+ --> @dm:save name='temp-hw-eol-details-grouped'
+ ## enriches the processed columns to edc_oi_inventory_enriched
+
+ --> @c:new-block
+ --> @dm:recall name='test-sw-eol-details'
+ ## --> @dm:eval product_name="product_id if product_name is 'Not Available' else product_name"
+
+ --> @dm:enrich dict='temp-hw-eol-details-grouped' and dict_key_cols='contract_number,customer_name,product_id' and src_key_cols='contract_number,customer,product_id' and enrich_cols='combination_count_sum' and how_type='left'
+ --> @dm:eval unique_key='str(customer) + str(sw_os_type) + str(sw_version) + str(contract_number) + str(product_id)'
+ --> @dm:to-type columns='combination_count_sum' and type='int'
+ --> @dm:dropnull columns='sw_status'
+ --> @dm:save name='final-enrich'
+ --> @dm:save name='temp-edc-sweol-data'
+ --> @rn:write-stream name='edc_sweol_data'
