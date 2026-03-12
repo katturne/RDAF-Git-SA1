@@ -1,159 +1,215 @@
+
+ ## ## NetApp ONTAP 7 Mode Storage Inventory Collection
+
+ ## NetApp ONTAP 7 Mode IP Range Feed
 @c:new-block
- --> @dm:recall name="edc_license_domains"
- --> *dm:filter customer is 'ATT'
- --> @dm:save name='temp-cust-domains-trial'
- ## Collect Consumption
-
- --> @c:data-loop columns='top_level_domain,customer' and dataset='temp-cust-domains-trial'
- --> @snowflake:native-query dbname is "CX_DB" and warehouse is "CX_DMP_RPT_WH" and query is "SELECT * FROM CX_DB.CX_DMP_BR.PV_DMP_LICENSE_CONSUMPTION WHERE TOP_LEVEL_DOMAIN = '$top_level_domain';"
- --> @dm:add-missing-columns columns="execution_status"
- --> *dm:filter execution_status =="Success"
- --> @dm:skip-block-if-shape column_count = 3
- --> @dm:rename-columns billingType="billing_type" &
-license="feature_display_name"
- --> @dm:fixnull columns = 'license_class,licensed_feature_key,license_device_key,reservation_type,pak_item_id,billingType,license,feature_description,license_sku_id,domain_name,smart_account_name,virtual_account_name' and value='NA' and apply_for_empty="yes"
- --> @dm:to_type columns = 'consumed_quantity' & type  = 'int'
- --> @dm:change-time-format columns="consumption_date,consumption_update_date" and from_format="datetimestr" and to_format="%Y-%m-%d"
- ## create column for unique customer
-
- --> @dm:manipulate-string to="customer_name" and func="eval" and value="'$customer'"
- --> @dm:selectcolumns exclude="attempt_count|execution_reason|execution_status"
- --> @dm:save name="temp-license_consumption-trial" and append = "yes"
- ## Collect entitlement
-
- --> @c:data-loop columns='top_level_domain,customer' and dataset='temp-cust-domains-trial'
- --> @snowflake:native-query dbname is "CX_DB" and warehouse is "CX_DMP_RPT_WH" and query is "SELECT * FROM CX_DB.CX_DMP_BR.PV_DMP_LICENSE_ENTITLEMENT WHERE TOP_LEVEL_DOMAIN = '$top_level_domain';"
- --> @dm:add-missing-columns columns="execution_status"
- --> *dm:filter execution_status =="Success"
- --> @dm:skip-block-if-shape column_count = 3
- --> @dm:fixnull columns = 'license_start_date,license_end_date,transaction_date,transaction_update_date' and value = '1970-01-01T00:00:01' and apply_for_empty="yes"
- --> @dm:fixnull columns = 'license_type,billing_type,entitlement_type,feature_description,feature_display_name,product_family,license_sku,subscription_reference_id,business_entity,sub_business_entity,virtual_account_name' and value='NA' and apply_for_empty="yes"
- --> @dm:change-time-format columns="license_start_date,license_end_date,transaction_date,transaction_update_date" and from_format="datetimestr" and to_format="%Y-%m-%d"
- --> @dm:to_type columns = 'entitled_quantity' and type  = 'int'
- --> @dm:rename-columns billingType="billing_type" &
-licenseType="license_type" &
-startDate="license_start_date" &
-endDate="license_end_date" &
-subscriptionId="subscription_reference_id" &
-license="feature_display_name" &
-licenseSku="license_sku" &
-smart_account_key="smart_accounts_key" &
-license_sku_id="smart_license_sku_id" &
-sales_order_int="bk_so_number_int"
- ## create column for unique customer
-
- --> @dm:manipulate-string to="customer_name" and func="eval" and value="'$customer'"
- --> @dm:eval unique_key = "str(customer_name) + str(smart_account_key) +str(virtual_account_key)+  str(licensed_feature_key) +str(endDate) +str(startDate) +str(license_sku_id) + str(subscriptionId) + str(sales_order_line_key)+str(license_entitlement_key)"
- --> @dm:selectcolumns exclude="attempt_count|execution_reason|execution_status|transaction_date|transaction_update_date"
- --> @dm:save name="temp-license_entitlement-trial" and append = "yes"
- ## consolidate consumption into single record for smtAcct-virtualAcct-licensedFeature
+ --> @dm:empty
+ --> @dm:addrow ntap_ip = '10.95.158.15,10.95.158.17,10.95.131.51,10.95.131.52'
+ --> @dm:save name = 'temp-ntap-ip-feed'
+ ## NetApp ONTAP 7 Mode Controller Info
 
  --> @c:new-block
- --> @dm:recall name="temp-license_consumption-trial"
- --> @dm:selectcolumns include="customer_name|domain_name|smart_account_name|smart_account_key|virtual_account_key|virtual_account_name|licensed_feature_key|pak_item_id|^license$|reservation_type|billingType|license_class|license_sku_id|consumed_quantity"
- --> @dm:groupby columns="customer_name,domain_name,smart_account_name,smart_account_key,virtual_account_name,virtual_account_key,licensed_feature_key,pak_item_id,license,reservation_type,billingType,license_class,license_sku_id" and agg='sum'
- --> @dm:save name="temp-license_consumed_grp-trial"
- ## # Build dict for License to Business Entity
+ --> @dm:recall name = 'temp-ntap-ip-feed'
+ --> @ntap:controller-info column_name='ntap_ip' & concurrent_discovery = '100'
+ --> @dm:save name = 'netapp_ontap7_controller_info'
+ ## NetApp ONTAP 7 Mode Network Configuration
 
  --> @c:new-block
- --> @dm:recall name="temp-license_entitlement-trial"
- --> *dm:filter license_class is 'SMART'
- --> *dm:filter business_entity is not 'NA'
- --> @dm:selectcolumns include="license$|business_entity|sub_business_entity|product_family"
- --> @dm:groupby columns="license,business_entity,sub_business_entity"
- --> @dm:rename-columns tot_count="product_family" &
-common_BE="business_entity" &
-common_SBE="sub_business_entity"
- --> @dm:sort columns="license,tot_count" and order="asc"
- --> @dm:dedup columns = 'license' and keep="last"
- --> @dm:selectcolumns exclude="tot_count"
- --> @dm:save name="temp-business_dict-trial"
- ## # Create expiration column for entitlement
+ --> @dm:recall name = 'temp-ntap-ip-feed'
+ --> @ntap:network-config column_name='ntap_ip' & concurrent_discovery = '100'
+ --> @dm:save name = 'netapp_ontap7_network_config'
+ ## NetApp ONTAP 7 Mode FC Adapter Configuration
 
  --> @c:new-block
- --> @dm:recall name="temp-license_entitlement-trial"
- --> @dm:fixnull columns = 'endDate' and value = '1970-01-01'
- --> @dm:fixnull-regex value='NA'
- --> @dm:eval days_to_expire = " 20000 if licenseType=='PERPETUAL' else (to_datetime(endDate) - utcnow()).days"
- --> @dm:eval endTime = "utcnow()"
- --> @dm:change-time-format columns="endTime" and from_format="datetimestr" and to_format="%A, %m-%d-%Y %I:%M:%S %p %Z"
- --> @dm:eval endTime = "str(endTime)+str(    'UTC')"
- --> @dm:eval expiration_color = " '#79BAEC' if (licenseType =='PERPETUAL' or days_to_expire < -19000 ) else '#BB0000' if (days_to_expire < 90 or days_to_expire == 90) else  '#00BB00' if days_to_expire > 90 else '#b0bec5' "
- --> @dm:eval sort_number = " '3' if (licenseType =='PERPETUAL' or days_to_expire < -19000 ) else '1' if (days_to_expire < 90 or days_to_expire == 90) else  '2' if days_to_expire > 90 else '4' "
- --> @dm:eval expiration_status = " 'Valid Indefinitely' if (licenseType =='PERPETUAL' or days_to_expire < -19000 ) else  'Already Expired' if (days_to_expire< 0  and days_to_expire > -19000)  else  'Expiring within 90 days' if (days_to_expire < 90 or days_to_expire == 90) else 'Expiring after 90 days' if days_to_expire > 90  else '#b0bec5' "
- --> @dm:manipulate-string to="source" and func="eval" and value="'entitled'"
- ## Enrich with consumption
-
- --> @dm:enrich dict="temp-license_consumed_grp" and src_key_cols="customer_name,smart_account_key,virtual_account_key,licensed_feature_key" and dict_key_cols="customer_name,smart_account_key,virtual_account_key,licensed_feature_key" and enrich_cols="consumed_quantity,reservation_type,pak_item_id"
- --> @dm:fixnull columns = 'reservation_type,pak_item_id' and value='NA' and apply_for_empty="yes"
- --> @dm:fixnull columns = 'consumed_quantity' and value=0 and apply_for_empty="yes"
- --> @dm:eval available_quantity= "(entitled_quantity - consumed_quantity)"
- --> @dm:save name="temp-license_entitlement-trial"
- ## Evaluate if all consumed records have an associated entitlement
+ --> @dm:recall name = 'temp-ntap-ip-feed'
+ --> @ntap:fc-adapters column_name='ntap_ip' & concurrent_discovery = '100'
+ --> @dm:save name = 'netapp_ontap7_fc_adapters'
+ ## NetApp ONTAP 7 Mode Volumes
 
  --> @c:new-block
- --> @dm:recall name="temp-license_consumed_grp-trial"
- --> @dm:enrich dict="temp-license_entitlement" and src_key_cols="customer_name,smart_account_key,virtual_account_key,licensed_feature_key" and dict_key_cols="customer_name,smart_account_key,virtual_account_key,licensed_feature_key" and enrich_cols="sales_order_line_key,sales_order_int"
- --> *dm:filter sales_order_line_key is null
- --> @dm:eval entitled_quantity= "0"
- --> @dm:eval available_quantity= "(entitled_quantity - consumed_quantity)"
- --> @dm:eval days_to_expire = "-1"
- --> @dm:add-missing-columns columns="subscriptionId,status,licenseType,licenseSku,business_entity,sub_business_entity,product_family"
- --> @dm:fixnull columns="subscriptionId,status,licenseType,licenseSku,business_entity,sub_business_entity,product_family" and value='NA' and apply_for_empty="yes"
- --> @dm:eval sort_number = "4"
- --> @dm:manipulate-string to="source" and func="eval" and value="'consumed'"
- --> @dm:eval unique_key = "str(customer_name) + str(smart_account_key) + str(virtual_account_key)+  str(licensed_feature_key) + str(pak_item_id) + str(reservation_type) + str(license_sku_id)+str(billingType)"
- --> @dm:save name="temp-license_consumption_missing-trial"
- ## Concatenate
+ --> @dm:recall name = 'temp-ntap-ip-feed'
+ --> @ntap:volumes column_name='ntap_ip' & concurrent_discovery = '100'
+ --> @dm:save name = 'netapp_ontap7_volumes'
+ ## NetApp ONTAP 7 Mode Aggregates
 
  --> @c:new-block
- --> @dm:concat names="temp-license_entitlement-trial|temp-license_consumption_missing-trial"
- --> @dm:fixnull columns = 'sales_order_line_key,sales_order_int' and value = '-1' and apply_for_empty="yes"
- --> @dm:save name = "temp-license_details-trial"
- --> @rn:write-stream name='edc_license_details-trial' and direct_to_opensearch="yes"
- --> @dm:sleep seconds = 5
- --> @c:new-block
- --> @dm:recall name="temp-license_details-trial"
- --> @dm:selectcolumns include="customer_name|smart_account_name|domain_name|smart_account_key|virtual_account_key|virtual_account_name|^license$|license_class|licensed_feature_key|entitled_quantity"
- --> @dm:groupby columns="customer_name,smart_account_name,domain_name,smart_account_key,virtual_account_key,virtual_account_name,license,license_class,licensed_feature_key" and agg='sum'
- ## Bring available and consumed
-
- --> @dm:enrich dict="temp-license_consumed_grp" and src_key_cols="customer_name,smart_account_key,virtual_account_key,licensed_feature_key" and dict_key_cols="customer_name,smart_account_key,virtual_account_key,licensed_feature_key" and enrich_cols="consumed_quantity"
- ## Bring most used business entity for license
-
- --> @dm:enrich dict="temp-business_dict" and src_key_cols="license" and dict_key_cols="license" and enrich_cols="common_BE,common_SBE"
- --> @dm:fixnull columns = 'consumed_quantity' and value=0 and apply_for_empty="yes"
- --> @dm:eval available_quantity= "(entitled_quantity - consumed_quantity)"
- --> @dm:save name="temp-grouping-trial"
- --> @c:new-block
- --> @dm:recall name="temp-license_details-trial"
- --> @dm:selectcolumns include="customer_name|smart_account_key|virtual_account_key|days_to_expire|licenseType|^license$|licensed_feature_key|source"
- --> @dm:groupby columns="customer_name,smart_account_key,virtual_account_key,license,licensed_feature_key,source" and agg='min'
- --> @dm:eval exp_status = " 'Valid Indefinitely' if ((licenseType =='PERPETUAL' or days_to_expire < -19000) and source == 'entitled') else 'One or more Expired Licenses' if (days_to_expire< 0  and days_to_expire > -19000 and source == 'entitled')    else  'Expiring within 90 days' if ((days_to_expire < 90 or days_to_expire == 90) and source == 'entitled') else 'Expiring after 90 days' if (days_to_expire > 90 and source == 'entitled') else 'NA' "
- --> @dm:eval sort_number = " '3' if ((licenseType =='PERPETUAL' or days_to_expire < -19000) and source == 'entitled' ) else '1' if (days_to_expire< 0  and days_to_expire > -19000 and source == 'entitled')    else  '1' if ((days_to_expire < 90 or days_to_expire == 90) and source == 'entitled') else '2' if (days_to_expire > 90 and source == 'entitled') else '4' "
- --> @dm:eval expiration_color = " '#79BAEC' if ((licenseType =='PERPETUAL' or days_to_expire < -19000) and source == 'entitled' ) else '#BB0000' if ((days_to_expire < 90 or days_to_expire == 90) and source == 'entitled') else  '#00BB00' if (days_to_expire > 90 and source == 'entitled') else '#b0bec5'  "
- --> @dm:save name="temp-grouping2-trial"
- --> @c:new-block
- --> @dm:recall name="temp-grouping2-trial"
- --> @dm:enrich dict="license_tap_dict" and src_key_cols="license" and dict_key_cols="license" and enrich_cols="TAP"
- --> @dm:fixnull columns = 'license,common_BE,common_product_family' and value='Not Available' and apply_for_empty="yes"
- --> @dm:save name="edc_license_summary_test"
- ## Enrich grouping for summary with message for expiration
+ --> @dm:recall name = 'temp-ntap-ip-feed'
+ --> @ntap:aggregates column_name='ntap_ip' & concurrent_discovery = '100'
+ --> @dm:save name = 'netapp_ontap7_aggregates'
+ ## NetApp ONTAP 7 Mode LUNs
 
  --> @c:new-block
- --> @dm:recall name="edc_license_summary_test"
- --> @dm:enrich dict="edc_license_summary_test" and src_key_cols="customer_name,smart_account_key,virtual_account_key,licensed_feature_key" and dict_key_cols="customer_name,smart_account_key,virtual_account_key,licensed_feature_key" and enrich_cols="exp_status,expiration_color,sort_number"
- ## evaluate Alerts
+ --> @dm:recall name = 'temp-ntap-ip-feed'
+ --> @ntap:luns column_name='ntap_ip' & concurrent_discovery = '100'
+ --> @dm:save name = 'netapp_ontap7_luns'
+ ## NetApp ONTAP 7 Mode NFS Exports
 
- --> @dm:eval alert_status = " 'Licenses Expired' if (exp_status == 'One or more Expired Licenses') else 'Insufficient Licenses' if (available_quantity<0 ) else 'Licenses Expiring'  if (exp_status == 'Expiring within 90 days') else 'NA' "
- --> @dm:eval alert_color = " '#FF0000' if (exp_status == 'One or more Expired Licenses') else  '#FFA500' if (available_quantity<0 ) else '#F4C430' if (exp_status == 'Expiring within 90 days') else '#b0bec5'  "
- --> @dm:save name="temp-summary-details-trial"
  --> @c:new-block
- --> @dm:recall name="temp-summary-details-trial"
- --> @dm:eval unique_key = "str(customer_name) + str(smart_account_key) +str(virtual_account_key)+  str(license) +  str(license_class) + str(licensed_feature_key)"
- --> @dm:eval endTime = "utcnow()"
- --> @dm:change-time-format columns="endTime" and from_format="datetimestr" and to_format="%A, %m-%d-%Y %I:%M:%S %p %Z"
- --> @dm:eval endTime = "str(endTime)+str(    'UTC')"
- --> @dm:fixnull-regex value='NA'
- --> @rn:write-stream name='edc_license_summary-trial' and direct_to_opensearch="yes"
- --> @dm:sleep seconds = 5
+ --> @dm:recall name = 'temp-ntap-ip-feed'
+ --> @ntap:nfs-exports column_name='ntap_ip' & concurrent_discovery = '100'
+ --> @dm:save name = 'netapp_ontap7_nfs_exports'
+ ## ### NetApp ONTAP 7 - Nodes ######
+
+ ## NetApp ONTAP 7 Controllers
+
+ --> @c:new-block
+ --> @dm:recall name = 'netapp_ontap7_controller_info' & empty_as_null = 'no'
+ --> @dm:fixcolumns
+ --> *dm:filter * get system_name as 'ntap_array_name',system_model as 'ntap_array_model',system_serial_number as 'ntap_array_serial_number',vendor_id as 'ntap_array_vendor',version as 'ntap_array_version',controller_ip as 'ntap_array_ip'
+ --> @dm:map to = 'layer' & func = 'fixed' & value = 'Storage'
+ --> @dm:map to = 'node_type' & func = 'fixed' & value = 'Controller'
+ --> @dm:map from = 'ntap_array_name' & to = 'node_label'
+ --> @dm:map from = 'ntap_array_serial_number' & to = 'node_id'
+ --> @dm:save name = 'netapp_ontap7_controller_nodes'
+ ## NetApp ONTAP 7 - Network Configuration
+
+ --> @c:new-block
+ --> @dm:recall name = 'netapp_ontap7_network_config' & empty_as_null = 'no'
+ --> @dm:fixcolumns
+ --> *dm:filter object_type='IFGRP' get controller_ip,interface_name as 'ifgrp_name',links_link_0,links_link_1
+ --> @dm:save name = 'temp-ntap-ifgroup-to-phy-interface'
+ --> @c:new-block
+ --> @dm:recall name = 'netapp_ontap7_network_config' & empty_as_null = 'no'
+ --> @dm:fixcolumns
+ --> *dm:filter object_type='INTERFACE' and v4_primary_address_ip_address_info_address is not empty and interface_name does not contain 'c0*|^e0P$' get controller_ip,interface_name as 'vlan_interface_name',mac_address,v4_primary_address_ip_address_info_address as 'interface_ip_address'
+ --> @dm:save name = 'temp-ntap-interface-mac-ip'
+ --> @c:new-block
+ --> @dm:recall name = 'netapp_ontap7_network_config' & empty_as_null = 'no'
+ --> @dm:fixcolumns
+ --> *dm:filter object_type='VLAN' get controller_ip,interface_name as 'vlan_interface_name',parent_interface
+ --> @dm:enrich dict='temp-ntap-interface-mac-ip' & src_key_cols = 'controller_ip,vlan_interface_name' & dict_key_cols='controller_ip,vlan_interface_name' & enrich_cols = 'interface_ip_address,mac_address'
+ --> @dm:fixnull-regex columns = '.*'
+ --> @dm:enrich dict='temp-ntap-ifgroup-to-phy-interface' & src_key_cols='controller_ip,parent_interface' & dict_key_cols='controller_ip,ifgrp_name' & enrich_cols='links_link_0,links_link_1'
+ --> *dm:filter * get controller_ip as 'ntap_array_ip',vlan_interface_name as 'ntap_array_vlan_interface',parent_interface as 'ntap_array_parent_interface',interface_ip_address as 'ntap_array_interface_ip',mac_address as 'ntap_array_interface_mac',links_link_0 as 'ntap_array_nic0',links_link_1 as 'ntap_array_nic1'
+ --> @dm:enrich dict = 'netapp_ontap7_controller_nodes' & src_key_cols = 'ntap_array_ip' & dict_key_cols = 'ntap_array_ip' & enrich_cols = 'ntap_array_serial_number'
+ --> @dm:map to = 'layer' & func = 'fixed' & value = 'Storage'
+ --> @dm:map to = 'node_type' & func = 'fixed' & value = 'NIC'
+ --> @dm:map from = 'ntap_array_vlan_interface' & to = 'node_label'
+ --> @dm:map from = 'ntap_array_ip,ntap_array_vlan_interface' & to = 'ntap_array_vlan_interface_id' & func = 'join' & sep = '_'
+ --> @dm:map from = 'ntap_array_vlan_interface_id' & to = 'node_id'
+ --> @dm:save name = 'netapp_ontap7_network_nodes'
+ ## NetApp ONTAP 7 - Aggregate Configuration
+
+ --> @c:new-block
+ --> @dm:recall name = 'netapp_ontap7_aggregates' & empty_as_null = 'no'
+ --> @dm:fixcolumns
+ --> *dm:filter * get name as 'ntap_array_aggr_name',controller_ip as 'ntap_array_ip',controller as 'ntap_array_ip_2',has_local_root as 'ntap_array_aggr_root',is_hybrid as 'ntap_array_aggr_hybrid',is_mirrored as 'ntap_array_aggr_mirrored',mount_state as 'ntap_array_aggr_status',disk_count as 'ntap_array_aggr_disks',raid_size as 'ntap_array_aggr_raid_size',raid_status as 'ntap_array_aggr_raid_type'
+ --> @dm:map to = 'ntap_array_ip' & func = 'evaluate' & expr = "ntap_array_ip_2 if ntap_array_ip == '' else ntap_array_ip"
+ --> @dm:selectcolumns exclude = 'ntap_array_ip_2'
+ --> @dm:enrich dict = 'netapp_ontap7_controller_nodes' & src_key_cols = 'ntap_array_ip' & dict_key_cols = 'ntap_array_ip' & enrich_cols = 'ntap_array_serial_number'
+ --> @dm:map to = 'layer' & func = 'fixed' & value = 'Storage'
+ --> @dm:map to = 'node_type' & func = 'fixed' & value = 'Storagepool'
+ --> @dm:map from = 'ntap_array_aggr_name' & to = 'node_label'
+ --> @dm:map from = 'ntap_array_ip,ntap_array_aggr_name' & to = 'ntap_array_aggr_id' & func = 'join' & sep = '_'
+ --> @dm:map from = 'ntap_array_aggr_id' & to = 'node_id'
+ --> @dm:save name = 'netapp_ontap7_aggr_nodes'
+ ## NetApp ONTAP 7 - Volume Configuration
+
+ --> @c:new-block
+ --> @dm:recall name = 'netapp_ontap7_volumes' & empty_as_null = 'no'
+ --> @dm:fixcolumns
+ --> *dm:filter * get controller_ip as 'ntap_array_ip',name as 'ntap_array_vol_name',containing_aggregate as 'ntap_array_parent_aggr',sis_sis_info_state as 'ntap_array_vol_dedup_status'
+ --> @dm:map to = 'layer' & func = 'fixed' & value = 'Storage'
+ --> @dm:map to = 'node_type' & func = 'fixed' & value = 'Volume'
+ --> @dm:map from = 'ntap_array_vol_name' & to = 'node_label'
+ --> @dm:map from = 'ntap_array_ip,ntap_array_vol_name' & to = 'ntap_array_vol_id' & func = 'join' & sep = '_'
+ --> @dm:map from = 'ntap_array_ip,ntap_array_parent_aggr' & to = 'ntap_array_aggr_id' & func = 'join' & sep = '_'
+ --> @dm:map from = 'ntap_array_vol_id' & to = 'node_id'
+ --> @dm:save name = 'netapp_ontap7_volume_nodes'
+ ## NetApp ONTAP 7 - NFS Exports Configuration
+
+ --> @c:new-block
+ --> @dm:recall name = 'netapp_ontap7_nfs_exports' & empty_as_null = 'no'
+ --> @dm:fixcolumns
+ --> @dm:map from = 'pathname' & to = 'parent_vol'
+ --> @dm:map attr = 'parent_vol' & func = 'split' & sep = '/'
+ --> @dm:map attr = 'parent_vol' & func = 'slice' & fromIdx = 2
+ --> @dm:map attr = 'parent_vol' & func = 'join'
+ --> *dm:filter * get controller_ip as 'ntap_array_ip',pathname as 'ntap_array_nfs_export_path',parent_vol as 'ntap_array_parent_vol'
+ --> @dm:save name = 'temp-netapp_ontap7_nfs_exports'
+ --> @c:new-block
+ --> @dm:recall name = 'netapp_ontap7_volume_nodes' & empty_as_null = 'no'
+ --> @dm:enrich dict = 'temp-netapp_ontap7_nfs_exports' & src_key_cols = 'ntap_array_ip,ntap_array_vol_name' & dict_key_cols = 'ntap_array_ip,ntap_array_parent_vol' & enrich_cols = 'ntap_array_nfs_export_path'
+ --> @dm:selectcolumns exclude = '^ntap_array_parent_vol$'
+ --> @dm:save name = 'netapp_ontap7_volume_nodes'
+ ## ### Consolidated Nodes output
+
+ --> @c:new-block
+ --> @dm:concat names = '^netapp_ontap7_controller_nodes$|^netapp_ontap7_network_nodes$|^netapp_ontap7_aggr_nodes$|^netapp_ontap7_volume_nodes$'
+ --> @dm:save name = 'netapp_ontap7_inventory_nodes'
+ ## # NetApp ONTAP 7 Mode - Relationships
+
+ ## NetApp Array Controllers to Network interfaces
+
+ --> @c:new-block
+ --> @dm:recall name = 'netapp_ontap7_inventory_nodes' & empty_as_null = 'no'
+ --> *dm:filter node_type='NIC' get node_label,node_id,ntap_array_serial_number
+ --> @dm:map to = 'relation_type' & func = 'fixed' & value = 'contains'
+ --> *dm:filter * get ntap_array_serial_number as 'left',relation_type,node_id as 'right'
+ --> @dm:save name = 'netapp_ontap7_array_to_network_edges'
+ ## NetApp Array Controllers to Aggregates
+
+ --> @c:new-block
+ --> @dm:recall name = 'netapp_ontap7_inventory_nodes' & empty_as_null = 'no'
+ --> *dm:filter node_type='Storagepool' get node_label,node_id,ntap_array_serial_number
+ --> @dm:map to = 'relation_type' & func = 'fixed' & value = 'contains'
+ --> *dm:filter * get ntap_array_serial_number as 'left',relation_type,node_id as 'right'
+ --> @dm:save name = 'netapp_ontap7_array_to_aggregate_edges'
+ ## NetApp Array Aggregates to Volumes
+
+ --> @c:new-block
+ --> @dm:recall name = 'netapp_ontap7_inventory_nodes' & empty_as_null = 'no'
+ --> *dm:filter node_type='Volume' get node_label,node_id,ntap_array_aggr_id
+ --> @dm:map to = 'relation_type' & func = 'fixed' & value = 'contains'
+ --> *dm:filter * get ntap_array_aggr_id as 'left',relation_type,node_id as 'right'
+ --> @dm:save name = 'netapp_ontap7_aggregate_to_volume_edges'
+ ## ## NetApp Array - Relationships
+
+ --> @c:new-block
+ --> @dm:concat names = '^netapp_ontap7_array_to_network_edges$|^netapp_ontap7_array_to_aggregate_edges$|^netapp_ontap7_aggregate_to_volume_edges$'
+ --> @dm:dropnull columns = 'left,right'
+ --> @dm:dedup
+ --> @dm:map from = 'left' & to = 'left_id'
+ --> @dm:map from = 'right' & to = 'right_id'
+ --> @dm:save name = 'netapp_ontap7_inventory_edges'
+ ## #########################################
+
+ ## # NetApp Storage Arrat Stacks - Topology Pipeline
+
+ ## #########################################
+
+ --> @c:new-block
+ --> @dm:stack-create topology_nodes='netapp_ontap7_inventory_nodes' and topology_edges='netapp_ontap7_inventory_edges' and name = 'netapp_array_7mode_topology_stack'
+ --> @dm:stack-save name='netapp_array_7mode_topology_stackv2'
+ ## #########################################
+
+ ## # Create pstreams if not existing already
+
+ ## #########################################
+
+ --> @dm:create-persistent-stream name = 'ntap_topology_nodes' and retention_days=0 and unique_cols= "node_id"
+ --> @exec:retry-loop retries is 30 and retry_delay_millis is 5000
+ --> @dm:empty
+ --> @dm:addrow name is "ntap_topology_nodes" and limit is 1
+ --> #dm:query-persistent-stream
+ --> @exec:end-loop
+ --> @dm:create-persistent-stream name = 'ntap_topology_edges' and retention_days=0 and unique_cols= "left_id,right_id"
+ --> @exec:retry-loop retries is 30 and retry_delay_millis is 5000
+ --> @dm:empty
+ --> @dm:addrow name is "ntap_topology_edges" and limit is 1
+ --> #dm:query-persistent-stream
+ --> @exec:end-loop
+ ## #####################
+
+ ## Save nodes and edges data to dynamic pstreams
+
+ ## #####################
+
+ --> @c:new-block
+ --> @dm:recall name="netapp_ontap7_inventory_nodes"
+ --> @dm:map to = 'stack_type' & func = 'fixed' & value = 'NetApp'
+ --> @dm:add-missing-columns columns = 'iconURL' & value = 'Not Available'
+ --> @rn:write-stream name="ntap_topology_nodes"
+ --> @dm:recall name="netapp_ontap7_inventory_edges"
+ --> @dm:map to = 'stack_type' & func = 'fixed' & value = 'NetApp'
+ --> @rn:write-stream name="ntap_topology_edges"
