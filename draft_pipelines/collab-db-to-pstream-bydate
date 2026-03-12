@@ -1,90 +1,42 @@
-@c:data-loop dataset="oia-meapm-metrics-list" & columns="asset_id,RESOURCEID,AttributeID,metric_label,unit"
- --> @me-apm:metrics resourceid = '$RESOURCEID' and attributeid='$AttributeID' and timestamp is after -60 min
- --> @dm:add-missing-columns columns='collection_timestamp,AvgValue'
- --> @dm:dropnull columns='collection_timestamp,AvgValue'
- --> @dm:to-type columns='AvgValue' and type='float'
- --> *dm:filter AvgValue > 0.0
- --> @dm:skip-block-if-shape row_count=0
- --> @dm:rename-columns metric_timestamp='collection_timestamp'
- --> @dm:rename-columns value='AvgValue'
- --> @dm:eval metric_source="'ManageEngine'"
- --> @dm:eval asset_id = "'$asset_id'"
- --> @dm:eval RESOURCEID = "'$RESOURCEID'"
- --> @dm:eval AttributeID = "'$AttributeID'"
- --> @dm:eval metric_label = `str("$metric_label")`
- --> @dm:eval metric_name = "metric_label"
- --> @dm:eval unit = "'$unit'"
- --> @dm:map from = 'RESOURCEID,AttributeID' and to = 'metric_id' and func = "join" and sep = ' - '
- --> @dm:eval metric_source="'ManageEngine'"
- --> @dm:change-time-format columns='metric_timestamp' & from_format='ms' & to_format='%Y-%m-%dT%H:%M:%S'
- --> @dm:add-missing-columns columns='asset_name' and value='Not Available'
- --> @dm:add-missing-columns columns='customer' and value='ACME'
- --> @dm:selectcolumns include="^asset_id$|^asset_name$|^metric_id$|^metric_label$|^metric_name$|^metric_source$|^metric_timestamp$|^unit$|^value$|^customer$"
- --> @rn:write-stream name='oia-metrics-data'
- --> @dm:selectcolumns include="^asset_id$|^asset_name$|^metric_id$|^metric_label$|^metric_name$|^metric_source$|^unit$|^customer$"
- --> @rn:write-stream name='oia-selected-metrics'
- --> @c:data-loop dataset="oia-prometheus-metrics-list" & columns="asset_id,metric_id,instance,metric_label,unit"
- --> @prometheus:metric-range metric is `$metric_id{instance="$instance"}` and timestamp is after -60 min
- --> @dm:add-missing-columns columns='timestamp,value'
- --> @dm:dropnull columns='timestamp,value'
- --> @dm:to-type columns='value' and type='float'
- --> *dm:filter value > 0.0
- --> @dm:skip-block-if-shape row_count=0
- --> @dm:rename-columns metric_timestamp='timestamp'
- --> @dm:eval metric_source = "'Prometheus'"
- --> @dm:eval asset_id = "'$asset_id'"
- --> @dm:eval metric_id = "'$metric_id'"
- --> @dm:eval metric_label = `str("$metric_label")`
- --> @dm:eval metric_name = "metric_label"
- --> @dm:eval unit = "'$unit'"
- --> @dm:change-time-format columns='metric_timestamp' & from_format='ms' & to_format='%Y-%m-%dT%H:%M:%S'
- --> @dm:add-missing-columns columns='asset_name' and value='Not Available'
- --> @dm:add-missing-columns columns='customer' and value='ACME'
- --> @dm:selectcolumns include="^asset_id$|^asset_name$|^metric_id$|^metric_label$|^metric_name$|^metric_source$|^metric_timestamp$|^unit$|^value$|^customer$"
- --> @rn:write-stream name='oia-metrics-data'
- --> @dm:selectcolumns include="^asset_id$|^asset_name$|^metric_id$|^metric_label$|^metric_name$|^metric_source$|^unit$|^customer$"
- --> @rn:write-stream name='oia-selected-metrics'
- --> @c:data-loop dataset='oia-vrops-metrics-list' & columns='metric_id,resource_id,asset_id,asset_name,metric_label,unit'
- --> @vrops:metrics resource_id= '$resource_id' & metric_name='$metric_id' & timestamp is after -60 min & interval is '15min' and skip_on_error='yes'
- --> *dm:filter rda_status is 'Success'
- --> @dm:skip-block-if-shape row_count=0
- --> @dm:dropnull columns='timestamps,data'
- --> @dm:to-type columns='data' and type='float'
- --> *dm:filter data > 0.0
- --> @dm:skip-block-if-shape row_count=0
- --> @dm:rename-columns metric_timestamp='timestamps' & value='data'
- --> @dm:eval metric_source = "'vROps'"
- --> @dm:eval asset_id = "'$asset_id'"
- --> @dm:eval asset_name = "'$asset_name'"
- --> @dm:eval metric_id = "'$metric_id'"
- --> @dm:eval metric_label = `str("$metric_label")`
- --> @dm:eval metric_name = "metric_label"
- --> @dm:eval unit = "'$unit'"
- --> @dm:change-time-format columns='metric_timestamp' & from_format='ms' & to_format='%Y-%m-%dT%H:%M:%S'
- --> @dm:add-missing-columns columns='asset_name' and value='Not Available'
- --> @dm:add-missing-columns columns='customer' and value='ACME'
- --> @dm:selectcolumns include="^asset_id$|^asset_name$|^metric_id$|^metric_label$|^metric_name$|^metric_source$|^metric_timestamp$|^unit$|^value$|^customer$"
- --> @rn:write-stream name='oia-metrics-data'
- --> @dm:selectcolumns include="^asset_id$|^asset_name$|^metric_id$|^metric_label$|^metric_name$|^metric_source$|^unit$|^customer$"
- --> @rn:write-stream name='oia-selected-metrics'
+
+ ## .
+
+ ## collab-db-to-pstream-bydate
+
+ ## .
+@c:new-block
+ ## .
+
  --> @dm:empty
- --> @dm:recall name='oia-dynatrace-metrics-list'
- --> @dynatrace:dynatrace-bulk-metric-collection entity_id_col='asset_id' and metric_col='metric_id' and timestamp is after -1month
+ --> @mysqlv2:native-query dbname="0bde1fc06a7542c3a6a4c47d85f64d9d_cfxdimensions_app_collaboratio" & query="select customerid,projectid,incidentid,messagetype,messageid,sourcemessageid,sourcesystemid,sourcesystemname,sourcepayload,senderid,sendername,subject,sourcedetails,senderdetails,recipients,attributes,createdby,updatedby,createdat,updatedat,content from message where createdat >= TIMESTAMP('2024-08-07 00:00:00')"
  --> @dm:skip-block-if-shape row_count=0
- --> @dm:dropnull columns='timestamp,value'
- --> @dm:to-type columns='value' and type='float'
- --> *dm:filter value > 0.0
- --> @dm:add-missing-columns columns='timestamp,value'
- --> @dm:rename-columns metric_timestamp='timestamp'
- --> @dm:eval-multi-proc metric_source="'Dynatrace'"
- --> @dm:enrich dict='oia-dynatrace-metrics-list' and src_key_cols='metric' and dict_key_cols='metric_id' and enrich_cols='metric_label'
- --> @dm:map-multi-proc from = 'component' and to = 'asset_id' and func = 'split' and sep = ':'
- --> @dm:eval-multi-proc asset_id = 'asset_id[0]'
- --> @dm:eval-multi-proc metric_name = "metric_label"
- --> @dm:change-time-format columns='metric_timestamp' & from_format='ms' & to_format='%Y-%m-%dT%H:%M:%S'
- --> @dm:add-missing-columns columns='asset_name' and value='Not Available'
- --> @dm:add-missing-columns columns='customer' and value='ACME'
- --> @dm:selectcolumns include="^asset_id$|^asset_name$|^metric_id$|^metric_label$|^metric_name$|^metric_source$|^metric_timestamp$|^unit$|^value$|^customer$"
- --> @rn:write-stream name='oia-metrics-data'
- --> @dm:selectcolumns include="^asset_id$|^asset_name$|^metric_id$|^metric_label$|^metric_name$|^metric_source$|^unit$|^customer$"
- --> @rn:write-stream name='oia-selected-metrics'
+ --> @dm:check-columns must_contain="incidentid" & action="skip-block"
+ --> @dm:selectcolumns exclude="execution_status|execution_reason|attempt_count"
+ --> @dm:change-time-format columns="createdat,updatedat" & from_format="datetimestr" & to_format="datetimestr"
+ --> @dm:copy-columns to="timestamp" & from="updatedat"
+ --> @dm:fixnull-regex
+ --> @rn:write-stream name="oia-incidents-collaboration-stream"
+@c:new-block
+ ## .
+
+ --> @dm:empty
+ --> @mysqlv2:native-query dbname="0bde1fc06a7542c3a6a4c47d85f64d9d_cfxdimensions_app_collaboratio" & query="select ms.message_id,ms.shared_to_team,ms.type,ms.shared_to,ms.shared_by,ms.shared_time,ms.medium,ms.attachment_name,m.customerid,m.projectid,m.incidentid from irmessagesharing ms inner join message m on m.messageid=ms.message_id where m.createdat >= TIMESTAMP('2024-08-07 00:00:00')"
+ --> @dm:skip-block-if-shape row_count=0
+ --> @dm:check-columns must_contain="incidentid" & action="skip-block"
+ --> @dm:selectcolumns exclude="execution_status|execution_reason|attempt_count"
+ --> @dm:change-time-format columns="shared_time" & from_format="datetimestr" & to_format="datetimestr"
+ --> @dm:copy-columns to="timestamp" & from="shared_time"
+ --> @dm:fixnull-regex
+ --> @rn:write-stream name="oia-collab-messagesharing-stream"
+@c:new-block
+ ## .
+
+ --> @dm:empty
+ --> @mysqlv2:native-query dbname="0bde1fc06a7542c3a6a4c47d85f64d9d_cfxdimensions_app_collaboratio" & query="select team_id,customer_id,project_id,incident_id,collab_type,ticket_number,shared_time,ticket_id,link from teamincident where shared_time >= TIMESTAMP('2024-08-07 00:00:00')"
+ --> @dm:skip-block-if-shape row_count=0
+ --> @dm:check-columns must_contain="incident_id" & action="skip-block"
+ --> @dm:selectcolumns exclude="execution_status|execution_reason|attempt_count"
+ --> @dm:change-time-format columns="shared_time" & from_format="datetimestr" & to_format="datetimestr"
+ --> @dm:copy-columns to="timestamp" & from="shared_time"
+ --> @dm:fixnull-regex
+ --> @rn:write-stream name="oia-incidents-external-tickets-stream"
