@@ -1,105 +1,129 @@
 {
-  "name": "rda_system_snapshots_main",
-  "label": "Snapshots List",
-  "description": "Snapshots List",
-  "dashboard_folder": "System",
-  "version": "1.0.2",
-  "enabled": false,
-  "live_edit": true,
-  "stream": "rda_system_snapshots_main",
+  "name": "rda-mgmt-page-tenant-credentials",
+  "label": "Credentials",
+  "description": " Credentials Management Page",
+  "enabled": true,
   "dashboard_type": "dashboard",
+  "dashboard_folder": "System",
+  "dashboard_style": "auto",
+  "stream": "rda_secret_meta",
   "dashboard_filters": {
     "time_filter": true,
-    "default_time_filter_labels": [
-      "All Time"
-    ],
     "columns_filter": [
       {
-        "id": "snapshot_name",
-        "label": "Snapshot Name",
-        "key": true,
+        "id": "name",
+        "label": "Name",
         "type": "TEXT"
       },
       {
-        "id": "snapshot_type",
-        "label": "Snapshot Type",
+        "id": "type",
+        "label": "Type",
         "type": "TEXT"
       },
       {
-        "id": "status",
-        "label": "Status",
+        "id": "typeDescription",
+        "label": "Type Description",
         "type": "TEXT"
-      }
-    ],
-    "group_filters": [
+      },
       {
-        "stream": "rda_system_snapshots_main",
-        "title": "Snapshot Type",
-        "duration_hours": 87600,
-        "limit": 200,
-        "extra_filter": null,
-        "group_by": [
-          "snapshot_type"
-        ],
-        "ts_column": "timestamp",
-        "agg": "sum",
-        "column": "count_",
-        "type": "int"
+        "id": "checksum",
+        "label": "Checksum",
+        "type": "TEXT"
+      },
+      {
+        "id": "saved_time",
+        "label": "Saved Time",
+        "type": "DATETIME"
       }
     ]
   },
   "dashboard_sections": [
     {
-      "title": "rda_system_snapshots_main",
+      "title": "Credentials",
       "show_filter": true,
       "widgets": [
         {
-          "title": "Snapshots",
+          "title": "Credentials",
           "widget_type": "tabular",
-          "max_width": 12,
-          "height": 8,
-          "min_width": 12,
-          "stream": "rda_system_snapshots_main",
-          "ts_column": "timestamp",
+          "stream": "rda_secrets_meta",
+          "duration_hours": 87600,
+          "remote_searchable": true,
+          "remote_searchable_cols": [
+            "name",
+            "type",
+            "typeDescription",
+            "checksum"
+          ],
+          "ts_column": "saved_time",
           "paginated": true,
-          "extra_filter": null,
-          "refreshOptions": {
-            "refreshType": "Periodic",
-            "refreshInterval": 30000
-          },
+          "height": 10,
+          "min_wdith": 12,
           "columns": {
-            "snapshot_type": {
-              "title": "Snapshot Type",
-              "type": "TEXT",
-              "hidden": false
-            },
-            "snapshot_name": {
-              "title": "Snapshot Name",
-              "type": "TEXT",
-              "hidden": false,
+            "name": {
+              "title": "Name",
               "key": true
             },
-            "description": {
-              "title": "Description",
-              "type": "TEXT",
-              "hidden": false
+            "type": {
+              "title": "Type",
+              "key": true
             },
-            "status": {
-              "title": "Status",
-              "type": "TEXT"
+            "typeDescription": {
+              "title": "description"
+            },
+            "has_credential_check": {
+              "title": "Credential Check",
+              "visible": false
+            },
+            "checksum": {
+              "title": "Checksum"
+            },
+            "tags": {
+              "title": "Tags",
+              "type": "TEXT",
+              "key": true
+            },
+            "saved_time": {
+              "title": "Saved Time",
+              "type": "DATETIME"
             },
             "timestamp": {
-              "title": "Timestamp",
-              "type": "DATETIME"
+              "title": "When",
+              "type": "HUMANIZE_TIME_DELTA",
+              "source-column": "saved_time",
+              "sortable": false
             }
           },
+          "custom_columns": [
+            {
+              "id": "rowStyleClass",
+              "hidden": true,
+              "visiblle": false,
+              "expr": "'bg-fading-blue' if time_now_as_ms() - isoformat_to_ms(saved_time) <= 120000 else None"
+            },
+            {
+              "id": "artifact_name",
+              "label": "Artifact Name",
+              "expr": "name",
+              "key": true,
+              "visible": false,
+              "sortable": false
+            },
+            {
+              "id": "artifact_type",
+              "label": "Artifact Type",
+              "expr": "'source'",
+              "key": true,
+              "visible": false,
+              "sortable": false
+            }
+          ],
           "actions": [
             {
-              "title": "Create",
+              "permission": "rda:credential:view",
+              "title": "View",
               "type": "POPUP_FORM",
-              "selectionType": "NONE",
-              "permission": "rda:dataset:add",
-              "identifier": "rda.snapshot.add",
+              "selectionType": "SINGLE",
+              "identifier": "saas-service-action:vault-view",
               "api-endpoint": {
                 "service-name": "saas-reports",
                 "methodName": "getForm",
@@ -107,45 +131,27 @@
                 "parse-output": false,
                 "params": [
                   {
-                    "formId": "rda.saas.create.snapshot"
+                    "formId": "rda.saas.vault.view"
                   }
                 ]
               }
             },
             {
-              "permission": "rda:dataset:import",
-              "title": "Import",
+              "permission": "rda:credential:verify",
+              "title": "Verify Credentials",
               "type": "POPUP_FORM",
-              "selectionType": "NONE",
-              "identifier": "rda.snapshot.import",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
+              "selectionType": "SINGLE",
+              "identifier": "saas-service-action:vault-edit",
+              "actionCondition": {
+                "actionControl": "HIDE_IF",
+                "conditionalField": [
                   {
-                    "formId": "rda.saas.import.snapshot"
+                    "conditionType": "EQUAL",
+                    "conditionValue": "false",
+                    "fieldId": "has_credential_check"
                   }
                 ]
-              }
-            },
-            {
-              "permission": "rda:dataset:view",
-              "appName": "user-dashboard/rda_system_single_snapshot_details",
-              "drillDownLinkField": "snapshot_name",
-              "identifier": "user.dashboard.view",
-              "selectionType": "SINGLE",
-              "stateName": "app.featureapp",
-              "title": "View Details",
-              "type": "GO_TO_APP_STATE"
-            },
-            {
-              "title": "Export",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "permission": "rda:dataset:export",
-              "identifier": "rda.snapshot.export",
+              },
               "api-endpoint": {
                 "service-name": "saas-reports",
                 "methodName": "getForm",
@@ -153,105 +159,104 @@
                 "parse-output": false,
                 "params": [
                   {
-                    "formId": "rda.saas.export.snapshot"
-                  }
-                ]
-              }
-            },
-            {
-              "title": "Review",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "permission": "rda:dataset:review",
-              "identifier": "rda.snapshot.review",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.review.snapshot"
-                  }
-                ]
-              }
-            },
-            {
-              "title": "Delete",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "permission": "rda:dataset:delete",
-              "identifier": "rda.snapshot.delete",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.delete.snapshot"
+                    "formId": "rda.saas.vault.validateConenctivity"
                   }
                 ]
               }
             }
           ],
-          "widget_id": "acfb36eb"
+          "widget_id": "9a21b5c6"
         }
       ]
     }
   ],
   "pstream_dashboards": [
     {
-      "title": "rda_system_snapshots_main",
+      "title": "Credentials",
       "show_filter": true,
       "widgets": [
         {
-          "title": "Snapshots",
+          "title": "Credentials",
           "widget_type": "tabular",
-          "max_width": 12,
-          "height": 8,
-          "min_width": 12,
-          "stream": "rda_system_snapshots_main",
-          "ts_column": "timestamp",
+          "stream": "rda_secrets_meta",
+          "duration_hours": 87600,
+          "remote_searchable": true,
+          "remote_searchable_cols": [
+            "name",
+            "type",
+            "typeDescription",
+            "checksum"
+          ],
+          "ts_column": "saved_time",
           "paginated": true,
-          "extra_filter": null,
-          "refreshOptions": {
-            "refreshType": "Periodic",
-            "refreshInterval": 30000
-          },
+          "height": 10,
+          "min_wdith": 12,
           "columns": {
-            "snapshot_type": {
-              "title": "Snapshot Type",
-              "type": "TEXT",
-              "hidden": false
-            },
-            "snapshot_name": {
-              "title": "Snapshot Name",
-              "type": "TEXT",
-              "hidden": false,
+            "name": {
+              "title": "Name",
               "key": true
             },
-            "description": {
-              "title": "Description",
-              "type": "TEXT",
-              "hidden": false
+            "type": {
+              "title": "Type",
+              "key": true
             },
-            "status": {
-              "title": "Status",
-              "type": "TEXT"
+            "typeDescription": {
+              "title": "description"
+            },
+            "has_credential_check": {
+              "title": "Credential Check",
+              "visible": false
+            },
+            "checksum": {
+              "title": "Checksum"
+            },
+            "tags": {
+              "title": "Tags",
+              "type": "TEXT",
+              "key": true
+            },
+            "saved_time": {
+              "title": "Saved Time",
+              "type": "DATETIME"
             },
             "timestamp": {
-              "title": "Timestamp",
-              "type": "DATETIME"
+              "title": "When",
+              "type": "HUMANIZE_TIME_DELTA",
+              "source-column": "saved_time",
+              "sortable": false
             }
           },
+          "custom_columns": [
+            {
+              "id": "rowStyleClass",
+              "hidden": true,
+              "visiblle": false,
+              "expr": "'bg-fading-blue' if time_now_as_ms() - isoformat_to_ms(saved_time) <= 120000 else None"
+            },
+            {
+              "id": "artifact_name",
+              "label": "Artifact Name",
+              "expr": "name",
+              "key": true,
+              "visible": false,
+              "sortable": false
+            },
+            {
+              "id": "artifact_type",
+              "label": "Artifact Type",
+              "expr": "'source'",
+              "key": true,
+              "visible": false,
+              "sortable": false
+            }
+          ],
           "actions": [
             {
-              "title": "Create",
+              "permission": "rda:credential:view",
+              "title": "View",
               "type": "POPUP_FORM",
-              "selectionType": "NONE",
-              "permission": "rda:dataset:add",
-              "identifier": "rda.snapshot.add",
+              "selectionType": "SINGLE",
+              "identifier": "saas-service-action:vault-view",
               "api-endpoint": {
                 "service-name": "saas-reports",
                 "methodName": "getForm",
@@ -259,45 +264,27 @@
                 "parse-output": false,
                 "params": [
                   {
-                    "formId": "rda.saas.create.snapshot"
+                    "formId": "rda.saas.vault.view"
                   }
                 ]
               }
             },
             {
-              "permission": "rda:dataset:import",
-              "title": "Import",
+              "permission": "rda:credential:verify",
+              "title": "Verify Credentials",
               "type": "POPUP_FORM",
-              "selectionType": "NONE",
-              "identifier": "rda.snapshot.import",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
+              "selectionType": "SINGLE",
+              "identifier": "saas-service-action:vault-edit",
+              "actionCondition": {
+                "actionControl": "HIDE_IF",
+                "conditionalField": [
                   {
-                    "formId": "rda.saas.import.snapshot"
+                    "conditionType": "EQUAL",
+                    "conditionValue": "false",
+                    "fieldId": "has_credential_check"
                   }
                 ]
-              }
-            },
-            {
-              "permission": "rda:dataset:view",
-              "appName": "user-dashboard/rda_system_single_snapshot_details",
-              "drillDownLinkField": "snapshot_name",
-              "identifier": "user.dashboard.view",
-              "selectionType": "SINGLE",
-              "stateName": "app.featureapp",
-              "title": "View Details",
-              "type": "GO_TO_APP_STATE"
-            },
-            {
-              "title": "Export",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "permission": "rda:dataset:export",
-              "identifier": "rda.snapshot.export",
+              },
               "api-endpoint": {
                 "service-name": "saas-reports",
                 "methodName": "getForm",
@@ -305,49 +292,13 @@
                 "parse-output": false,
                 "params": [
                   {
-                    "formId": "rda.saas.export.snapshot"
-                  }
-                ]
-              }
-            },
-            {
-              "title": "Review",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "permission": "rda:dataset:review",
-              "identifier": "rda.snapshot.review",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.review.snapshot"
-                  }
-                ]
-              }
-            },
-            {
-              "title": "Delete",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "permission": "rda:dataset:delete",
-              "identifier": "rda.snapshot.delete",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.delete.snapshot"
+                    "formId": "rda.saas.vault.validateConenctivity"
                   }
                 ]
               }
             }
           ],
-          "widget_id": "acfb36eb"
+          "widget_id": "9a21b5c6"
         }
       ]
     }
