@@ -1,257 +1,105 @@
-@c:new-block
- --> @agent:cfx-edgecollector:ec-group-01:createJob jobName = "cisco_ios_devices1" &
-seed_addresses = "9.3.252.91,9.3.252.92,9.3.252.93,9.3.252.94,9.3.252.38,9.3.252.32,9.3.252.35,9.3.252.36,9.3.252.37,9.3.252.31,9.3.252.33,9.3.252.34" &
-cli_access = true &
-extended_inventory = true &
-credentials ="cml-snmp,cml-ssh1,cml-ssh2,cml-ssh3"
- --> @agent:cfx-edgecollector:ec-group-01:updateJob jobName = "cisco_ios_devices1" & seed_addresses = "9.3.252.91,9.3.252.92,9.3.252.93,9.3.252.94,9.3.252.38,9.3.252.32,9.3.252.35,9.3.252.36,9.3.252.37,9.3.252.31,9.3.252.33,9.3.252.34"
+@dm:empty
+ --> @exec:get-input
+ --> @dm:save name='temp-sa-exploded-data'
+ --> @dm:save name='test-1sa-exploded-data'
  --> @c:new-block
- --> @agent:cfx-edgecollector:ec-group-01:runDiscovery jobName = "cisco_ios_devices1"
- --> @dm:save name = "temp-discovery-results"
- --> @c:data-loop dataset = "temp-discovery-results" and columns="Minio_location"
- --> @dm:recall name = "temp-discovery-results"
- --> @files:ec-get-discovery-results minio_file_location = "$Minio_location" & json_path = "base.data,system.data,entityPhysical.data,interfaces.data,entAliasMappingTable.data,cdpGlobal.data,ipAddrTable.data,cdpCache.data,cli_show_ether_channel_summary.data,management-target"
- --> @dm:save name="temp-df"
- --> @c:simple-loop loop_var="base.data,system.data,entityPhysical.data,interfaces.data,entAliasMappingTable.data,cdpGlobal.data,ipAddrTable.data,cdpCache.data,cli_show_ether_channel_summary.data,management-target"
- --> @dm:set-tracing-context __block__="$loop_var"
- --> @dm:recall name="temp-df"
- --> @dm:selectcolumns include="$loop_var|target"
- --> @dm:rename-columns data="$loop_var"
- --> @dm:add-missing-columns columns="data"
- --> *dm:filter data is not null
- --> @dm:eval-multi-proc data ="data.replace('[[','[') if str(data).startswith('[[') else data" and _max_procs=4
- --> @dm:eval-multi-proc data ="data.replace(']]',']') if str(data).endswith(']]') else data" and _max_procs=4
- --> @dm:explode-json column='data'
- --> @dm:save name="temp-Group-$loop_var"
- ## temp-ifindex-entPhysicalIndex DATASET: Create 'ifIndex' & 'entPhysicalIndex' mapping columns by reading entAliasMappingTable group
+ --> @dm:recall name="temp-sa-exploded-data"
+ --> @dm:selectcolumns exclude='^unique_key$'
+ ## --> @dm:enrich dict="temp-sa-data" and src_key_cols='product_id,sw_version,sw_os_type' and dict_key_cols='product_id,sw_version,sw_os_type' and enrich_cols="contract_number,customer"
+
+ --> @dm:add-missing-columns columns="PsirtID,MatchConfidence,MatchReason,MatchDefinition,HeadlineName,AdvisoryId,BulletinURL,Summary,Details,RevisedDate,RevisionNumber,PublishedDate,SeverityLevelName,CvssScore,CveId,_id,advisoryId,created,customerVisible,external_text,external_title,firstIcAlertId,groups,icIssueId,icProblemId,ignored,lastIcAlertId,matchDefinition,matchInfo,matchConfidence,missingInfo,moreInfo,name,openedOn,resultType,resultSubType,severity,severityText,state,updated,deviceSN,source,runType,filename,icType,atticaStatus,cdetsList,retry,associatedGroups,key,current_time_ms_loop,token_expiry_time,access_token,expires_in,token_type,sw_version,sw_os_type,product_id,transaction_id,eoXAlert,eoXAlertType,DocumentId"
+ --> @dm:eval matchConfidence = "'Potentially Vulnerable' if matchConfidence == 'POTVUL' else 'Vulnerable' if matchConfidence == 'VUL' else matchConfidence"
+ --> @dm:eval secAdv_confidence_score = "100 if matchConfidence == 'Vulnerable' else 99 if matchConfidence == 'Potentially Vulnerable' else 98 if matchConfidence == 'Not Vulnerable' else 0"
+ --> @dm:fixnull columns="PsirtID,MatchConfidence,MatchReason,MatchDefinition,HeadlineName,AdvisoryId,BulletinURL,Summary,Details,RevisedDate,RevisionNumber,PublishedDate,SeverityLevelName,CvssScore,CveId,_id,advisoryId,created,customerVisible,external_text,external_title,firstIcAlertId,groups,icIssueId,icProblemId,ignored,lastIcAlertId,matchDefinition,matchInfo,matchConfidence,missingInfo,moreInfo,name,openedOn,resultType,resultSubType,severity,severityText,state,updated,deviceSN,source,runType,filename,icType,atticaStatus,cdetsList,retry,associatedGroups,key,current_time_ms_loop,token_expiry_time,expires_in,token_type,sw_version,sw_os_type,product_id,transaction_id,eoXAlert,eoXAlertType,DocumentId,secAdv_confidence_score" and value="Not Available" and apply_for_empty="yes"
+ --> @dm:fixnull-regex columns="Timestamp$|timestamp$"
+ --> @dm:rename-columns secAdv_matchConfidence ='matchConfidence' and secAdv_securityImpactRating='SeverityLevelName' and secAdv_bulletinTitle='external_title' and securityAdvisoryId='advisoryId' and ID = '_id' and secAdv_BulletinURL ='BulletinURL'
+ --> @dm:save name="temp-sec-adv-details"
+ --> @c:new-block
+ --> @dm:empty
+ --> @dm:addrow name='edc_cust_pid_sw' and limit=0
+ --> #dm:query-persistent-stream
+ --> @dm:groupby columns='customer'
+ --> @dm:save name='temp-unique-cust-name'
+ --> @c:data-loop dataset='temp-unique-cust-name' and columns='customer'
+ --> @dm:empty
+ --> @dm:addrow name='edc_oi_inventory_enriched' and limit=0
+ --> #dm:query-persistent-stream customer_name=='$customer' and coverage=='COVERED'
+ --> @dm:save name='temp-hw-eol-details' and append='yes'
+ --> @c:new-block
+ --> @dm:recall name='temp-hw-eol-details'
+ --> @dm:to-type columns='contract_number' and type='int'
+ --> @dm:save name='temp-hw-eol-details'
+ ## Queries data for the customer from edc_oi_enriched_stream
+
+ --> @c:data-loop dataset='temp-unique-cust-name' and columns='customer'
+ --> @dm:empty
+ --> @dm:addrow name='edc_oi_inventory_enriched' and limit=0 and groupby='contract_number,customer_name,product_name,product_id,portfolio_desc' and aggs='sum:combination_count'
+ --> #dm:query-persistent-stream coverage=='COVERED' and customer_name is '$customer'
+ --> @dm:save name='temp-hw-eol-details-grouped' and append='yes'
+ --> @c:new-block
+ --> @dm:recall name='temp-hw-eol-details-grouped'
+ --> @dm:to-type columns='contract_number' and type='int'
+ --> @dm:save name='temp-hw-eol-details-grouped'
+ ## enriches the processed columns to edc_oi_inventory_enriched
+
+ ## enriches the processed columns to edc_oi_inventory_enriched
 
  --> @c:new-block
- --> @dm:set-tracing-context __block__="entity-alias-mapping"
- --> @dm:recall name="temp-Group-entAliasMappingTable.data"
- --> @dm:skip-block-if-shape row_count='0'
- --> @dm:skip-block-if-shape column_count=1
- --> @dm:add-missing-columns columns="if_index,entPhysicalIndex"
- --> @dm:eval-multi-proc if_index=" entAliasMappingIdentifier[entAliasMappingIdentifier.rfind('.') + 1: len(entAliasMappingIdentifier)] if entAliasMappingIdentifier else None" and _max_procs=4
- --> *dm:filter if_index is not None
- --> @dm:selectcolumns include="target|if_index|entPhysicalIndex"
- --> @dm:to-type columns="entPhysicalIndex" and type="int"
- --> @dm:to-type columns="if_index" and type="int"
- --> @dm:save name="temp-ifindex-entPhysicalIndex"
+ --> @dm:recall name='temp-sec-adv-details'
+ --> @dm:to-type columns='contract_number' and type='int'
+ ## --> @dm:eval product_name="product_id if product_name is 'Not Available' else product_name"
+
+ --> @dm:enrich dict='temp-hw-eol-details-grouped' and dict_key_cols='contract_number,customer_name,product_name' and src_key_cols='contract_number,customer,product_name' and enrich_cols='combination_count_sum,portfolio_desc' and how_type='left' and dedup_dict='no'
+ --> @dm:add-missing-columns columns="combination_count_sum"
+ --> @dm:eval unique_key='str(PsirtID) + str(securityAdvisoryId) + str(product_id) + str(product_name) + str(contract_number)'
+ --> @dm:to-type columns='combination_count_sum' and type='int'
+ --> @dm:save name='temp-sec-adv-combination-count-sum'
  --> @c:new-block
- --> @dm:recall name="temp-Group-entityPhysical.data"
- --> @dm:skip-block-if-shape row_count='0'
- --> @dm:skip-block-if-shape column_count=1
- --> *dm:filter entPhysicalClassEnumeratedLabel in ["Port","port","PORT"]
- --> @dm:to-type columns="entPhysicalIndex" and type="int"
- --> @dm:enrich dict="temp-ifindex-entPhysicalIndex" and src_key_cols="target,entPhysicalIndex" and dict_key_cols="target,entPhysicalIndex" and enrich_cols="if_index"
- --> @dm:to-type columns="if_index" and type="int"
- --> @dm:save name="temp-entityPhysical_logical_data"
- ## Read interfaces data
+ --> @dm:recall name='temp-hw-eol-details'
+ --> @dm:selectcolumns exclude='^(PsirtID|securityAdvisoryId|secAdv_confidence_score|secAdv_securityImpactRating|secAdv_matchConfidence|match|customer|sw_os_type|sw_version|secAdv_BulletinURL|secAdv_bulletinTitle|CveId|CvssScore|matchInfo|RevisedDate|RevisionNumber|PublishedDate)$'
+ --> @dm:save name='temp-hw-eol-details'
+ --> @c:new-block
+ --> @dm:recall name='temp-sec-adv-combination-count-sum'
+ --> @dm:enrich dict='temp-hw-eol-details'  and dict_key_cols='contract_number,customer_name,product_name' and src_key_cols='contract_number,customer,product_name' and enrich_cols='item_type,product_family'
+ --> @dm:save name='sa-enriched-final-enrich-before-dropnull'
+ --> @dm:dropnull columns='secAdv_securityImpactRating'
+ --> @dm:selectcolumns exclude='^(key|Unique_id|_RDA_Id|count_|timestamp|customer_name_y)'
+ --> @dm:eval customer_name='customer_name_x'
+ --> @dm:save name='sa-enriched-final-enrich'
+ --> @dm:save name='temp-edc-sweol-data'
+ --> @rn:write-stream name='edc_sec_adv_data_enriched'
+ ## Queries data for the customer from edc_oi_enriched_stream
 
  --> @c:new-block
- --> @dm:recall name="temp-Group-interfaces.data"
- --> @dm:skip-block-if-shape row_count='0'
- --> @dm:skip-block-if-shape column_count=1
- --> @dm:to-type columns="ifIndex" and type="int"
- --> @dm:enrich dict="temp-entityPhysical_logical_data" and src_key_cols="target,ifIndex" and dict_key_cols="target,if_index" and enrich_cols="entPhysicalDescr,entPhysicalContainedIn,entPhysicalClass,entPhysicalName,entPhysicalSoftwareRev,entPhysicalSerialNum,entPhysicalModelName,entPhysicalVendorName,entPhysicalClassEnumeratedLabel,entPhysicalAlias,entPhysicalIndex"
- --> @dm:to-type columns="ifIndex" and type="int"
- --> @dm:to-type columns="entPhysicalIndex" and type="int"
- --> @dm:eval type="'PORT_CHANNEL' if ifDescr and ifDescr.startswith('Port-channel') else 'PHYSICAL_PORT' if entPhysicalIndex else 'LOGICAL_PORT'"
- --> @dm:save name="temp-interface"
- ## Read cdp data
+ --> @dm:recall name='temp-hw-eol-details'
+ --> @dm:to_type columns = 'contract_number' and type  = 'int'
+ --> @dm:save name='temp-hw-eol-details'
+ ## dedup security advisory based on the secAdv_confidence_score
 
  --> @c:new-block
- --> @dm:set-tracing-context __block__="parse-cdp-cache"
- --> @dm:recall name="temp-Group-cdpCache.data"
- --> @dm:add-missing-columns columns="data"
- --> *dm:filter data is not "[]"
- --> @dm:skip-block-if-shape row_count='0'
- --> @dm:skip-block-if-shape column_count=1
- --> @dm:to-type columns = 'cdpCacheIfIndex' & type = 'int'
- --> @dm:save name="temp-cdp"
- ## Enrich interface with cdp data
+ --> @dm:recall name='temp-sec-adv-details'
+ ## --> @dm:groupby columns='firstIcAlertId'
 
- --> @c:new-block
- --> @dm:recall name="temp-interface"
- --> @dm:enrich dict="temp-cdp" and dict_key_cols="target,cdpCacheIfIndex" and src_key_cols="target,ifIndex" and enrich_cols="cdpCacheAddress,cdpCacheDevicePort,cdpCacheDeviceId,cdpCachePlatform,cdpCacheCapabilitiesEnumeratedLabel"
- --> @dm:to-type columns="cdpCacheIfIndex" and type="int"
- --> @dm:to-type columns="ifIndex" and type="int"
- --> @dm:save name="temp-interface"
- ## Port Chassis SN
+ --> @dm:skip-block-if-shape row_count="0"
+ ## --> @dm:save name='test-sec-adv-details'
 
+ --> @dm:sort columns='secAdv_confidence_score' and order='descending'
+ --> @dm:dedup columns='product_id,sw_version,sw_os_type,contract_number,customer'
+ --> @dm:to_type columns = 'contract_number' and type  = 'int'
+ --> @dm:eval match="'yes'"
+ --> @dm:save name="temp-pa-sec-adv-dedups"
  --> @c:new-block
- --> @dm:set-tracing-context __block__="get-port-chassis-sr"
- --> @dm:recall name="temp-Group-entityPhysical.data"
- --> @dm:skip-block-if-shape row_count='0'
- --> @dm:skip-block-if-shape column_count=1
- --> *dm:filter entPhysicalClassEnumeratedLabel in ["chassis","Chassis","CHASSIS"]
- --> @dm:rename-columns chassis_phyindex="entPhysicalIndex" & chassis_containedin="entPhysicalContainedIn"
- --> @dm:selectcolumns include="chassis_phyindex|entPhysicalClassEnumeratedLabel|entPhysicalSerialNum|target|entPhysicalName"
- --> @dm:to-type columns="chassis_phyindex" and type="int"
- --> @dm:save name="temp-chassis"
- --> @dm:recall name="temp-Group-entityPhysical.data"
- --> @dm:skip-block-if-shape row_count='0'
- --> @dm:skip-block-if-shape column_count=1
- --> @dm:build-hierarchy entity_key_column = "entPhysicalIndex" and relation_key_column = "entPhysicalContainedIn" and hierarchy_end_key_column="entPhysicalClassEnumeratedLabel" and hierarchy_end_value="Chassis" and include_column_to_primary_key="target"
- --> @dm:copy-columns from="hierarchy" and to="chassis_phyindex" and func="split" and value="-"
- --> @dm:eval-multi-proc chassis_phyindex="chassis_phyindex[-1] if hierarchy else None" and _max_procs=4
- --> *dm:filter entPhysicalClassEnumeratedLabel in ["Port","PORT","port"]
- --> @dm:rename-columns port_phyindex="entPhysicalIndex"
- --> @dm:to-type columns="chassis_phyindex" and type="int"
- --> @dm:selectcolumns include="port_phyindex|chassis_phyindex|target"
- --> @dm:enrich dict="temp-chassis" and src_key_cols="chassis_phyindex,target" and dict_key_cols="chassis_phyindex,target" and enrich_cols="entPhysicalSerialNum"
- --> @dm:selectcolumns include="port_phyindex|entPhysicalSerialNum|entPhysicalClassEnumeratedLabel|target"
- --> @dm:rename-columns chassis_sn="entPhysicalSerialNum"
- --> @dm:to-type columns="port_phyindex" and type="int"
- --> @dm:gc
- --> @dm:save name="temp-port-chassis-sr"
+ --> @dm:recall name='temp-hw-eol-details'
+ --> @dm:enrich dict='temp-pa-sec-adv-dedups' and dict_key_cols='contract_number,customer,product_id' and src_key_cols='contract_number,customer_name,product_id' and enrich_cols='match' and how_type='left'
+ --> @dm:dropnull columns='match'
+ --> @dm:selectcolumns exclude='^(PsirtID|securityAdvisoryId|secAdv_confidence_score|secAdv_securityImpactRating|secAdv_matchConfidence|match|customer|sw_os_type|sw_version|secAdv_BulletinURL|secAdv_bulletinTitle|CveId|CvssScore|matchInfo|RevisedDate|RevisionNumber|PublishedDate)$'
+ --> @dm:save name='temp-matched-inv'
  --> @c:new-block
- --> @dm:set-tracing-context __block__="merge-port-chassis-sr-to-if"
- --> @dm:recall name="temp-ifindex-entPhysicalIndex"
- --> @dm:skip-block-if-shape row_count='0'
- --> @dm:skip-block-if-shape column_count=1
- --> @dm:recall name="temp-interface"
- --> @dm:enrich dict="temp-port-chassis-sr" and src_key_cols="entPhysicalIndex,target" and dict_key_cols="port_phyindex,target" and enrich_cols="chassis_sn"
- --> @dm:to-type columns="port_phyindex" and type="int"
- --> @dm:to-type columns="entPhysicalIndex" and type="int"
- --> @dm:gc
- --> @dm:save name="temp-interface"
- ## device_additional_ips: Read 'ipAddrTable' group & create comma separated list of ipAdEntAddr based on target and merge it with temp-df
+ --> @dm:recall name='temp-matched-inv'
+ --> @dm:enrich dict='temp-pa-sec-adv-dedups' and dict_key_cols='contract_number,customer,product_id' and src_key_cols='contract_number,customer_name,product_id' and enrich_cols='PsirtID,secAdv_confidence_score,securityAdvisoryId,secAdv_securityImpactRating,secAdv_matchConfidence,sw_os_type,sw_version,secAdv_bulletinTitle,secAdv_BulletinURL,CveId,CvssScore,matchInfo,RevisedDate,RevisionNumber,PublishedDate'
+ --> @dm:selectcolumns exclude="^(customer_x|customer_y|deviceSN|source|secAdv_bulletinTitle_x)"
+ --> @dm:rename-columns secAdv_bulletinTitle ='secAdv_bulletinTitle_y'
+ --> @dm:save name='temp-final-enrich'
+ ## --> @dm:save name='sa-final-enrich'
 
- --> @c:new-block
- --> @dm:set-tracing-context __block__="merge device_additional_ips"
- --> @dm:recall name="temp-Group-ipAddrTable.data"
- --> @dm:add-missing-columns columns="data"
- --> *dm:filter data is not "[]"
- --> @dm:skip-block-if-shape row_count=0
- --> @dm:skip-block-if-shape column_count=1
- --> @dm:fixnull columns="ipAdEntAddr" and value=''
- --> @dm:implode key_columns = "target" and merge_columns="ipAdEntAddr"
- --> @dm:save name="temp-additional-ip"
- --> @dm:recall name="temp-interface"
- --> @dm:enrich dict="temp-additional-ip" and src_key_cols="target" and dict_key_cols="target" and enrich_cols="ipAdEntAddr" and enrich_cols_as="device_additional_ips"
- --> @dm:save name="temp-interface"
- ## mgmt_ip: create mgmt_ip list by reading management-target group & merge with temp-df
-
- ## ip_address: Merge temp-df with management-target group & map mgmt ip to ip_address
-
- --> @c:new-block
- --> @dm:set-tracing-context __block__=" map mgmt ip to ip_address"
- --> @dm:recall name="temp-Group-management-target"
- --> @dm:skip-block-if-shape row_count=0
- --> @dm:skip-block-if-shape column_count=1
- --> @dm:sort columns="data,target"
- --> @dm:save name="temp-mgmt"
- --> @dm:implode key_columns="target" and merge_columns="data"
- --> @dm:save name="temp-mgmt-list"
- --> @dm:recall name="temp-interface"
- --> @dm:enrich dict="temp-mgmt-list" and src_key_cols="target" and dict_key_cols="target" and enrich_cols="data" and enrich_cols_as="mgmt_ip"
- --> @dm:enrich dict="temp-mgmt" and src_key_cols="target" and dict_key_cols="target" and enrich_cols="data" and enrich_cols_as="target_ip"
- --> @dm:selectcolumns exclude="^data$"
- --> @dm:save name="temp-interface"
- --> @c:data-loop dataset = "temp-discovery-results" and columns="Minio_location"
- --> @dm:recall name = "temp-discovery-results"
- --> @files:ec-get-discovery-results minio_file_location = "$Minio_location" &
-json_path = "system.data"
- --> @dm:rename-columns data="system.data"
- --> *dm:filter data is not null
- --> @dm:explode-json column= "data"
- --> @dm:selectcolumns exclude ='^sysObjectID$|^systemVendorSubID$'
- --> @dm:save name = "temp-system-info"
- --> @c:data-loop dataset = "temp-discovery-results" and columns="Minio_location"
- --> @dm:recall name = "temp-discovery-results"
- --> @files:ec-get-discovery-results minio_file_location = "$Minio_location" &
-json_path = "entityPhysical.data"
- --> @dm:rename-columns data="entityPhysical.data"
- --> *dm:filter data is not null
- --> @dm:explode-json column= "data"
- --> *dm:filter entPhysicalClassEnumeratedLabel in [ "Chassis" ]
- --> @dm:save name = "temp-ent-info"
- --> @c:data-loop dataset = "temp-discovery-results" and columns="Minio_location"
- --> @dm:recall name = "temp-discovery-results"
- --> @files:ec-get-discovery-results minio_file_location = "$Minio_location" &
-json_path = "base.data"
- --> @dm:rename-columns data="base.data"
- --> *dm:filter data is not null
- --> @dm:explode-json column= "data"
- --> *dm:filter sysDescr contains "Cisco"
- --> @dm:manipulate-string from="sysDescr" and func = "split" and value="Version" and to ="version"
- --> @dm:eval version= "version[1].split(',')[0].split('[')[0].split()[0] if sysDescr else None"
- --> @dm:save name="temp-base"
- --> *dm:filter * get target as 'device_ip',sysDescr as 'device_version_summary',systemManagerIP as 'device_mgmt_ip',systemVendorOS as 'device_fw_type',version as 'device_fw_version'
- --> @dm:save name = 'temp-base-updated-info'
- --> @c:new-block
- --> @dm:recall name = 'temp-system-info'
- --> *dm:filter * get sysContact as 'device_contact',sysLocation as 'device_location',sysName as 'device_hostname',target as 'device_ip'
- --> @dm:save name="temp-system-updated-info"
- --> @c:new-block
- --> @dm:recall name = 'temp-ent-info'
- --> @dm:save name = 'temp-ent-info'
- --> *dm:filter * get entPhysicalClassEnumeratedLabel as 'device_equip_type',entPhysicalDescr as 'device_eq_description',entPhysicalMfgName as 'device_vendor',entPhysicalModelName as 'device_model',entPhysicalSerialNum as 'device_serial_number',target as 'device_ip'
- --> @dm:enrich dict = 'temp-base-updated-info' & src_key_cols = 'device_ip' & dict_key_cols = 'device_ip' & enrich_cols = 'device_version_summary,device_mgmt_ip,device_fw_type,device_fw_version'
- --> @dm:enrich dict = 'temp-system-updated-info' & src_key_cols = 'device_ip' & dict_key_cols = 'device_ip' & enrich_cols = 'device_contact,device_location,device_hostname'
- --> @dm:save name = 'cml_cisco_device_chassis_dict'
- --> @c:new-block
- --> @dm:set-tracing-context __block__=" map source_ip"
- --> @dm:recall name="temp-interface"
- --> @dm:add-missing-columns columns="target_ip"
- --> @cfxaia:conditional-statement condition_column = "target_ip" and return_if = "target_ip" and return_else = "target" and to_column = "ip_address"
- --> @dm:selectcolumns exclude="target-ip|if_index"
- --> @dm:save name="temp-interface"
- --> *dm:filter * get target as 'device_ip',ifDescr as 'device_int_name',ifIndex as 'device_int_index',ifName as 'device_int_shortname',ifOperStatusEnumeratedLabel as 'device_interface_status',type as 'device_interface_type',cdpCacheIfIndex as 'remote_device_int_index',cdpCacheAddress as 'remote_device_ip',cdpCacheDevicePort as 'remote_device_int_name',cdpCacheDeviceId as 'remote_device_id',cdpCachePlatform as 'remote_device_model',cdpCacheCapabilitiesEnumeratedLabel as 'remote_device_capabilities',chassis_sn as 'device_serial_number'
- --> @dm:enrich dict = 'cisco_device_chassis_dict' & src_key_cols = 'device_ip' & dict_key_cols = 'device_ip' & enrich_cols = 'device_eq_description,device_mgmt_ip,device_fw_version,device_fw_type,device_model,device_vendor,device_hostname,device_contact,device_location,device_version_summary'
- --> @dm:eval cdp_device_order = "':'.join(sorted([device_ip, remote_device_ip]))"
- --> @dm:save name = 'cml_cisco_device_interface_data'
- --> *dm:filter remote_device_int_name is not empty get device_ip,device_int_name,device_int_shortname,remote_device_ip,remote_device_int_name
- --> @dm:eval cdp_device_order = "':'.join(sorted([device_ip, remote_device_ip]))"
- --> @dm:save name = 'cml_cisco_device_interface_cdp_dict'
- ## Adding Cisco Simulated devices
-
- ## Cisco Device Chassis
-
- --> @c:new-block
- --> @dm:recall name = "cml_cisco_device_chassis_dict"
- --> @dm:save name = "temp-chassis-1"
- --> *dm:filter device_ip = "9.3.140.7"
- --> @dm:eval device_ip = "'10.122.127.184'"
- --> @dm:eval device_mgmt_ip = "'10.122.127.184'"
- --> @dm:eval device_serial_number = "'FJC2535ACME'"
- --> @dm:eval device_hostname = "'CNXSSIM-C1100TG-4.attpsl.cisco.com'"
- --> @dm:save name = "temp-chassis-2"
- --> @c:new-block
- --> @dm:concat names = "temp-chassis-.*"
- ## Overwrite dataset
-
- --> @dm:save name = "cml_cisco_device_chassis_sim_dict"
- ## Cisco Device Interfaces
-
- --> @c:new-block
- --> @dm:recall name = "cml_cisco_device_interface_data"
- --> @dm:save name = "temp-chassis-1"
- --> *dm:filter device_ip = "9.3.140.7"
- --> @dm:eval device_ip = "'10.122.127.184'"
- ## --> @dm:evalMap values using evaluate function. Speciy one of more column = 'expression' pairs device_mgmt_ip = "'10.122.127.184'"
-
- --> @dm:eval device_serial_number = "'FJC2535ACME'"
- --> @dm:eval device_hostname = "'CNXSSIM-C1100TG-4.attpsl.cisco.com'"
- --> @dm:save name = "temp-chassis-2"
- --> @c:new-block
- --> @dm:concat names = "temp-chassis-.*"
- --> @dm:save name="temp-output"
- --> @dm:add-missing-columns columns="left_id"
- --> @dm:selectcolumns include="^left_id$|^device_ip$"
- --> @dm:add-checksum checksum_type="rows-only" and row_checksum_column="left_id" and key="yes"
- --> @dm:save name = "temp-node_id"
- --> @dm:recall name="temp-output"
- --> @dm:enrich dict="temp-node_id" and src_key_cols="device_ip" and dict_key_cols="device_ip" and enrich_cols="left_id"
- --> @dm:save name="cml_disc_output1"
- --> @dm:save name="temp-output"
- --> @dm:add-missing-columns columns="right_id"
- --> @dm:selectcolumns include="^right_id$|^remote_device_ip$"
- --> @dm:add-checksum checksum_type="rows-only" and row_checksum_column="right_id" and key="yes"
- --> @dm:save name = "temp-node_id"
- --> @dm:recall name="temp-output"
- --> @dm:enrich dict="temp-node_id" and src_key_cols="remote_device_ip" and dict_key_cols="device_ip" and enrich_cols="left_id" and enrich_cols_as="right_id"
- ## Overwrite dataset
-
- --> @dm:save name = "cml_cisco_device_interface_sim_data"
+ --> @rn:write-stream name='edc_oi_inventory_enriched'
