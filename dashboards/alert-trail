@@ -1,55 +1,452 @@
 {
-  "name": "oi-asp-documentation-test-saummmond",
-  "label": "OI Org Chart",
-  "live_edit": true,
-  "version": "25.2.25.1",
-  "description": "OI ASP Documentation Widgets",
-  "dashboard_folder": "Default",
-  "dashboard_type": "dashboard",
-  "enabled": false,
+  "name": "alert-trail",
+  "label": "Alert Trail",
+  "description": "OIA Alert Trail",
+  "version": "24.10.9",
+  "enabled": true,
+  "exportable": false,
+  "dashboard_style": "auto",
+  "dashboard_type": "template",
+  "template_variables": {
+    "PROJECT_ID": {
+      "default": null,
+      "contextId": "projectid"
+    },
+    "INCIDENT_ID": {
+      "default": null,
+      "contextId": "incidentid"
+    },
+    "EVENT_ID": {
+      "default": null,
+      "contextId": "a_event_id"
+    },
+    "SOURCE_DASHBOARD_ID": {
+      "default": "user-dashboard-incident-details-alerts",
+      "contextId": "sourceDashboardId"
+    },
+    "ALERT_ID": {
+      "default": null,
+      "contextId": "processedeventid"
+    },
+    "ALERT_KEY": {
+      "default": null,
+      "contextId": "eventkey"
+    }
+  },
+  "custom_context": {
+    "alert-context": true
+  },
+  "dashboard_filters": {
+    "time_filter": false,
+    "default_time_filter_non_removable": false,
+    "show_default_time_filter": false
+  },
+  "import": [
+    {
+      "from": "oia-alerts-os",
+      "as": "alerts"
+    }
+  ],
   "dashboard_sections": [
     {
-      "title": "Documentation",
+      "title": "Alert Trail",
+      "show_filter": true,
       "widgets": [
         {
-          "title": "Documentation",
-          "widget_type": "custom_widget",
-          "widget_implementation": "oi-asp-documentation-test-saummmond/oi-asp-documentation-test-saummmond_widget",
+          "title": "Alert Trail",
+          "widget_type": "tabular",
+          "stream": "oia-event-trail-stream",
+          "reportId": "com.cfx.alert.trail",
+          "ts_column": "et_createdat",
+          "extra_filter": "et_eventid is '{{EVENT_ID}}'",
           "min_width": 12,
-          "min_height": 12,
-          "widget_id": "4e2d534c"
+          "height": 4,
+          "max_width": 12,
+          "paginated": true,
+          "resizableColumns": false,
+          "remote_searchable": true,
+          "remote_searchable_cols": [
+            "et_eventstate",
+            "et_status",
+            "et_message"
+          ],
+          "refreshRequired": true,
+          "timebased": false,
+          "max_rows": 50,
+          "columns": {
+            "et_eventstate": {
+              "title": "Processing State",
+              "visible": true,
+              "defaultWidth": 150
+            },
+            "et_status": {
+              "title": "Status",
+              "visible": true,
+              "defaultWidth": 150
+            },
+            "et_message": {
+              "title": "Message",
+              "visible": true,
+              "defaultWidth": 150
+            },
+            "et_createdat": {
+              "title": "Created At",
+              "type": "DATETIME",
+              "visible": true,
+              "defaultWidth": 150
+            }
+          },
+          "widget_id": "6dfc1c0d"
+        },
+        {
+          "title": "Source Event List",
+          "widget_type": "tabular",
+          "stream": "oia-events-stream",
+          "ts_column": "e_updatedat",
+          "extra_filter": "e_processedeventid is '{{ALERT_ID}}' and e_eventkey is '{{ALERT_KEY}}'",
+          "min_width": 12,
+          "height": 8,
+          "max_width": 12,
+          "paginated": true,
+          "resizableColumns": false,
+          "remote_searchable": true,
+          "remote_searchable_cols": [
+            "e_sourceeventid",
+            "e_id",
+            "e_processedeventid",
+            "e_eventkey",
+            "e_triggeredevent"
+          ],
+          "refreshRequired": true,
+          "timebased": false,
+          "max_rows": 50,
+          "sorting": [
+            {
+              "e_createdat": "desc"
+            }
+          ],
+          "columns": {
+            "e_sourceeventid": {
+              "title": "Source Event Id",
+              "visible": true,
+              "defaultWidth": 150
+            },
+            "e_id": {
+              "title": "Event Id",
+              "visible": true,
+              "defaultWidth": 150
+            },
+            "e_eventkey": {
+              "title": "Alert Key",
+              "visible": true,
+              "defaultWidth": 150
+            },
+            "e_processedeventid": {
+              "title": "Alert Id",
+              "visible": true,
+              "defaultWidth": 150
+            },
+            "e_triggeredevent": {
+              "title": "Event Type",
+              "visible": true,
+              "defaultWidth": 150
+            },
+            "e_sourcereceivedat": {
+              "title": "Received At",
+              "type": "DATETIME",
+              "visible": true,
+              "defaultWidth": 150
+            },
+            "e_createdat": {
+              "title": "Created At",
+              "type": "DATETIME",
+              "visible": true,
+              "defaultWidth": 150
+            }
+          },
+          "actions": [
+            {
+              "permission": "oia:event-tracking:alerts",
+              "title": "View Alert",
+              "type": "GO_TO_APP_STATE",
+              "stateName": "app.featureapp",
+              "appName": "user-dashboard/oia-event-tracking-view-alerts",
+              "selectionType": "SINGLE",
+              "drillDownLinkField": "e_sourceeventid",
+              "drillDownContext": "e_sourceeventid",
+              "destinationContext": "e_sourceeventid",
+              "displayLabelColumnId": "e_sourceeventid",
+              "contextParamList": {
+                "contextParams": [
+                  {
+                    "paramId": "se_id",
+                    "paramKey": "e_sourceeventid"
+                  }
+                ]
+              }
+            },
+            {
+              "title": "View Source Payload",
+              "type": "POPUP_FORM",
+              "selectionType": "SINGLE",
+              "permission": "oia:event-tracking:downloadSourcePayload",
+              "identifier": "ingestion-tracker:com.cfx.form.view.sourceevent.payload",
+              "contextParamList": {
+                "contextParams": [
+                  {
+                    "paramId": "se_id",
+                    "paramKey": "e_sourceeventid"
+                  }
+                ]
+              },
+              "api-endpoint": {
+                "service-name": "ingestion-tracker",
+                "namespace": "io.cfx.dimensions.app",
+                "methodName": "invokeAppApi:getFormById",
+                "stringified-params": true,
+                "useReportContext": true,
+                "parse-output": false,
+                "params": [
+                  {
+                    "form_id": "com.cfx.form.view.sourceevent.payload",
+                    "context": {}
+                  }
+                ]
+              }
+            },
+            {
+              "title": "Download Source Payload",
+              "type": "POPUP_FORM",
+              "selectionType": "SINGLE",
+              "permission": "oia:event-tracking:downloadSourcePayload",
+              "identifier": "ingestion-tracker:com.cfx.form.download.sourceevent.payload",
+              "contextParamList": {
+                "contextParams": [
+                  {
+                    "paramId": "se_id",
+                    "paramKey": "e_sourceeventid"
+                  }
+                ]
+              },
+              "api-endpoint": {
+                "service-name": "ingestion-tracker",
+                "namespace": "io.cfx.dimensions.app",
+                "methodName": "invokeAppApi:getFormById",
+                "stringified-params": true,
+                "useReportContext": true,
+                "parse-output": false,
+                "params": [
+                  {
+                    "form_id": "com.cfx.form.download.sourceevent.payload",
+                    "context": {}
+                  }
+                ]
+              }
+            }
+          ],
+          "widget_id": "5db15394"
         }
       ]
     }
   ],
-  "custom_widgets": {
-    "oi-asp-documentation-test-saummmond_widget": {
-      "artifacts": {
-        "main": {
-          "attachment": "main.html",
-          "content_type": "text/html",
-          "is_template": true
-        }
-      }
-    }
-  },
-  "attachments": [
-    {
-      "name": "main.html",
-      "value": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"UTF-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n<title>Organization & Executive Summary</title>\n<style>\n    body {\n        font-family: Arial, sans-serif;\n        padding: 20px;\n        background: url(\"/iconlib/background\") no-repeat center center fixed;\n        background-size: cover;\n        color: white;\n    }\n\n    .section {\n        border: 2px solid #ccc;\n        border-radius: 8px;\n        background: rgba(255, 255, 255, 0.95);\n        color: black;\n        margin-bottom: 40px;\n        overflow: hidden;\n    }\n\n    .section-header {\n        background-color: #07182D;\n        color: white;\n        font-size: 20px;\n        font-weight: bold;\n        padding: 10px;\n    }\n\n    .section-content {\n        padding: 20px;\n        text-align: center;\n    }\n\n    img {\n        max-width: 100%;\n        border-radius: 5px;\n        height: auto;\n        margin: 10px 0;\n    }\n\n    table {\n        width: 100%;\n        border-collapse: collapse;\n        margin-top: 20px;\n    }\n    th, td {\n        padding: 10px;\n        border: 1px solid #ccc;\n        text-align: center;\n    }\n    th {\n        background-color: #07182D;\n        color: white;\n    }\n    tr:nth-child(even) {\n        background-color: #f2f2f2;\n    }\n</style>\n</head>\n<body>\n\n<!-- Organization Section -->\n<div class=\"section\">\n    <div class=\"section-header\">Organization</div>\n    <div class=\"section-content\">\n        <img src=\"/iconlib/orgchart\" alt=\"Organization Chart\">\n        <img src=\"/iconlib/orgchart-1\" alt=\"Organization Chart 2\">\n    </div>\n</div>\n\n<!-- Executive Summary Section -->\n<div class=\"section\">\n    <div class=\"section-header\">Executive Summary</div>\n    <div class=\"section-content\">\n        <table id=\"dataTable\">\n            <thead>\n                <tr><th>Metric</th><th>Value</th></tr>\n            </thead>\n            <tbody></tbody>\n        </table>\n    </div>\n</div>\n\n<script>\nasync function loadData() {\n    try {\n        const response = await fetch('/api/v2/pstreams/pstream/data_trial/data');\n        if (!response.ok) throw new Error('Failed to fetch data');\n        \n        const json = await response.json();\n        console.log(\"Fetched JSON:\", json);\n\n        const table = document.getElementById(\"dataTable\");\n        const thead = table.querySelector(\"thead\");\n        const tbody = table.querySelector(\"tbody\");\n\n        tbody.innerHTML = \"\";\n        thead.innerHTML = \"\";\n\n        if (!json.pstream_data || json.pstream_data.length === 0) {\n            tbody.innerHTML = `<tr><td colspan=\"100%\">No data available</td></tr>`;\n            return;\n        }\n\n        const excludeKeys = [\"__uuid\", \"timestamp\", \"count_\", \"_RDA_Id\"];\n        const columns = Object.keys(json.pstream_data[0]).filter(k => !excludeKeys.includes(k));\n\n        // Create table header\n        const headerRow = document.createElement(\"tr\");\n        columns.forEach(col => {\n            const th = document.createElement(\"th\");\n            th.textContent = col;\n            headerRow.appendChild(th);\n        });\n        thead.appendChild(headerRow);\n\n        // Create rows\n        json.pstream_data.forEach(row => {\n            const tr = document.createElement(\"tr\");\n            columns.forEach(col => {\n                const td = document.createElement(\"td\");\n                td.textContent = row[col] || \"\";\n                tr.appendChild(td);\n            });\n            tbody.appendChild(tr);\n        });\n\n    } catch (err) {\n        console.error(\"Error fetching/parsing stream:\", err);\n    }\n}\n\nloadData();\n</script>\n\n</body>\n</html>\n"
-    }
-  ],
   "pstream_dashboards": [
     {
-      "title": "Documentation",
+      "title": "Alert Trail",
+      "show_filter": true,
       "widgets": [
         {
-          "title": "Documentation",
-          "widget_type": "custom_widget",
-          "widget_implementation": "oi-asp-documentation-test-saummmond/oi-asp-documentation-test-saummmond_widget",
+          "title": "Alert Trail",
+          "widget_type": "tabular",
+          "stream": "oia-event-trail-stream",
+          "reportId": "com.cfx.alert.trail",
+          "ts_column": "et_createdat",
+          "extra_filter": "et_eventid is '{{EVENT_ID}}'",
           "min_width": 12,
-          "min_height": 12,
-          "widget_id": "4e2d534c"
+          "height": 4,
+          "max_width": 12,
+          "paginated": true,
+          "resizableColumns": false,
+          "remote_searchable": true,
+          "remote_searchable_cols": [
+            "et_eventstate",
+            "et_status",
+            "et_message"
+          ],
+          "refreshRequired": true,
+          "timebased": false,
+          "max_rows": 50,
+          "columns": {
+            "et_eventstate": {
+              "title": "Processing State",
+              "visible": true,
+              "defaultWidth": 150
+            },
+            "et_status": {
+              "title": "Status",
+              "visible": true,
+              "defaultWidth": 150
+            },
+            "et_message": {
+              "title": "Message",
+              "visible": true,
+              "defaultWidth": 150
+            },
+            "et_createdat": {
+              "title": "Created At",
+              "type": "DATETIME",
+              "visible": true,
+              "defaultWidth": 150
+            }
+          },
+          "widget_id": "6dfc1c0d"
+        },
+        {
+          "title": "Source Event List",
+          "widget_type": "tabular",
+          "stream": "oia-events-stream",
+          "ts_column": "e_updatedat",
+          "extra_filter": "e_processedeventid is '{{ALERT_ID}}' and e_eventkey is '{{ALERT_KEY}}'",
+          "min_width": 12,
+          "height": 8,
+          "max_width": 12,
+          "paginated": true,
+          "resizableColumns": false,
+          "remote_searchable": true,
+          "remote_searchable_cols": [
+            "e_sourceeventid",
+            "e_id",
+            "e_processedeventid",
+            "e_eventkey",
+            "e_triggeredevent"
+          ],
+          "refreshRequired": true,
+          "timebased": false,
+          "max_rows": 50,
+          "sorting": [
+            {
+              "e_createdat": "desc"
+            }
+          ],
+          "columns": {
+            "e_sourceeventid": {
+              "title": "Source Event Id",
+              "visible": true,
+              "defaultWidth": 150
+            },
+            "e_id": {
+              "title": "Event Id",
+              "visible": true,
+              "defaultWidth": 150
+            },
+            "e_eventkey": {
+              "title": "Alert Key",
+              "visible": true,
+              "defaultWidth": 150
+            },
+            "e_processedeventid": {
+              "title": "Alert Id",
+              "visible": true,
+              "defaultWidth": 150
+            },
+            "e_triggeredevent": {
+              "title": "Event Type",
+              "visible": true,
+              "defaultWidth": 150
+            },
+            "e_sourcereceivedat": {
+              "title": "Received At",
+              "type": "DATETIME",
+              "visible": true,
+              "defaultWidth": 150
+            },
+            "e_createdat": {
+              "title": "Created At",
+              "type": "DATETIME",
+              "visible": true,
+              "defaultWidth": 150
+            }
+          },
+          "actions": [
+            {
+              "permission": "oia:event-tracking:alerts",
+              "title": "View Alert",
+              "type": "GO_TO_APP_STATE",
+              "stateName": "app.featureapp",
+              "appName": "user-dashboard/oia-event-tracking-view-alerts",
+              "selectionType": "SINGLE",
+              "drillDownLinkField": "e_sourceeventid",
+              "drillDownContext": "e_sourceeventid",
+              "destinationContext": "e_sourceeventid",
+              "displayLabelColumnId": "e_sourceeventid",
+              "contextParamList": {
+                "contextParams": [
+                  {
+                    "paramId": "se_id",
+                    "paramKey": "e_sourceeventid"
+                  }
+                ]
+              }
+            },
+            {
+              "title": "View Source Payload",
+              "type": "POPUP_FORM",
+              "selectionType": "SINGLE",
+              "permission": "oia:event-tracking:downloadSourcePayload",
+              "identifier": "ingestion-tracker:com.cfx.form.view.sourceevent.payload",
+              "contextParamList": {
+                "contextParams": [
+                  {
+                    "paramId": "se_id",
+                    "paramKey": "e_sourceeventid"
+                  }
+                ]
+              },
+              "api-endpoint": {
+                "service-name": "ingestion-tracker",
+                "namespace": "io.cfx.dimensions.app",
+                "methodName": "invokeAppApi:getFormById",
+                "stringified-params": true,
+                "useReportContext": true,
+                "parse-output": false,
+                "params": [
+                  {
+                    "form_id": "com.cfx.form.view.sourceevent.payload",
+                    "context": {}
+                  }
+                ]
+              }
+            },
+            {
+              "title": "Download Source Payload",
+              "type": "POPUP_FORM",
+              "selectionType": "SINGLE",
+              "permission": "oia:event-tracking:downloadSourcePayload",
+              "identifier": "ingestion-tracker:com.cfx.form.download.sourceevent.payload",
+              "contextParamList": {
+                "contextParams": [
+                  {
+                    "paramId": "se_id",
+                    "paramKey": "e_sourceeventid"
+                  }
+                ]
+              },
+              "api-endpoint": {
+                "service-name": "ingestion-tracker",
+                "namespace": "io.cfx.dimensions.app",
+                "methodName": "invokeAppApi:getFormById",
+                "stringified-params": true,
+                "useReportContext": true,
+                "parse-output": false,
+                "params": [
+                  {
+                    "form_id": "com.cfx.form.download.sourceevent.payload",
+                    "context": {}
+                  }
+                ]
+              }
+            }
+          ],
+          "widget_id": "5db15394"
         }
       ]
     }

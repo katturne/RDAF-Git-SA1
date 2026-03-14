@@ -1,49 +1,41 @@
 {
-  "name": "customer_SNMP_Traps",
-  "label": "SNMP Traps",
-  "description": "SNMP traps dashboard",
-  "version": "2024.02.27",
-  "enabled": true,
-  "dashboard_folder": "NetworkDevicePack",
-  "dashboard_style": "auto",
+  "name": "device_inventory",
+  "label": "Inventory",
+  "description": "Device Inventory",
+  "dashboard_folder": "MOW",
+  "version": "24.1.18.2",
+  "enabled": false,
+  "live_edit": true,
+  "stream": "cnc_device_inventory",
+  "dashboard_type": "template",
   "template_variables": {
-    "CUST_ID": {
-      "contextId": "customer_id"
+    "DEVICE_IP": {
+      "contextId": "device_ip"
     },
-    "PROJ_ID": {
-      "contextId": "projectId"
-    },
-    "CUST_TAG": {
-      "contextId": "customer_tag"
+    "DEVICE_HOSTNAME": {
+      "contextId": "device_hostname"
     }
   },
-  "status_poller": {
-    "stream": "snmp_trap_event_stream_all",
-    "frequency": 10,
-    "columns": [
-      "timestamp"
-    ],
-    "sorting": [
-      {
-        "timestamp": "desc"
-      }
-    ],
-    "query": "timestamp is after '${timestamp}'",
-    "defaults": {
-      "timestamp": "$UTCNOW"
-    },
-    "action": "refresh"
-  },
   "dashboard_filters": {
-    "default_time_filter_labels": [
-      "Last 24 hours"
-    ],
-    "extra_filter": "project_id in {{PROJ_ID}} or project_id is empty",
     "time_filter": true,
+    "default_time_filter_labels": [
+      "Last 1 month"
+    ],
+    "extra_filter": "device_ip is '{{DEVICE_IP}}' and device_hostname is '{{DEVICE_HOSTNAME}}'",
     "columns_filter": [
       {
-        "id": "rda_gw_client_ip",
-        "label": "Device IP",
+        "id": "device_ip",
+        "label": "IP Address",
+        "type": "TEXT"
+      },
+      {
+        "id": "timestamp",
+        "label": "Timestamp",
+        "type": "DATETIME"
+      },
+      {
+        "id": "device_ip",
+        "label": "IP Address",
         "type": "TEXT"
       },
       {
@@ -52,97 +44,26 @@
         "type": "TEXT"
       },
       {
-        "id": "message",
-        "label": "Message",
+        "id": "device_model",
+        "label": "Device Model",
         "type": "TEXT"
       },
       {
-        "id": "snmpVersion",
-        "label": "SNMP Version",
+        "id": "serial_number",
+        "label": "Device Serial Number",
         "type": "TEXT"
       },
       {
-        "id": "device_vendor",
-        "label": "Device Vendor",
-        "type": "TEXT"
-      },
-      {
-        "id": "device_status",
-        "label": "Device Status",
-        "type": "TEXT"
-      },
-      {
-        "id": "snmpTrapDescription",
-        "label": "MIB Description",
-        "type": "TEXT"
-      },
-      {
-        "id": "snmpTrapName",
-        "label": "Trap Name",
-        "type": "TEXT"
-      },
-      {
-        "id": "device_fw_version",
-        "label": "OS Version",
-        "type": "TEXT"
-      },
-      {
-        "id": "snmpTrapOID",
-        "label": "Trap OID",
-        "type": "TEXT"
-      },
-      {
-        "id": "snmpTrapMIB",
-        "label": "MIB Name",
+        "id": "clli_code",
+        "label": "CLLI Code",
         "type": "TEXT"
       }
     ],
-    "group_filters": [
-      {
-        "stream": "snmp_trap_event_stream_all",
-        "title": "Vendor",
-        "group_by": [
-          "device_vendor"
-        ],
-        "ts_column": "timestamp",
-        "agg": "sum",
-        "column": "count_"
-      },
-      {
-        "stream": "snmp_trap_event_stream_all",
-        "title": "Status",
-        "group_by": [
-          "device_status"
-        ],
-        "ts_column": "timestamp",
-        "agg": "sum",
-        "column": "count_"
-      },
-      {
-        "stream": "snmp_trap_event_stream_all",
-        "title": "Trap Name",
-        "group_by": [
-          "snmpTrapName"
-        ],
-        "ts_column": "timestamp",
-        "agg": "sum",
-        "column": "count_"
-      },
-      {
-        "stream": "snmp_trap_event_stream_all",
-        "title": "MIB Name",
-        "group_by": [
-          "snmpTrapMIB"
-        ],
-        "ts_column": "timestamp",
-        "agg": "sum",
-        "column": "count_"
-      }
-    ]
+    "group_filters": []
   },
   "dashboard_sections": [
     {
-      "title": "snmp details",
+      "title": "Device View",
       "show_filter": true,
       "widgets": [
         {
@@ -150,168 +71,107 @@
           "max_width": 12,
           "height": 0.5,
           "min_width": 12,
-          "label": "<div style='text-align:center;width:100%;'><h1><a style='text-decoration:none;color:#0066ff;' target='_blank'>Customer SNMP Traps</a></h1></div>",
+          "label": "<div style='text-align:center;width:100%;'><h1><a style='text-decoration:none;color:#0066ff;' target='_blank'> Device Inventory</a></h1></div>",
           "widget_id": "33317e49"
         },
         {
-          "title": "Total Traps",
-          "widget_type": "custom_counter",
-          "formatter": "DescriptiveCountFormatter",
-          "stream": "snmp_trap_event_stream_all",
-          "extra_filter0": "project_id in {{PROJ_ID}} or project_id is empty",
+          "title": "Asset Summary",
+          "widget_type": "summary",
+          "max_width": 6,
+          "height": 5,
+          "min_width": 6,
+          "stream": "cnc_device_inventory",
+          "duration_hours": 1080,
           "ts_column": "timestamp",
-          "column": "_id",
-          "agg": "value_count",
-          "type": "int",
-          "max_width": 3,
-          "height": 4,
-          "min_width": 3,
-          "style": {
-            "color-list": [
-              "#215CC3"
-            ]
-          },
-          "widget_id": "df82078f"
-        },
-        {
-          "title": "By Trap",
-          "widget_type": "pie_chart",
-          "stream": "snmp_trap_event_stream_all",
-          "extra_filter": "project_id in {{PROJ_ID}} or project_id is empty",
-          "ts_column": "timestamp",
-          "group_by": [
-            "snmpTrapName"
-          ],
-          "column": "count_",
-          "agg": "value_count",
-          "type": "int",
-          "min_width": 5,
-          "height": 4,
-          "max_width": 5,
-          "widget_id": "43799fef"
-        },
-        {
-          "title": "Traps by IP",
-          "widget_type": "pie_chart",
-          "stream": "snmp_trap_event_stream_all",
-          "extra_filter": "project_id in {{PROJ_ID}} or project_id is empty",
-          "ts_column": "timestamp",
-          "column": "count_",
-          "agg": "value_count",
-          "group_by": [
-            "rda_gw_client_ip"
-          ],
-          "type": "str",
-          "min_width": 4,
-          "height": 4,
-          "max_width": 8,
-          "widget_id": "5d627f3e"
-        },
-        {
-          "widget_type": "pie_chart",
-          "title": "Traps by Managed Status",
-          "stream": "snmp_trap_event_stream_all",
-          "extra_filter": "project_id in {{PROJ_ID}} or project_id is empty",
-          "ts_column": "timestamp",
-          "column": "count_",
-          "agg": "sum",
-          "group_by": [
-            "device_status"
-          ],
-          "min_width": 4,
-          "height": 4,
-          "max_width": 4,
-          "widget_id": "b9f66b8"
-        },
-        {
-          "widget_type": "pie_chart",
-          "title": "Assets by Managed Status ",
-          "stream": "snmp_trap_event_stream_all",
-          "extra_filter": "project_id in {{PROJ_ID}} or project_id is empty",
-          "ts_column": "timestamp",
-          "column": "rda_gw_client_ip",
-          "agg": "cardinality",
-          "group_by": [
-            "device_status"
-          ],
-          "min_width": 4,
-          "height": 4,
-          "max_width": 4,
-          "widget_id": "b2266b8"
-        },
-        {
-          "title": "Unmanaged Devices",
-          "widget_type": "tabular",
-          "max_width": 4,
-          "height": 4,
-          "min_width": 4,
-          "extra_filter": "device_status contains 'UNMANAGED' and (project_id in {{PROJ_ID}} or project_id is empty)",
-          "stream": "snmp_trap_event_stream_all",
-          "ts_column": "timestamp",
+          "extra_filter": "`item_type` is  \"CHASSIS\"",
           "columns": {
-            "rda_gw_client_ip": "IP Address"
+            "device_model": "Model",
+            "device_type": "Equipment Type",
+            "manufacturer": "Manufacturer",
+            "device_ip": "IP Address",
+            "device_hostname": "Hostname",
+            "serial_number": "Serial Number",
+            "device_family": "Device Family"
           },
-          "pivot": {
-            "group_by": [
-              "rda_gw_client_ip"
-            ],
-            "column": "count_",
-            "agg": "value_count"
-          },
-          "widget_id": "kz1MoAWD"
+          "widget_id": "7gsoG2q9"
         },
         {
-          "title": "SNMP Traps",
+          "title": "Asset Details",
           "widget_type": "tabular",
-          "max_width": 12,
-          "height": 8,
-          "min_width": 12,
-          "stream": "snmp_trap_event_stream_all",
-          "extra_filter": "project_id in {{PROJ_ID}} or project_id is empty",
-          "ts_column": "timestamp",
-          "resizableColumns": false,
-          "max_rows": 100,
+          "stream": "cnc_device_inventory",
+          "duration_hours": 1080,
           "showRowSummary": true,
-          "sorting": [
-            {
-              "timestamp": "desc"
-            }
+          "include_context_in_query": true,
+          "include_context_keys": [
+            "device_ip"
           ],
+          "extra_filter": "`item_type` is  \"CHASSIS\"",
+          "min_width": 12,
+          "height": 8,
+          "max_width": 12,
+          "paginated": true,
           "remote_searchable": true,
           "remote_searchable_cols": [
-            "rda_gw_client_ip",
-            "snmpTrapOID",
-            "device_vendor",
-            "device_status",
-            "snmpTrapMIB",
-            "snmpVersion",
-            "rda_gw_client_ip",
-            "snmpTrapName"
+            "device_hostname",
+            "device_ip",
+            "device_model",
+            "clli_code",
+            "device_location",
+            "serial_number",
+            "device_type",
+            "manufacturer",
+            "device_fw_version",
+            "device_fw_type",
+            "admin_state"
           ],
+          "max_rows": 50,
           "columns": {
-            "timestamp": "Timestamp",
-            "rda_gw_client_ip": "Device",
-            "device_hostname": "Device Hostname",
-            "message": "Message",
-            "snmpVersion": "SNMP Version",
-            "device_vendor": "Vendor",
-            "device_status": "Status",
-            "snmpTrapDescription": "MIB Description",
-            "snmpTrapName": "Trap Name",
-            "snmpTrapMIB": "MIB Name",
-            "device_fw_version": "OS Version",
-            "snmpTrapOID": "Trap OID"
+            "total_count": "Total Quantity",
+            "device_hostname": {
+              "title": "Device Hostname",
+              "type": "TEXT",
+              "key": true
+            },
+            "device_family": {
+              "title": "Device Family",
+              "type": "TEXT",
+              "visible": false
+            },
+            "Product_Family": {
+              "title": "Product Family",
+              "type": "TEXT",
+              "key": true,
+              "visible": false
+            },
+            "device_ip": {
+              "title": "IP Address",
+              "type": "TEXT",
+              "key": true
+            },
+            "device_model": "Device Model",
+            "serial_number": {
+              "title": "Serial Number",
+              "type": "TEXT"
+            },
+            "manufacturer": "Vendor",
+            "device_fw_version": "SW Version",
+            "device_type": "Equipment Type",
+            "device_location": "Location",
+            "device_fw_type": "Type",
+            "admin_state": "Admin State",
+            "product_type": "Product Type",
+            "operational_state": "Operational State",
+            "clli_code": "CLLI_CODE",
+            "device_system_description": "Device Descriptions"
           },
-          "widget_id": "46a6b5b6"
+          "widget_id": "4c2cfdd7"
         }
       ]
     }
   ],
-  "dashboard_type": "template",
-  "dashboard_pages": [],
   "pstream_dashboards": [
     {
-      "title": "snmp details",
+      "title": "Device View",
       "show_filter": true,
       "widgets": [
         {
@@ -319,159 +179,100 @@
           "max_width": 12,
           "height": 0.5,
           "min_width": 12,
-          "label": "<div style='text-align:center;width:100%;'><h1><a style='text-decoration:none;color:#0066ff;' target='_blank'>Customer SNMP Traps</a></h1></div>",
+          "label": "<div style='text-align:center;width:100%;'><h1><a style='text-decoration:none;color:#0066ff;' target='_blank'> Device Inventory</a></h1></div>",
           "widget_id": "33317e49"
         },
         {
-          "title": "Total Traps",
-          "widget_type": "custom_counter",
-          "formatter": "DescriptiveCountFormatter",
-          "stream": "snmp_trap_event_stream_all",
-          "extra_filter0": "project_id in {{PROJ_ID}} or project_id is empty",
+          "title": "Asset Summary",
+          "widget_type": "summary",
+          "max_width": 6,
+          "height": 5,
+          "min_width": 6,
+          "stream": "cnc_device_inventory",
+          "duration_hours": 1080,
           "ts_column": "timestamp",
-          "column": "_id",
-          "agg": "value_count",
-          "type": "int",
-          "max_width": 3,
-          "height": 4,
-          "min_width": 3,
-          "style": {
-            "color-list": [
-              "#215CC3"
-            ]
-          },
-          "widget_id": "df82078f"
-        },
-        {
-          "title": "By Trap",
-          "widget_type": "pie_chart",
-          "stream": "snmp_trap_event_stream_all",
-          "extra_filter": "project_id in {{PROJ_ID}} or project_id is empty",
-          "ts_column": "timestamp",
-          "group_by": [
-            "snmpTrapName"
-          ],
-          "column": "count_",
-          "agg": "value_count",
-          "type": "int",
-          "min_width": 5,
-          "height": 4,
-          "max_width": 5,
-          "widget_id": "43799fef"
-        },
-        {
-          "title": "Traps by IP",
-          "widget_type": "pie_chart",
-          "stream": "snmp_trap_event_stream_all",
-          "extra_filter": "project_id in {{PROJ_ID}} or project_id is empty",
-          "ts_column": "timestamp",
-          "column": "count_",
-          "agg": "value_count",
-          "group_by": [
-            "rda_gw_client_ip"
-          ],
-          "type": "str",
-          "min_width": 4,
-          "height": 4,
-          "max_width": 8,
-          "widget_id": "5d627f3e"
-        },
-        {
-          "widget_type": "pie_chart",
-          "title": "Traps by Managed Status",
-          "stream": "snmp_trap_event_stream_all",
-          "extra_filter": "project_id in {{PROJ_ID}} or project_id is empty",
-          "ts_column": "timestamp",
-          "column": "count_",
-          "agg": "sum",
-          "group_by": [
-            "device_status"
-          ],
-          "min_width": 4,
-          "height": 4,
-          "max_width": 4,
-          "widget_id": "b9f66b8"
-        },
-        {
-          "widget_type": "pie_chart",
-          "title": "Assets by Managed Status ",
-          "stream": "snmp_trap_event_stream_all",
-          "extra_filter": "project_id in {{PROJ_ID}} or project_id is empty",
-          "ts_column": "timestamp",
-          "column": "rda_gw_client_ip",
-          "agg": "cardinality",
-          "group_by": [
-            "device_status"
-          ],
-          "min_width": 4,
-          "height": 4,
-          "max_width": 4,
-          "widget_id": "b2266b8"
-        },
-        {
-          "title": "Unmanaged Devices",
-          "widget_type": "tabular",
-          "max_width": 4,
-          "height": 4,
-          "min_width": 4,
-          "extra_filter": "device_status contains 'UNMANAGED' and (project_id in {{PROJ_ID}} or project_id is empty)",
-          "stream": "snmp_trap_event_stream_all",
-          "ts_column": "timestamp",
+          "extra_filter": "`item_type` is  \"CHASSIS\"",
           "columns": {
-            "rda_gw_client_ip": "IP Address"
+            "device_model": "Model",
+            "device_type": "Equipment Type",
+            "manufacturer": "Manufacturer",
+            "device_ip": "IP Address",
+            "device_hostname": "Hostname",
+            "serial_number": "Serial Number",
+            "device_family": "Device Family"
           },
-          "pivot": {
-            "group_by": [
-              "rda_gw_client_ip"
-            ],
-            "column": "count_",
-            "agg": "value_count"
-          },
-          "widget_id": "kz1MoAWD"
+          "widget_id": "7gsoG2q9"
         },
         {
-          "title": "SNMP Traps",
+          "title": "Asset Details",
           "widget_type": "tabular",
-          "max_width": 12,
-          "height": 8,
-          "min_width": 12,
-          "stream": "snmp_trap_event_stream_all",
-          "extra_filter": "project_id in {{PROJ_ID}} or project_id is empty",
-          "ts_column": "timestamp",
-          "resizableColumns": false,
-          "max_rows": 100,
+          "stream": "cnc_device_inventory",
+          "duration_hours": 1080,
           "showRowSummary": true,
-          "sorting": [
-            {
-              "timestamp": "desc"
-            }
+          "include_context_in_query": true,
+          "include_context_keys": [
+            "device_ip"
           ],
+          "extra_filter": "`item_type` is  \"CHASSIS\"",
+          "min_width": 12,
+          "height": 8,
+          "max_width": 12,
+          "paginated": true,
           "remote_searchable": true,
           "remote_searchable_cols": [
-            "rda_gw_client_ip",
-            "snmpTrapOID",
-            "device_vendor",
-            "device_status",
-            "snmpTrapMIB",
-            "snmpVersion",
-            "rda_gw_client_ip",
-            "snmpTrapName"
+            "device_hostname",
+            "device_ip",
+            "device_model",
+            "clli_code",
+            "device_location",
+            "serial_number",
+            "device_type",
+            "manufacturer",
+            "device_fw_version",
+            "device_fw_type",
+            "admin_state"
           ],
+          "max_rows": 50,
           "columns": {
-            "timestamp": "Timestamp",
-            "rda_gw_client_ip": "Device",
-            "device_hostname": "Device Hostname",
-            "message": "Message",
-            "snmpVersion": "SNMP Version",
-            "device_vendor": "Vendor",
-            "device_status": "Status",
-            "snmpTrapDescription": "MIB Description",
-            "snmpTrapName": "Trap Name",
-            "snmpTrapMIB": "MIB Name",
-            "device_fw_version": "OS Version",
-            "snmpTrapOID": "Trap OID"
+            "total_count": "Total Quantity",
+            "device_hostname": {
+              "title": "Device Hostname",
+              "type": "TEXT",
+              "key": true
+            },
+            "device_family": {
+              "title": "Device Family",
+              "type": "TEXT",
+              "visible": false
+            },
+            "Product_Family": {
+              "title": "Product Family",
+              "type": "TEXT",
+              "key": true,
+              "visible": false
+            },
+            "device_ip": {
+              "title": "IP Address",
+              "type": "TEXT",
+              "key": true
+            },
+            "device_model": "Device Model",
+            "serial_number": {
+              "title": "Serial Number",
+              "type": "TEXT"
+            },
+            "manufacturer": "Vendor",
+            "device_fw_version": "SW Version",
+            "device_type": "Equipment Type",
+            "device_location": "Location",
+            "device_fw_type": "Type",
+            "admin_state": "Admin State",
+            "product_type": "Product Type",
+            "operational_state": "Operational State",
+            "clli_code": "CLLI_CODE",
+            "device_system_description": "Device Descriptions"
           },
-          "widget_id": "46a6b5b6"
+          "widget_id": "4c2cfdd7"
         }
       ]
     }
