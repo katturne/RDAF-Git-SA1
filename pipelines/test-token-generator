@@ -1,6 +1,13 @@
 @c:new-block
  --> @dm:empty
- --> #dm:query-persistent-stream status is "Failed" and pipeline_name is "edc_get_customer_data" with-input name="rda_system_job_tracker"
- --> @dm:sort columns = 'created' and order = "desc"
- --> @dm:head n = 1
- --> @dm:save name= 'failed_edc_get_customer_data'
+ --> @exec:define-function name="generate_access_token"
+ --> @exec:run-pipeline name ="edc_generate_token" & ignore_failures = "no"
+ --> @dm:addrow key='key'
+ --> @dm:eval current_time_ms="int(time_now_as_ms())"
+ --> @dm:eval token_expiry_time='current_time_ms+3000000'
+ --> @dm:save name='temp-expiry-time'
+ --> @exec:end-function
+ --> @c:new-block
+ --> @dm:empty
+ --> @exec:call-function name='generate_access_token'
+ --> @dm:save name='temp-expiry-time'
