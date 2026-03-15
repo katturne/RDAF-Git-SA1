@@ -1,185 +1,477 @@
 {
-  "name": "rda-github-pull",
-  "label": "RDA Artifacts in GitHub",
-  "is_template": true,
-  "description": "RDA Artifacts in GitHub",
-  "version": "23.11.7.1",
+  "name": "customer_SNMP_Traps",
+  "label": "SNMP Traps",
+  "description": "SNMP traps dashboard",
+  "version": "2024.02.27",
   "enabled": true,
-  "dashboard_type": "dashboard",
-  "dashboard_folder": "System",
+  "dashboard_folder": "NetworkDevicePack",
   "dashboard_style": "auto",
-  "stream": "rda_github_pull_stream",
+  "template_variables": {
+    "CUST_ID": {
+      "contextId": "customer_id"
+    },
+    "PROJ_ID": {
+      "contextId": "projectId"
+    },
+    "CUST_TAG": {
+      "contextId": "customer_tag"
+    }
+  },
+  "status_poller": {
+    "stream": "snmp_trap_event_stream_all",
+    "frequency": 10,
+    "columns": [
+      "timestamp"
+    ],
+    "sorting": [
+      {
+        "timestamp": "desc"
+      }
+    ],
+    "query": "timestamp is after '${timestamp}'",
+    "defaults": {
+      "timestamp": "$UTCNOW"
+    },
+    "action": "refresh"
+  },
   "dashboard_filters": {
+    "default_time_filter_labels": [
+      "Last 24 hours"
+    ],
+    "extra_filter": "project_id in {{PROJ_ID}} or project_id is empty",
     "time_filter": true,
     "columns_filter": [
       {
-        "id": "filename",
-        "label": "Full Path",
+        "id": "rda_gw_client_ip",
+        "label": "Device IP",
         "type": "TEXT"
       },
       {
-        "id": "additions",
-        "label": "Additions",
-        "type": "DOUBLE"
-      },
-      {
-        "id": "deletions",
-        "label": "Deletions",
-        "type": "DOUBLE"
-      },
-      {
-        "id": "status",
-        "label": "Status",
+        "id": "device_hostname",
+        "label": "Device Hostname",
         "type": "TEXT"
       },
       {
-        "id": "position",
-        "label": "Ahead/Behind",
+        "id": "message",
+        "label": "Message",
         "type": "TEXT"
       },
       {
-        "id": "timestamp",
-        "label": "Timestamp",
-        "type": "DATETIME"
+        "id": "snmpVersion",
+        "label": "SNMP Version",
+        "type": "TEXT"
+      },
+      {
+        "id": "device_vendor",
+        "label": "Device Vendor",
+        "type": "TEXT"
+      },
+      {
+        "id": "device_status",
+        "label": "Device Status",
+        "type": "TEXT"
+      },
+      {
+        "id": "snmpTrapDescription",
+        "label": "MIB Description",
+        "type": "TEXT"
+      },
+      {
+        "id": "snmpTrapName",
+        "label": "Trap Name",
+        "type": "TEXT"
+      },
+      {
+        "id": "device_fw_version",
+        "label": "OS Version",
+        "type": "TEXT"
+      },
+      {
+        "id": "snmpTrapOID",
+        "label": "Trap OID",
+        "type": "TEXT"
+      },
+      {
+        "id": "snmpTrapMIB",
+        "label": "MIB Name",
+        "type": "TEXT"
       }
     ],
     "group_filters": [
       {
-        "stream": "rda_github_pull_stream",
-        "title": "Status",
-        "duration_hours": 87600,
-        "limit": 200,
-        "extra_filter": null,
+        "stream": "snmp_trap_event_stream_all",
+        "title": "Vendor",
         "group_by": [
-          "status"
+          "device_vendor"
         ],
         "ts_column": "timestamp",
         "agg": "sum",
-        "column": "count_",
-        "type": "int"
+        "column": "count_"
+      },
+      {
+        "stream": "snmp_trap_event_stream_all",
+        "title": "Status",
+        "group_by": [
+          "device_status"
+        ],
+        "ts_column": "timestamp",
+        "agg": "sum",
+        "column": "count_"
+      },
+      {
+        "stream": "snmp_trap_event_stream_all",
+        "title": "Trap Name",
+        "group_by": [
+          "snmpTrapName"
+        ],
+        "ts_column": "timestamp",
+        "agg": "sum",
+        "column": "count_"
+      },
+      {
+        "stream": "snmp_trap_event_stream_all",
+        "title": "MIB Name",
+        "group_by": [
+          "snmpTrapMIB"
+        ],
+        "ts_column": "timestamp",
+        "agg": "sum",
+        "column": "count_"
       }
     ]
   },
   "dashboard_sections": [
     {
-      "title": "RDA artifacts in GitHub",
+      "title": "snmp details",
+      "show_filter": true,
       "widgets": [
         {
-          "title": "RDA artifacts in GitHub",
-          "widget_type": "github_pull_details",
-          "height": 2,
-          "widget_id": "8ddee7d9"
+          "widget_type": "label",
+          "max_width": 12,
+          "height": 0.5,
+          "min_width": 12,
+          "label": "<div style='text-align:center;width:100%;'><h1><a style='text-decoration:none;color:#0066ff;' target='_blank'>Customer SNMP Traps</a></h1></div>",
+          "widget_id": "33317e49"
         },
         {
-          "title": "RDA artifacts in GitHub",
+          "title": "Total Traps",
+          "widget_type": "custom_counter",
+          "formatter": "DescriptiveCountFormatter",
+          "stream": "snmp_trap_event_stream_all",
+          "extra_filter0": "project_id in {{PROJ_ID}} or project_id is empty",
+          "ts_column": "timestamp",
+          "column": "_id",
+          "agg": "value_count",
+          "type": "int",
+          "max_width": 3,
+          "height": 4,
+          "min_width": 3,
+          "style": {
+            "color-list": [
+              "#215CC3"
+            ]
+          },
+          "widget_id": "df82078f"
+        },
+        {
+          "title": "By Trap",
+          "widget_type": "pie_chart",
+          "stream": "snmp_trap_event_stream_all",
+          "extra_filter": "project_id in {{PROJ_ID}} or project_id is empty",
+          "ts_column": "timestamp",
+          "group_by": [
+            "snmpTrapName"
+          ],
+          "column": "count_",
+          "agg": "value_count",
+          "type": "int",
+          "min_width": 5,
+          "height": 4,
+          "max_width": 5,
+          "widget_id": "43799fef"
+        },
+        {
+          "title": "Traps by IP",
+          "widget_type": "pie_chart",
+          "stream": "snmp_trap_event_stream_all",
+          "extra_filter": "project_id in {{PROJ_ID}} or project_id is empty",
+          "ts_column": "timestamp",
+          "column": "count_",
+          "agg": "value_count",
+          "group_by": [
+            "rda_gw_client_ip"
+          ],
+          "type": "str",
+          "min_width": 4,
+          "height": 4,
+          "max_width": 8,
+          "widget_id": "5d627f3e"
+        },
+        {
+          "widget_type": "pie_chart",
+          "title": "Traps by Managed Status",
+          "stream": "snmp_trap_event_stream_all",
+          "extra_filter": "project_id in {{PROJ_ID}} or project_id is empty",
+          "ts_column": "timestamp",
+          "column": "count_",
+          "agg": "sum",
+          "group_by": [
+            "device_status"
+          ],
+          "min_width": 4,
+          "height": 4,
+          "max_width": 4,
+          "widget_id": "b9f66b8"
+        },
+        {
+          "widget_type": "pie_chart",
+          "title": "Assets by Managed Status ",
+          "stream": "snmp_trap_event_stream_all",
+          "extra_filter": "project_id in {{PROJ_ID}} or project_id is empty",
+          "ts_column": "timestamp",
+          "column": "rda_gw_client_ip",
+          "agg": "cardinality",
+          "group_by": [
+            "device_status"
+          ],
+          "min_width": 4,
+          "height": 4,
+          "max_width": 4,
+          "widget_id": "b2266b8"
+        },
+        {
+          "title": "Unmanaged Devices",
           "widget_type": "tabular",
-          "stream": "rda_github_pull_stream",
-          "timebased": false,
+          "max_width": 4,
+          "height": 4,
+          "min_width": 4,
+          "extra_filter": "device_status contains 'UNMANAGED' and (project_id in {{PROJ_ID}} or project_id is empty)",
+          "stream": "snmp_trap_event_stream_all",
+          "ts_column": "timestamp",
+          "columns": {
+            "rda_gw_client_ip": "IP Address"
+          },
+          "pivot": {
+            "group_by": [
+              "rda_gw_client_ip"
+            ],
+            "column": "count_",
+            "agg": "value_count"
+          },
+          "widget_id": "kz1MoAWD"
+        },
+        {
+          "title": "SNMP Traps",
+          "widget_type": "tabular",
+          "max_width": 12,
+          "height": 8,
+          "min_width": 12,
+          "stream": "snmp_trap_event_stream_all",
+          "extra_filter": "project_id in {{PROJ_ID}} or project_id is empty",
+          "ts_column": "timestamp",
+          "resizableColumns": false,
+          "max_rows": 100,
+          "showRowSummary": true,
+          "sorting": [
+            {
+              "timestamp": "desc"
+            }
+          ],
           "remote_searchable": true,
           "remote_searchable_cols": [
-            "filename",
-            "status",
-            "position"
+            "rda_gw_client_ip",
+            "snmpTrapOID",
+            "device_vendor",
+            "device_status",
+            "snmpTrapMIB",
+            "snmpVersion",
+            "rda_gw_client_ip",
+            "snmpTrapName"
           ],
-          "ts_column": "timestamp",
-          "paginated": true,
-          "height": 10,
-          "min_wdith": 12,
           "columns": {
-            "filename": {
-              "title": "Full Path",
-              "key": true
-            },
-            "additions": {
-              "title": "Additions",
-              "type": "DOUBLE"
-            },
-            "deletions": {
-              "title": "Deletions",
-              "type": "DOUBLE"
-            },
-            "status": {
-              "title": "Status"
-            },
-            "position": {
-              "title": "Ahead/Behind"
-            },
-            "timestamp": {
-              "title": "Timestamp",
-              "type": "DATETIME"
-            },
-            "diff_html": {
-              "hidden": true,
-              "key": true
-            }
+            "timestamp": "Timestamp",
+            "rda_gw_client_ip": "Device",
+            "device_hostname": "Device Hostname",
+            "message": "Message",
+            "snmpVersion": "SNMP Version",
+            "device_vendor": "Vendor",
+            "device_status": "Status",
+            "snmpTrapDescription": "MIB Description",
+            "snmpTrapName": "Trap Name",
+            "snmpTrapMIB": "MIB Name",
+            "device_fw_version": "OS Version",
+            "snmpTrapOID": "Trap OID"
           },
-          "actions": [],
-          "widget_id": "01dc3a55",
-          "preview_dashboard": "rda-diff-preview",
-          "preview_width": 900,
-          "preview_height": 700
+          "widget_id": "46a6b5b6"
         }
       ]
     }
   ],
+  "dashboard_type": "template",
+  "dashboard_pages": [],
   "pstream_dashboards": [
     {
-      "title": "RDA artifacts in GitHub",
+      "title": "snmp details",
+      "show_filter": true,
       "widgets": [
         {
-          "title": "RDA artifacts in GitHub",
-          "widget_type": "github_pull_details",
-          "height": 2,
-          "widget_id": "8ddee7d9"
+          "widget_type": "label",
+          "max_width": 12,
+          "height": 0.5,
+          "min_width": 12,
+          "label": "<div style='text-align:center;width:100%;'><h1><a style='text-decoration:none;color:#0066ff;' target='_blank'>Customer SNMP Traps</a></h1></div>",
+          "widget_id": "33317e49"
         },
         {
-          "title": "RDA artifacts in GitHub",
+          "title": "Total Traps",
+          "widget_type": "custom_counter",
+          "formatter": "DescriptiveCountFormatter",
+          "stream": "snmp_trap_event_stream_all",
+          "extra_filter0": "project_id in {{PROJ_ID}} or project_id is empty",
+          "ts_column": "timestamp",
+          "column": "_id",
+          "agg": "value_count",
+          "type": "int",
+          "max_width": 3,
+          "height": 4,
+          "min_width": 3,
+          "style": {
+            "color-list": [
+              "#215CC3"
+            ]
+          },
+          "widget_id": "df82078f"
+        },
+        {
+          "title": "By Trap",
+          "widget_type": "pie_chart",
+          "stream": "snmp_trap_event_stream_all",
+          "extra_filter": "project_id in {{PROJ_ID}} or project_id is empty",
+          "ts_column": "timestamp",
+          "group_by": [
+            "snmpTrapName"
+          ],
+          "column": "count_",
+          "agg": "value_count",
+          "type": "int",
+          "min_width": 5,
+          "height": 4,
+          "max_width": 5,
+          "widget_id": "43799fef"
+        },
+        {
+          "title": "Traps by IP",
+          "widget_type": "pie_chart",
+          "stream": "snmp_trap_event_stream_all",
+          "extra_filter": "project_id in {{PROJ_ID}} or project_id is empty",
+          "ts_column": "timestamp",
+          "column": "count_",
+          "agg": "value_count",
+          "group_by": [
+            "rda_gw_client_ip"
+          ],
+          "type": "str",
+          "min_width": 4,
+          "height": 4,
+          "max_width": 8,
+          "widget_id": "5d627f3e"
+        },
+        {
+          "widget_type": "pie_chart",
+          "title": "Traps by Managed Status",
+          "stream": "snmp_trap_event_stream_all",
+          "extra_filter": "project_id in {{PROJ_ID}} or project_id is empty",
+          "ts_column": "timestamp",
+          "column": "count_",
+          "agg": "sum",
+          "group_by": [
+            "device_status"
+          ],
+          "min_width": 4,
+          "height": 4,
+          "max_width": 4,
+          "widget_id": "b9f66b8"
+        },
+        {
+          "widget_type": "pie_chart",
+          "title": "Assets by Managed Status ",
+          "stream": "snmp_trap_event_stream_all",
+          "extra_filter": "project_id in {{PROJ_ID}} or project_id is empty",
+          "ts_column": "timestamp",
+          "column": "rda_gw_client_ip",
+          "agg": "cardinality",
+          "group_by": [
+            "device_status"
+          ],
+          "min_width": 4,
+          "height": 4,
+          "max_width": 4,
+          "widget_id": "b2266b8"
+        },
+        {
+          "title": "Unmanaged Devices",
           "widget_type": "tabular",
-          "stream": "rda_github_pull_stream",
-          "timebased": false,
+          "max_width": 4,
+          "height": 4,
+          "min_width": 4,
+          "extra_filter": "device_status contains 'UNMANAGED' and (project_id in {{PROJ_ID}} or project_id is empty)",
+          "stream": "snmp_trap_event_stream_all",
+          "ts_column": "timestamp",
+          "columns": {
+            "rda_gw_client_ip": "IP Address"
+          },
+          "pivot": {
+            "group_by": [
+              "rda_gw_client_ip"
+            ],
+            "column": "count_",
+            "agg": "value_count"
+          },
+          "widget_id": "kz1MoAWD"
+        },
+        {
+          "title": "SNMP Traps",
+          "widget_type": "tabular",
+          "max_width": 12,
+          "height": 8,
+          "min_width": 12,
+          "stream": "snmp_trap_event_stream_all",
+          "extra_filter": "project_id in {{PROJ_ID}} or project_id is empty",
+          "ts_column": "timestamp",
+          "resizableColumns": false,
+          "max_rows": 100,
+          "showRowSummary": true,
+          "sorting": [
+            {
+              "timestamp": "desc"
+            }
+          ],
           "remote_searchable": true,
           "remote_searchable_cols": [
-            "filename",
-            "status",
-            "position"
+            "rda_gw_client_ip",
+            "snmpTrapOID",
+            "device_vendor",
+            "device_status",
+            "snmpTrapMIB",
+            "snmpVersion",
+            "rda_gw_client_ip",
+            "snmpTrapName"
           ],
-          "ts_column": "timestamp",
-          "paginated": true,
-          "height": 10,
-          "min_wdith": 12,
           "columns": {
-            "filename": {
-              "title": "Full Path",
-              "key": true
-            },
-            "additions": {
-              "title": "Additions",
-              "type": "DOUBLE"
-            },
-            "deletions": {
-              "title": "Deletions",
-              "type": "DOUBLE"
-            },
-            "status": {
-              "title": "Status"
-            },
-            "position": {
-              "title": "Ahead/Behind"
-            },
-            "timestamp": {
-              "title": "Timestamp",
-              "type": "DATETIME"
-            },
-            "diff_html": {
-              "hidden": true,
-              "key": true
-            }
+            "timestamp": "Timestamp",
+            "rda_gw_client_ip": "Device",
+            "device_hostname": "Device Hostname",
+            "message": "Message",
+            "snmpVersion": "SNMP Version",
+            "device_vendor": "Vendor",
+            "device_status": "Status",
+            "snmpTrapDescription": "MIB Description",
+            "snmpTrapName": "Trap Name",
+            "snmpTrapMIB": "MIB Name",
+            "device_fw_version": "OS Version",
+            "snmpTrapOID": "Trap OID"
           },
-          "actions": [],
-          "widget_id": "01dc3a55",
-          "preview_dashboard": "rda-diff-preview",
-          "preview_width": 900,
-          "preview_height": 700
+          "widget_id": "46a6b5b6"
         }
       ]
     }
