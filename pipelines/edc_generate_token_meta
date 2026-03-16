@@ -1,17 +1,15 @@
-folder: Default
-name: edc_generate_token
-description: test pipeline
-data_path: pipelines/data/edc_generate_token/2025_05_23_01/data.json
-usecase: ''
-category: ''
-sources:
-  restclient:
-    name: restclient
-    type: restclient
-artifacts:
-- artifact_type: dataset
-  artifact_name: test-token
-  access: write
-version: '2025_05_23_01'
-file_type: json
-checksum: 6b11a592
+@dm:recall name='test-sec-adv-details'
+ --> @dm:save name='temp-sec-adv-details'
+ --> @c:new-block
+ --> @dm:empty
+ --> @dm:addrow name='edc_oi_inventory_enriched' and limit=0
+ --> #dm:query-persistent-stream customer_name=='ATT'
+ --> @dm:save name='temp-hw-eol-details' and append='yes'
+ ## --> @dm:save name='test1-hw-eol-details' and append='yes'
+
+ --> @c:new-block
+ --> @dm:recall name='temp-hw-eol-details'
+ --> @dm:enrich dict='temp-sec-adv-details' and src_key_cols='product_name,contract_number,customer_name' and dict_key_cols='product_id,contract_number,customer' and enrich_cols='secAdv_confidence_score,PsirtID,MatchReason,MatchDefinition,HeadlineName,AdvisoryId,BulletinURL,Summary,Details,RevisedDate,RevisionNumber,PublishedDate,secAdv_securityImpactRating,CvssScore,CveId,_id,securityAdvisoryColdId,created,customerVisible,external_text,bulletinTitle,firstIcAlertId,groups,icIssueId,icProblemId,ignored,lastIcAlertId,matchDefinition,matchInfo,missingInfo,moreInfo,name,openedOn,resultType,resultSubType,severity,severityText,state,updated,deviceSN,source,runType,filename,icType,atticaStatus,cdetsList,retry,associatedGroups,key,current_time_ms_loop,token_expiry_time,access_token,expires_in,token_type,sw_version,sw_os_type,id1,id2,transaction_id,serial_number,eoXAlert,eoXAlertType,DocumentId,secAdv_matchConfidence'  and how_type='outer' and dedup_dict='no' and replace_values='yes'
+ --> @dm:save name='final-sa-hw-enrich'
+ --> @dm:selectcolumns exclude='^(customer|product_id)$'
+ --> @rn:write-stream name='edc_sec_adv_data_enriched'
