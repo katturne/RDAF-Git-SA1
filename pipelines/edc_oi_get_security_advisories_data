@@ -1,105 +1,155 @@
-@dm:empty
- --> @exec:get-input
- --> @dm:save name='temp-sa-exploded-data'
- --> @dm:save name='test-1sa-exploded-data'
- --> @c:new-block
- --> @dm:recall name="temp-sa-exploded-data"
- --> @dm:selectcolumns exclude='^unique_key$'
- ## --> @dm:enrich dict="temp-sa-data" and src_key_cols='product_id,sw_version,sw_os_type' and dict_key_cols='product_id,sw_version,sw_os_type' and enrich_cols="contract_number,customer"
+@exec:get-input
+ --> @dm:skip-pipeline-if-shape row_count=0
+ --> @dm:save name='temp-incidents'
+ ## get impacted assets for the incidents
 
- --> @dm:add-missing-columns columns="PsirtID,MatchConfidence,MatchReason,MatchDefinition,HeadlineName,AdvisoryId,BulletinURL,Summary,Details,RevisedDate,RevisionNumber,PublishedDate,SeverityLevelName,CvssScore,CveId,_id,advisoryId,created,customerVisible,external_text,external_title,firstIcAlertId,groups,icIssueId,icProblemId,ignored,lastIcAlertId,matchDefinition,matchInfo,matchConfidence,missingInfo,moreInfo,name,openedOn,resultType,resultSubType,severity,severityText,state,updated,deviceSN,source,runType,filename,icType,atticaStatus,cdetsList,retry,associatedGroups,key,current_time_ms_loop,token_expiry_time,access_token,expires_in,token_type,sw_version,sw_os_type,product_id,transaction_id,eoXAlert,eoXAlertType,DocumentId"
- --> @dm:eval matchConfidence = "'Potentially Vulnerable' if matchConfidence == 'POTVUL' else 'Vulnerable' if matchConfidence == 'VUL' else matchConfidence"
- --> @dm:eval secAdv_confidence_score = "100 if matchConfidence == 'Vulnerable' else 99 if matchConfidence == 'Potentially Vulnerable' else 98 if matchConfidence == 'Not Vulnerable' else 0"
- --> @dm:fixnull columns="PsirtID,MatchConfidence,MatchReason,MatchDefinition,HeadlineName,AdvisoryId,BulletinURL,Summary,Details,RevisedDate,RevisionNumber,PublishedDate,SeverityLevelName,CvssScore,CveId,_id,advisoryId,created,customerVisible,external_text,external_title,firstIcAlertId,groups,icIssueId,icProblemId,ignored,lastIcAlertId,matchDefinition,matchInfo,matchConfidence,missingInfo,moreInfo,name,openedOn,resultType,resultSubType,severity,severityText,state,updated,deviceSN,source,runType,filename,icType,atticaStatus,cdetsList,retry,associatedGroups,key,current_time_ms_loop,token_expiry_time,expires_in,token_type,sw_version,sw_os_type,product_id,transaction_id,eoXAlert,eoXAlertType,DocumentId,secAdv_confidence_score" and value="Not Available" and apply_for_empty="yes"
- --> @dm:fixnull-regex columns="Timestamp$|timestamp$"
- --> @dm:rename-columns secAdv_matchConfidence ='matchConfidence' and secAdv_securityImpactRating='SeverityLevelName' and secAdv_bulletinTitle='external_title' and securityAdvisoryId='advisoryId' and ID = '_id' and secAdv_BulletinURL ='BulletinURL'
- --> @dm:save name="temp-sec-adv-details"
+ --> @c:data-loop columns='incident_id,project_id' and dataset='temp-incidents'
+ --> @dm:empty
+ --> @dm:addrow name='oia-alerts-stream' and aggs='cardinality:a_en_metric_asset_id' and groupby='a_incident_id,project_id,a_en_metric_asset_id'
+ --> #dm:query-persistent-stream a_incident_id is '$incident_id' and project_id is '$project_id'
+ --> @dm:implode key_columns='a_incident_id' and merge_columns='a_en_metric_asset_id' and keep_columns='a_incident_id'
+ --> @dm:eval assetIds="a_en_metric_asset_id.split(',')"
+ --> @dm:eval asset_count='len(assetIds)'
+ --> @dm:add-missing-columns columns='incident_id' and value="$incident_id"
+ --> @dm:save name='temp-incident-impacted-assets' and append='yes'
+ --> *exec:if-shape num_rows=0
+ --> @dm:empty
+ --> @dm:addrow incident_id="$incident_id" and asset_count=0
+ --> @dm:save name='temp-incident-impacted-assets' and append='yes'
+ --> @exec:end-if
+ ## enrich the incidents with impacted assets
+
+ --> @c:new-block
+ --> @dm:recall name='temp-incidents'
+ --> @dm:enrich dict='temp-incident-impacted-assets' and src_key_cols='incident_id' and dict_key_cols='incident_id' and enrich_cols='assetIds,asset_count'
+ --> @dm:save name='temp-incidents'
+ ## get alerts for incident
+
  --> @c:new-block
  --> @dm:empty
- --> @dm:addrow name='edc_cust_pid_sw' and limit=0
- --> #dm:query-persistent-stream
- --> @dm:groupby columns='customer'
- --> @dm:save name='temp-unique-cust-name'
- --> @c:data-loop dataset='temp-unique-cust-name' and columns='customer'
+ --> @exec:define-function name="get_alerts_for_incident"
+ --> @exec:set-variable name="incident"
  --> @dm:empty
- --> @dm:addrow name='edc_oi_inventory_enriched' and limit=0
- --> #dm:query-persistent-stream customer_name=='$customer' and coverage=='COVERED'
- --> @dm:save name='temp-hw-eol-details' and append='yes'
- --> @c:new-block
- --> @dm:recall name='temp-hw-eol-details'
- --> @dm:to-type columns='contract_number' and type='int'
- --> @dm:save name='temp-hw-eol-details'
- ## Queries data for the customer from edc_oi_enriched_stream
-
- --> @c:data-loop dataset='temp-unique-cust-name' and columns='customer'
+ --> @dm:addrow name="oia-alerts-stream" & max_rows=1000 & limit=0
+ --> #dm:query-persistent-stream a_incident_id is "{{v.incident.row['incident_id']}}" and a_source_systemname is not 'Alert Group'
+ --> @dm:save name='temp-incident-alerts' and append='yes'
+ --> *exec:if-shape num_rows=0
  --> @dm:empty
- --> @dm:addrow name='edc_oi_inventory_enriched' and limit=0 and groupby='contract_number,customer_name,product_name,product_id,portfolio_desc' and aggs='sum:combination_count'
- --> #dm:query-persistent-stream coverage=='COVERED' and customer_name is '$customer'
- --> @dm:save name='temp-hw-eol-details-grouped' and append='yes'
- --> @c:new-block
- --> @dm:recall name='temp-hw-eol-details-grouped'
- --> @dm:to-type columns='contract_number' and type='int'
- --> @dm:save name='temp-hw-eol-details-grouped'
- ## enriches the processed columns to edc_oi_inventory_enriched
-
- ## enriches the processed columns to edc_oi_inventory_enriched
+ --> @dm:addrow a_incident_id="{{v.incident.row['incident_id']}}"
+ --> @dm:save name='temp-incident-alerts' and append='yes'
+ --> @exec:end-if
+ --> @exec:end-function
+ ## run diagnostic tool for impacted assets
 
  --> @c:new-block
- --> @dm:recall name='temp-sec-adv-details'
- --> @dm:to-type columns='contract_number' and type='int'
- ## --> @dm:eval product_name="product_id if product_name is 'Not Available' else product_name"
-
- --> @dm:enrich dict='temp-hw-eol-details-grouped' and dict_key_cols='contract_number,customer_name,product_name' and src_key_cols='contract_number,customer,product_name' and enrich_cols='combination_count_sum,portfolio_desc' and how_type='left' and dedup_dict='no'
- --> @dm:add-missing-columns columns="combination_count_sum"
- --> @dm:eval unique_key='str(PsirtID) + str(securityAdvisoryId) + str(product_id) + str(product_name) + str(contract_number)'
- --> @dm:to-type columns='combination_count_sum' and type='int'
- --> @dm:save name='temp-sec-adv-combination-count-sum'
- --> @c:new-block
- --> @dm:recall name='temp-hw-eol-details'
- --> @dm:selectcolumns exclude='^(PsirtID|securityAdvisoryId|secAdv_confidence_score|secAdv_securityImpactRating|secAdv_matchConfidence|match|customer|sw_os_type|sw_version|secAdv_BulletinURL|secAdv_bulletinTitle|CveId|CvssScore|matchInfo|RevisedDate|RevisionNumber|PublishedDate)$'
- --> @dm:save name='temp-hw-eol-details'
- --> @c:new-block
- --> @dm:recall name='temp-sec-adv-combination-count-sum'
- --> @dm:enrich dict='temp-hw-eol-details'  and dict_key_cols='contract_number,customer_name,product_name' and src_key_cols='contract_number,customer,product_name' and enrich_cols='item_type,product_family'
- --> @dm:save name='sa-enriched-final-enrich-before-dropnull'
- --> @dm:dropnull columns='secAdv_securityImpactRating'
- --> @dm:selectcolumns exclude='^(key|Unique_id|_RDA_Id|count_|timestamp|customer_name_y)'
- --> @dm:eval customer_name='customer_name_x'
- --> @dm:save name='sa-enriched-final-enrich'
- --> @dm:save name='temp-edc-sweol-data'
- --> @rn:write-stream name='edc_sec_adv_data_enriched'
- ## Queries data for the customer from edc_oi_enriched_stream
+ --> @dm:empty
+ --> @exec:define-function name="run_diagnostic_tool_for_impacted_assets"
+ --> @exec:set-variable name="incident"
+ --> @dm:empty
+ --> @dm:addrow asset_count={{v.incident.row['asset_count']}} and assetIds="{{v.incident.row['assetIds']}}"
+ --> *exec:if-condition asset_count > 0
+ --> @dm:eval ip=`assetIds[1:-1].replace("'","").replace(" ","")`
+ --> @diagnostictools:ping column_name_host = 'ip'
+ --> @dm:add-missing-columns columns='incident_id' and value="{{v.incident.row['incident_id']}}"
+ --> @dm:save name='temp-incident-diagnostic-tool-output' and append='yes'
+ --> @exec:end-if
+ --> *exec:if-condition asset_count = 0
+ --> @dm:empty
+ --> @dm:addrow incident_id="{{v.incident.row['incident_id']}}"
+ --> @dm:save name='temp-incident-diagnostic-tool-output' and append='yes'
+ --> @exec:end-if
+ --> @exec:end-function
+ ## get metric anomalies for incident
 
  --> @c:new-block
- --> @dm:recall name='temp-hw-eol-details'
- --> @dm:to_type columns = 'contract_number' and type  = 'int'
- --> @dm:save name='temp-hw-eol-details'
- ## dedup security advisory based on the secAdv_confidence_score
+ --> @dm:empty
+ --> @exec:define-function name="get_metric_anomalies_for_incident"
+ --> @exec:set-variable name="incident"
+ --> *exec:if-condition asset_count = 0
+ --> @dm:empty
+ --> @dm:addrow incident_id="{{v.incident.row['incident_id']}}"
+ --> @dm:save name='temp-incident-anomalies' and append='yes'
+ --> @exec:end-if
+ --> *exec:if-condition asset_count > 0
+ --> @dm:empty
+ --> @dm:addrow name="oia-ml-metrics-regression-output" & max_rows=1000 & limit=0
+ --> #dm:query-persistent-stream asset_id in {{v.incident.row['assetIds']}} and timestamp is after "{{v.incident.row['fromTime']}}" and timestamp is before "{{v.incident.row['toTime']}}" and anomalies_severity is 'High' GET timestamp,anomalies,upperBound,lowerBound,asset_id,asset_name,metric_source,metric_id,metric_label
+ --> @dm:add-missing-columns columns='incident_id' and value="{{v.incident.row['incident_id']}}"
+ --> @dm:save name='temp-incident-anomalies' and append='yes'
+ --> @exec:end-if
+ --> @exec:end-function
+ ## get change requests for incident
 
  --> @c:new-block
- --> @dm:recall name='temp-sec-adv-details'
- ## --> @dm:groupby columns='firstIcAlertId'
+ --> @dm:empty
+ --> @exec:define-function name="get_change_requests_for_incident"
+ --> @exec:set-variable name="incident"
+ --> *exec:if-condition asset_count = 0
+ --> @dm:empty
+ --> @dm:addrow incident_id="{{v.incident.row['incident_id']}}"
+ --> @dm:save name='temp-incident-change-requests' and append='yes'
+ --> @exec:end-if
+ --> *exec:if-condition asset_count > 0
+ --> @dm:empty
+ --> @dm:addrow name="change_requests_stream" & max_rows=1000 & limit=0
+ --> #dm:query-persistent-stream asset_id in {{v.incident.row['assetIds']}} and timestamp is after "{{v.incident.row['fromTime']}}" and timestamp is before "{{v.incident.row['toTime']}}"
+ --> @dm:add-missing-columns columns='incident_id' and value="{{v.incident.row['incident_id']}}"
+ --> @dm:save name='temp-incident-change-requests' and append='yes'
+ --> @exec:end-if
+ --> @exec:end-function
+ ## get recommendation for incident from OpenAI
 
- --> @dm:skip-block-if-shape row_count="0"
- ## --> @dm:save name='test-sec-adv-details'
-
- --> @dm:sort columns='secAdv_confidence_score' and order='descending'
- --> @dm:dedup columns='product_id,sw_version,sw_os_type,contract_number,customer'
- --> @dm:to_type columns = 'contract_number' and type  = 'int'
- --> @dm:eval match="'yes'"
- --> @dm:save name="temp-pa-sec-adv-dedups"
  --> @c:new-block
- --> @dm:recall name='temp-hw-eol-details'
- --> @dm:enrich dict='temp-pa-sec-adv-dedups' and dict_key_cols='contract_number,customer,product_id' and src_key_cols='contract_number,customer_name,product_id' and enrich_cols='match' and how_type='left'
- --> @dm:dropnull columns='match'
- --> @dm:selectcolumns exclude='^(PsirtID|securityAdvisoryId|secAdv_confidence_score|secAdv_securityImpactRating|secAdv_matchConfidence|match|customer|sw_os_type|sw_version|secAdv_BulletinURL|secAdv_bulletinTitle|CveId|CvssScore|matchInfo|RevisedDate|RevisionNumber|PublishedDate)$'
- --> @dm:save name='temp-matched-inv'
- --> @c:new-block
- --> @dm:recall name='temp-matched-inv'
- --> @dm:enrich dict='temp-pa-sec-adv-dedups' and dict_key_cols='contract_number,customer,product_id' and src_key_cols='contract_number,customer_name,product_id' and enrich_cols='PsirtID,secAdv_confidence_score,securityAdvisoryId,secAdv_securityImpactRating,secAdv_matchConfidence,sw_os_type,sw_version,secAdv_bulletinTitle,secAdv_BulletinURL,CveId,CvssScore,matchInfo,RevisedDate,RevisionNumber,PublishedDate'
- --> @dm:selectcolumns exclude="^(customer_x|customer_y|deviceSN|source|secAdv_bulletinTitle_x)"
- --> @dm:rename-columns secAdv_bulletinTitle ='secAdv_bulletinTitle_y'
- --> @dm:save name='temp-final-enrich'
- ## --> @dm:save name='sa-final-enrich'
+ --> @dm:empty
+ --> @exec:define-function name="get_incident_recommendations"
+ --> @exec:set-variable name="incident"
+ --> @dm:empty
+ --> @dm:addrow name='temp-incident-alerts' and description='Alerts for the incident' and query='a_incident_id is "{{v.incident.row['incident_id']}}"'
+ --> @dm:addrow name='temp-incident-anomalies' and description='Anomalies for the incident' and query='incident_id is "{{v.incident.row['incident_id']}}"'
+ --> @dm:addrow name='temp-incident-change-requests' and description='Change requests for the incident' and query='incident_id is "{{v.incident.row['incident_id']}}"'
+ --> @dm:addrow name='temp-incident-diagnostic-tool-output' and description='Diagnostic tool output for the impacted assets' and query='incident_id is "{{v.incident.row['incident_id']}}"'
+ --> @dm:save name='temp-meta-df'
+ --> @gpt:prompt prompt = 'Summarize the incident and provide recommendations by analyzing and correlating the above alerts, output of diagnostic tool, metric anomalies, and change requests for the impacted assets. ' &
+prefix = "Please generate a response in simple HTML format based on the provided CSV data, which includes a list of alerts, diagnostic tool outputs, metric anomalies, and change requests for the impacted assets. Follow these guidelines:\n Bold important keywords and numbers.\n Use appropriate labels instead of exact column names.\n Beautify the response with bullet points.\n Structure the response using only these HTML tags: <html>, <body>, <p>, <b>, <ul>, <li>, <br>.\n Provide a summary of the data in a paragraph, without detailed explanations of each alert and anomaly.\n If there is no data for any section (alerts, diagnostic tool outputs, metric anomalies, or change requests), mention that there is no data for that section.\n Do not print the response in a single line or use tables" and
+attach_datasets = 'temp-meta-df' and debug='yes' and temperature=0.7
+ --> @dm:add-missing-columns columns='incident_id' and value="{{v.incident.row['incident_id']}}"
+ --> @dm:rename-columns i_recommendation='response_content'
+ --> @exec:end-function
+ ## clear temp datasets
 
- --> @rn:write-stream name='edc_oi_inventory_enriched'
+ --> @c:new-block
+ --> @dm:empty
+ --> @exec:define-function name="clear_temp_datasets"
+ --> @dm:empty
+ --> @dm:save name='temp-incident-alerts'
+ --> @dm:save name='temp-incident-diagnostic-tool-output'
+ --> @dm:save name='temp-incident-anomalies'
+ --> @dm:save name='temp-incident-change-requests'
+ --> @dm:save name='temp-recommendations'
+ --> @exec:end-function
+ --> @c:data-loop columns='incident_id' and dataset='temp-incidents'
+ --> @dm:recall-query name='temp-incidents' and query="incident_id is '$incident_id'"
+ --> @exec:call-function name='get_alerts_for_incident'
+ --> @dm:recall-query name='temp-incidents' and query="incident_id is '$incident_id'"
+ --> @exec:call-function name='run_diagnostic_tool_for_impacted_assets'
+ --> @dm:recall-query name='temp-incidents' and query="incident_id is '$incident_id'"
+ --> @exec:call-function name='get_metric_anomalies_for_incident'
+ --> @dm:recall-query name='temp-incidents' and query="incident_id is '$incident_id'"
+ --> @exec:call-function name='get_change_requests_for_incident'
+ --> @dm:recall-query name='temp-incidents' and query="incident_id is '$incident_id'"
+ --> @exec:call-function name='get_incident_recommendations'
+ --> @dm:save name='temp-recommendations' and append='yes'
+ --> @c:new-block
+ --> @exec:call-function name='clear_temp_datasets'
+ --> @dm:recall name='temp-incidents'
+ --> @dm:selectcolumns exclude="^i_recommendation$"
+ --> @dm:enrich dict='temp-recommendations' and src_key_cols='incident_id' and dict_key_cols='incident_id' and enrich_cols='i_recommendation'
+ --> @dm:rename-columns roomid='project_id' and incidentid='incident_id'
+ --> @dm:eval name="'i_recommendation'" and value='i_recommendation'
+ --> @dm:to-json include_columns='^name$|^value$' and output_column='recommendation_value' and keep_original_columns='yes'
+ --> @dm:eval name="'i_recommendation_ts'" and value="int(time_now_as_seconds() * 1000)"
+ --> @dm:to-json include_columns='^name$|^value$' and output_column='recommendation_ts' and keep_original_columns='yes'
+ --> @dm:eval attributes='json_loads("[" + recommendation_value + "," + recommendation_ts + "]")'
+ --> @dm:selectcolumns include="roomid|incidentid|attributes"
+ --> @agent:agent-irm:irmagent:updateIncidents
+ --> @dm:sleep seconds=10

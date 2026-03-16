@@ -1,65 +1,155 @@
-@c:new-block
+@exec:get-input
+ --> @dm:skip-pipeline-if-shape row_count=0
+ --> @dm:save name='temp-incidents'
+ ## get impacted assets for the incidents
+
+ --> @c:data-loop columns='incident_id,project_id' and dataset='temp-incidents'
  --> @dm:empty
- --> @exec:define-function name="define_child_pipelines"
- --> @exec:run-pipeline name ="edc_oi_get_product_alerts" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_oi_product_alerts_raw" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_oi_product_alerts_run_scan" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_oi_generate_token" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_oi_process_sw_data" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_oi_get_sweol_data" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_oi_get_security_advisories_data" & ignore_failures = "no"
+ --> @dm:addrow name='oia-alerts-stream' and aggs='cardinality:a_en_metric_asset_id' and groupby='a_incident_id,project_id,a_en_metric_asset_id'
+ --> #dm:query-persistent-stream a_incident_id is '$incident_id' and project_id is '$project_id'
+ --> @dm:implode key_columns='a_incident_id' and merge_columns='a_en_metric_asset_id' and keep_columns='a_incident_id'
+ --> @dm:eval assetIds="a_en_metric_asset_id.split(',')"
+ --> @dm:eval asset_count='len(assetIds)'
+ --> @dm:add-missing-columns columns='incident_id' and value="$incident_id"
+ --> @dm:save name='temp-incident-impacted-assets' and append='yes'
+ --> *exec:if-shape num_rows=0
+ --> @dm:empty
+ --> @dm:addrow incident_id="$incident_id" and asset_count=0
+ --> @dm:save name='temp-incident-impacted-assets' and append='yes'
+ --> @exec:end-if
+ ## enrich the incidents with impacted assets
+
+ --> @c:new-block
+ --> @dm:recall name='temp-incidents'
+ --> @dm:enrich dict='temp-incident-impacted-assets' and src_key_cols='incident_id' and dict_key_cols='incident_id' and enrich_cols='assetIds,asset_count'
+ --> @dm:save name='temp-incidents'
+ ## get alerts for incident
+
+ --> @c:new-block
+ --> @dm:empty
+ --> @exec:define-function name="get_alerts_for_incident"
+ --> @exec:set-variable name="incident"
+ --> @dm:empty
+ --> @dm:addrow name="oia-alerts-stream" & max_rows=1000 & limit=0
+ --> #dm:query-persistent-stream a_incident_id is "{{v.incident.row['incident_id']}}" and a_source_systemname is not 'Alert Group'
+ --> @dm:save name='temp-incident-alerts' and append='yes'
+ --> *exec:if-shape num_rows=0
+ --> @dm:empty
+ --> @dm:addrow a_incident_id="{{v.incident.row['incident_id']}}"
+ --> @dm:save name='temp-incident-alerts' and append='yes'
+ --> @exec:end-if
  --> @exec:end-function
+ ## run diagnostic tool for impacted assets
+
  --> @c:new-block
  --> @dm:empty
- --> @dm:addrow name="edc_customer_inventory" & limit = '0' and sort_by_col='timestamp' and sort_type='desc'
- --> #dm:query-persistent-stream project_name = 'ATT-Conexus'
- --> @dm:selectcolumns exclude="secAdv_match_confidence|secAdv_securityImpactRating"
- --> @dm:save name='temp-contract_data'
- ## collecting the file and storing it in edc_cust_pid_sw stream, collecting the API data and adding the processed data to edc_sw_raw_data
+ --> @exec:define-function name="run_diagnostic_tool_for_impacted_assets"
+ --> @exec:set-variable name="incident"
+ --> @dm:empty
+ --> @dm:addrow asset_count={{v.incident.row['asset_count']}} and assetIds="{{v.incident.row['assetIds']}}"
+ --> *exec:if-condition asset_count > 0
+ --> @dm:eval ip=`assetIds[1:-1].replace("'","").replace(" ","")`
+ --> @diagnostictools:ping column_name_host = 'ip'
+ --> @dm:add-missing-columns columns='incident_id' and value="{{v.incident.row['incident_id']}}"
+ --> @dm:save name='temp-incident-diagnostic-tool-output' and append='yes'
+ --> @exec:end-if
+ --> *exec:if-condition asset_count = 0
+ --> @dm:empty
+ --> @dm:addrow incident_id="{{v.incident.row['incident_id']}}"
+ --> @dm:save name='temp-incident-diagnostic-tool-output' and append='yes'
+ --> @exec:end-if
+ --> @exec:end-function
+ ## get metric anomalies for incident
 
  --> @c:new-block
- --> @dm:recall name='customer_pid_sw'
- ## --> *dm:filter product_id in ['CISCO1841-HSEC/K9','CISCO2501','N9K-C93180YC-FX','N9K-C93360YC-FX2']
-
- --> @dm:save name="temp-cust_pid_sec"
- --> @dm:eval source="'security_advisory'"
- --> @exec:run-pipeline name ="edc_oi_product_alerts_raw" & ignore_failures = "no"
- --> @dm:save name='temp-enriched-secadv-values'
- ## Process SecAdv
+ --> @dm:empty
+ --> @exec:define-function name="get_metric_anomalies_for_incident"
+ --> @exec:set-variable name="incident"
+ --> *exec:if-condition asset_count = 0
+ --> @dm:empty
+ --> @dm:addrow incident_id="{{v.incident.row['incident_id']}}"
+ --> @dm:save name='temp-incident-anomalies' and append='yes'
+ --> @exec:end-if
+ --> *exec:if-condition asset_count > 0
+ --> @dm:empty
+ --> @dm:addrow name="oia-ml-metrics-regression-output" & max_rows=1000 & limit=0
+ --> #dm:query-persistent-stream asset_id in {{v.incident.row['assetIds']}} and timestamp is after "{{v.incident.row['fromTime']}}" and timestamp is before "{{v.incident.row['toTime']}}" and anomalies_severity is 'High' GET timestamp,anomalies,upperBound,lowerBound,asset_id,asset_name,metric_source,metric_id,metric_label
+ --> @dm:add-missing-columns columns='incident_id' and value="{{v.incident.row['incident_id']}}"
+ --> @dm:save name='temp-incident-anomalies' and append='yes'
+ --> @exec:end-if
+ --> @exec:end-function
+ ## get change requests for incident
 
  --> @c:new-block
- --> @dm:recall name='temp-enriched-secadv-values'
- --> @dm:save name='temp-secadv-data'
- ## creates a list of unique customers
+ --> @dm:empty
+ --> @exec:define-function name="get_change_requests_for_incident"
+ --> @exec:set-variable name="incident"
+ --> *exec:if-condition asset_count = 0
+ --> @dm:empty
+ --> @dm:addrow incident_id="{{v.incident.row['incident_id']}}"
+ --> @dm:save name='temp-incident-change-requests' and append='yes'
+ --> @exec:end-if
+ --> *exec:if-condition asset_count > 0
+ --> @dm:empty
+ --> @dm:addrow name="change_requests_stream" & max_rows=1000 & limit=0
+ --> #dm:query-persistent-stream asset_id in {{v.incident.row['assetIds']}} and timestamp is after "{{v.incident.row['fromTime']}}" and timestamp is before "{{v.incident.row['toTime']}}"
+ --> @dm:add-missing-columns columns='incident_id' and value="{{v.incident.row['incident_id']}}"
+ --> @dm:save name='temp-incident-change-requests' and append='yes'
+ --> @exec:end-if
+ --> @exec:end-function
+ ## get recommendation for incident from OpenAI
 
  --> @c:new-block
- --> @dm:recall name='temp-secadv-data'
- --> @dm:groupby columns='customer'
- --> @dm:save name='temp-unique-cust-name'
- ## Queries data for the customer from edc_customer inventory
+ --> @dm:empty
+ --> @exec:define-function name="get_incident_recommendations"
+ --> @exec:set-variable name="incident"
+ --> @dm:empty
+ --> @dm:addrow name='temp-incident-alerts' and description='Alerts for the incident' and query='a_incident_id is "{{v.incident.row['incident_id']}}"'
+ --> @dm:addrow name='temp-incident-anomalies' and description='Anomalies for the incident' and query='incident_id is "{{v.incident.row['incident_id']}}"'
+ --> @dm:addrow name='temp-incident-change-requests' and description='Change requests for the incident' and query='incident_id is "{{v.incident.row['incident_id']}}"'
+ --> @dm:addrow name='temp-incident-diagnostic-tool-output' and description='Diagnostic tool output for the impacted assets' and query='incident_id is "{{v.incident.row['incident_id']}}"'
+ --> @dm:save name='temp-meta-df'
+ --> @gpt:prompt prompt = 'Summarize the incident and provide recommendations by analyzing and correlating the above alerts, output of diagnostic tool, metric anomalies, and change requests for the impacted assets. ' &
+prefix = "Please generate a response in simple HTML format based on the provided CSV data, which includes a list of alerts, diagnostic tool outputs, metric anomalies, and change requests for the impacted assets. Follow these guidelines:\n Bold important keywords and numbers.\n Use appropriate labels instead of exact column names.\n Beautify the response with bullet points.\n Structure the response using only these HTML tags: <html>, <body>, <p>, <b>, <ul>, <li>, <br>.\n Provide a summary of the data in a paragraph, without detailed explanations of each alert and anomaly.\n If there is no data for any section (alerts, diagnostic tool outputs, metric anomalies, or change requests), mention that there is no data for that section.\n Do not print the response in a single line or use tables" and
+attach_datasets = 'temp-meta-df' and debug='yes' and temperature=0.7
+ --> @dm:add-missing-columns columns='incident_id' and value="{{v.incident.row['incident_id']}}"
+ --> @dm:rename-columns i_recommendation='response_content'
+ --> @exec:end-function
+ ## clear temp datasets
 
- --> @c:data-loop dataset='temp-unique-cust-name' and columns='customer'
- --> @dm:recall name='temp-contract_data'
- --> *dm:filter customer == '$customer'
- --> @dm:save name='temp-secadv-details' and append='yes'
  --> @c:new-block
- --> @dm:recall name='temp-secadv-data'
- --> @dm:to-type columns='advisoryId,PsirtID' and type='str'
- --> @dm:add-missing-columns columns="PsirtID,MatchConfidence,MatchReason,MatchDefinition,HeadlineName,AdvisoryId,BulletinURL,Summary,Details,RevisedDate,RevisionNumber,PublishedDate,SeverityLevelName,CvssScore,CveId,_id,advisoryId,created,customerVisible,external_text,external_title,firstIcAlertId,groups,icIssueId,icProblemId,ignored,lastIcAlertId,matchDefinition,matchInfo,matchConfidence,missingInfo,moreInfo,name,openedOn,resultType,resultSubType,severity,severityText,state,updated,deviceSN,source,runType,filename,icType,atticaStatus,cdetsList,retry,associatedGroups,key,current_time_ms_loop,token_expiry_time,access_token,expires_in,token_type,sw_version,sw_os_type,product_id,transaction_id,eoXAlert,eoXAlertType,DocumentId"
- --> @dm:eval matchConfidence = "'Potentially Vulnerable' if matchConfidence == 'POTVUL' else 'Vulnerable' if matchConfidence == 'VUL' else matchConfidence"
- --> @dm:eval secAdv_confidence_score = "100 if matchConfidence == 'Vulnerable' else 99 if matchConfidence == 'Potentially Vulnerable' else 98 if matchConfidence == 'Not Vulnerable' else 0"
- --> @dm:eval secAdv_impact_score = "100 if SeverityLevelName == 'Critical' else 99 if SeverityLevelName == 'High' else 98 if SeverityLevelName == 'Medium' else 97 if SeverityLevelName == 'Low' else 0"
- --> @dm:fixnull columns="PsirtID,MatchConfidence,MatchReason,MatchDefinition,HeadlineName,AdvisoryId,BulletinURL,Summary,Details,RevisedDate,RevisionNumber,PublishedDate,SeverityLevelName,CvssScore,CveId,_id,advisoryId,created,customerVisible,external_text,external_title,firstIcAlertId,groups,icIssueId,icProblemId,ignored,lastIcAlertId,matchDefinition,matchInfo,matchConfidence,missingInfo,moreInfo,name,openedOn,resultType,resultSubType,severity,severityText,state,updated,deviceSN,source,runType,filename,icType,atticaStatus,cdetsList,retry,associatedGroups,key,current_time_ms_loop,token_expiry_time,expires_in,token_type,sw_version,sw_os_type,product_id,transaction_id,eoXAlert,eoXAlertType,DocumentId,secAdv_confidence_score" and value="Not Available" and apply_for_empty="yes"
- --> @dm:rename-columns secAdv_match_confidence ='matchConfidence' and secAdv_securityImpactRating='SeverityLevelName' and secAdv_bulletinTitle='external_title' and secAdv_psirtAdvisoryId='advisoryId' and ID = '_id' and secAdv_bulletinUrl ='BulletinURL' and secAdv_bulletinSummary ='Summary' and secAdv_cveId='CveId' and secAdv_cvssBase='CvssScore' and secAdv_match_confidence_reason='MatchReason' and secAdv_psirtColdId ='PsirtID' and secAdv_bulletinFirstPublished ='PublishedDate' and secAdv_bulletinVersion='RevisionNumber' and secAdv_bulletinLastUpdated='RevisedDate'
- --> @dm:gc
- ## --> @dm:manipulate-string from="customer_name,project_name,secAdv_psirtColdId,serial_number" and func="concat_columns" and to="unique_key" and value="_"
-
- --> @dm:save name='temp-secadv-data'
+ --> @dm:empty
+ --> @exec:define-function name="clear_temp_datasets"
+ --> @dm:empty
+ --> @dm:save name='temp-incident-alerts'
+ --> @dm:save name='temp-incident-diagnostic-tool-output'
+ --> @dm:save name='temp-incident-anomalies'
+ --> @dm:save name='temp-incident-change-requests'
+ --> @dm:save name='temp-recommendations'
+ --> @exec:end-function
+ --> @c:data-loop columns='incident_id' and dataset='temp-incidents'
+ --> @dm:recall-query name='temp-incidents' and query="incident_id is '$incident_id'"
+ --> @exec:call-function name='get_alerts_for_incident'
+ --> @dm:recall-query name='temp-incidents' and query="incident_id is '$incident_id'"
+ --> @exec:call-function name='run_diagnostic_tool_for_impacted_assets'
+ --> @dm:recall-query name='temp-incidents' and query="incident_id is '$incident_id'"
+ --> @exec:call-function name='get_metric_anomalies_for_incident'
+ --> @dm:recall-query name='temp-incidents' and query="incident_id is '$incident_id'"
+ --> @exec:call-function name='get_change_requests_for_incident'
+ --> @dm:recall-query name='temp-incidents' and query="incident_id is '$incident_id'"
+ --> @exec:call-function name='get_incident_recommendations'
+ --> @dm:save name='temp-recommendations' and append='yes'
  --> @c:new-block
- --> @dm:recall name='temp-secadv-details'
- --> @dm:enrich dict='temp-secadv-data' and src_key_cols='product_id,sw_version' and dict_key_cols='product_id,sw_version' and enrich_cols='secAdv_match_confidence,secAdv_securityImpactRating' and replace_values="yes"
- --> @dm:add-missing-columns columns="secAdv_match_confidence,secAdv_securityImpactRating"
- --> @dm:fixnull columns="secAdv_match_confidence,secAdv_securityImpactRating" and value="Not Available" and apply_for_empty="yes"
- --> @dm:gc
- --> @dm:save name='temp-secadv-details'
- --> @rn:write-stream name='edc_customer_inventory' and direct_to_opensearch="yes"
+ --> @exec:call-function name='clear_temp_datasets'
+ --> @dm:recall name='temp-incidents'
+ --> @dm:selectcolumns exclude="^i_recommendation$"
+ --> @dm:enrich dict='temp-recommendations' and src_key_cols='incident_id' and dict_key_cols='incident_id' and enrich_cols='i_recommendation'
+ --> @dm:rename-columns roomid='project_id' and incidentid='incident_id'
+ --> @dm:eval name="'i_recommendation'" and value='i_recommendation'
+ --> @dm:to-json include_columns='^name$|^value$' and output_column='recommendation_value' and keep_original_columns='yes'
+ --> @dm:eval name="'i_recommendation_ts'" and value="int(time_now_as_seconds() * 1000)"
+ --> @dm:to-json include_columns='^name$|^value$' and output_column='recommendation_ts' and keep_original_columns='yes'
+ --> @dm:eval attributes='json_loads("[" + recommendation_value + "," + recommendation_ts + "]")'
+ --> @dm:selectcolumns include="roomid|incidentid|attributes"
+ --> @agent:agent-irm:irmagent:updateIncidents
+ --> @dm:sleep seconds=10
