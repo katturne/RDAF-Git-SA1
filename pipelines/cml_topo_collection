@@ -1,155 +1,89 @@
-@exec:get-input
- --> @dm:skip-pipeline-if-shape row_count=0
- --> @dm:save name='temp-incidents'
- ## get impacted assets for the incidents
-
- --> @c:data-loop columns='incident_id,project_id' and dataset='temp-incidents'
- --> @dm:empty
- --> @dm:addrow name='oia-alerts-stream' and aggs='cardinality:a_en_metric_asset_id' and groupby='a_incident_id,project_id,a_en_metric_asset_id'
- --> #dm:query-persistent-stream a_incident_id is '$incident_id' and project_id is '$project_id'
- --> @dm:implode key_columns='a_incident_id' and merge_columns='a_en_metric_asset_id' and keep_columns='a_incident_id'
- --> @dm:eval assetIds="a_en_metric_asset_id.split(',')"
- --> @dm:eval asset_count='len(assetIds)'
- --> @dm:add-missing-columns columns='incident_id' and value="$incident_id"
- --> @dm:save name='temp-incident-impacted-assets' and append='yes'
- --> *exec:if-shape num_rows=0
- --> @dm:empty
- --> @dm:addrow incident_id="$incident_id" and asset_count=0
- --> @dm:save name='temp-incident-impacted-assets' and append='yes'
- --> @exec:end-if
- ## enrich the incidents with impacted assets
-
- --> @c:new-block
- --> @dm:recall name='temp-incidents'
- --> @dm:enrich dict='temp-incident-impacted-assets' and src_key_cols='incident_id' and dict_key_cols='incident_id' and enrich_cols='assetIds,asset_count'
- --> @dm:save name='temp-incidents'
- ## get alerts for incident
-
- --> @c:new-block
- --> @dm:empty
- --> @exec:define-function name="get_alerts_for_incident"
- --> @exec:set-variable name="incident"
- --> @dm:empty
- --> @dm:addrow name="oia-alerts-stream" & max_rows=1000 & limit=0
- --> #dm:query-persistent-stream a_incident_id is "{{v.incident.row['incident_id']}}" and a_source_systemname is not 'Alert Group'
- --> @dm:save name='temp-incident-alerts' and append='yes'
- --> *exec:if-shape num_rows=0
- --> @dm:empty
- --> @dm:addrow a_incident_id="{{v.incident.row['incident_id']}}"
- --> @dm:save name='temp-incident-alerts' and append='yes'
- --> @exec:end-if
- --> @exec:end-function
- ## run diagnostic tool for impacted assets
-
+@dm:empty
+ --> @dm:addrow profile_name = 'ios_show_ip_int_brief' and
+command = 'show ip interface brief' and
+textfsm_url = 'https://raw.githubusercontent.com/networktocode/ntc-templates/master/ntc_templates/templates/cisco_ios_show_ip_interface_brief.textfsm' and
+condition = '{% raw %}{{device_fw_type == "Cisco IOS"}}{% endraw %}'
+ --> @dm:addrow profile_name = 'iosxr_show_ip_int_brief' and
+command = 'show ip interface brief' and
+textfsm_url = 'https://raw.githubusercontent.com/networktocode/ntc-templates/master/ntc_templates/templates/cisco_xr_show_ip_interface_brief.textfsm' and
+condition = '{% raw %}{{device_fw_type == "Cisco IOS XR"}}{% endraw %}'
+ --> @dm:addrow profile_name = 'ios_show_ip_ospf_neighbor' and
+command = 'show ip ospf neighbor' and
+textfsm_url = 'https://raw.githubusercontent.com/networktocode/ntc-templates/master/ntc_templates/templates/cisco_ios_show_ip_ospf_neighbor.textfsm' and
+condition = '{% raw %}{{device_fw_type == "Cisco IOS"}}{% endraw %}'
+ --> @dm:addrow profile_name = 'iosxr_show_ip_ospf_neighbor' and
+command = 'show ip ospf neighbor' and
+textfsm_url = 'https://raw.githubusercontent.com/networktocode/ntc-templates/master/ntc_templates/templates/cisco_xr_show_ospf_neighbor.textfsm' and
+condition = '{% raw %}{{device_fw_type == "Cisco IOS XR"}}{% endraw %}'
+ --> @dm:addrow profile_name = 'ios_show_cdp_neighbors' and
+command = 'show cdp neighbors detail' and
+textfsm_url = 'https://raw.githubusercontent.com/networktocode/ntc-templates/master/ntc_templates/templates/cisco_ios_show_cdp_neighbors_detail.textfsm' and
+condition = '{% raw %}{{device_fw_type == "Cisco IOS"}}{% endraw %}'
+ --> @dm:addrow profile_name = 'iosxr_show_cdp_neighbors' and
+command = 'show cdp neighbors detail' and
+textfsm_url = 'https://raw.githubusercontent.com/networktocode/ntc-templates/master/ntc_templates/templates/cisco_xr_show_cdp_neighbors_detail.textfsm' and
+condition = '{% raw %}{{device_fw_type == "Cisco IOS XR"}}{% endraw %}'
+ --> @dm:addrow profile_name = 'ios_show_ip_bgp_neighbor' and
+command = 'show ip bgp neighbors' and
+textfsm_url = 'https://raw.githubusercontent.com/networktocode/ntc-templates/master/ntc_templates/templates/cisco_ios_show_ip_bgp_neighbors.textfsm' and
+condition = '{% raw %}{{device_fw_type == "Cisco IOS"}}{% endraw %}'
+ --> @dm:addrow profile_name = 'iosxr_show_ip_bgp_neighbor' and
+command = 'show ip bgp neighbors' and
+textfsm_content = "Value NEIGHBOR (\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\nValue VRF (\S+)\nValue REMOTE_AS (\d+)\nValue PEER_GROUP (\S+)\nValue REMOTE_ROUTER_ID (\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\nValue BGP_STATE (\w+)\nValue LOCALHOST_IP (\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\nValue LOCALHOST_PORT (\d+)\nValue REMOTE_IP (\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\nValue REMOTE_PORT (\d+)\nValue INBOUND_ROUTEMAP (\S+)\nValue OUTBOUND_ROUTEMAP (\S+)\n\nStart\n  # Capture first line, which shows the BGP neighor and remote AS number\n  ^BGP\s+neighbor\s+is -> Continue.Record\n  ^BGP\s+neighbor\s+is\s+${NEIGHBOR},?(\s+vrf\s+${VRF},)?(\s+remote\s+AS\s+${REMOTE_AS})?\n  ^\s+Remote AS ${REMOTE_AS}\n  # Capture BGP peer group\n  # Example: 'Member of peer-group RR_SERVERS for session parameters'\n  ^\s*Member\s+of\s+peer-group\s+${PEER_GROUP}\n  # \n  # Capture remote router ID\n  # Example: ' BGP state = Established, up for 7w3d'\n  ^.+[rR]emote\s+router\s+ID\s+${REMOTE_ROUTER_ID}\n  #\n  # Capture BGP state\n  # Example: ' BGP state = Established, up for 7w3d'\n  ^\s+BGP\s+state\s+=\s+${BGP_STATE}\n  #\n  # Capture Inbound/Outbound Route Maps\n  # Example: 'Route map for incoming advertisements is BGP_Vendor_in'\n  # Example: 'Route map for outgoing advertisements is BGP_Vendor_out'\n  ^\s+Route\s+map\s+for\s+incoming\s+advertisements\s+is\s+${INBOUND_ROUTEMAP}\n  ^\s+Route\s+map\s+for\s+outgoing\s+advertisements\s+is\s+${OUTBOUND_ROUTEMAP}\n  #\n  # Match local host and port\n  # Example: 'Local host: 10.10.255.13, Local port: 39443'\n  ^\s*Local\s+host:\s+${LOCALHOST_IP},\s+Local\s+port:\s+${LOCALHOST_PORT}\n  # \n  # Match local host and port\n  # Example: 'Local host: 10.10.255.13, Local port: 39443'\n  ^\s*Foreign\s+host:\s+${REMOTE_IP},\s+Foreign\s+port:\s+${REMOTE_PORT}\n  #^.+ -> Error" and
+condition = '{% raw %}{{device_fw_type == "Cisco IOS XR"}}{% endraw %}'
+ --> @dm:save name = 'temp-profile_dataset'
  --> @c:new-block
  --> @dm:empty
- --> @exec:define-function name="run_diagnostic_tool_for_impacted_assets"
- --> @exec:set-variable name="incident"
- --> @dm:empty
- --> @dm:addrow asset_count={{v.incident.row['asset_count']}} and assetIds="{{v.incident.row['assetIds']}}"
- --> *exec:if-condition asset_count > 0
- --> @dm:eval ip=`assetIds[1:-1].replace("'","").replace(" ","")`
- --> @diagnostictools:ping column_name_host = 'ip'
- --> @dm:add-missing-columns columns='incident_id' and value="{{v.incident.row['incident_id']}}"
- --> @dm:save name='temp-incident-diagnostic-tool-output' and append='yes'
- --> @exec:end-if
- --> *exec:if-condition asset_count = 0
- --> @dm:empty
- --> @dm:addrow incident_id="{{v.incident.row['incident_id']}}"
- --> @dm:save name='temp-incident-diagnostic-tool-output' and append='yes'
- --> @exec:end-if
- --> @exec:end-function
- ## get metric anomalies for incident
-
+ --> @dm:addrow device_ip = '9.3.252.31-9.3.252.40,9.3.252.90-9.3.252.100' and profiles = 'ios_show_ip_int_brief, iosxr_show_ip_int_brief, ios_show_ip_ospf_neighbor, iosxr_show_ip_ospf_neighbor, ios_show_cdp_neighbors, iosxr_show_cdp_neighbors, iosxr_show_ip_bgp_neighbor, ios_show_ip_bgp_neighbor'
+ --> @dm:save name = "temp-collection-set"
  --> @c:new-block
- --> @dm:empty
- --> @exec:define-function name="get_metric_anomalies_for_incident"
- --> @exec:set-variable name="incident"
- --> *exec:if-condition asset_count = 0
- --> @dm:empty
- --> @dm:addrow incident_id="{{v.incident.row['incident_id']}}"
- --> @dm:save name='temp-incident-anomalies' and append='yes'
- --> @exec:end-if
- --> *exec:if-condition asset_count > 0
- --> @dm:empty
- --> @dm:addrow name="oia-ml-metrics-regression-output" & max_rows=1000 & limit=0
- --> #dm:query-persistent-stream asset_id in {{v.incident.row['assetIds']}} and timestamp is after "{{v.incident.row['fromTime']}}" and timestamp is before "{{v.incident.row['toTime']}}" and anomalies_severity is 'High' GET timestamp,anomalies,upperBound,lowerBound,asset_id,asset_name,metric_source,metric_id,metric_label
- --> @dm:add-missing-columns columns='incident_id' and value="{{v.incident.row['incident_id']}}"
- --> @dm:save name='temp-incident-anomalies' and append='yes'
- --> @exec:end-if
- --> @exec:end-function
- ## get change requests for incident
-
+ --> @dm:recall name = "temp-collection-set"
+ --> @network_device_cisco123:run-commands ip_column_name = 'device_ip' and
+profile_dataset_name = 'temp-profile_dataset' and
+devices_details_dataset = 'cml_cisco_device_chassis_dict' and
+profile_column_name = 'profiles'
+ --> *dm:filter collection_status is "Success"
+ --> @dm:save name="temp-out1"
  --> @c:new-block
- --> @dm:empty
- --> @exec:define-function name="get_change_requests_for_incident"
- --> @exec:set-variable name="incident"
- --> *exec:if-condition asset_count = 0
- --> @dm:empty
- --> @dm:addrow incident_id="{{v.incident.row['incident_id']}}"
- --> @dm:save name='temp-incident-change-requests' and append='yes'
- --> @exec:end-if
- --> *exec:if-condition asset_count > 0
- --> @dm:empty
- --> @dm:addrow name="change_requests_stream" & max_rows=1000 & limit=0
- --> #dm:query-persistent-stream asset_id in {{v.incident.row['assetIds']}} and timestamp is after "{{v.incident.row['fromTime']}}" and timestamp is before "{{v.incident.row['toTime']}}"
- --> @dm:add-missing-columns columns='incident_id' and value="{{v.incident.row['incident_id']}}"
- --> @dm:save name='temp-incident-change-requests' and append='yes'
- --> @exec:end-if
- --> @exec:end-function
- ## get recommendation for incident from OpenAI
-
+ --> @dm:recall name = "temp-collection-set"
+ --> @network_device_cisco:run-commands ip_column_name = 'device_ip' and
+profile_dataset_name = 'temp-profile_dataset' and
+devices_details_dataset = 'cml_cisco_device_chassis_dict' and
+profile_column_name = 'profiles'
+ --> *dm:filter collection_status is "Success"
+ --> @dm:save name="temp-out2"
  --> @c:new-block
- --> @dm:empty
- --> @exec:define-function name="get_incident_recommendations"
- --> @exec:set-variable name="incident"
- --> @dm:empty
- --> @dm:addrow name='temp-incident-alerts' and description='Alerts for the incident' and query='a_incident_id is "{{v.incident.row['incident_id']}}"'
- --> @dm:addrow name='temp-incident-anomalies' and description='Anomalies for the incident' and query='incident_id is "{{v.incident.row['incident_id']}}"'
- --> @dm:addrow name='temp-incident-change-requests' and description='Change requests for the incident' and query='incident_id is "{{v.incident.row['incident_id']}}"'
- --> @dm:addrow name='temp-incident-diagnostic-tool-output' and description='Diagnostic tool output for the impacted assets' and query='incident_id is "{{v.incident.row['incident_id']}}"'
- --> @dm:save name='temp-meta-df'
- --> @gpt:prompt prompt = 'Summarize the incident and provide recommendations by analyzing and correlating the above alerts, output of diagnostic tool, metric anomalies, and change requests for the impacted assets. ' &
-prefix = "Please generate a response in simple HTML format based on the provided CSV data, which includes a list of alerts, diagnostic tool outputs, metric anomalies, and change requests for the impacted assets. Follow these guidelines:\n Bold important keywords and numbers.\n Use appropriate labels instead of exact column names.\n Beautify the response with bullet points.\n Structure the response using only these HTML tags: <html>, <body>, <p>, <b>, <ul>, <li>, <br>.\n Provide a summary of the data in a paragraph, without detailed explanations of each alert and anomaly.\n If there is no data for any section (alerts, diagnostic tool outputs, metric anomalies, or change requests), mention that there is no data for that section.\n Do not print the response in a single line or use tables" and
-attach_datasets = 'temp-meta-df' and debug='yes' and temperature=0.7
- --> @dm:add-missing-columns columns='incident_id' and value="{{v.incident.row['incident_id']}}"
- --> @dm:rename-columns i_recommendation='response_content'
- --> @exec:end-function
- ## clear temp datasets
-
+ --> @dm:recall name = "temp-collection-set"
+ --> @network_device_cisco01:run-commands ip_column_name = 'device_ip' and
+profile_dataset_name = 'temp-profile_dataset' and
+devices_details_dataset = 'cml_cisco_device_chassis_dict' and
+profile_column_name = 'profiles'
+ --> *dm:filter collection_status is "Success"
+ --> @dm:save name="temp-out3"
  --> @c:new-block
- --> @dm:empty
- --> @exec:define-function name="clear_temp_datasets"
- --> @dm:empty
- --> @dm:save name='temp-incident-alerts'
- --> @dm:save name='temp-incident-diagnostic-tool-output'
- --> @dm:save name='temp-incident-anomalies'
- --> @dm:save name='temp-incident-change-requests'
- --> @dm:save name='temp-recommendations'
- --> @exec:end-function
- --> @c:data-loop columns='incident_id' and dataset='temp-incidents'
- --> @dm:recall-query name='temp-incidents' and query="incident_id is '$incident_id'"
- --> @exec:call-function name='get_alerts_for_incident'
- --> @dm:recall-query name='temp-incidents' and query="incident_id is '$incident_id'"
- --> @exec:call-function name='run_diagnostic_tool_for_impacted_assets'
- --> @dm:recall-query name='temp-incidents' and query="incident_id is '$incident_id'"
- --> @exec:call-function name='get_metric_anomalies_for_incident'
- --> @dm:recall-query name='temp-incidents' and query="incident_id is '$incident_id'"
- --> @exec:call-function name='get_change_requests_for_incident'
- --> @dm:recall-query name='temp-incidents' and query="incident_id is '$incident_id'"
- --> @exec:call-function name='get_incident_recommendations'
- --> @dm:save name='temp-recommendations' and append='yes'
+ --> @dm:concat names = "temp-out.*"
+ --> @dm:save name="temp-collection-output"
  --> @c:new-block
- --> @exec:call-function name='clear_temp_datasets'
- --> @dm:recall name='temp-incidents'
- --> @dm:selectcolumns exclude="^i_recommendation$"
- --> @dm:enrich dict='temp-recommendations' and src_key_cols='incident_id' and dict_key_cols='incident_id' and enrich_cols='i_recommendation'
- --> @dm:rename-columns roomid='project_id' and incidentid='incident_id'
- --> @dm:eval name="'i_recommendation'" and value='i_recommendation'
- --> @dm:to-json include_columns='^name$|^value$' and output_column='recommendation_value' and keep_original_columns='yes'
- --> @dm:eval name="'i_recommendation_ts'" and value="int(time_now_as_seconds() * 1000)"
- --> @dm:to-json include_columns='^name$|^value$' and output_column='recommendation_ts' and keep_original_columns='yes'
- --> @dm:eval attributes='json_loads("[" + recommendation_value + "," + recommendation_ts + "]")'
- --> @dm:selectcolumns include="roomid|incidentid|attributes"
- --> @agent:agent-irm:irmagent:updateIncidents
- --> @dm:sleep seconds=10
+ --> @dm:recall name = "temp-collection-output"
+ --> *dm:filter command is "show ip interface brief"
+ --> @dm:explode-json column="parsed_json"
+ --> @dm:save name="cml-interface-data"
+ --> @c:new-block
+ --> @dm:recall name = "temp-collection-output"
+ --> *dm:filter command is "show ip ospf neighbor"
+ --> @dm:explode-json column="parsed_json"
+ --> @dm:save name="cml-ospf-data"
+ --> @c:new-block
+ --> @dm:recall name = "temp-collection-output"
+ --> *dm:filter command is "show cdp neighbors detail"
+ --> @dm:explode-json column="parsed_json"
+ --> @dm:mergecolumns include="destination_host|dest_host" and to="dest_host"
+ --> @dm:mergecolumns include="management_ip|mgmt_ip" and to="mgmt_ip"
+ --> @dm:mergecolumns include="software_version|version" and to="version"
+ --> @dm:eval mgmt_ip="mgmt_ip.strip()"
+ --> @dm:save name="cml-cdp-data"
+ --> @c:new-block
+ --> @dm:recall name = "temp-collection-output"
+ --> *dm:filter command is "show ip bgp neighbors"
+ --> @dm:explode-json column="parsed_json"
+ --> @dm:save name="cml-bgp-data"

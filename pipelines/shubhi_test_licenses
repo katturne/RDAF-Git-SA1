@@ -1,155 +1,125 @@
-@exec:get-input
- --> @dm:skip-pipeline-if-shape row_count=0
- --> @dm:save name='temp-incidents'
- ## get impacted assets for the incidents
+@c:new-block
+ --> @dm:recall name="edc_license_domains"
+ --> @dm:save name='temp-cust-domains'
+ ## Collect data
 
- --> @c:data-loop columns='incident_id,project_id' and dataset='temp-incidents'
- --> @dm:empty
- --> @dm:addrow name='oia-alerts-stream' and aggs='cardinality:a_en_metric_asset_id' and groupby='a_incident_id,project_id,a_en_metric_asset_id'
- --> #dm:query-persistent-stream a_incident_id is '$incident_id' and project_id is '$project_id'
- --> @dm:implode key_columns='a_incident_id' and merge_columns='a_en_metric_asset_id' and keep_columns='a_incident_id'
- --> @dm:eval assetIds="a_en_metric_asset_id.split(',')"
- --> @dm:eval asset_count='len(assetIds)'
- --> @dm:add-missing-columns columns='incident_id' and value="$incident_id"
- --> @dm:save name='temp-incident-impacted-assets' and append='yes'
- --> *exec:if-shape num_rows=0
- --> @dm:empty
- --> @dm:addrow incident_id="$incident_id" and asset_count=0
- --> @dm:save name='temp-incident-impacted-assets' and append='yes'
- --> @exec:end-if
- ## enrich the incidents with impacted assets
-
- --> @c:new-block
- --> @dm:recall name='temp-incidents'
- --> @dm:enrich dict='temp-incident-impacted-assets' and src_key_cols='incident_id' and dict_key_cols='incident_id' and enrich_cols='assetIds,asset_count'
- --> @dm:save name='temp-incidents'
- ## get alerts for incident
-
- --> @c:new-block
- --> @dm:empty
- --> @exec:define-function name="get_alerts_for_incident"
- --> @exec:set-variable name="incident"
- --> @dm:empty
- --> @dm:addrow name="oia-alerts-stream" & max_rows=1000 & limit=0
- --> #dm:query-persistent-stream a_incident_id is "{{v.incident.row['incident_id']}}" and a_source_systemname is not 'Alert Group'
- --> @dm:save name='temp-incident-alerts' and append='yes'
- --> *exec:if-shape num_rows=0
- --> @dm:empty
- --> @dm:addrow a_incident_id="{{v.incident.row['incident_id']}}"
- --> @dm:save name='temp-incident-alerts' and append='yes'
- --> @exec:end-if
- --> @exec:end-function
- ## run diagnostic tool for impacted assets
+ --> @c:data-loop columns='top_level_domain,customer' and dataset='temp-cust-domains'
+ --> @snowflake:native-query dbname is "CX_DB" and warehouse is "CX_DMP_RPT_WH" and query is "SELECT * FROM CX_DB.CX_LCANALYTICS_BR.MT_BV_LIC_ALL_OPP_F WHERE TOP_LEVEL_DOMAIN = '$top_level_domain';"
+ --> @dm:add-missing-columns columns="execution_status"
+ --> *dm:filter execution_status =="Success"
+ --> @dm:skip-block-if-shape column_count = 3
+ --> @dm:rename-columns license="feature_name"
+ --> @dm:fixnull columns = 'license_class,licensed_feature_key,pak_item_id,license,domain_name,smart_account_name,virtual_account_name,license_type,product_family,license_sku,subscription_reference_id,business_entity,sub_business_entity' and value='NA' and apply_for_empty="yes"
+ --> @dm:fixnull columns = 'license_start_date,license_end_date' and value = '1970-01-01T00:00:01' and apply_for_empty="yes"
+ --> @dm:to_type columns = 'consumed_quantity,entitled_quantity' & type  = 'int'
+ --> @dm:change-time-format columns="license_start_date,license_end_date" and from_format="datetimestr" and to_format="%Y-%m-%d"
+ --> @dm:rename-columns licenseType="license_type" &
+startDate="license_start_date" &
+endDate="license_end_date" &
+subscriptionId="subscription_reference_id" &
+licenseSku="license_sku" &
+smart_account_key="smart_accounts_key"
+ --> @dm:manipulate-string to="customer_name" and func="eval" and value="'$customer'"
+ --> @dm:selectcolumns exclude="attempt_count|execution_reason|execution_status"
+ --> @dm:eval unique_key = "str(customer_name) + str(smart_account_key) +str(virtual_account_key)+  str(licensed_feature_key) +str(endDate) +str(startDate) +str(licenseSku) + str(subscriptionId) +str(license_entitlement_key)"
+ --> @dm:save name="temp-shubhi-both" and append = "yes"
+ --> @dm:save name="shubhi-both" and append = "yes"
+ ## consolidate consumption into single record for smtAcct-virtualAcct-licensedFeature
 
  --> @c:new-block
- --> @dm:empty
- --> @exec:define-function name="run_diagnostic_tool_for_impacted_assets"
- --> @exec:set-variable name="incident"
- --> @dm:empty
- --> @dm:addrow asset_count={{v.incident.row['asset_count']}} and assetIds="{{v.incident.row['assetIds']}}"
- --> *exec:if-condition asset_count > 0
- --> @dm:eval ip=`assetIds[1:-1].replace("'","").replace(" ","")`
- --> @diagnostictools:ping column_name_host = 'ip'
- --> @dm:add-missing-columns columns='incident_id' and value="{{v.incident.row['incident_id']}}"
- --> @dm:save name='temp-incident-diagnostic-tool-output' and append='yes'
- --> @exec:end-if
- --> *exec:if-condition asset_count = 0
- --> @dm:empty
- --> @dm:addrow incident_id="{{v.incident.row['incident_id']}}"
- --> @dm:save name='temp-incident-diagnostic-tool-output' and append='yes'
- --> @exec:end-if
- --> @exec:end-function
- ## get metric anomalies for incident
+ --> @dm:recall name="temp-shubhi-both"
+ --> @dm:selectcolumns include="customer_name|domain_name|smart_account_name|smart_account_key|virtual_account_key|virtual_account_name|licensed_feature_key|pak_item_id|^license$|license_class|consumed_quantity"
+ --> @dm:groupby columns="customer_name,domain_name,smart_account_name,smart_account_key,virtual_account_name,virtual_account_key,licensed_feature_key,pak_item_id,license,license_class" and agg='sum'
+ --> @dm:save name="temp-license_consumed_grp-shubhi"
+ ## Build dict for License to Business Entity
 
  --> @c:new-block
- --> @dm:empty
- --> @exec:define-function name="get_metric_anomalies_for_incident"
- --> @exec:set-variable name="incident"
- --> *exec:if-condition asset_count = 0
- --> @dm:empty
- --> @dm:addrow incident_id="{{v.incident.row['incident_id']}}"
- --> @dm:save name='temp-incident-anomalies' and append='yes'
- --> @exec:end-if
- --> *exec:if-condition asset_count > 0
- --> @dm:empty
- --> @dm:addrow name="oia-ml-metrics-regression-output" & max_rows=1000 & limit=0
- --> #dm:query-persistent-stream asset_id in {{v.incident.row['assetIds']}} and timestamp is after "{{v.incident.row['fromTime']}}" and timestamp is before "{{v.incident.row['toTime']}}" and anomalies_severity is 'High' GET timestamp,anomalies,upperBound,lowerBound,asset_id,asset_name,metric_source,metric_id,metric_label
- --> @dm:add-missing-columns columns='incident_id' and value="{{v.incident.row['incident_id']}}"
- --> @dm:save name='temp-incident-anomalies' and append='yes'
- --> @exec:end-if
- --> @exec:end-function
- ## get change requests for incident
+ --> @dm:recall name="temp-shubhi-both"
+ --> *dm:filter business_entity is not 'NA'
+ --> @dm:selectcolumns include="license$|business_entity|sub_business_entity|product_family|license_class"
+ --> @dm:groupby columns="license,business_entity,sub_business_entity,product_family"
+ --> @dm:rename-columns tot_count="license_class" &
+common_BE="business_entity" &
+common_SBE="sub_business_entity" &
+common_product_family="product_family"
+ --> @dm:sort columns="license,tot_count" and order="asc"
+ --> @dm:dedup columns = 'license' and keep="last"
+ --> @dm:selectcolumns exclude="tot_count"
+ --> @dm:save name="temp-business_dict-shubhi"
+ ## # Create expiration column for entitlement
 
  --> @c:new-block
- --> @dm:empty
- --> @exec:define-function name="get_change_requests_for_incident"
- --> @exec:set-variable name="incident"
- --> *exec:if-condition asset_count = 0
- --> @dm:empty
- --> @dm:addrow incident_id="{{v.incident.row['incident_id']}}"
- --> @dm:save name='temp-incident-change-requests' and append='yes'
- --> @exec:end-if
- --> *exec:if-condition asset_count > 0
- --> @dm:empty
- --> @dm:addrow name="change_requests_stream" & max_rows=1000 & limit=0
- --> #dm:query-persistent-stream asset_id in {{v.incident.row['assetIds']}} and timestamp is after "{{v.incident.row['fromTime']}}" and timestamp is before "{{v.incident.row['toTime']}}"
- --> @dm:add-missing-columns columns='incident_id' and value="{{v.incident.row['incident_id']}}"
- --> @dm:save name='temp-incident-change-requests' and append='yes'
- --> @exec:end-if
- --> @exec:end-function
- ## get recommendation for incident from OpenAI
+ --> @dm:recall name="temp-shubhi-both"
+ --> @dm:fixnull-regex value='NA'
+ --> @dm:eval days_to_expire = " 20000 if licenseType=='PERPETUAL' else (to_datetime(endDate) - utcnow()).days"
+ --> @dm:eval license_end_time = "utcnow()"
+ --> @dm:change-time-format columns="license_end_time" and from_format="datetimestr" and to_format="%A, %m-%d-%Y %I:%M:%S %p %Z"
+ --> @dm:eval license_end_time = "str(license_end_time)+str(    'UTC')"
+ --> @dm:eval expiration_color = " '#79BAEC' if (licenseType =='PERPETUAL' or days_to_expire < -19000 ) else '#BB0000' if (days_to_expire < 90 or days_to_expire == 90) else  '#00BB00' if days_to_expire > 90 else '#b0bec5' "
+ --> @dm:eval sort_number = " '3' if (licenseType =='PERPETUAL' or days_to_expire < -19000) else '1' if (days_to_expire < 90 or days_to_expire == 90) else  '2' if days_to_expire > 90 else '4' "
+ --> @dm:eval expiration_status = " 'Valid Indefinitely' if (licenseType =='PERPETUAL' or days_to_expire < -19000 ) else  'Already Expired' if (days_to_expire< 0  and days_to_expire > -19000)  else  'Expiring within 90 days' if (days_to_expire < 90 or days_to_expire == 90) else 'Expiring after 90 days' if days_to_expire > 90  else 'NA' "
+ ## Enrich with consumption
+
+ --> @dm:fixnull columns = 'consumed_quantity' and value=0 and apply_for_empty="yes"
+ --> @dm:eval available_quantity= "(entitled_quantity - consumed_quantity)"
+ --> @dm:save name="temp-shubhi-both"
+ ## Concatenate
+
+ ## combine the entitled and missing entitled data/ consumption data and saves in the details pstream
 
  --> @c:new-block
- --> @dm:empty
- --> @exec:define-function name="get_incident_recommendations"
- --> @exec:set-variable name="incident"
- --> @dm:empty
- --> @dm:addrow name='temp-incident-alerts' and description='Alerts for the incident' and query='a_incident_id is "{{v.incident.row['incident_id']}}"'
- --> @dm:addrow name='temp-incident-anomalies' and description='Anomalies for the incident' and query='incident_id is "{{v.incident.row['incident_id']}}"'
- --> @dm:addrow name='temp-incident-change-requests' and description='Change requests for the incident' and query='incident_id is "{{v.incident.row['incident_id']}}"'
- --> @dm:addrow name='temp-incident-diagnostic-tool-output' and description='Diagnostic tool output for the impacted assets' and query='incident_id is "{{v.incident.row['incident_id']}}"'
- --> @dm:save name='temp-meta-df'
- --> @gpt:prompt prompt = 'Summarize the incident and provide recommendations by analyzing and correlating the above alerts, output of diagnostic tool, metric anomalies, and change requests for the impacted assets. ' &
-prefix = "Please generate a response in simple HTML format based on the provided CSV data, which includes a list of alerts, diagnostic tool outputs, metric anomalies, and change requests for the impacted assets. Follow these guidelines:\n Bold important keywords and numbers.\n Use appropriate labels instead of exact column names.\n Beautify the response with bullet points.\n Structure the response using only these HTML tags: <html>, <body>, <p>, <b>, <ul>, <li>, <br>.\n Provide a summary of the data in a paragraph, without detailed explanations of each alert and anomaly.\n If there is no data for any section (alerts, diagnostic tool outputs, metric anomalies, or change requests), mention that there is no data for that section.\n Do not print the response in a single line or use tables" and
-attach_datasets = 'temp-meta-df' and debug='yes' and temperature=0.7
- --> @dm:add-missing-columns columns='incident_id' and value="{{v.incident.row['incident_id']}}"
- --> @dm:rename-columns i_recommendation='response_content'
- --> @exec:end-function
- ## clear temp datasets
+ --> @dm:concat names="temp-shubhi-both|temp-license_consumption_missing-shubhi"
+ --> @dm:save name = "temp-license_details-shubhi"
+ --> @rn:write-stream name='edc_license_details-shubhi' and direct_to_opensearch="yes"
+ --> @dm:sleep seconds = 5
+ --> @c:new-block
+ ## take all the entitled and not entitled but consume data and added consumed quantuty and BE columns, saved all to a dataset
+
+ ## availability calc
+
+ --> @dm:recall name="temp-license_details-shubhi"
+ --> @dm:selectcolumns include="customer_name|smart_account_name|domain_name|smart_account_key|virtual_account_key|virtual_account_name|^license$|license_class|licensed_feature_key|entitled_quantity"
+ --> @dm:groupby columns="customer_name,smart_account_name,domain_name,smart_account_key,virtual_account_key,virtual_account_name,license,license_class,licensed_feature_key" and agg='sum'
+ ## Bring available and consumed
+
+ --> @dm:enrich dict="temp-license_consumed_grp-shubhi" and src_key_cols="customer_name,smart_account_key,virtual_account_key,licensed_feature_key" and dict_key_cols="customer_name,smart_account_key,virtual_account_key,licensed_feature_key" and enrich_cols="consumed_quantity"
+ ## Bring most used business entity for license
+
+ --> @dm:enrich dict="temp-business_dict-shubhi" and src_key_cols="license" and dict_key_cols="license" and enrich_cols="common_BE,common_SBE,common_product_family"
+ --> @dm:fixnull columns = 'consumed_quantity' and value=0 and apply_for_empty="yes"
+ --> @dm:eval available_quantity= "(entitled_quantity - consumed_quantity)"
+ --> @dm:save name="temp-grouping-shubhi"
+ --> @c:new-block
+ ## expiration logic
+
+ --> @dm:recall name="temp-license_details-shubhi"
+ --> @dm:save name = "license_details-shubhi-source"
+ --> @dm:selectcolumns include="customer_name|smart_account_key|virtual_account_key|days_to_expire|licenseType|^license$|licensed_feature_key"
+ --> @dm:groupby columns="customer_name,smart_account_key,virtual_account_key,license,licensed_feature_key" and agg='min'
+ --> @dm:eval exp_status = " 'Valid Indefinitely' if ((licenseType =='PERPETUAL' or days_to_expire < -19000)) else 'One or more Expired Licenses' if (days_to_expire< 0  and days_to_expire > -19000)    else  'Expiring within 90 days' if ((days_to_expire < 90 or days_to_expire == 90)) else 'Expiring after 90 days' if (days_to_expire > 90) else 'NA' "
+ --> @dm:eval sort_number = " '3' if ((licenseType =='PERPETUAL' or days_to_expire < -19000)) else '1' if (days_to_expire< 0  and days_to_expire > -19000)    else  '1' if ((days_to_expire < 90 or days_to_expire == 90)) else '2' if (days_to_expire > 90) else '4' "
+ --> @dm:eval expiration_color = " '#79BAEC' if ((licenseType =='PERPETUAL' or days_to_expire < -19000)) else '#BB0000' if ((days_to_expire < 90 or days_to_expire == 90)) else  '#00BB00' if (days_to_expire > 90) else '#b0bec5'  "
+ --> @dm:save name="temp-grouping2-shubhi"
+ ## Enrich grouping for summary with message for expiration
+
+ ## build a summary of license details with alerts. combines availability and expiration inf and creates alrets for dashboard ig
 
  --> @c:new-block
- --> @dm:empty
- --> @exec:define-function name="clear_temp_datasets"
- --> @dm:empty
- --> @dm:save name='temp-incident-alerts'
- --> @dm:save name='temp-incident-diagnostic-tool-output'
- --> @dm:save name='temp-incident-anomalies'
- --> @dm:save name='temp-incident-change-requests'
- --> @dm:save name='temp-recommendations'
- --> @exec:end-function
- --> @c:data-loop columns='incident_id' and dataset='temp-incidents'
- --> @dm:recall-query name='temp-incidents' and query="incident_id is '$incident_id'"
- --> @exec:call-function name='get_alerts_for_incident'
- --> @dm:recall-query name='temp-incidents' and query="incident_id is '$incident_id'"
- --> @exec:call-function name='run_diagnostic_tool_for_impacted_assets'
- --> @dm:recall-query name='temp-incidents' and query="incident_id is '$incident_id'"
- --> @exec:call-function name='get_metric_anomalies_for_incident'
- --> @dm:recall-query name='temp-incidents' and query="incident_id is '$incident_id'"
- --> @exec:call-function name='get_change_requests_for_incident'
- --> @dm:recall-query name='temp-incidents' and query="incident_id is '$incident_id'"
- --> @exec:call-function name='get_incident_recommendations'
- --> @dm:save name='temp-recommendations' and append='yes'
+ --> @dm:recall name="temp-grouping-shubhi"
+ --> @dm:enrich dict="temp-grouping2-shubhi" and src_key_cols="customer_name,smart_account_key,virtual_account_key,licensed_feature_key" and dict_key_cols="customer_name,smart_account_key,virtual_account_key,licensed_feature_key" and enrich_cols="exp_status,expiration_color,sort_number"
+ ## evaluate Alerts
+
+ --> @dm:eval alert_status = " 'Licenses Expired' if (exp_status == 'One or more Expired Licenses') else 'Insufficient Licenses' if (available_quantity<0 ) else 'Licenses Expiring'  if (exp_status == 'Expiring within 90 days') else 'NA' "
+ --> @dm:eval alert_color = " '#FF0000' if (exp_status == 'One or more Expired Licenses') else  '#FFA500' if (available_quantity<0 ) else '#F4C430' if (exp_status == 'Expiring within 90 days') else '#b0bec5'  "
+ --> @dm:save name="temp-summary-details-shubhi"
  --> @c:new-block
- --> @exec:call-function name='clear_temp_datasets'
- --> @dm:recall name='temp-incidents'
- --> @dm:selectcolumns exclude="^i_recommendation$"
- --> @dm:enrich dict='temp-recommendations' and src_key_cols='incident_id' and dict_key_cols='incident_id' and enrich_cols='i_recommendation'
- --> @dm:rename-columns roomid='project_id' and incidentid='incident_id'
- --> @dm:eval name="'i_recommendation'" and value='i_recommendation'
- --> @dm:to-json include_columns='^name$|^value$' and output_column='recommendation_value' and keep_original_columns='yes'
- --> @dm:eval name="'i_recommendation_ts'" and value="int(time_now_as_seconds() * 1000)"
- --> @dm:to-json include_columns='^name$|^value$' and output_column='recommendation_ts' and keep_original_columns='yes'
- --> @dm:eval attributes='json_loads("[" + recommendation_value + "," + recommendation_ts + "]")'
- --> @dm:selectcolumns include="roomid|incidentid|attributes"
- --> @agent:agent-irm:irmagent:updateIncidents
- --> @dm:sleep seconds=10
+ ## takes the complete data and cleans and pushes to pstream.
+
+ --> @dm:recall name="temp-summary-details-shubhi"
+ --> @dm:eval unique_key = "str(customer_name) + str(smart_account_key) +str(virtual_account_key)+  str(license) +  str(license_class) + str(licensed_feature_key)"
+ --> @dm:eval license_end_time = "utcnow()"
+ --> @dm:change-time-format columns="license_end_time" and from_format="datetimestr" and to_format="%A, %m-%d-%Y %I:%M:%S %p %Z"
+ --> @dm:eval endTime = "str(license_end_time)+str(    'UTC')"
+ --> @dm:fixnull-regex value='NA'
+ --> @rn:write-stream name='edc_license_summary-shubhi' and direct_to_opensearch="yes"
+ --> @dm:sleep seconds = 5
