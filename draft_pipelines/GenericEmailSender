@@ -1,9 +1,45 @@
-@dm:object-add name = "upload_test_file" & folder = "TEST" & input_file = "'nikijosh@cisco.com/e30a7c2249004035a6ad4719b7db65a6/Stream2A.csv.zip'"
- ## --> @dm:object-list
 
- ## --> @dm:save name="path"
+ ## Bernie Wynia, Cisco Systems, 2025
 
- ## --> @dm:object-get name="Stream2A.csv.zip" and folder="'nikijosh@cisco.com/e30a7c2249004035a6ad4719b7db65a6/'" and save_to_dir="/root/notebooks"
+ ## It doesn't seem to have trouble with the following error cases:
 
- --> @dm:object-get name="Stream2A.csv.zip" and folder="TEST" and save_to_file="kt.zip"
- --> @dm:sleep seconds = 1
+ ## -- no email addresses are found for template (valid template id)
+
+ ## -- invalid template ID (passed in inpute stream)
+
+ ## -- malforemd email addressneed
+
+ ## Because there is always at least 1 row (potentially with empty columns), this didn't seem to have any impact --> *exec:if-shape num_rows > 0
+
+ ## It doesn't seem to be needed because the apply-template and sendmail seem to complete regardless (so we resume on the read-stream)
+
+ ## The one case it doesn't handle is if the GenericEmailTemplates references a Template Name that doesn't exist in "Formatting Templates"
+@c:new-block
+ ## Wait for a request to send an email
+
+ --> @rn:read-stream name = "genericEmailSender" & group = "group_genericEmailSender"
+ ## When we get one, fetch the template details
+
+ --> @dm:enrich dict = 'GenericEmailTemplates' & src_key_cols = 'Template_Id' & dict_key_cols = 'Template_Id' & enrich_cols = "Subject,Template_Name"
+ ## Formulate the Subject line by appending the Suffix, if provided
+
+ --> @dm:add-missing-columns columns = 'Subject_Suffix' & value = ''
+ --> @dm:eval Merged_Subject = "Subject + Subject_Suffix"
+ ## Figure out who to send it to
+
+ --> @dm:enrich dict = 'GenericEmailRecipients' & src_key_cols = 'Template_Id' & dict_key_cols = 'Template_Id' & enrich_cols = "Recipient,User_Enabled" & dedup_dict = "no"
+ --> *dm:filter User_Enabled != 'no'
+ ## Format the email content
+
+ --> @dm:add-missing-columns columns = 'lType' & value = "html"
+ --> @dm:apply-template-by-row template_name = "{{row.Template_Name}}" & output_col = "fMessage" & status_col = "Template_Result"
+ ## Note that if we fetch an invald template name, the pipeline will abort in the above line (contrary to documentation)
+
+ ## It may be helful to uncomment this line when debugging
+
+ ## --> @dm:save name = "delete-me-email-working-data"
+
+ --> *dm:filter Template_Result = 'ok'
+ --> *exec:if-shape num_rows > 0
+ --> @email:sendmail-bulk recipient_col = 'Recipient' & message_mime_type_col = 'lType' & subject_col = 'Merged_Subject' & message_col = 'fMessage'
+ --> @exec:end-if
