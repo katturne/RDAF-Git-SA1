@@ -1,24 +1,47 @@
 
- ## Queries data for the customer from edc_oi_enriched_stream
+ ## oia-to-snow-cfx
+
+ ## All debugging is captured on oia-to-snow-debug-stream
+
+ ## 
+
+ ## A work around is to mention all child and dependent pipelines here.
 @c:new-block
  --> @dm:empty
- --> @dm:addrow name='edc_oi_inventory_enriched' and limit=0 and groupby='contract_number,customer_name,product_id' and aggs='sum:combination_count'
- --> #dm:query-persistent-stream coverage=='COVERED' and customer_name is 'ATT'
- --> @dm:save name='temp-hw-eol-details-grouped' and append='yes'
- --> @c:new-block
- --> @dm:recall name='temp-hw-eol-details-grouped'
- --> @dm:to-type columns='contract_number' and type='int'
- --> @dm:save name='temp-hw-eol-details-grouped'
- ## enriches the processed columns to edc_oi_inventory_enriched
+ --> @dm:skip-block-if-shape row_count = 0 & column_count = 0
+ --> @exec:run-pipeline name="oia-to-snow-cfx-processor" & ignore_failures="no"
+ --> @exec:run-pipeline name="oia-incident-status-tracker-stream" & ignore_failures="no"
+ ## Read from Stream
 
- --> @c:new-block
- --> @dm:recall name='test-sw-eol-details'
- ## --> @dm:eval product_name="product_id if product_name is 'Not Available' else product_name"
+ --> @c:bookmark-loop bookmark = 'oia-to-snow-cfx-bkmrk' & initial_value = '-1 minute'
+ --> @dm:empty
+ --> @dm:addrow name="oia-incidents-delta-stream" & max_rows="1000"
+ --> @dm:sleep seconds=5
+ ## Query records from Stream
 
- --> @dm:enrich dict='temp-hw-eol-details-grouped' and dict_key_cols='contract_number,customer_name,product_id' and src_key_cols='contract_number,customer,product_id' and enrich_cols='combination_count_sum' and how_type='left'
- --> @dm:eval unique_key='str(customer) + str(sw_os_type) + str(sw_version) + str(contract_number) + str(product_id)'
- --> @dm:to-type columns='combination_count_sum' and type='int'
- --> @dm:dropnull columns='sw_status'
- --> @dm:save name='final-enrich'
- --> @dm:save name='temp-edc-sweol-data'
- --> @rn:write-stream name='edc_sweol_data'
+ ## Change-Here: Pulse to what ever you want
+
+ --> #dm:query-persistent-stream timestamp is after '${bookmark}' & (i_source contains 'SNMP_TRAP_Notifications' or i_source contains 'Syslog_udp_Notifications' or i_source contains 'Alert Group') & i_state != 'Closed' & i_state != 'Cancelled'
+ --> @dm:skip-block-if-shape row_count = 0
+ ## Change-Here: Temp workaround. Flow is NOT gracefully coming back from post exec:run-pipeline
+
+ --> @dm:save_bookmark name = 'oia-to-snow-cfx-bkmrk' & value_column = 'timestamp' & value_type = 'timestamp' & value_func = 'max'
+ --> @dm:save name="temp-qresults"
+ ## Debug
+
+ --> @dm:map to="step" & func="fixed" & value="temp-query-stream-results-${bookmark}"
+ --> @rn:write-stream compression="auto" & name="oia-to-snow-debug-stream"
+ ## Record The Step
+
+ --> @dm:eval pipeline="'oia-to-snow-cfx'" & step="'query-persistent-stream'" & stage="'bookmark ${bookmark}'" & status_comments="'Incident:' + incident_id + ',State:' + i_state + ',Delta:' + str(delta)" & status="'INFO'"
+ --> @exec:run-pipeline name="oia-incident-status-tracker-stream" & ignore_failures="yes"
+ ## Set the Tracing Context
+
+ --> @dm:set-tracing-context-from-input columns = "project_id,incident_id"
+ --> @dm:save name="temp-query-result-cfx"
+ --> @exec:run-pipeline name="oia-to-snow-cfx-processor" & ignore_failures="no"
+ ## Save bookmark - only after finishing up processing all the records
+
+ --> @dm:recall name="temp-qresults"
+ --> @dm:save_bookmark name = 'oia-to-snow-cfx-bkmrk' & value_column = 'timestamp' & value_type = 'timestamp' & value_func = 'max'
+ --> @dm:empty
