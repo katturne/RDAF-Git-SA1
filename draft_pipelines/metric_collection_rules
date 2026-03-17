@@ -1,22 +1,45 @@
+
+ ## Bernie Wynia, Cisco Systems, 2025
+
+ ## It doesn't seem to have trouble with the following error cases:
+
+ ## -- no email addresses are found for template (valid template id)
+
+ ## -- invalid template ID (passed in inpute stream)
+
+ ## -- malforemd email addressneed
+
+ ## Because there is always at least 1 row (potentially with empty columns), this didn't seem to have any impact --> *exec:if-shape num_rows > 0
+
+ ## It doesn't seem to be needed because the apply-template and sendmail seem to complete regardless (so we resume on the read-stream)
+
+ ## The one case it doesn't handle is if the GenericEmailTemplates references a Template Name that doesn't exist in "Formatting Templates"
 @c:new-block
- --> @dm:empty
- --> @dm:addrow metric_filter="metric_label contains '(CPU|Response|Memory|Utilization)'" and metric_source="me-apm"
- --> @dm:addrow metric_filter="metric_label contains '(cpu|memory|Memory|disk)'" and metric_source="me-apm"
- --> @dm:addrow metric_filter="help contains '(CPU|Response|Memory|Utilization)'" and metric_source="prometheus"
- --> @dm:addrow metric_filter="help contains '(cpu|memory|disk)'" and metric_source="prometheus"
- --> @dm:addrow metric_filter="(key matches '((mem|cpu|net)\|usage_average)' or key is 'diskspace|used')" and metric_source="vRops"
- --> @dm:addrow metric_filter='metric_id contains "cpu.usage" and asset_id in ["APPLICATION-2545E1F11A7AC0E7","SERVICE-57A595D1763DEC45","SERVICE-93BB4975DCF98498","SERVICE_INSTANCE-5CFC3F048290FE3D","PROCESS_GROUP-64DFA3218797AA9F","SERVICE-AF32863CF72CC2E0","SERVICE_INSTANCE-0A1653FFCA658088","SERVICE_INSTANCE-239DF04C1C565882","PROCESS_GROUP-BEB356CD80314588","HOST-D52EF0382CF8F572","HOST-2ED93C66FD46DAC5","us-east-1a"]' and metric_source="dynatrace"
- --> @dm:addrow metric_filter='metric_id contains "mem.usage" and asset_id in ["APPLICATION-2545E1F11A7AC0E7","SERVICE-57A595D1763DEC45","SERVICE-93BB4975DCF98498","SERVICE_INSTANCE-5CFC3F048290FE3D","PROCESS_GROUP-64DFA3218797AA9F","SERVICE-AF32863CF72CC2E0","SERVICE_INSTANCE-0A1653FFCA658088","SERVICE_INSTANCE-239DF04C1C565882","PROCESS_GROUP-BEB356CD80314588","HOST-D52EF0382CF8F572","HOST-2ED93C66FD46DAC5","us-east-1a"]' and metric_source="dynatrace"
- --> @dm:addrow metric_filter='metric_id contains "disk.free" and asset_id in ["APPLICATION-2545E1F11A7AC0E7","SERVICE-57A595D1763DEC45","SERVICE-93BB4975DCF98498","SERVICE_INSTANCE-5CFC3F048290FE3D","PROCESS_GROUP-64DFA3218797AA9F","SERVICE-AF32863CF72CC2E0","SERVICE_INSTANCE-0A1653FFCA658088","SERVICE_INSTANCE-239DF04C1C565882","PROCESS_GROUP-BEB356CD80314588","HOST-D52EF0382CF8F572","HOST-2ED93C66FD46DAC5","us-east-1a"]' and metric_source="dynatrace"
- --> @dm:addrow metric_filter='metric_id contains "builtin:cloud.cloudfoundry.http.latency" and asset_id in ["APPLICATION-2545E1F11A7AC0E7"]' and metric_source="dynatrace"
- --> @dm:addrow metric_filter='metric_id contains "builtin:tech.generic.network.responsiveness" and asset_id in ["APPLICATION-2545E1F11A7AC0E7"]' and metric_source="dynatrace"
- --> @dm:addrow metric_filter='metric_id contains "builtin:host.net.nic.packets.droppedRx" and asset_id in ["SERVICE-57A595D1763DEC45"]' and metric_source="dynatrace"
- --> @dm:addrow metric_filter='metric_id contains "builtin:cloud.vmware.hypervisor.nic.packetsTxDropped" and asset_id in ["SERVICE-57A595D1763DEC45"]' and metric_source="dynatrace"
- --> @dm:addrow metric_filter='metric_id contains "builtin:tech.generic.network.sessions.timeoutLocal" and asset_id in ["SERVICE-57A595D1763DEC45"]' and metric_source="dynatrace"
- --> @dm:addrow metric_filter='metric_id contains "builtin:service.keyRequest.ioTime" and asset_id in ["SERVICE-57A595D1763DEC45"]' and metric_source="dynatrace"
- --> @dm:addrow metric_filter='metric_id contains "builtin:apps.web.activeSessions" and asset_id in ["APPLICATION-2545E1F11A7AC0E7"]' and metric_source="dynatrace"
- --> @dm:addrow metric_filter='metric_id contains "builtin:apps.web.conversionRate" and asset_id in ["APPLICATION-2545E1F11A7AC0E7"]' and metric_source="dynatrace"
- --> @dm:addrow metric_filter='metric_id contains "builtin:service.totalProcessingTime" and asset_id in ["SERVICE-57A595D1763DEC45"]' and metric_source="dynatrace"
- --> @dm:addrow metric_filter='metric_id contains "builtin:service.response.time" and asset_id in ["SERVICE-57A595D1763DEC45"]' and metric_source="dynatrace"
- --> @dm:addrow metric_filter='metric_id contains "builtin:service.ioTime" and asset_id in ["SERVICE-57A595D1763DEC45"]' and metric_source="dynatrace"
- --> @dm:save name='oia-metric_selection_rules'
+ ## Wait for a request to send an email
+
+ --> @rn:read-stream name = "genericEmailSender" & group = "group_genericEmailSender"
+ ## When we get one, fetch the template details
+
+ --> @dm:enrich dict = 'GenericEmailTemplates' & src_key_cols = 'Template_Id' & dict_key_cols = 'Template_Id' & enrich_cols = "Subject,Template_Name"
+ ## Formulate the Subject line by appending the Suffix, if provided
+
+ --> @dm:add-missing-columns columns = 'Subject_Suffix' & value = ''
+ --> @dm:eval Merged_Subject = "Subject + Subject_Suffix"
+ ## Figure out who to send it to
+
+ --> @dm:enrich dict = 'GenericEmailRecipients' & src_key_cols = 'Template_Id' & dict_key_cols = 'Template_Id' & enrich_cols = "Recipient,User_Enabled" & dedup_dict = "no"
+ --> *dm:filter User_Enabled != 'no'
+ ## Format the email content
+
+ --> @dm:add-missing-columns columns = 'lType' & value = "html"
+ --> @dm:apply-template-by-row template_name = "{{row.Template_Name}}" & output_col = "fMessage" & status_col = "Template_Result"
+ ## Note that if we fetch an invald template name, the pipeline will abort in the above line (contrary to documentation)
+
+ ## It may be helful to uncomment this line when debugging
+
+ ## --> @dm:save name = "delete-me-email-working-data"
+
+ --> *dm:filter Template_Result = 'ok'
+ --> *exec:if-shape num_rows > 0
+ --> @email:sendmail-bulk recipient_col = 'Recipient' & message_mime_type_col = 'lType' & subject_col = 'Merged_Subject' & message_col = 'fMessage'
+ --> @exec:end-if
