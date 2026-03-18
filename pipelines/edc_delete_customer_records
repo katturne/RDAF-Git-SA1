@@ -1,29 +1,16 @@
 
- ## declaring child pipelines
+ ## Get row input
 @c:new-block
  --> @dm:empty
- --> @exec:define-function name="define_child_pipelines"
- --> @exec:run-pipeline name ="edc_oi_get_product_alerts" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_oi_product_alerts_raw" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_oi_product_alerts_run_scan" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_oi_generate_token" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_oi_process_sw_data" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_oi_get_sweol_data" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_oi_get_security_advisories_data" & ignore_failures = "no"
- --> @exec:end-function
- ## addingt the software and security advisories data
+ --> @exec:get-input
+ ## --> @dm:selectcolumns include='device_hostname|device_identifier|device_controller_id'
 
- --> @c:new-block
+ --> @dm:save name='temp-form-data'
+ --> @c:data-loop columns="customer_name" and dataset="temp-form-data"
  --> @dm:empty
- --> @dm:addrow name='edc_sw_raw_data' and limit=0
- --> #dm:query-persistent-stream
- --> @dm:selectcolumns exclude='^(unique_key)$'
- --> @dm:save name='temp-edc-sw-raw-op-exploded'
- --> @exec:run-pipeline name='edc_oi_get_sweol_data' and ignore_failures = "no"
- --> @c:new-block
+ --> @dm:addrow name = "edc_oi_inventory_grouped" & conflicts = "proceed" & timeout = 1200
+ --> #dm:pstream-delete-data-by-query customer_name=="$customer_name"
+ --> @c:data-loop columns="customer_name" and dataset="temp-form-data"
  --> @dm:empty
- --> @dm:addrow name='edc_sec_adv_data_raw' and limit=0
- --> #dm:query-persistent-stream
- --> @dm:selectcolumns exclude='^(unique_key)$'
- --> @dm:save name='temp-edc-sa-raw-op-exploded'
- --> @exec:run-pipeline name='edc_oi_get_security_advisories_data' and ignore_failures = "no"
+ --> @dm:addrow name = "edc_oi_inventory_enriched" & conflicts = "proceed" & timeout = 1200
+ --> #dm:pstream-delete-data-by-query customer_name=="$customer_name"
