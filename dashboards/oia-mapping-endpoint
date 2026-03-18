@@ -1,1034 +1,1244 @@
 {
-  "name": "oia-mapping-endpoint",
-  "label": "Oia Mapping And Endpoint Dashboards",
-  "is_template": false,
-  "description": "Oia Mapping And Endpoint Dashboards",
-  "live_edit": true,
-  "version": "24.07.24.2",
+  "name": "oia-logs-war-room-customer-view",
+  "label": "War Room - Customer View",
+  "description": "War Room - Customer View",
   "enabled": true,
-  "dashboard_type": "dashboard",
-  "dashboard_folder": "Default",
-  "dashboard_style": "tabbed",
+  "version": "2024.6.17.2",
+  "dashboard_type": "template",
+  "template_variables": {
+    "LOG_OT": {
+      "contextId": "rda_gw_timestamp"
+    },
+    "CUSTOMER_ID": {
+      "contextId": "customer_id"
+    }
+  },
+  "dashboard_filters": {
+    "time_filter": true,
+    "default_time_range": {
+      "from_time": "{{LOG_OT}}",
+      "from_time_delta_hours": -24,
+      "to_time": "{{LOG_OT}}",
+      "to_time_delta_hours": 24,
+      "label": "Time Range"
+    }
+  },
+  "stream_query_mapping": {
+    "oia-alerts-stream": {
+      "rda_gw_timestamp": "a_created_ts"
+    },
+    "oia-ml-metrics-regression-output": {
+      "rda_gw_timestamp": "timestamp"
+    },
+    "change_requests_stream": {
+      "rda_gw_timestamp": "timestamp"
+    },
+    "oia-incidents-stream": {
+      "rda_gw_timestamp": "i_created_ts"
+    }
+  },
   "dashboard_sections": [
     {
-      "title": "Alert Endpoints",
+      "title": "Customer View",
       "show_filter": true,
-      "projects": [
-        "ACME"
-      ],
       "widgets": [
         {
-          "title": "Alert Endpoints",
-          "widget_type": "tabular",
-          "stream": "oia_alertendpoints",
-          "ts_column": "createdat",
+          "widget_type": "label",
+          "label": "<h3 style='text-align: center;'>Log Time: {%raw%} {{' {{ '}} {%endraw%} toDateTimeString({{ LOG_OT }}) {%raw%} {{ '}}' }} {%endraw%} </h3>",
+          "advanced": true,
           "min_width": 12,
-          "height": 12,
           "max_width": 12,
-          "paginated": true,
-          "resizableColumns": false,
-          "remote_searchable": true,
-          "sorting1": [
+          "height": 1,
+          "widget_id": "5ae002f1"
+        },
+        {
+          "title": "Link Up/Down Alerts",
+          "widget_type": "counter",
+          "min_width": 2.4,
+          "max_width": 2.4,
+          "height": 4,
+          "stream": "oia-alerts-stream",
+          "ts_column": "a_created_ts",
+          "extra_filter": "a_message contains 'link'",
+          "sparkline": {
+            "interval": "1h"
+          },
+          "column": "count_",
+          "agg": "sum",
+          "type": "int",
+          "widget_id": "42b0d069"
+        },
+        {
+          "title": "BGP Alerts",
+          "widget_type": "counter",
+          "min_width": 2.4,
+          "max_width": 2.4,
+          "height": 4,
+          "stream": "oia-alerts-stream",
+          "ts_column": "a_created_ts",
+          "extra_filter": "a_message contains 'BGP'",
+          "sparkline": {
+            "interval": "1h"
+          },
+          "column": "count_",
+          "agg": "sum",
+          "type": "int",
+          "widget_id": "5962e11c"
+        },
+        {
+          "title": "OSPF Alerts",
+          "widget_type": "counter",
+          "min_width": 2.4,
+          "max_width": 2.4,
+          "height": 4,
+          "stream": "oia-alerts-stream",
+          "ts_column": "a_created_ts",
+          "extra_filter": "a_message contains 'OSPF'",
+          "sparkline": {
+            "interval": "1h"
+          },
+          "column": "count_",
+          "agg": "sum",
+          "type": "int",
+          "widget_id": "3f145adb"
+        },
+        {
+          "title": "Patch Changes",
+          "widget_type": "counter",
+          "min_width": 2.4,
+          "max_width": 2.4,
+          "height": 4,
+          "stream": "change_requests_stream",
+          "ts_column": "timestamp",
+          "extra_filter": "message contains 'patch'",
+          "sparkline": {
+            "interval": "1h"
+          },
+          "column": "count_",
+          "agg": "sum",
+          "type": "int",
+          "widget_id": "a90db915"
+        },
+        {
+          "title": "Change Requests",
+          "widget_type": "counter",
+          "min_width": 2.4,
+          "max_width": 2.4,
+          "height": 4,
+          "stream": "change_requests_stream",
+          "ts_column": "timestamp",
+          "extra_filter0": "message contains 'config'",
+          "sparkline": {
+            "interval": "1h"
+          },
+          "column": "count_",
+          "agg": "sum",
+          "type": "int",
+          "widget_id": "8bc53b8f"
+        },
+        {
+          "title": "Events Timeline",
+          "widget_type": "timeseries",
+          "stream": "oia-alerts-stream",
+          "ts_column": "a_created_ts",
+          "max_width": 12,
+          "height": 8,
+          "min_width": 12,
+          "fixTimeWindow": true,
+          "chartProperties": {
+            "yAxisLabel": "Alert Count",
+            "xAxisLabel": "Time",
+            "legendLocation": "none"
+          },
+          "static_markers": [
             {
-              "precedence": "desc"
+              "timestamp": "{{LOG_OT}}",
+              "message": "Log Time",
+              "color": "#B71C1C"
             }
           ],
-          "remote_searchable_cols": [],
-          "refreshRequired": true,
+          "alert_markers": [
+            {
+              "stream": "change_requests_stream",
+              "ts_column": "timestamp",
+              "type": "circle",
+              "message_column": "message",
+              "severity_column": "severity"
+            },
+            {
+              "stream": "oia-alerts-stream",
+              "ts_column": "a_created_ts",
+              "type": "triangle",
+              "message_column": "a_message",
+              "severity_column": "a_severity"
+            },
+            {
+              "stream": "oia-ml-metrics-regression-output",
+              "ts_column": "timestamp",
+              "type": "square",
+              "message_column": "marker_message",
+              "extra_filter": "anomalies_severity is 'High' and anomalies_type is 'Upper'",
+              "severity_column": "anomalies_severity",
+              "columns": [
+                "asset_id",
+                "metric_id",
+                "metric_label",
+                "asset_name",
+                "metric_source",
+                "timestamp",
+                "job_name",
+                "unit",
+                "stream_name"
+              ],
+              "action": {
+                "appName": "user-dashboard/rca_regression_dashboard",
+                "permission": "ml:ml-jobs:viewSampledata",
+                "identifier": "ViewRegressionDashboard",
+                "selectionType": "SINGLE",
+                "stateName": "app.featureapp",
+                "title": "View Regression Dashboard",
+                "type": "GO_TO_APP_STATE"
+              }
+            },
+            {
+              "stream": "oia-logs-regression-output",
+              "ts_column": "timestamp",
+              "type": "circle",
+              "message_column": "asset_id",
+              "extra_filter": "anomalies_severity is 'High' and anomalies_type is 'Upper'",
+              "severity_column": "anomalies_severity",
+              "columns": [
+                "asset_id",
+                "asset_name",
+                "timestamp",
+                "job_name",
+                "stream_name"
+              ],
+              "action": {
+                "appName": "user-dashboard/rca_regression_dashboard",
+                "permission": "ml:ml-jobs:viewSampledata",
+                "identifier": "ViewRegressionDashboard",
+                "selectionType": "SINGLE",
+                "stateName": "app.featureapp",
+                "title": "View Regression Dashboard",
+                "type": "GO_TO_APP_STATE"
+              }
+            }
+          ],
+          "interval": "1min",
+          "series_spec": [
+            {
+              "label": "Alerts",
+              "column": "a_id",
+              "agg": "value_count",
+              "type": "int"
+            }
+          ],
+          "widget_id": "121762cf"
+        },
+        {
+          "title": "Metric Anomalies",
+          "widget_type": "multi_bar_chart",
+          "stream": "oia-ml-metrics-regression-output",
+          "ts_column": "timestamp",
+          "chartProperties": {
+            "yAxisLabel": "Anomalies (%)",
+            "xAxisLabel": "Metric Name",
+            "stacked": false,
+            "legendLocation": "none",
+            "orientation": "vertical"
+          },
+          "group_by": [
+            "asset_id",
+            "metric_label"
+          ],
+          "descending_order": true,
+          "others_spec": {
+            "limit": 4,
+            "show_others": false
+          },
+          "column": "anomalies_percent",
+          "agg": "max",
+          "type": "float",
+          "widget_id": "f4786acb"
+        },
+        {
+          "title": "Change Requests",
+          "widget_type": "tabular",
+          "min_width": 6,
+          "max_width": 6,
+          "height": 5,
           "timebased": false,
-          "max_rows": 50,
+          "stream": "change_requests_stream",
+          "ts_column": "timestamp",
           "columns": {
-            "name": {
-              "title": "Name",
-              "key": true,
-              "visible": true,
-              "defaultWidth": 150
+            "timestamp": {
+              "title": "Time",
+              "type": "DATETIME"
             },
-            "description": {
-              "key": true,
-              "visible": true,
-              "title": "Description",
-              "defaultWidth": 150
-            },
-            "type": {
-              "key": true,
-              "visible": true,
-              "title": "Endpoint Type",
-              "defaultWidth": 150
-            },
-            "role": {
-              "title": "Endpoint Role",
-              "key": true,
-              "visible": true,
-              "defaultWidth": 150
-            },
-            "category": {
-              "title": "Event Category",
-              "key": true,
-              "visible": true,
-              "defaultWidth": 150
-            },
-            "eventtype": {
-              "title": "Event Type",
-              "key": true,
-              "visible": true,
-              "defaultWidth": 150
-            },
-            "enabled": {
-              "title": "Enable/Disable",
-              "type": "TEXT",
-              "visible": true,
-              "key": true,
-              "defaultValue": "yes",
-              "uiProperties": {
-                "valueMap": {
-                  "editType": "switch",
-                  "trueValue": "yes",
-                  "falseValue": "no",
-                  "defaultValue": "yes",
-                  "editable": true,
-                  "showLabel": false
+            "message": {
+              "title": "Change Description",
+              "type": "TEXT"
+            }
+          },
+          "widget_id": "31e2f2ed"
+        },
+        {
+          "widget_type": "pie_chart",
+          "title": "Alerts by Severity",
+          "stream": "oia-alerts-stream",
+          "ts_column": "a_created_ts",
+          "extra_filter": "customer_id is '{{CUSTOMER_ID}}'",
+          "min_width": 3,
+          "height": 4,
+          "max_width": 3,
+          "column": "a_id",
+          "agg": "value_count",
+          "group_by": [
+            "a_severity"
+          ],
+          "type": "str",
+          "style": {
+            "color-map": {
+              "SEVERE": [
+                "#B71C1C",
+                "#ffffff"
+              ],
+              "CRITICAL": [
+                "#E53935",
+                "#ffffff"
+              ],
+              "MAJOR": [
+                "#F57C00",
+                "#ffffff"
+              ],
+              "MINOR": [
+                "#FFA726",
+                "#ffffff"
+              ],
+              "WARNING": [
+                "#FFD54F",
+                "#ffffff"
+              ],
+              "NOTIFICATION": [
+                "#4DD0E1",
+                "#ffffff"
+              ],
+              "INFORMATION": [
+                "#03A9F4",
+                "#ffffff"
+              ]
+            }
+          },
+          "widget_id": "cb0706e6"
+        },
+        {
+          "title": "Alert Trend",
+          "widget_type": "timeseries",
+          "stream": "oia-alerts-stream",
+          "ts_column": "a_created_ts",
+          "max_width": 9,
+          "height": 4,
+          "min_width": 9,
+          "fixTimeWindow": true,
+          "extra_filter": "customer_id is '{{CUSTOMER_ID}}'",
+          "chartProperties": {
+            "yAxisLabel": "Count",
+            "xAxisLabel": "Time",
+            "legendLocation": "top"
+          },
+          "interval": "1H",
+          "group_by": [
+            "a_severity"
+          ],
+          "static_markers": [
+            {
+              "timestamp": "{{LOG_OT}}",
+              "message": "Log Time",
+              "color": "#B71C1C"
+            }
+          ],
+          "series_spec": [
+            {
+              "column": "a_id",
+              "agg": "value_count",
+              "type": "int"
+            }
+          ],
+          "style": {
+            "color-map": {
+              "SEVERE": [
+                "#B71C1C",
+                "#ffffff"
+              ],
+              "CRITICAL": [
+                "#E53935",
+                "#ffffff"
+              ],
+              "MAJOR": [
+                "#F57C00",
+                "#ffffff"
+              ],
+              "MINOR": [
+                "#FFA726",
+                "#ffffff"
+              ],
+              "WARNING": [
+                "#FFD54F",
+                "#ffffff"
+              ],
+              "NOTIFICATION": [
+                "#4DD0E1",
+                "#ffffff"
+              ],
+              "INFORMATION": [
+                "#03A9F4",
+                "#ffffff"
+              ]
+            }
+          },
+          "widget_id": "c29bb686"
+        },
+        {
+          "widget_type": "pie_chart",
+          "title": "Incidents By Priority",
+          "stream": "oia-incidents-stream",
+          "ts_column": "i_created_ts",
+          "extra_filter": "customer_id is '{{CUSTOMER_ID}}'",
+          "min_width": 3,
+          "height": 4,
+          "max_width": 3,
+          "column": "incident_id",
+          "agg": "value_count",
+          "group_by": [
+            "i_priority_label"
+          ],
+          "style": {
+            "color-map": {
+              "Critical": [
+                "#B71C1C",
+                "#ffffff"
+              ],
+              "High": [
+                "#FFA726",
+                "#ffffff"
+              ],
+              "Moderate": [
+                "#90CAF9",
+                "#ffffff"
+              ],
+              "Low": [
+                "#4DD0E1",
+                "#ffffff"
+              ],
+              "Planning": [
+                "#4FC3F7",
+                "#ffffff"
+              ]
+            }
+          },
+          "type": "str",
+          "widget_id": "58e08b21"
+        },
+        {
+          "title": "Incident Trend",
+          "widget_type": "timeseries",
+          "stream": "oia-incidents-stream",
+          "ts_column": "i_created_ts",
+          "max_width": 9,
+          "height": 4,
+          "min_width": 9,
+          "fixTimeWindow": true,
+          "extra_filter": "customer_id is '{{CUSTOMER_ID}}'",
+          "chartProperties": {
+            "yAxisLabel": "Count",
+            "xAxisLabel": "Time",
+            "legendLocation": "top"
+          },
+          "interval": "1H",
+          "group_by": [
+            "i_priority_label"
+          ],
+          "static_markers": [
+            {
+              "timestamp": "{{LOG_OT}}",
+              "message": "Log Time",
+              "color": "#B71C1C"
+            }
+          ],
+          "series_spec": [
+            {
+              "column": "incident_id",
+              "agg": "value_count",
+              "type": "int"
+            }
+          ],
+          "style": {
+            "color-map": {
+              "Critical": [
+                "#B71C1C",
+                "#ffffff"
+              ],
+              "High": [
+                "#FFA726",
+                "#ffffff"
+              ],
+              "Moderate": [
+                "#FFD54F",
+                "#ffffff"
+              ],
+              "Low": [
+                "#90CAF9",
+                "#ffffff"
+              ],
+              "Planning": [
+                "#4FC3F7",
+                "#ffffff"
+              ]
+            }
+          },
+          "widget_id": "3e5d8325"
+        },
+        {
+          "widget_type": "pie_chart",
+          "title": "Syslogs By Severity",
+          "ts_column": "rda_gw_timestamp",
+          "stream": "syslog_udp_event_stream_all",
+          "min_width": 3,
+          "height": 4,
+          "max_width": 3,
+          "duration_hours0": 10000,
+          "column": "count_",
+          "agg": "sum",
+          "group_by": [
+            "syslog_severity"
+          ],
+          "type": "int",
+          "style": {
+            "color-map": {
+              "SEVERE": [
+                "#B71C1C",
+                "#ffffff"
+              ],
+              "CRITICAL": [
+                "#E53935",
+                "#ffffff"
+              ],
+              "MAJOR": [
+                "#F57C00",
+                "#ffffff"
+              ],
+              "MINOR": [
+                "#FFA726",
+                "#ffffff"
+              ],
+              "WARNING": [
+                "#FFD54F",
+                "#ffffff"
+              ]
+            }
+          },
+          "widget_id": "ed85e796"
+        },
+        {
+          "title": "Syslogs",
+          "widget_type": "timeseries",
+          "max_width": 9,
+          "height": 4,
+          "min_width": 9,
+          "ts_column": "rda_gw_timestamp",
+          "show-markers": true,
+          "fixTimeWindow": true,
+          "stream": "syslog_udp_event_stream_all",
+          "group_by": [
+            "syslog_severity"
+          ],
+          "style": {
+            "color-map": {
+              "SEVERE": [
+                "#B71C1C",
+                "#ffffff"
+              ],
+              "CRITICAL": [
+                "#E53935",
+                "#ffffff"
+              ],
+              "MAJOR": [
+                "#F57C00",
+                "#ffffff"
+              ],
+              "MINOR": [
+                "#FFA726",
+                "#ffffff"
+              ],
+              "WARNING": [
+                "#FFD54F",
+                "#ffffff"
+              ]
+            }
+          },
+          "chartProperties": {
+            "xAxisLabel": "Timestamp",
+            "yAxisLabel": "Count",
+            "legendLocation": "none",
+            "xAxisTickOrientation": "STAGGERED",
+            "options": {
+              "elements": {
+                "line": {
+                  "borderWidth": 1
                 },
-                "editEndpoint": {
-                  "service-name": "configuration-service",
-                  "namespace": "io.cfx.dimensions.app",
-                  "methodName": "invokeAppApi:enableDisableEndpoint",
-                  "stringified-params": true,
-                  "useReportContext": true,
-                  "parse-output": false,
-                  "params": [
-                    {
-                      "context": {}
-                    }
-                  ]
+                "point": {
+                  "radius": 2,
+                  "hitRadius": 3,
+                  "hoverRadius": 3
                 }
               }
             }
           },
-          "actions": [
+          "static_markers": [
             {
-              "permission": "oia:eventEndPoint:add",
-              "title": "Add",
-              "type": "POPUP_FORM",
-              "icon": "mdi mdi-plus",
-              "selectionType": "NONE",
-              "identifier": "configuration-service:cfx.eventendpoint.upsert",
-              "api-endpoint": {
-                "service-name": "configuration-service",
-                "namespace": "io.cfx.dimensions.app",
-                "methodName": "invokeAppApi:getFormById",
-                "stringified-params": true,
-                "useReportContext": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "form_id": "cfx.eventendpoint.upsert",
-                    "context": {},
-                    "eventCategory": "eventCategory"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "oia:eventEndPoint:delete",
-              "title": "Delete",
-              "type": "POPUP_FORM",
-              "icon": "mdi mdi-plus",
-              "selectionType": "SINGLE",
-              "identifier": "configuration-service:cfx.eventendpoint.delete",
-              "actionCondition": {
-                "actionControl": "SHOW_IF",
-                "conditionalField": [
-                  {
-                    "conditionType": "NOT_EQUAL",
-                    "conditionValue": "System",
-                    "fieldId": "createdby"
-                  }
-                ]
-              },
-              "api-endpoint": {
-                "service-name": "configuration-service",
-                "namespace": "io.cfx.dimensions.app",
-                "methodName": "invokeAppApi:getFormById",
-                "stringified-params": true,
-                "useReportContext": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "form_id": "cfx.eventendpoint.delete",
-                    "context": {}
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "oia:eventEndPoint:edit",
-              "title": "Edit",
-              "type": "POPUP_FORM",
-              "icon": "mdi mdi-plus",
-              "selectionType": "SINGLE",
-              "identifier": "configuration-service:cfx.eventendpoint.upsert",
-              "actionCondition": {
-                "actionControl": "SHOW_IF",
-                "conditionalField": [
-                  {
-                    "conditionType": "NOT_EQUAL",
-                    "conditionValue": "System",
-                    "fieldId": "createdby"
-                  }
-                ]
-              },
-              "api-endpoint": {
-                "service-name": "configuration-service",
-                "namespace": "io.cfx.dimensions.app",
-                "methodName": "invokeAppApi:getFormById",
-                "stringified-params": true,
-                "useReportContext": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "form_id": "cfx.eventendpoint.upsert",
-                    "context": {}
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "oia:eventEndPoint:webhook",
-              "title": "Webhook URL",
-              "type": "POPUP_FORM",
-              "icon": "mdi mdi-plus",
-              "selectionType": "SINGLE",
-              "actionCondition": {
-                "actionControl": "SHOW_IF",
-                "operator": "AND",
-                "conditionalField": [
-                  {
-                    "conditionType": "EQUAL",
-                    "conditionValue": "source",
-                    "fieldId": "role"
-                  },
-                  {
-                    "conditionType": "EQUAL",
-                    "conditionValue": "webhook-basic",
-                    "fieldId": "type"
-                  }
-                ]
-              },
-              "identifier": "configuration-service:cfx.eventendpoint.view",
-              "api-endpoint": {
-                "service-name": "configuration-service",
-                "namespace": "io.cfx.dimensions.app",
-                "methodName": "invokeAppApi:getFormById",
-                "stringified-params": true,
-                "useReportContext": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "form_id": "cfx.eventendpoint.view",
-                    "context": {}
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "oia:eventEndPoint:webhook",
-              "title": "Kafka Details",
-              "type": "POPUP_FORM",
-              "icon": "mdi mdi-plus",
-              "selectionType": "SINGLE",
-              "actionCondition": {
-                "actionControl": "SHOW_IF",
-                "operator": "AND",
-                "conditionalField": [
-                  {
-                    "conditionType": "EQUAL",
-                    "conditionValue": "source",
-                    "fieldId": "role"
-                  },
-                  {
-                    "conditionType": "EQUAL",
-                    "conditionValue": "kafka",
-                    "fieldId": "type"
-                  }
-                ]
-              },
-              "identifier": "configuration-service:cfx.eventendpoint.viewkafka",
-              "api-endpoint": {
-                "service-name": "configuration-service",
-                "namespace": "io.cfx.dimensions.app",
-                "methodName": "invokeAppApi:getFormById",
-                "stringified-params": true,
-                "useReportContext": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "form_id": "cfx.eventendpoint.viewkafka",
-                    "context": {}
-                  }
-                ]
-              }
+              "timestamp": "{{LOG_OT}}",
+              "message": "Log Time",
+              "color": "#B71C1C"
             }
           ],
-          "widget_id": "94a3fc11"
-        }
-      ]
-    },
-    {
-      "title": "Alert Mappings",
-      "show_filter": true,
-      "projects": [
-        "ACME"
-      ],
-      "widgets": [
-        {
-          "title": "Alert Mappings",
-          "widget_type": "tabular",
-          "stream": "oia_eventmapping",
-          "ts_column": "updated",
-          "min_width": 12,
-          "height": 12,
-          "max_width": 12,
-          "paginated": true,
-          "resizableColumns": false,
-          "remote_searchable": true,
-          "remote_searchable_cols": [],
-          "refreshRequired": true,
-          "timebased": false,
-          "max_rows": 50,
-          "sorting1": [
+          "series_spec": [
             {
-              "precedence": "desc"
+              "column": "count_",
+              "agg": "sum",
+              "type": "int"
             }
+          ],
+          "widget_id": "7ee88e42"
+        },
+        {
+          "title": "Syslogs",
+          "widget_type": "tabular",
+          "stream": "syslog_udp_event_stream_all",
+          "min_width": 12,
+          "height": 6,
+          "max_width": 12,
+          "ts_column": "rda_gw_timestamp",
+          "resizableColumns": true,
+          "duration_hours": 100000,
+          "remote_searchable": true,
+          "remote_searchable_cols": [
+            "message"
           ],
           "columns": {
-            "mappingid": {
-              "title": "Mapping Id",
-              "key": true,
-              "visible": true,
-              "defaultWidth": 150
+            "rda_gw_timestamp": {
+              "title": "Event Time",
+              "type": "DATETIME"
             },
-            "description": {
-              "title": "Description",
-              "key": false,
-              "visible": true,
-              "defaultWidth": 150
-            },
-            "sourcename": {
-              "key": true,
-              "visible": true,
-              "title": "Source Endpoint",
-              "defaultWidth": 150
-            },
-            "targetname": {
-              "key": true,
-              "visible": true,
-              "title": "Target Endpoint",
-              "defaultWidth": 150
-            },
-            "sourceendpointtype": {
-              "title": "Source Endpoint Type",
-              "key": true,
-              "visible": true,
-              "defaultWidth": 150
-            },
-            "targetendpointtype": {
-              "title": "Target Endpoint Type",
-              "key": true,
-              "visible": true,
-              "defaultWidth": 150
-            },
-            "sourcemapper": {
-              "title": "Source Mapper",
-              "key": true,
-              "visible": true,
-              "defaultWidth": 150
-            },
-            "sourcepipeline": {
-              "title": "Source Pipeline",
-              "key": false,
-              "visible": true,
-              "defaultWidth": 150
-            },
-            "sourcebundle": {
-              "title": "Source Bundle",
-              "key": true,
-              "visible": true,
-              "defaultWidth": 150
-            },
-            "enabled": {
-              "title": "Enable/Disable",
-              "type": "TEXT",
-              "visible": true,
-              "key": true,
-              "defaultValue": "yes",
-              "uiProperties": {
-                "valueMap": {
-                  "editType": "switch",
-                  "trueValue": "yes",
-                  "falseValue": "no",
-                  "defaultValue": "yes",
-                  "editable": true,
-                  "showLabel": false
-                },
-                "editEndpoint": {
-                  "service-name": "saas-reports",
-                  "namespace": "io.cfx.dimensions.app",
-                  "methodName": "getForm",
-                  "stringified-params": true,
-                  "parse-output": true,
-                  "params": [
-                    {}
-                  ]
-                }
-              }
-            },
-            "createdat": {
-              "title": "Created At",
-              "type": "DATETIME",
-              "key": false,
-              "visible": true,
-              "defaultWidth": 150
-            },
-            "updatedat": {
-              "title": "Updated At",
-              "type": "DATETIME",
-              "key": false,
-              "visible": true,
-              "defaultWidth": 150
-            }
+            "rda_gw_client_ip": "IP Address",
+            "hostname": "Host",
+            "raw": "Message",
+            "syslog_severity": "Severity"
           },
-          "actions": [
-            {
-              "permission": "oia:eventMapping:edit",
-              "title": "View Mapping Logic",
-              "type": "POPUP_FORM",
-              "icon": "mdi mdi-plus",
-              "selectionType": "SINGLE",
-              "identifier": "cfxdimensions-app-irmconfiguration:cfx.eventmapping.view",
-              "api-endpoint": {
-                "service-name": "configuration-service",
-                "namespace": "io.cfx.dimensions.app",
-                "methodName": "invokeAppApi:getFormById",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "form_id": "cfx.eventmapping.view",
-                    "action": "view",
-                    "eventCategory": "eventCategory"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "oia:eventMapping:add",
-              "title": "Add",
-              "type": "POPUP_WIZARD",
-              "icon": "mdi mdi-plus",
-              "selectionType": "NONE",
-              "identifier": "configuration-service:cfx.eventmapping.wizard",
-              "api-endpoint": {
-                "service-name": "configuration-service",
-                "namespace": "io.cfx.dimensions.app",
-                "methodName": "invokeAppApi:getWizard",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "wizard_id": "cfx.eventmapping.wizard",
-                    "wizardData": {},
-                    "context": {},
-                    "action": "add",
-                    "eventCategory": "eventCategory"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "oia:eventMapping:edit",
-              "title": "Edit",
-              "type": "POPUP_WIZARD",
-              "icon": "mdi mdi-plus",
-              "selectionType": "SINGLE",
-              "identifier": "cfxdimensions-app-irmconfiguration:cfx.eventmapping.wizard",
-              "api-endpoint": {
-                "service-name": "configuration-service",
-                "namespace": "io.cfx.dimensions.app",
-                "methodName": "invokeAppApi:getWizard",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "wizard_id": "cfx.eventmapping.wizard",
-                    "wizardData": {},
-                    "context": {},
-                    "action": "edit",
-                    "eventCategory": "eventCategory"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "oia:eventMapping:edit",
-              "title": "Clone",
-              "type": "POPUP_WIZARD",
-              "icon": "mdi mdi-plus",
-              "selectionType": "SINGLE",
-              "identifier": "cfxdimensions-app-irmconfiguration:cfx.eventmapping.wizard",
-              "api-endpoint": {
-                "service-name": "configuration-service",
-                "namespace": "io.cfx.dimensions.app",
-                "methodName": "invokeAppApi:getWizard",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "wizard_id": "cfx.eventmapping.wizard",
-                    "wizardData": {},
-                    "context": {},
-                    "action": "clone",
-                    "eventCategory": "eventCategory"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "oia:eventMapping:delete",
-              "title": "Delete",
-              "type": "POPUP_FORM",
-              "icon": "mdi mdi-plus",
-              "selectionType": "SINGLE",
-              "identifier": "configuration-service:cfx.eventmapping.delete",
-              "api-endpoint": {
-                "service-name": "configuration-service",
-                "namespace": "io.cfx.dimensions.app",
-                "methodName": "invokeAppApi:getFormById",
-                "stringified-params": true,
-                "useReportContext": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "form_id": "cfx.eventmapping.delete",
-                    "context": {}
-                  }
-                ]
-              }
-            }
-          ],
-          "widget_id": "a803750d"
+          "widget_id": "3d7466a3"
         }
       ]
     }
   ],
   "pstream_dashboards": [
     {
-      "title": "Alert Endpoints",
+      "title": "Customer View",
       "show_filter": true,
-      "projects": [
-        "ACME"
-      ],
       "widgets": [
         {
-          "title": "Alert Endpoints",
-          "widget_type": "tabular",
-          "stream": "oia_alertendpoints",
-          "ts_column": "createdat",
+          "widget_type": "label",
+          "label": "<h3 style='text-align: center;'>Log Time: {%raw%} {{' {{ '}} {%endraw%} toDateTimeString({{ LOG_OT }}) {%raw%} {{ '}}' }} {%endraw%} </h3>",
+          "advanced": true,
           "min_width": 12,
-          "height": 12,
           "max_width": 12,
-          "paginated": true,
-          "resizableColumns": false,
-          "remote_searchable": true,
-          "sorting1": [
+          "height": 1,
+          "widget_id": "5ae002f1"
+        },
+        {
+          "title": "Link Up/Down Alerts",
+          "widget_type": "counter",
+          "min_width": 2.4,
+          "max_width": 2.4,
+          "height": 4,
+          "stream": "oia-alerts-stream",
+          "ts_column": "a_created_ts",
+          "extra_filter": "a_message contains 'link'",
+          "sparkline": {
+            "interval": "1h"
+          },
+          "column": "count_",
+          "agg": "sum",
+          "type": "int",
+          "widget_id": "42b0d069"
+        },
+        {
+          "title": "BGP Alerts",
+          "widget_type": "counter",
+          "min_width": 2.4,
+          "max_width": 2.4,
+          "height": 4,
+          "stream": "oia-alerts-stream",
+          "ts_column": "a_created_ts",
+          "extra_filter": "a_message contains 'BGP'",
+          "sparkline": {
+            "interval": "1h"
+          },
+          "column": "count_",
+          "agg": "sum",
+          "type": "int",
+          "widget_id": "5962e11c"
+        },
+        {
+          "title": "OSPF Alerts",
+          "widget_type": "counter",
+          "min_width": 2.4,
+          "max_width": 2.4,
+          "height": 4,
+          "stream": "oia-alerts-stream",
+          "ts_column": "a_created_ts",
+          "extra_filter": "a_message contains 'OSPF'",
+          "sparkline": {
+            "interval": "1h"
+          },
+          "column": "count_",
+          "agg": "sum",
+          "type": "int",
+          "widget_id": "3f145adb"
+        },
+        {
+          "title": "Patch Changes",
+          "widget_type": "counter",
+          "min_width": 2.4,
+          "max_width": 2.4,
+          "height": 4,
+          "stream": "change_requests_stream",
+          "ts_column": "timestamp",
+          "extra_filter": "message contains 'patch'",
+          "sparkline": {
+            "interval": "1h"
+          },
+          "column": "count_",
+          "agg": "sum",
+          "type": "int",
+          "widget_id": "a90db915"
+        },
+        {
+          "title": "Change Requests",
+          "widget_type": "counter",
+          "min_width": 2.4,
+          "max_width": 2.4,
+          "height": 4,
+          "stream": "change_requests_stream",
+          "ts_column": "timestamp",
+          "extra_filter0": "message contains 'config'",
+          "sparkline": {
+            "interval": "1h"
+          },
+          "column": "count_",
+          "agg": "sum",
+          "type": "int",
+          "widget_id": "8bc53b8f"
+        },
+        {
+          "title": "Events Timeline",
+          "widget_type": "timeseries",
+          "stream": "oia-alerts-stream",
+          "ts_column": "a_created_ts",
+          "max_width": 12,
+          "height": 8,
+          "min_width": 12,
+          "fixTimeWindow": true,
+          "chartProperties": {
+            "yAxisLabel": "Alert Count",
+            "xAxisLabel": "Time",
+            "legendLocation": "none"
+          },
+          "static_markers": [
             {
-              "precedence": "desc"
+              "timestamp": "{{LOG_OT}}",
+              "message": "Log Time",
+              "color": "#B71C1C"
             }
           ],
-          "remote_searchable_cols": [],
-          "refreshRequired": true,
+          "alert_markers": [
+            {
+              "stream": "change_requests_stream",
+              "ts_column": "timestamp",
+              "type": "circle",
+              "message_column": "message",
+              "severity_column": "severity"
+            },
+            {
+              "stream": "oia-alerts-stream",
+              "ts_column": "a_created_ts",
+              "type": "triangle",
+              "message_column": "a_message",
+              "severity_column": "a_severity"
+            },
+            {
+              "stream": "oia-ml-metrics-regression-output",
+              "ts_column": "timestamp",
+              "type": "square",
+              "message_column": "marker_message",
+              "extra_filter": "anomalies_severity is 'High' and anomalies_type is 'Upper'",
+              "severity_column": "anomalies_severity",
+              "columns": [
+                "asset_id",
+                "metric_id",
+                "metric_label",
+                "asset_name",
+                "metric_source",
+                "timestamp",
+                "job_name",
+                "unit",
+                "stream_name"
+              ],
+              "action": {
+                "appName": "user-dashboard/rca_regression_dashboard",
+                "permission": "ml:ml-jobs:viewSampledata",
+                "identifier": "ViewRegressionDashboard",
+                "selectionType": "SINGLE",
+                "stateName": "app.featureapp",
+                "title": "View Regression Dashboard",
+                "type": "GO_TO_APP_STATE"
+              }
+            },
+            {
+              "stream": "oia-logs-regression-output",
+              "ts_column": "timestamp",
+              "type": "circle",
+              "message_column": "asset_id",
+              "extra_filter": "anomalies_severity is 'High' and anomalies_type is 'Upper'",
+              "severity_column": "anomalies_severity",
+              "columns": [
+                "asset_id",
+                "asset_name",
+                "timestamp",
+                "job_name",
+                "stream_name"
+              ],
+              "action": {
+                "appName": "user-dashboard/rca_regression_dashboard",
+                "permission": "ml:ml-jobs:viewSampledata",
+                "identifier": "ViewRegressionDashboard",
+                "selectionType": "SINGLE",
+                "stateName": "app.featureapp",
+                "title": "View Regression Dashboard",
+                "type": "GO_TO_APP_STATE"
+              }
+            }
+          ],
+          "interval": "1min",
+          "series_spec": [
+            {
+              "label": "Alerts",
+              "column": "a_id",
+              "agg": "value_count",
+              "type": "int"
+            }
+          ],
+          "widget_id": "121762cf"
+        },
+        {
+          "title": "Metric Anomalies",
+          "widget_type": "multi_bar_chart",
+          "stream": "oia-ml-metrics-regression-output",
+          "ts_column": "timestamp",
+          "chartProperties": {
+            "yAxisLabel": "Anomalies (%)",
+            "xAxisLabel": "Metric Name",
+            "stacked": false,
+            "legendLocation": "none",
+            "orientation": "vertical"
+          },
+          "group_by": [
+            "asset_id",
+            "metric_label"
+          ],
+          "descending_order": true,
+          "others_spec": {
+            "limit": 4,
+            "show_others": false
+          },
+          "column": "anomalies_percent",
+          "agg": "max",
+          "type": "float",
+          "widget_id": "f4786acb"
+        },
+        {
+          "title": "Change Requests",
+          "widget_type": "tabular",
+          "min_width": 6,
+          "max_width": 6,
+          "height": 5,
           "timebased": false,
-          "max_rows": 50,
+          "stream": "change_requests_stream",
+          "ts_column": "timestamp",
           "columns": {
-            "name": {
-              "title": "Name",
-              "key": true,
-              "visible": true,
-              "defaultWidth": 150
+            "timestamp": {
+              "title": "Time",
+              "type": "DATETIME"
             },
-            "description": {
-              "key": true,
-              "visible": true,
-              "title": "Description",
-              "defaultWidth": 150
-            },
-            "type": {
-              "key": true,
-              "visible": true,
-              "title": "Endpoint Type",
-              "defaultWidth": 150
-            },
-            "role": {
-              "title": "Endpoint Role",
-              "key": true,
-              "visible": true,
-              "defaultWidth": 150
-            },
-            "category": {
-              "title": "Event Category",
-              "key": true,
-              "visible": true,
-              "defaultWidth": 150
-            },
-            "eventtype": {
-              "title": "Event Type",
-              "key": true,
-              "visible": true,
-              "defaultWidth": 150
-            },
-            "enabled": {
-              "title": "Enable/Disable",
-              "type": "TEXT",
-              "visible": true,
-              "key": true,
-              "defaultValue": "yes",
-              "uiProperties": {
-                "valueMap": {
-                  "editType": "switch",
-                  "trueValue": "yes",
-                  "falseValue": "no",
-                  "defaultValue": "yes",
-                  "editable": true,
-                  "showLabel": false
+            "message": {
+              "title": "Change Description",
+              "type": "TEXT"
+            }
+          },
+          "widget_id": "31e2f2ed"
+        },
+        {
+          "widget_type": "pie_chart",
+          "title": "Alerts by Severity",
+          "stream": "oia-alerts-stream",
+          "ts_column": "a_created_ts",
+          "extra_filter": "customer_id is '{{CUSTOMER_ID}}'",
+          "min_width": 3,
+          "height": 4,
+          "max_width": 3,
+          "column": "a_id",
+          "agg": "value_count",
+          "group_by": [
+            "a_severity"
+          ],
+          "type": "str",
+          "style": {
+            "color-map": {
+              "SEVERE": [
+                "#B71C1C",
+                "#ffffff"
+              ],
+              "CRITICAL": [
+                "#E53935",
+                "#ffffff"
+              ],
+              "MAJOR": [
+                "#F57C00",
+                "#ffffff"
+              ],
+              "MINOR": [
+                "#FFA726",
+                "#ffffff"
+              ],
+              "WARNING": [
+                "#FFD54F",
+                "#ffffff"
+              ],
+              "NOTIFICATION": [
+                "#4DD0E1",
+                "#ffffff"
+              ],
+              "INFORMATION": [
+                "#03A9F4",
+                "#ffffff"
+              ]
+            }
+          },
+          "widget_id": "cb0706e6"
+        },
+        {
+          "title": "Alert Trend",
+          "widget_type": "timeseries",
+          "stream": "oia-alerts-stream",
+          "ts_column": "a_created_ts",
+          "max_width": 9,
+          "height": 4,
+          "min_width": 9,
+          "fixTimeWindow": true,
+          "extra_filter": "customer_id is '{{CUSTOMER_ID}}'",
+          "chartProperties": {
+            "yAxisLabel": "Count",
+            "xAxisLabel": "Time",
+            "legendLocation": "top"
+          },
+          "interval": "1H",
+          "group_by": [
+            "a_severity"
+          ],
+          "static_markers": [
+            {
+              "timestamp": "{{LOG_OT}}",
+              "message": "Log Time",
+              "color": "#B71C1C"
+            }
+          ],
+          "series_spec": [
+            {
+              "column": "a_id",
+              "agg": "value_count",
+              "type": "int"
+            }
+          ],
+          "style": {
+            "color-map": {
+              "SEVERE": [
+                "#B71C1C",
+                "#ffffff"
+              ],
+              "CRITICAL": [
+                "#E53935",
+                "#ffffff"
+              ],
+              "MAJOR": [
+                "#F57C00",
+                "#ffffff"
+              ],
+              "MINOR": [
+                "#FFA726",
+                "#ffffff"
+              ],
+              "WARNING": [
+                "#FFD54F",
+                "#ffffff"
+              ],
+              "NOTIFICATION": [
+                "#4DD0E1",
+                "#ffffff"
+              ],
+              "INFORMATION": [
+                "#03A9F4",
+                "#ffffff"
+              ]
+            }
+          },
+          "widget_id": "c29bb686"
+        },
+        {
+          "widget_type": "pie_chart",
+          "title": "Incidents By Priority",
+          "stream": "oia-incidents-stream",
+          "ts_column": "i_created_ts",
+          "extra_filter": "customer_id is '{{CUSTOMER_ID}}'",
+          "min_width": 3,
+          "height": 4,
+          "max_width": 3,
+          "column": "incident_id",
+          "agg": "value_count",
+          "group_by": [
+            "i_priority_label"
+          ],
+          "style": {
+            "color-map": {
+              "Critical": [
+                "#B71C1C",
+                "#ffffff"
+              ],
+              "High": [
+                "#FFA726",
+                "#ffffff"
+              ],
+              "Moderate": [
+                "#90CAF9",
+                "#ffffff"
+              ],
+              "Low": [
+                "#4DD0E1",
+                "#ffffff"
+              ],
+              "Planning": [
+                "#4FC3F7",
+                "#ffffff"
+              ]
+            }
+          },
+          "type": "str",
+          "widget_id": "58e08b21"
+        },
+        {
+          "title": "Incident Trend",
+          "widget_type": "timeseries",
+          "stream": "oia-incidents-stream",
+          "ts_column": "i_created_ts",
+          "max_width": 9,
+          "height": 4,
+          "min_width": 9,
+          "fixTimeWindow": true,
+          "extra_filter": "customer_id is '{{CUSTOMER_ID}}'",
+          "chartProperties": {
+            "yAxisLabel": "Count",
+            "xAxisLabel": "Time",
+            "legendLocation": "top"
+          },
+          "interval": "1H",
+          "group_by": [
+            "i_priority_label"
+          ],
+          "static_markers": [
+            {
+              "timestamp": "{{LOG_OT}}",
+              "message": "Log Time",
+              "color": "#B71C1C"
+            }
+          ],
+          "series_spec": [
+            {
+              "column": "incident_id",
+              "agg": "value_count",
+              "type": "int"
+            }
+          ],
+          "style": {
+            "color-map": {
+              "Critical": [
+                "#B71C1C",
+                "#ffffff"
+              ],
+              "High": [
+                "#FFA726",
+                "#ffffff"
+              ],
+              "Moderate": [
+                "#FFD54F",
+                "#ffffff"
+              ],
+              "Low": [
+                "#90CAF9",
+                "#ffffff"
+              ],
+              "Planning": [
+                "#4FC3F7",
+                "#ffffff"
+              ]
+            }
+          },
+          "widget_id": "3e5d8325"
+        },
+        {
+          "widget_type": "pie_chart",
+          "title": "Syslogs By Severity",
+          "ts_column": "rda_gw_timestamp",
+          "stream": "syslog_udp_event_stream_all",
+          "min_width": 3,
+          "height": 4,
+          "max_width": 3,
+          "duration_hours0": 10000,
+          "column": "count_",
+          "agg": "sum",
+          "group_by": [
+            "syslog_severity"
+          ],
+          "type": "int",
+          "style": {
+            "color-map": {
+              "SEVERE": [
+                "#B71C1C",
+                "#ffffff"
+              ],
+              "CRITICAL": [
+                "#E53935",
+                "#ffffff"
+              ],
+              "MAJOR": [
+                "#F57C00",
+                "#ffffff"
+              ],
+              "MINOR": [
+                "#FFA726",
+                "#ffffff"
+              ],
+              "WARNING": [
+                "#FFD54F",
+                "#ffffff"
+              ]
+            }
+          },
+          "widget_id": "ed85e796"
+        },
+        {
+          "title": "Syslogs",
+          "widget_type": "timeseries",
+          "max_width": 9,
+          "height": 4,
+          "min_width": 9,
+          "ts_column": "rda_gw_timestamp",
+          "show-markers": true,
+          "fixTimeWindow": true,
+          "stream": "syslog_udp_event_stream_all",
+          "group_by": [
+            "syslog_severity"
+          ],
+          "style": {
+            "color-map": {
+              "SEVERE": [
+                "#B71C1C",
+                "#ffffff"
+              ],
+              "CRITICAL": [
+                "#E53935",
+                "#ffffff"
+              ],
+              "MAJOR": [
+                "#F57C00",
+                "#ffffff"
+              ],
+              "MINOR": [
+                "#FFA726",
+                "#ffffff"
+              ],
+              "WARNING": [
+                "#FFD54F",
+                "#ffffff"
+              ]
+            }
+          },
+          "chartProperties": {
+            "xAxisLabel": "Timestamp",
+            "yAxisLabel": "Count",
+            "legendLocation": "none",
+            "xAxisTickOrientation": "STAGGERED",
+            "options": {
+              "elements": {
+                "line": {
+                  "borderWidth": 1
                 },
-                "editEndpoint": {
-                  "service-name": "configuration-service",
-                  "namespace": "io.cfx.dimensions.app",
-                  "methodName": "invokeAppApi:enableDisableEndpoint",
-                  "stringified-params": true,
-                  "useReportContext": true,
-                  "parse-output": false,
-                  "params": [
-                    {
-                      "context": {}
-                    }
-                  ]
+                "point": {
+                  "radius": 2,
+                  "hitRadius": 3,
+                  "hoverRadius": 3
                 }
               }
             }
           },
-          "actions": [
+          "static_markers": [
             {
-              "permission": "oia:eventEndPoint:add",
-              "title": "Add",
-              "type": "POPUP_FORM",
-              "icon": "mdi mdi-plus",
-              "selectionType": "NONE",
-              "identifier": "configuration-service:cfx.eventendpoint.upsert",
-              "api-endpoint": {
-                "service-name": "configuration-service",
-                "namespace": "io.cfx.dimensions.app",
-                "methodName": "invokeAppApi:getFormById",
-                "stringified-params": true,
-                "useReportContext": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "form_id": "cfx.eventendpoint.upsert",
-                    "context": {},
-                    "eventCategory": "eventCategory"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "oia:eventEndPoint:delete",
-              "title": "Delete",
-              "type": "POPUP_FORM",
-              "icon": "mdi mdi-plus",
-              "selectionType": "SINGLE",
-              "identifier": "configuration-service:cfx.eventendpoint.delete",
-              "actionCondition": {
-                "actionControl": "SHOW_IF",
-                "conditionalField": [
-                  {
-                    "conditionType": "NOT_EQUAL",
-                    "conditionValue": "System",
-                    "fieldId": "createdby"
-                  }
-                ]
-              },
-              "api-endpoint": {
-                "service-name": "configuration-service",
-                "namespace": "io.cfx.dimensions.app",
-                "methodName": "invokeAppApi:getFormById",
-                "stringified-params": true,
-                "useReportContext": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "form_id": "cfx.eventendpoint.delete",
-                    "context": {}
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "oia:eventEndPoint:edit",
-              "title": "Edit",
-              "type": "POPUP_FORM",
-              "icon": "mdi mdi-plus",
-              "selectionType": "SINGLE",
-              "identifier": "configuration-service:cfx.eventendpoint.upsert",
-              "actionCondition": {
-                "actionControl": "SHOW_IF",
-                "conditionalField": [
-                  {
-                    "conditionType": "NOT_EQUAL",
-                    "conditionValue": "System",
-                    "fieldId": "createdby"
-                  }
-                ]
-              },
-              "api-endpoint": {
-                "service-name": "configuration-service",
-                "namespace": "io.cfx.dimensions.app",
-                "methodName": "invokeAppApi:getFormById",
-                "stringified-params": true,
-                "useReportContext": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "form_id": "cfx.eventendpoint.upsert",
-                    "context": {}
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "oia:eventEndPoint:webhook",
-              "title": "Webhook URL",
-              "type": "POPUP_FORM",
-              "icon": "mdi mdi-plus",
-              "selectionType": "SINGLE",
-              "actionCondition": {
-                "actionControl": "SHOW_IF",
-                "operator": "AND",
-                "conditionalField": [
-                  {
-                    "conditionType": "EQUAL",
-                    "conditionValue": "source",
-                    "fieldId": "role"
-                  },
-                  {
-                    "conditionType": "EQUAL",
-                    "conditionValue": "webhook-basic",
-                    "fieldId": "type"
-                  }
-                ]
-              },
-              "identifier": "configuration-service:cfx.eventendpoint.view",
-              "api-endpoint": {
-                "service-name": "configuration-service",
-                "namespace": "io.cfx.dimensions.app",
-                "methodName": "invokeAppApi:getFormById",
-                "stringified-params": true,
-                "useReportContext": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "form_id": "cfx.eventendpoint.view",
-                    "context": {}
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "oia:eventEndPoint:webhook",
-              "title": "Kafka Details",
-              "type": "POPUP_FORM",
-              "icon": "mdi mdi-plus",
-              "selectionType": "SINGLE",
-              "actionCondition": {
-                "actionControl": "SHOW_IF",
-                "operator": "AND",
-                "conditionalField": [
-                  {
-                    "conditionType": "EQUAL",
-                    "conditionValue": "source",
-                    "fieldId": "role"
-                  },
-                  {
-                    "conditionType": "EQUAL",
-                    "conditionValue": "kafka",
-                    "fieldId": "type"
-                  }
-                ]
-              },
-              "identifier": "configuration-service:cfx.eventendpoint.viewkafka",
-              "api-endpoint": {
-                "service-name": "configuration-service",
-                "namespace": "io.cfx.dimensions.app",
-                "methodName": "invokeAppApi:getFormById",
-                "stringified-params": true,
-                "useReportContext": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "form_id": "cfx.eventendpoint.viewkafka",
-                    "context": {}
-                  }
-                ]
-              }
+              "timestamp": "{{LOG_OT}}",
+              "message": "Log Time",
+              "color": "#B71C1C"
             }
           ],
-          "widget_id": "94a3fc11"
-        }
-      ]
-    },
-    {
-      "title": "Alert Mappings",
-      "show_filter": true,
-      "projects": [
-        "ACME"
-      ],
-      "widgets": [
-        {
-          "title": "Alert Mappings",
-          "widget_type": "tabular",
-          "stream": "oia_eventmapping",
-          "ts_column": "updated",
-          "min_width": 12,
-          "height": 12,
-          "max_width": 12,
-          "paginated": true,
-          "resizableColumns": false,
-          "remote_searchable": true,
-          "remote_searchable_cols": [],
-          "refreshRequired": true,
-          "timebased": false,
-          "max_rows": 50,
-          "sorting1": [
+          "series_spec": [
             {
-              "precedence": "desc"
+              "column": "count_",
+              "agg": "sum",
+              "type": "int"
             }
+          ],
+          "widget_id": "7ee88e42"
+        },
+        {
+          "title": "Syslogs",
+          "widget_type": "tabular",
+          "stream": "syslog_udp_event_stream_all",
+          "min_width": 12,
+          "height": 6,
+          "max_width": 12,
+          "ts_column": "rda_gw_timestamp",
+          "resizableColumns": true,
+          "duration_hours": 100000,
+          "remote_searchable": true,
+          "remote_searchable_cols": [
+            "message"
           ],
           "columns": {
-            "mappingid": {
-              "title": "Mapping Id",
-              "key": true,
-              "visible": true,
-              "defaultWidth": 150
+            "rda_gw_timestamp": {
+              "title": "Event Time",
+              "type": "DATETIME"
             },
-            "description": {
-              "title": "Description",
-              "key": false,
-              "visible": true,
-              "defaultWidth": 150
-            },
-            "sourcename": {
-              "key": true,
-              "visible": true,
-              "title": "Source Endpoint",
-              "defaultWidth": 150
-            },
-            "targetname": {
-              "key": true,
-              "visible": true,
-              "title": "Target Endpoint",
-              "defaultWidth": 150
-            },
-            "sourceendpointtype": {
-              "title": "Source Endpoint Type",
-              "key": true,
-              "visible": true,
-              "defaultWidth": 150
-            },
-            "targetendpointtype": {
-              "title": "Target Endpoint Type",
-              "key": true,
-              "visible": true,
-              "defaultWidth": 150
-            },
-            "sourcemapper": {
-              "title": "Source Mapper",
-              "key": true,
-              "visible": true,
-              "defaultWidth": 150
-            },
-            "sourcepipeline": {
-              "title": "Source Pipeline",
-              "key": false,
-              "visible": true,
-              "defaultWidth": 150
-            },
-            "sourcebundle": {
-              "title": "Source Bundle",
-              "key": true,
-              "visible": true,
-              "defaultWidth": 150
-            },
-            "enabled": {
-              "title": "Enable/Disable",
-              "type": "TEXT",
-              "visible": true,
-              "key": true,
-              "defaultValue": "yes",
-              "uiProperties": {
-                "valueMap": {
-                  "editType": "switch",
-                  "trueValue": "yes",
-                  "falseValue": "no",
-                  "defaultValue": "yes",
-                  "editable": true,
-                  "showLabel": false
-                },
-                "editEndpoint": {
-                  "service-name": "saas-reports",
-                  "namespace": "io.cfx.dimensions.app",
-                  "methodName": "getForm",
-                  "stringified-params": true,
-                  "parse-output": true,
-                  "params": [
-                    {}
-                  ]
-                }
-              }
-            },
-            "createdat": {
-              "title": "Created At",
-              "type": "DATETIME",
-              "key": false,
-              "visible": true,
-              "defaultWidth": 150
-            },
-            "updatedat": {
-              "title": "Updated At",
-              "type": "DATETIME",
-              "key": false,
-              "visible": true,
-              "defaultWidth": 150
-            }
+            "rda_gw_client_ip": "IP Address",
+            "hostname": "Host",
+            "raw": "Message",
+            "syslog_severity": "Severity"
           },
-          "actions": [
-            {
-              "permission": "oia:eventMapping:edit",
-              "title": "View Mapping Logic",
-              "type": "POPUP_FORM",
-              "icon": "mdi mdi-plus",
-              "selectionType": "SINGLE",
-              "identifier": "cfxdimensions-app-irmconfiguration:cfx.eventmapping.view",
-              "api-endpoint": {
-                "service-name": "configuration-service",
-                "namespace": "io.cfx.dimensions.app",
-                "methodName": "invokeAppApi:getFormById",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "form_id": "cfx.eventmapping.view",
-                    "action": "view",
-                    "eventCategory": "eventCategory"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "oia:eventMapping:add",
-              "title": "Add",
-              "type": "POPUP_WIZARD",
-              "icon": "mdi mdi-plus",
-              "selectionType": "NONE",
-              "identifier": "configuration-service:cfx.eventmapping.wizard",
-              "api-endpoint": {
-                "service-name": "configuration-service",
-                "namespace": "io.cfx.dimensions.app",
-                "methodName": "invokeAppApi:getWizard",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "wizard_id": "cfx.eventmapping.wizard",
-                    "wizardData": {},
-                    "context": {},
-                    "action": "add",
-                    "eventCategory": "eventCategory"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "oia:eventMapping:edit",
-              "title": "Edit",
-              "type": "POPUP_WIZARD",
-              "icon": "mdi mdi-plus",
-              "selectionType": "SINGLE",
-              "identifier": "cfxdimensions-app-irmconfiguration:cfx.eventmapping.wizard",
-              "api-endpoint": {
-                "service-name": "configuration-service",
-                "namespace": "io.cfx.dimensions.app",
-                "methodName": "invokeAppApi:getWizard",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "wizard_id": "cfx.eventmapping.wizard",
-                    "wizardData": {},
-                    "context": {},
-                    "action": "edit",
-                    "eventCategory": "eventCategory"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "oia:eventMapping:edit",
-              "title": "Clone",
-              "type": "POPUP_WIZARD",
-              "icon": "mdi mdi-plus",
-              "selectionType": "SINGLE",
-              "identifier": "cfxdimensions-app-irmconfiguration:cfx.eventmapping.wizard",
-              "api-endpoint": {
-                "service-name": "configuration-service",
-                "namespace": "io.cfx.dimensions.app",
-                "methodName": "invokeAppApi:getWizard",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "wizard_id": "cfx.eventmapping.wizard",
-                    "wizardData": {},
-                    "context": {},
-                    "action": "clone",
-                    "eventCategory": "eventCategory"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "oia:eventMapping:delete",
-              "title": "Delete",
-              "type": "POPUP_FORM",
-              "icon": "mdi mdi-plus",
-              "selectionType": "SINGLE",
-              "identifier": "configuration-service:cfx.eventmapping.delete",
-              "api-endpoint": {
-                "service-name": "configuration-service",
-                "namespace": "io.cfx.dimensions.app",
-                "methodName": "invokeAppApi:getFormById",
-                "stringified-params": true,
-                "useReportContext": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "form_id": "cfx.eventmapping.delete",
-                    "context": {}
-                  }
-                ]
-              }
-            }
-          ],
-          "widget_id": "a803750d"
+          "widget_id": "3d7466a3"
         }
       ]
     }
