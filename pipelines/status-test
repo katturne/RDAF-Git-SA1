@@ -1,23 +1,26 @@
-@c:new-block
+@dm:empty
  --> @exec:get-input
- --> @dm:save name="temp-file_upload0"
- --> @dm:save name="10dataset"
- --> @dm:recall name="10dataset"
- --> @dm:selectcolumns include = 'USER_ID|proj_name|customer_name'
- --> @dm:add-missing-columns columns = 'pipeline_name' &
-value = 'swdata-status-test'
- --> @dm:add-missing-columns columns = 'status_type' &
-value = 'Initiating'
- --> @dm:add-missing-columns columns = 'jobid' &
-value = 'Initiating'
- --> @dm:save name="temp1-temp"
- --> @rn:write-stream name = "status-stream"
- --> @exec:run-pipeline name ="swdata-status-test"
- --> @dm:sleep seconds = 40
- --> @dm:empty
- --> @dm:recall name="temp1-temp"
- --> @dm:replace-data columns = 'status_type' &
-expr = 'in-progress' &
-replace = 'Completed'
- --> @dm:save name="temp1-temp"
- --> @rn:write-stream name = "status-stream"
+ --> @dm:save name="file_upload0"
+ --> @dm:selectcolumns include="fileUpload|Option"
+ --> @dm:explode-json column="fileUpload"
+ --> @dm:save name="temp-input-dataset"
+ --> @dm:save name="file_upload"
+ --> @c:new-block
+ --> @c:data-loop dataset="temp-input-dataset" and columns="bucketName,objectName,Option"
+ --> @dm:recall name="temp-input-dataset"
+ --> @dm:skip-block-if-shape row_count=0
+ --> @dm:get-from-location path="$bucketName/$objectName"
+ --> @dm:save name="temp-uploaded-file-data"
+ --> @c:new-block
+ --> @c:data-loop dataset="file_upload0" and columns="customer_name,proj_name,Option"
+ --> *exec:if-condition '$Option' == 'option_2'
+ --> @dm:recall name="temp-uploaded-file-data"
+ --> @dm:add-missing-columns columns = 'Customer' &
+value = '$customer_name'
+ --> @dm:add-missing-columns columns = 'Project Name' &
+value = '$proj_name'
+ --> @dm:save name="file_upload2"
+ --> @rn:write-stream name = "input_data"
+ --> @c:new-block
+ --> @dm:recall name="temp-uploaded-file-data"
+ --> @rn:write-stream name = "input_data"
