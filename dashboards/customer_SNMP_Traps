@@ -1,477 +1,628 @@
 {
-  "name": "customer_SNMP_Traps",
-  "label": "SNMP Traps",
-  "description": "SNMP traps dashboard",
-  "version": "2024.02.27",
+  "name": "oia-alert-groups-os",
+  "label": "Open Search Based Alert Groups",
+  "description": "Open Search Based OIA Alert Groups",
+  "version": "23.1.2",
   "enabled": true,
-  "dashboard_folder": "NetworkDevicePack",
+  "debug": true,
   "dashboard_style": "auto",
+  "status_poller": {},
+  "stream": "oia-alerts-stream",
+  "dashboard_type": "template",
   "template_variables": {
-    "CUST_ID": {
-      "contextId": "customer_id"
-    },
-    "PROJ_ID": {
+    "PROJECT_ID": {
+      "default": [
+        "61ed50a5-8634-4464-a17e-adf6b40225b2"
+      ],
       "contextId": "projectId"
     },
-    "CUST_TAG": {
-      "contextId": "customer_tag"
+    "SOURCE_DASHBOARD_ID": {
+      "default": "user-dashboard-oia-alert-groups-os",
+      "contextId": "sourceDashboardId"
     }
   },
-  "status_poller": {
-    "stream": "snmp_trap_event_stream_all",
-    "frequency": 10,
-    "columns": [
-      "timestamp"
-    ],
-    "sorting": [
+  "dashboard_filters": {
+    "time_filter": true,
+    "show_default_time_filter": false,
+    "default_time_filter_non_removable": true,
+    "additional_datetime_column_filters": [
       {
-        "timestamp": "desc"
+        "id": "a_created_ts",
+        "label": "Created At"
+      },
+      {
+        "id": "a_updated_ts",
+        "label": "Updated At"
       }
     ],
-    "query": "timestamp is after '${timestamp}'",
-    "defaults": {
-      "timestamp": "$UTCNOW"
-    },
-    "action": "refresh"
-  },
-  "dashboard_filters": {
-    "default_time_filter_labels": [
-      "Last 24 hours"
-    ],
-    "extra_filter": "project_id in {{PROJ_ID}} or project_id is empty",
-    "time_filter": true,
     "columns_filter": [
       {
-        "id": "rda_gw_client_ip",
-        "label": "Device IP",
+        "id": "a_id",
+        "label": "Alert Id",
         "type": "TEXT"
       },
       {
-        "id": "device_hostname",
-        "label": "Device Hostname",
+        "id": "a_alert_key",
+        "label": "Alert Key",
         "type": "TEXT"
       },
       {
-        "id": "message",
+        "id": "customer_id",
+        "label": "Customer ID",
+        "type": "TEXT"
+      },
+      {
+        "id": "project_id",
+        "label": "Project Id",
+        "type": "TEXT"
+      },
+      {
+        "id": "a_message",
         "label": "Message",
         "type": "TEXT"
       },
       {
-        "id": "snmpVersion",
-        "label": "SNMP Version",
+        "id": "a_severity",
+        "label": "Severity",
         "type": "TEXT"
       },
       {
-        "id": "device_vendor",
-        "label": "Device Vendor",
+        "id": "a_status",
+        "label": "Monitoring Status",
         "type": "TEXT"
       },
       {
-        "id": "device_status",
-        "label": "Device Status",
+        "id": "a_incident_id",
+        "label": "Incident",
         "type": "TEXT"
       },
       {
-        "id": "snmpTrapDescription",
-        "label": "MIB Description",
+        "id": "a_ticket_id",
+        "label": "ITSM Ticket",
         "type": "TEXT"
       },
       {
-        "id": "snmpTrapName",
-        "label": "Trap Name",
+        "id": "a_raised_ts",
+        "label": "Raised At",
+        "type": "DATETIME"
+      },
+      {
+        "id": "a_cleared_ts",
+        "label": "Cleared At",
+        "type": "DATETIME"
+      },
+      {
+        "id": "a_rule_name",
+        "label": "Policy Name",
         "type": "TEXT"
       },
       {
-        "id": "device_fw_version",
-        "label": "OS Version",
+        "id": "a_rule_type",
+        "label": "Policy Type",
         "type": "TEXT"
       },
       {
-        "id": "snmpTrapOID",
-        "label": "Trap OID",
+        "id": "a_cleared_by",
+        "label": "Cleared By",
         "type": "TEXT"
       },
       {
-        "id": "snmpTrapMIB",
-        "label": "MIB Name",
+        "id": "a_clear_message",
+        "label": "Clear Message",
         "type": "TEXT"
+      },
+      {
+        "id": "a_cause_notes",
+        "label": "Cause Notes",
+        "type": "TEXT"
+      },
+      {
+        "id": "a_en_incidentAnalytics_alerts",
+        "label": "Alerts",
+        "type": "DOUBLE"
       }
     ],
+    "default_time_filter_labels": [
+      "Last 24 hours"
+    ],
+    "extra_filter": "project_id in {{PROJECT_ID}} and a_source_systemname in 'Alert Group' and a_correlation_status not-in 'AGGREGATE'",
     "group_filters": [
       {
-        "stream": "snmp_trap_event_stream_all",
-        "title": "Vendor",
+        "stream": "oia-alerts-stream",
+        "title": "Source",
         "group_by": [
-          "device_vendor"
+          "a_source_systemname"
         ],
-        "ts_column": "timestamp",
-        "agg": "sum",
-        "column": "count_"
+        "ts_column": "a_updated_ts",
+        "agg": "value_count",
+        "column": "a_id",
+        "type": "str"
       },
       {
-        "stream": "snmp_trap_event_stream_all",
-        "title": "Status",
+        "stream": "oia-alerts-stream",
+        "title": "Severity",
         "group_by": [
-          "device_status"
+          "a_severity"
         ],
-        "ts_column": "timestamp",
-        "agg": "sum",
-        "column": "count_"
+        "ts_column": "a_updated_ts",
+        "agg": "value_count",
+        "column": "a_id",
+        "type": "str"
       },
       {
-        "stream": "snmp_trap_event_stream_all",
-        "title": "Trap Name",
+        "stream": "oia-alerts-stream",
+        "title": "Monitoring Status",
         "group_by": [
-          "snmpTrapName"
+          "a_status"
         ],
-        "ts_column": "timestamp",
-        "agg": "sum",
-        "column": "count_"
+        "ts_column": "a_updated_ts",
+        "agg": "value_count",
+        "column": "a_id",
+        "type": "str"
       },
       {
-        "stream": "snmp_trap_event_stream_all",
-        "title": "MIB Name",
+        "stream": "oia-alerts-stream",
+        "title": "Policy",
         "group_by": [
-          "snmpTrapMIB"
+          "a_rule_name"
         ],
-        "ts_column": "timestamp",
-        "agg": "sum",
-        "column": "count_"
+        "ts_column": "a_updated_ts",
+        "agg": "value_count",
+        "column": "a_id",
+        "type": "str"
+      },
+      {
+        "stream": "oia-alerts-stream",
+        "title": "Organizations",
+        "group_by": [
+          "project_id"
+        ],
+        "ts_column": "a_updated_ts",
+        "agg": "value_count",
+        "column": "project_id",
+        "type": "str"
       }
     ]
   },
   "dashboard_sections": [
     {
-      "title": "snmp details",
+      "title": "Alert Groups",
       "show_filter": true,
+      "projects": [
+        "ACME"
+      ],
       "widgets": [
         {
-          "widget_type": "label",
-          "max_width": 12,
-          "height": 0.5,
-          "min_width": 12,
-          "label": "<div style='text-align:center;width:100%;'><h1><a style='text-decoration:none;color:#0066ff;' target='_blank'>Customer SNMP Traps</a></h1></div>",
-          "widget_id": "33317e49"
-        },
-        {
-          "title": "Total Traps",
-          "widget_type": "custom_counter",
-          "formatter": "DescriptiveCountFormatter",
-          "stream": "snmp_trap_event_stream_all",
-          "extra_filter0": "project_id in {{PROJ_ID}} or project_id is empty",
-          "ts_column": "timestamp",
-          "column": "_id",
-          "agg": "value_count",
-          "type": "int",
-          "max_width": 3,
-          "height": 4,
-          "min_width": 3,
-          "style": {
-            "color-list": [
-              "#215CC3"
-            ]
+          "extends": [
+            "self:group_tabular",
+            "self:actions_lib.group_tabular_actions"
+          ],
+          "extend_vars": {
+            "group_tabular_extra_filter": "project_id in {{PROJECT_ID}} and a_source_systemname in 'Alert Group' and a_correlation_status not-in 'AGGREGATE'",
+            "clear_alerts_extra_filter": "a_status is not 'CLEARED' and project_id in {{PROJECT_ID}} and a_source_systemname in 'Alert Group' and a_correlation_status not-in 'AGGREGATE'"
           },
-          "widget_id": "df82078f"
-        },
-        {
-          "title": "By Trap",
-          "widget_type": "pie_chart",
-          "stream": "snmp_trap_event_stream_all",
-          "extra_filter": "project_id in {{PROJ_ID}} or project_id is empty",
-          "ts_column": "timestamp",
-          "group_by": [
-            "snmpTrapName"
-          ],
-          "column": "count_",
-          "agg": "value_count",
-          "type": "int",
-          "min_width": 5,
-          "height": 4,
-          "max_width": 5,
-          "widget_id": "43799fef"
-        },
-        {
-          "title": "Traps by IP",
-          "widget_type": "pie_chart",
-          "stream": "snmp_trap_event_stream_all",
-          "extra_filter": "project_id in {{PROJ_ID}} or project_id is empty",
-          "ts_column": "timestamp",
-          "column": "count_",
-          "agg": "value_count",
-          "group_by": [
-            "rda_gw_client_ip"
-          ],
-          "type": "str",
-          "min_width": 4,
-          "height": 4,
-          "max_width": 8,
-          "widget_id": "5d627f3e"
-        },
-        {
-          "widget_type": "pie_chart",
-          "title": "Traps by Managed Status",
-          "stream": "snmp_trap_event_stream_all",
-          "extra_filter": "project_id in {{PROJ_ID}} or project_id is empty",
-          "ts_column": "timestamp",
-          "column": "count_",
-          "agg": "sum",
-          "group_by": [
-            "device_status"
-          ],
-          "min_width": 4,
-          "height": 4,
-          "max_width": 4,
-          "widget_id": "b9f66b8"
-        },
-        {
-          "widget_type": "pie_chart",
-          "title": "Assets by Managed Status ",
-          "stream": "snmp_trap_event_stream_all",
-          "extra_filter": "project_id in {{PROJ_ID}} or project_id is empty",
-          "ts_column": "timestamp",
-          "column": "rda_gw_client_ip",
-          "agg": "cardinality",
-          "group_by": [
-            "device_status"
-          ],
-          "min_width": 4,
-          "height": 4,
-          "max_width": 4,
-          "widget_id": "b2266b8"
-        },
-        {
-          "title": "Unmanaged Devices",
-          "widget_type": "tabular",
-          "max_width": 4,
-          "height": 4,
-          "min_width": 4,
-          "extra_filter": "device_status contains 'UNMANAGED' and (project_id in {{PROJ_ID}} or project_id is empty)",
-          "stream": "snmp_trap_event_stream_all",
-          "ts_column": "timestamp",
-          "columns": {
-            "rda_gw_client_ip": "IP Address"
-          },
-          "pivot": {
-            "group_by": [
-              "rda_gw_client_ip"
-            ],
-            "column": "count_",
-            "agg": "value_count"
-          },
-          "widget_id": "kz1MoAWD"
-        },
-        {
-          "title": "SNMP Traps",
-          "widget_type": "tabular",
-          "max_width": 12,
-          "height": 8,
-          "min_width": 12,
-          "stream": "snmp_trap_event_stream_all",
-          "extra_filter": "project_id in {{PROJ_ID}} or project_id is empty",
-          "ts_column": "timestamp",
-          "resizableColumns": false,
-          "max_rows": 100,
-          "showRowSummary": true,
-          "sorting": [
-            {
-              "timestamp": "desc"
-            }
-          ],
-          "remote_searchable": true,
-          "remote_searchable_cols": [
-            "rda_gw_client_ip",
-            "snmpTrapOID",
-            "device_vendor",
-            "device_status",
-            "snmpTrapMIB",
-            "snmpVersion",
-            "rda_gw_client_ip",
-            "snmpTrapName"
-          ],
-          "columns": {
-            "timestamp": "Timestamp",
-            "rda_gw_client_ip": "Device",
-            "device_hostname": "Device Hostname",
-            "message": "Message",
-            "snmpVersion": "SNMP Version",
-            "device_vendor": "Vendor",
-            "device_status": "Status",
-            "snmpTrapDescription": "MIB Description",
-            "snmpTrapName": "Trap Name",
-            "snmpTrapMIB": "MIB Name",
-            "device_fw_version": "OS Version",
-            "snmpTrapOID": "Trap OID"
-          },
-          "widget_id": "46a6b5b6"
+          "widget_id": "94a3fc11"
         }
       ]
     }
   ],
-  "dashboard_type": "template",
-  "dashboard_pages": [],
+  "library": {
+    "widgets": {
+      "group_tabular": {
+        "extra_filter": "$group_tabular_extra_filter",
+        "title": "Alert Groups",
+        "widget_type": "tabular",
+        "stream": "oia-alerts-stream",
+        "ts_column": "a_updated_ts",
+        "timebased": false,
+        "min_width": 12,
+        "height": 12,
+        "max_width": 12,
+        "paginated": true,
+        "resizableColumns": false,
+        "refreshRequired": true,
+        "remote_searchable": true,
+        "remote_searchable_cols": [
+          "a_id",
+          "a_message",
+          "a_correlation_status",
+          "a_severity",
+          "a_source_systemname",
+          "a_status",
+          "a_incident_id",
+          "a_ticket_id",
+          "a_rule_name"
+        ],
+        "max_rows": 50,
+        "columns": {
+          "a_id": {
+            "title": "Alert Id",
+            "key": true,
+            "visible": false,
+            "defaultWidth": 150
+          },
+          "a_alert_key": {
+            "title": "Alert Key",
+            "visible": false,
+            "defaultWidth": 150
+          },
+          "customer_id": {
+            "title": "Customer Id",
+            "visible": false,
+            "hidden": false,
+            "key": true,
+            "defaultWidth": 150
+          },
+          "project_id": {
+            "title": "Project Id",
+            "visible": false,
+            "hidden": false,
+            "key": true,
+            "defaultWidth": 150
+          },
+          "a_message": {
+            "title": "Message",
+            "formatter": "truncate",
+            "defaultWidth": 270
+          },
+          "a_source_event_id": {
+            "title": "Source Event ID",
+            "hidden": true,
+            "visible": false
+          },
+          "a_severity_color": {
+            "title": "Sev_2",
+            "type": "COLOR-MAP",
+            "source-column": "a_severity",
+            "color-map": {
+              "SEVERE": "#B71C1C",
+              "CRITICAL": "#E53935",
+              "MAJOR": "#F57C00",
+              "MINOR": "#FFA726",
+              "WARNING": "#FFD54F",
+              "NOTIFICATION": "#4DD0E1",
+              "INFORMATION": "#03A9F4"
+            }
+          },
+          "a_severity": {
+            "title": "Severity",
+            "htmlTemplateForRow": "<span class='badge' style='background-color: {{'{{ row.a_severity_color }}'}}' > {{'{{ row.a_severity }}'}} </span>",
+            "defaultWidth": 150
+          },
+          "a_state_color": {
+            "type": "COLOR-MAP",
+            "source-column": "a_status",
+            "color-map": {
+              "CLEARED": "#4CAF50",
+              "ACTIVE": "#FFA726"
+            }
+          },
+          "a_status": {
+            "title": "Monitoring Status",
+            "htmlTemplateForRow": "<span class='badge' style='background-color: {{'{{ row.a_state_color }}'}}' > {{'{{ row.a_status }}'}} </span>",
+            "defaultWidth": 150
+          },
+          "a_incident_id": {
+            "title": "Incident",
+            "key": true,
+            "defaultWidth": 150
+          },
+          "a_ticket_id": {
+            "title": "ITSM Ticket",
+            "defaultWidth": 100
+          },
+          "view_details_action_id": {
+            "title": "id",
+            "value": "user-dashboard-oia-alert-group-view-details-os",
+            "key": true,
+            "type": "FIXED_VALUE",
+            "hidden": true,
+            "visible": false
+          },
+          "view_details_v2_action_id": {
+            "title": "id",
+            "value": "user-dashboard-alert-group-details-app",
+            "key": true,
+            "type": "FIXED_VALUE",
+            "hidden": true,
+            "visible": false
+          },
+          "view_alerts_action_id": {
+            "title": "id",
+            "value": "user-dashboard-oia-alert-group-view-alerts-os",
+            "key": true,
+            "type": "FIXED_VALUE",
+            "hidden": true,
+            "visible": false
+          },
+          "a_raised_ts": {
+            "title": "Raised At",
+            "type": "DATETIME",
+            "defaultWidth": 180
+          },
+          "a_cleared_ts": {
+            "title": "Cleared At",
+            "type": "DATETIME",
+            "visible": false,
+            "defaultWidth": 180
+          },
+          "a_created_ts": {
+            "title": "Created At",
+            "type": "DATETIME",
+            "defaultWidth": 180
+          },
+          "a_updated_ts": {
+            "title": "Updated At",
+            "type": "DATETIME",
+            "defaultWidth": 180
+          },
+          "a_rule_name": {
+            "title": "Policy Name",
+            "defaultWidth": 150
+          },
+          "a_rule_type": {
+            "title": "Policy Type",
+            "visible": false,
+            "defaultWidth": 150
+          },
+          "a_cleared_by": {
+            "title": "Cleared By",
+            "visible": false,
+            "defaultWidth": 150
+          },
+          "a_clear_message": {
+            "title": "Clear Message",
+            "visible": false,
+            "defaultWidth": 150
+          },
+          "a_cause_notes": {
+            "title": "Cause Notes",
+            "visible": false,
+            "defaultWidth": 150
+          },
+          "a_en_incidentAnalytics_alerts": {
+            "title": "Alerts",
+            "type": "Integer",
+            "defaultWidth": 150
+          },
+          "a_correlation_parent": {
+            "visible": false,
+            "hidden": true,
+            "key": true
+          },
+          "alert-context": {
+            "title": "alert-context",
+            "value": true,
+            "key": true,
+            "type": "FIXED_VALUE",
+            "hidden": true,
+            "visible": false
+          }
+        },
+        "widget_id": "94a3fc11"
+      }
+    },
+    "actions_lib": {
+      "group_tabular_actions": {
+        "actions": [
+          {
+            "title": "Clear Alert Groups",
+            "type": "POPUP_FORM",
+            "permission": "oia:alert:clear",
+            "selectionType": "NONE",
+            "identifier": "alert-processor:cfx.alert.clear.batch",
+            "api-endpoint": {
+              "service-name": "saas-reports",
+              "methodName": "getForm",
+              "stringified-params": true,
+              "parse-output": false,
+              "params": [
+                {
+                  "formId": "rda.saas.dynamic.form",
+                  "formDefinition": {
+                    "id": "rda.saas.dynamic.form",
+                    "refreshRequired": true,
+                    "formFieldList": [
+                      {
+                        "help": "Clear Alert Groups",
+                        "dataType": "string",
+                        "controlType": "SELECTOR_TABLE",
+                        "controlPropertyList": [
+                          {
+                            "attribute": "column-key",
+                            "value": "a_id"
+                          },
+                          {
+                            "attribute": "selection",
+                            "value": "MULTIPLE"
+                          }
+                        ],
+                        "widget": {
+                          "extends": "self:group_tabular",
+                          "extend_vars": {
+                            "group_tabular_extra_filter": "$clear_alerts_extra_filter"
+                          }
+                        },
+                        "required": true,
+                        "editable": true,
+                        "label": "Alerts",
+                        "hidden": false,
+                        "fieldId": "selectedAlerts"
+                      },
+                      {
+                        "fieldId": "notes",
+                        "label": "Notes",
+                        "help": "Notes",
+                        "dataType": "string",
+                        "controlType": "TEXT_AREA",
+                        "hidden": false,
+                        "editable": true,
+                        "required": true
+                      }
+                    ]
+                  },
+                  "formActionList": {
+                    "formActions": [
+                      {
+                        "identifier": "Submit",
+                        "actionLabel": "Clear"
+                      }
+                    ]
+                  },
+                  "actions": [
+                    {
+                      "type": "UPDATE_PSTREAM",
+                      "pstreamName": "alert_clear_jobs",
+                      "collapse_json": true,
+                      "collapsed_json_column": "payload"
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "identifier": "alert-processor:cfx.alert.clear",
+            "selectionType": "SINGLE",
+            "permission": "oia:alert:clear",
+            "title": "Clear Alert Group",
+            "type": "POPUP_FORM",
+            "api-endpoint": {
+              "methodName": "invokeAppApi:getFormById",
+              "namespace": "io.cfx.dimensions.app",
+              "params": [
+                {
+                  "context": {},
+                  "form_id": "cfx.alert.clear"
+                }
+              ],
+              "parse-output": false,
+              "service-name": "alert-processor",
+              "stringified-params": true
+            },
+            "actionCondition": {
+              "actionControl": "SHOW_IF",
+              "conditionalField": [
+                {
+                  "conditionType": "NOT_EQUAL",
+                  "conditionValue": "CLEARED",
+                  "fieldId": "a_status"
+                }
+              ]
+            }
+          },
+          {
+            "title": "View Details",
+            "type": "GO_TO_APP_STATE",
+            "selectionType": "SINGLE",
+            "permission": "oia:alert:view",
+            "stateName": "app.featureapp",
+            "appName": "user-dashboard/alert-group-details-app",
+            "contextParamList": {
+              "contextParams": [
+                {
+                  "paramKey": "view_details_v2_action_id",
+                  "paramId": "id"
+                },
+                {
+                  "paramKey": "project_id",
+                  "paramId": "projectId"
+                },
+                {
+                  "paramKey": "project_id",
+                  "paramId": "projectid"
+                },
+                {
+                  "paramKey": "a_incident_id",
+                  "paramId": "incidentid"
+                },
+                {
+                  "paramKey": "a_incident_id",
+                  "paramId": "incident_id"
+                },
+                {
+                  "paramKey": "project_id",
+                  "paramId": "roomid"
+                }
+              ]
+            },
+            "drillDownContext": "a_message",
+            "destinationContext": "a_message",
+            "displayLabelColumnId": "a_incident_id"
+          },
+          {
+            "title": "View Incident",
+            "type": "GO_TO_APP_STATE",
+            "permission": "oia:alert:view",
+            "stateName": "app.featureapp",
+            "appName": "user-dashboard/incident-details-app",
+            "selectionType": "SINGLE",
+            "drillDownLinkField": "a_incident_id",
+            "drillDownContext": "a_incident_id",
+            "destinationContext": "incidentid",
+            "displayLabelColumnId": "a_incident_id",
+            "contextParamList": {
+              "contextParams": [
+                {
+                  "paramKey": "project_id",
+                  "paramId": "projectId"
+                },
+                {
+                  "paramKey": "a_incident_id",
+                  "paramId": "incidentid"
+                },
+                {
+                  "paramKey": "a_incident_id",
+                  "paramId": "incident_id"
+                },
+                {
+                  "paramKey": "project_id",
+                  "paramId": "roomid"
+                },
+                {
+                  "paramKey": "project_id",
+                  "paramId": "projectid"
+                }
+              ]
+            },
+            "actionCondition": {
+              "actionControl": "SHOW_IF",
+              "conditionalField": [
+                {
+                  "conditionType": "NOT_EQUAL",
+                  "conditionValue": "SUPPRESSED",
+                  "fieldId": "a_correlation_status"
+                },
+                {
+                  "conditionType": "NOT_EQUAL",
+                  "conditionValue": "Not Available",
+                  "fieldId": "a_incident_id"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  },
   "pstream_dashboards": [
     {
-      "title": "snmp details",
+      "title": "Alert Groups",
       "show_filter": true,
+      "projects": [
+        "ACME"
+      ],
       "widgets": [
         {
-          "widget_type": "label",
-          "max_width": 12,
-          "height": 0.5,
-          "min_width": 12,
-          "label": "<div style='text-align:center;width:100%;'><h1><a style='text-decoration:none;color:#0066ff;' target='_blank'>Customer SNMP Traps</a></h1></div>",
-          "widget_id": "33317e49"
-        },
-        {
-          "title": "Total Traps",
-          "widget_type": "custom_counter",
-          "formatter": "DescriptiveCountFormatter",
-          "stream": "snmp_trap_event_stream_all",
-          "extra_filter0": "project_id in {{PROJ_ID}} or project_id is empty",
-          "ts_column": "timestamp",
-          "column": "_id",
-          "agg": "value_count",
-          "type": "int",
-          "max_width": 3,
-          "height": 4,
-          "min_width": 3,
-          "style": {
-            "color-list": [
-              "#215CC3"
-            ]
+          "extends": [
+            "self:group_tabular",
+            "self:actions_lib.group_tabular_actions"
+          ],
+          "extend_vars": {
+            "group_tabular_extra_filter": "project_id in {{PROJECT_ID}} and a_source_systemname in 'Alert Group' and a_correlation_status not-in 'AGGREGATE'",
+            "clear_alerts_extra_filter": "a_status is not 'CLEARED' and project_id in {{PROJECT_ID}} and a_source_systemname in 'Alert Group' and a_correlation_status not-in 'AGGREGATE'"
           },
-          "widget_id": "df82078f"
-        },
-        {
-          "title": "By Trap",
-          "widget_type": "pie_chart",
-          "stream": "snmp_trap_event_stream_all",
-          "extra_filter": "project_id in {{PROJ_ID}} or project_id is empty",
-          "ts_column": "timestamp",
-          "group_by": [
-            "snmpTrapName"
-          ],
-          "column": "count_",
-          "agg": "value_count",
-          "type": "int",
-          "min_width": 5,
-          "height": 4,
-          "max_width": 5,
-          "widget_id": "43799fef"
-        },
-        {
-          "title": "Traps by IP",
-          "widget_type": "pie_chart",
-          "stream": "snmp_trap_event_stream_all",
-          "extra_filter": "project_id in {{PROJ_ID}} or project_id is empty",
-          "ts_column": "timestamp",
-          "column": "count_",
-          "agg": "value_count",
-          "group_by": [
-            "rda_gw_client_ip"
-          ],
-          "type": "str",
-          "min_width": 4,
-          "height": 4,
-          "max_width": 8,
-          "widget_id": "5d627f3e"
-        },
-        {
-          "widget_type": "pie_chart",
-          "title": "Traps by Managed Status",
-          "stream": "snmp_trap_event_stream_all",
-          "extra_filter": "project_id in {{PROJ_ID}} or project_id is empty",
-          "ts_column": "timestamp",
-          "column": "count_",
-          "agg": "sum",
-          "group_by": [
-            "device_status"
-          ],
-          "min_width": 4,
-          "height": 4,
-          "max_width": 4,
-          "widget_id": "b9f66b8"
-        },
-        {
-          "widget_type": "pie_chart",
-          "title": "Assets by Managed Status ",
-          "stream": "snmp_trap_event_stream_all",
-          "extra_filter": "project_id in {{PROJ_ID}} or project_id is empty",
-          "ts_column": "timestamp",
-          "column": "rda_gw_client_ip",
-          "agg": "cardinality",
-          "group_by": [
-            "device_status"
-          ],
-          "min_width": 4,
-          "height": 4,
-          "max_width": 4,
-          "widget_id": "b2266b8"
-        },
-        {
-          "title": "Unmanaged Devices",
-          "widget_type": "tabular",
-          "max_width": 4,
-          "height": 4,
-          "min_width": 4,
-          "extra_filter": "device_status contains 'UNMANAGED' and (project_id in {{PROJ_ID}} or project_id is empty)",
-          "stream": "snmp_trap_event_stream_all",
-          "ts_column": "timestamp",
-          "columns": {
-            "rda_gw_client_ip": "IP Address"
-          },
-          "pivot": {
-            "group_by": [
-              "rda_gw_client_ip"
-            ],
-            "column": "count_",
-            "agg": "value_count"
-          },
-          "widget_id": "kz1MoAWD"
-        },
-        {
-          "title": "SNMP Traps",
-          "widget_type": "tabular",
-          "max_width": 12,
-          "height": 8,
-          "min_width": 12,
-          "stream": "snmp_trap_event_stream_all",
-          "extra_filter": "project_id in {{PROJ_ID}} or project_id is empty",
-          "ts_column": "timestamp",
-          "resizableColumns": false,
-          "max_rows": 100,
-          "showRowSummary": true,
-          "sorting": [
-            {
-              "timestamp": "desc"
-            }
-          ],
-          "remote_searchable": true,
-          "remote_searchable_cols": [
-            "rda_gw_client_ip",
-            "snmpTrapOID",
-            "device_vendor",
-            "device_status",
-            "snmpTrapMIB",
-            "snmpVersion",
-            "rda_gw_client_ip",
-            "snmpTrapName"
-          ],
-          "columns": {
-            "timestamp": "Timestamp",
-            "rda_gw_client_ip": "Device",
-            "device_hostname": "Device Hostname",
-            "message": "Message",
-            "snmpVersion": "SNMP Version",
-            "device_vendor": "Vendor",
-            "device_status": "Status",
-            "snmpTrapDescription": "MIB Description",
-            "snmpTrapName": "Trap Name",
-            "snmpTrapMIB": "MIB Name",
-            "device_fw_version": "OS Version",
-            "snmpTrapOID": "Trap OID"
-          },
-          "widget_id": "46a6b5b6"
+          "widget_id": "94a3fc11"
         }
       ]
     }
