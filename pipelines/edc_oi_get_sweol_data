@@ -1,186 +1,101 @@
-%%template_type="jinja"
-
-##%% import_src_type = "asset-discovery"
-%%start_inline_object name="context_dynamic_form" and type="data" and format="json"
-{
-    "formFieldList": [
-        {
-            "fieldId": "customer_tag",
-            "label": "Tag of the customer",
-            "required": false,
-            "dataType": "string"
-        }
-    ]
-}
-%%end_inline_object
-
 @dm:empty
-    --> @dm:save name = "temp-customer-context"
+ --> @exec:get-input
+ --> @dm:save name='temp-sw-data'
+ ## creates a list of unique customers
 
+ --> @c:new-block
+ --> @dm:recall name='temp-sw-data'
+ --> @dm:groupby columns='customer'
+ --> @dm:save name='temp-unique-cust-name'
+ ## processes the software columns for the customer
 
-   {% if customer_tag %} 
-      {% set customer_id = customer_id %}
-      {% set customer_tag = customer_tag %}
-      {% set customerTag = customer_tag %}
-   {% elif customerTag %} 
-      {% set customer_id = customer_id %}
-      {% set customer_tag = customerTag %}
-   {% else %}
-      {% set customer_id = '' %}
-      {% set customer_tag = '' %}
-   {% endif %}  
+ --> @c:data-loop columns='customer' and dataset='temp-unique-cust-name'
+ --> @dm:recall name='temp-sw-data'
+ --> *dm:filter customer == '$customer'
+ --> @exec:run-pipeline name='edc_oi_process_sw_data'
+ --> @dm:to-type columns='contract_number' and type='int'
+ --> @dm:rename-columns swEOL_softwareEOXId='SoftwareEOXId' and swEOL_bulletinNumber='BulletinNumber' and swEOL_bulletinTitle='BulletinHeadline' and swEOL_bulletinUrl='BulletinURL' and swEOL_endOfSaleDate='EndOfSaleDate' and
+swEOL_endOfSoftwareMaintenanceReleasesDate='EndOfEngineeringDate' and swEOL_lastDayOfSupportDate='EndOfLifeDate' and
+swEOL_endOfVulnerabilitySecuritySupportDate='EndOfSoftwareVulnerabilityOrSecuritySupportDate' and swEOL_endOfLifeAnnouncementDate='EndOfLifeExternalAnnouncementDate'
+ --> @dm:save name='temp-sw-eol-details' and append='yes'
+ ## Queries data for the customer from edc_oi_enriched_stream
 
+ --> @c:data-loop columns='customer' and dataset='temp-unique-cust-name'
+ --> @dm:empty
+ --> @dm:addrow name='edc_oi_inventory_enriched' and limit=0
+ --> #dm:query-persistent-stream customer_name=='$customer' and coverage=='COVERED'
+ --> @dm:save name='temp-inv-details' and append='yes'
+ --> @c:new-block
+ --> @dm:recall name='temp-inv-details'
+ --> @dm:to-type columns="contract_number" and type='int'
+ --> @dm:save name='temp-inv-details'
+ ## Queries data for the customer from edc_oi_enriched_stream
 
--->@c:new-block
---> @dm:empty
-    --> @dm:save name = "temp-nodes_l1"
-    ##--> @dm:sleep seconds = "60"
-    --> @dm:empty
-    {% if customer_tag %}
-    --> #dm:query-persistent-stream device_hostname is not Empty and (customer_tag is '{{customer_tag}}') with-input name = "network_device_inventory" & limit = "0"
-     {% else %}  
-     --> #dm:query-persistent-stream device_hostname is not Empty and (customer_tag is empty) with-input name = "network_device_inventory" & limit = "0"          
-     {% endif %}
-    --> @dm:skip-pipeline-if-shape row_count = 0
-    --> @dm:eval country = "device_hostname[0:2]"
-    --> @dm:eval city = "device_hostname[6:9]"
-    --> @dm:eval state = "device_hostname[9:11]"
-    --> @dm:save name = "temp-geomap-data"
-    --> *dm:filter country in ["US"]
-    ##--> @dm:enrich dict = "geo_codes_dict" & src_key_cols = "country,city,state" & dict_key_cols = "country,city,state" & enrich_cols = "latitude,longitude" and replace_values = "yes"
-    --> @rn:write-stream name  = "network_device_inventory"
-    --> @dm:save name = "temp-geomap-us-data"
-    --> @dm:recall name = "temp-geomap-data"
-    --> *dm:filter country not in ["US"]
-    ##--> @dm:enrich dict = "geo_codes_dict" & src_key_cols = "country,city" & dict_key_cols = "country,city" & enrich_cols = "latitude,longitude" and replace_values = "yes"
-    --> @dm:save name = "temp-geomap-nonus-data"
-    --> @rn:write-stream name  = "network_device_inventory"
-    ## Getting inventory data and creating the nodes datasets
-    --> @dm:empty
-    {% if customer_tag %}
-    --> #dm:query-persistent-stream device_equip_type in ["CHASSIS","Chassis","chassis"] and (customer_tag is '{{customer_tag}}') with-input name = "network_device_inventory" & limit = "0"
-    
-    {% else %}
-    --> #dm:query-persistent-stream device_equip_type in ["CHASSIS","Chassis","chassis"] and (customer_tag is empty) with-input name = "network_device_inventory" & limit = "0"
-            
-    {% endif %}
+ --> @c:data-loop columns='customer' and dataset='temp-unique-cust-name'
+ --> @dm:empty
+ --> @dm:addrow name='edc_oi_inventory_enriched' and limit=0 and groupby='contract_number,customer_name,product_name,product_id,portfolio_desc' and aggs='sum:combination_count'
+ --> #dm:query-persistent-stream coverage=='COVERED' and customer_name=='$customer'
+ --> @dm:save name='temp-hw-eol-details-grouped' and append='yes'
+ ## --> @dm:save name='details-grouped-sw-data' and append='yes'
 
-    --> @dm:selectcolumns exclude="_RDA_Id|count_|^timestamp$"
-    --> @dm:dedup columns ="parent_sn"
-    --> @dm:eval-multi-proc node_type="'CHASSIS'" and
-            device_status="'MANAGED'" and
-            source="'CHASSIS'" and
-            device_hostname_short = "device_hostname.split('.')[0]"
-    --> @dm:copy-columns from ="device_hostname_short" and to="node_label"
-    --> @dm:copy-columns from ="device_ip" and to="node_id"
-    --> @dm:eval layer = "'Network'"
-    --> @dm:eval node_id = "device_ip+'_CHASSIS'"
-    --> @dm:eval deviceFamily = "device_model"
-    --> @dm:eval serialNumber = "device_serial_number"
-    --> @dm:eval iconURL="'Router'"
-    --> @dm:save name="temp-chassis-nodes"
+ --> @c:new-block
+ --> @dm:recall name='temp-hw-eol-details-grouped'
+ --> @dm:to-type columns='contract_number' and type='int'
+ --> @dm:save name='temp-hw-eol-details-grouped'
+ ## enriches the processed columns to edc_oi_inventory_enriched
 
-## Getting cdp data and creating the nodes datasets where remote device is unmanaged
---> @c:new-block
-    --> @dm:empty
-    {% if customer_tag %}
-    --> #dm:query-persistent-stream device_object in ['LLDP','CDP'] and (customer_tag is '{{customer_tag}}') with-input name = "network_devices_cdp" & limit = "0"
+ --> @c:new-block
+ --> @dm:recall name='temp-sw-eol-details'
+ ## --> @dm:eval product_name="product_id if product_name is 'Not Available' else product_name"
 
-     {% else %}       
-      --> #dm:query-persistent-stream device_object in ['LLDP','CDP'] and (customer_tag is empty) with-input name = "network_devices_cdp" & limit = "0"     
-    {% endif %}
-            
-    --> @dm:eval remote_hostname_short = "remote_device_id.split('.')[0]"
-    --> @dm:save name = "temp-cdp-nodes"
+ --> @dm:enrich dict='temp-hw-eol-details-grouped' and dict_key_cols='contract_number,customer_name,product_name' and src_key_cols='contract_number,customer,product_name' and enrich_cols='combination_count_sum,portfolio_desc' and how_type='left'
+ --> @dm:add-missing-columns columns="combination_count_sum"
+ --> @dm:save name='temp-inv-grouped-op'
+ --> @c:new-block
+ --> @dm:recall name='temp-inv-details'
+ --> @dm:selectcolumns exclude='^(swEOL_endOfLifeAnnouncementDate|swEOL_endOfVulnerabilitySecuritySupportDate|swEOL_lastDayOfSupportDate|swEOL_endOfSoftwareMaintenanceReleasesDate|swEOL_endOfSaleDate|swEOL_bulletinUrl|swEOL_bulletinTitle|swEOL_bulletinNumber|swEOL_softwareEOXId|sw_status|sw_expiring_qtr|sw_expiring_year|match|customer|product_id)$'
+ --> @dm:save name='temp-hw-eol-details-grouped-excluded'
+ --> @c:new-block
+ --> @dm:recall name='temp-inv-grouped-op'
+ --> @dm:enrich dict='temp-hw-eol-details-grouped-excluded'  and dict_key_cols='contract_number,customer_name,product_name' and src_key_cols='contract_number,customer,product_name' and enrich_cols='item_type,product_family'
+ --> @dm:eval unique_key='str(customer) + str(sw_os_type) + str(sw_version) + str(contract_number) + str(product_id) + str(product_name)'
+ --> @dm:to-type columns='combination_count_sum' and type='int'
+ --> @dm:dropnull columns='sw_status'
+ --> @dm:selectcolumns exclude='^(key|Unique_id|_RDA_Id|count_|timestamp|customer_name_y)'
+ --> @dm:eval customer_name='customer_name_x'
+ ## --> @dm:save name='final-enrich-1'
 
---> @c:new-block
-    --> @dm:recall name = "temp-cdp-nodes"
-    --> @dm:enrich-conditional dict = "temp-chassis-nodes" and condition is "device_hostname_short is '$remote_hostname_short'" and return_status = "yes"
-    --> *dm:filter meta_enrich_status contains "Failed" and remote_device_id is not "Not Available"
-    --> @dm:dedup columns ="remote_device_id"
-    --> @dm:eval-multi-proc node_type="'CHASSIS'" and
-            device_status="'UNMANAGED'" and
-            source=device_object
-    --> @dm:copy-columns from ="remote_hostname_short" and to="node_label"
-    --> @dm:copy-columns from ="remote_hostname_short" and to="node_id"
-    --> @dm:eval layer = "'Network'"
-    --> @dm:eval node_id = "remote_hostname_short +'_CHASSIS'"
-    --> @dm:eval iconURL="'Router'"
-    --> @dm:save name="temp-cdp-unmanaged-nodes"
+ --> @dm:save name='temp-edc-sweol-data'
+ --> @rn:write-stream name='edc_sweol_data'
+ ## dedup the data based on sw_status priority
 
---> @c:new-block
-    --> @dm:concat names="^temp-chassis-nodes$|^temp-cdp-unmanaged-nodes$"
-    --> @dm:selectcolumns exclude = "target_x|target_y"
-    --> @dm:save name="temp-rdaf_topology_nodes"
-    --> @rn:write-stream name='cfx_rdaf_topology_nodes'
-    --> @graph:insert-nodes dbname = 'cfx_rdaf_topology' & collection = 'cfx_rdaf_topology_nodes' & key_column = 'node_id'
+ --> @c:new-block
+ --> @dm:recall name='temp-sw-eol-details'
+ ## --> @dm:save name='sw-before-dedup-data'
 
---> @c:new-block
-    --> @dm:empty
-    {% if customer_tag %}
-    --> #dm:query-persistent-stream device_object in ['LLDP','CDP'] and remote_device_id is not "Not Available" and (customer_tag is '{{customer_tag}}') with-input name = "network_devices_cdp" & limit = "0"
-    
-    {% else %} 
-    --> #dm:query-persistent-stream device_object in ['LLDP','CDP'] and remote_device_id is not "Not Available" and (customer_tag is empty) with-input name = "network_devices_cdp" & limit = "0"           
-    {% endif %}
-    
-    --> @dm:eval remote_hostname_short = "remote_device_id.split('.')[0]"
-    --> @dm:eval node_id = "str(remote_hostname_short)+'_CHASSIS' if remote_device_ip == 'Not Available' else str(remote_device_ip)+'_CHASSIS'"
-    --> @dm:eval link_type=device_object
-    --> @dm:eval showAttrs="'^link_type$'"
-    --> @dm:eval direction = "'NO_DIRECTION'"
-    --> @dm:eval relation_type = "'connected-to'"
-    --> @dm:save name = "temp-cdp-edges"
-    --> @dm:enrich dict="temp-chassis-nodes" and src_key_cols="remote_hostname_short" and dict_key_cols="device_hostname_short" and enrich_cols="node_id,node_label,node_type" and enrich_cols_as = "left_id,left_label,left_node_type"
-    --> @dm:enrich dict="temp-chassis-nodes" and src_key_cols="device_ip" and dict_key_cols="device_ip" and enrich_cols="node_id,node_label,node_type" and enrich_cols_as = "right_id,right_label,right_node_type"
-    --> @dm:selectcolumns exclude="node_id|node_label|device_status|device_hostname_short|left_node_id|left_node_label|right_node_id|right_node_label"
-    --> @dm:eval showAttrs="'^link_type$'"
-    --> @dm:eval direction = "'NO_DIRECTION'"
-    --> @dm:eval relation_type = "'connected-to'"
-    --> @dm:dedup columns="left_id,right_id"
-    --> @dm:fixnull columns ="left_id,right_id"
-    --> @dm:map to="edge_id" and func="evaluate" and expr="f'{left_id}#{right_id}' if left_id < right_id else f'{right_id}#{left_id}'"
-    --> *dm:filter left_id is not Empty
-    --> *dm:filter left_id != right_id
-    --> @dm:save name="temp-rdaf-topology-edges"
-    --> @rn:write-stream name='cfx_rdaf_topology_edges'
-    --> @graph:insert-edges dbname = 'cfx_rdaf_topology' & nodes_collection = 'cfx_rdaf_topology_nodes' & edges_collection = 'cfx_rdaf_topology_edges' & left_id = 'left_id' & right_id = 'right_id'
+ --> @dm:eval sw_status_score = "100 if sw_status == 'Expired' else 99 if sw_status == 'Expiring in 4 Quarters' else 98 if sw_status == 'Expiring in 8 Quarters' else 97 if sw_status == 'Expiring after 8 Quarters' else 0"
+ --> @dm:skip-block-if-shape row_count="0"
+ --> @dm:sort columns='sw_status_score' and order='descending'
+ ## -->@dm:copy-columns from='sw_version,' and to=''
 
---> @c:new-block
-    --> @dm:empty
-    {% if customer_tag %}
-    --> #dm:query-persistent-stream device_object is "Chassis" and device_equip_type is "CHASSIS" and (customer_tag is '{{customer_tag}}') with-input name = "network_device_inventory" & limit = "0"
-   
-    {% else %}  
-   --> #dm:query-persistent-stream device_object is "Chassis" and device_equip_type is "CHASSIS" and (customer_tag is empty) with-input name = "network_device_inventory" & limit = "0"          
-    {% endif %}
-    --> @dm:eval-multi-proc device_hostname_short = "device_hostname.split('.')[0]" and device_status = "'MANAGED'"
-    --> @dm:save name = "chassis_inventory"
+ ## -->@dm:to-type columns=''
 
---> @c:new-block
-    --> @dm:empty
-    {% if customer_tag %}
-    --> #dm:query-persistent-stream  (customer_tag is '{{customer_tag}}') with-input name = "cfx_rdaf_topology_nodes" & limit = "0"
-      {% else %}   
-       --> #dm:query-persistent-stream  (customer_tag is empty) with-input name = "cfx_rdaf_topology_nodes" & limit = "0"         
-      {% endif %}
-    --> @dm:skip-pipeline-if-shape row_count= 0
-    --> @dm:save name = "temp-nodes_l1"
-    --> *dm:filter device_equip_type is "CHASSIS" and device_hostname is not empty
-    --> @dm:eval country = "device_hostname[0:2]"
-    --> @dm:eval city = "device_hostname[6:9]"
-    --> @dm:eval state = "device_hostname[9:11]"
-    ##--> @dm:enrich dict = "geo_codes_dict" and src_key_cols = "country,city" and dict_key_cols = "country,city" and enrich_cols = "latitude,longitude" and replace_values = "yes"
-    --> @rn:write-stream name = "cfx_rdaf_topology_nodes"
-    --> @dm:recall name = "temp-nodes_l1"
-    --> *dm:filter node_type is "Edge"
-    --> @dm:eval country = "edgeName[0:2]"
-    --> @dm:eval city = "edgeName[6:9]"
-    --> @dm:eval state = "edgeName[9:11]"
-    ##--> @dm:enrich dict = "geo_codes_dict" and src_key_cols = "country,city" and dict_key_cols = "country,city" and enrich_cols = "latitude,longitude" and replace_values = "yes"
-    --> @rn:write-stream name = "cfx_rdaf_topology_nodes"
-    --> @graph:insert-nodes dbname = 'cfx_rdaf_topology' & collection = 'cfx_rdaf_topology_nodes' & key_column = 'node_id'
+ --> @dm:dedup columns='product_id,sw_version,sw_os_type,contract_number,customer'
+ --> @dm:eval match="'yes'"
+ --> @dm:save name="temp-sw-dedups"
+ --> @c:new-block
+ --> @dm:recall name='temp-inv-details'
+ --> @dm:enrich dict='temp-sw-dedups' and dict_key_cols='contract_number,customer,product_id' and src_key_cols='contract_number,customer_name,product_id' and enrich_cols='match'
+ --> @dm:dropnull columns='match'
+ --> @dm:selectcolumns exclude='^(swEOL_endOfLifeAnnouncementDate|swEOL_endOfVulnerabilitySecuritySupportDate|swEOL_lastDayOfSupportDate|swEOL_endOfSoftwareMaintenanceReleasesDate|swEOL_endOfSaleDate|swEOL_bulletinUrl|swEOL_bulletinTitle|swEOL_bulletinNumber|swEOL_softwareEOXId|sw_status|sw_expiring_qtr|sw_expiring_year|match|customer)$'
+ --> @dm:save name='temp-matched-inv'
+ --> @c:new-block
+ --> @dm:recall name='temp-matched-inv'
+ --> @dm:enrich dict='temp-sw-dedups' and dict_key_cols='contract_number,customer,product_id' and src_key_cols='contract_number,customer_name,product_id' and enrich_cols='swEOL_endOfLifeAnnouncementDate,swEOL_endOfVulnerabilitySecuritySupportDate,swEOL_lastDayOfSupportDate,swEOL_endOfSoftwareMaintenanceReleasesDate,swEOL_endOfSaleDate,swEOL_bulletinUrl,swEOL_bulletinTitle,swEOL_bulletinNumber,swEOL_softwareEOXId,sw_status,sw_expiring_qtr,sw_expiring_year' and how_type='inner'
+ --> @dm:selectcolumns exclude="^(customer_x|customer_y|deviceSN|source)"
+ --> @dm:save name='temp-final-enrich'
+ ## --> @dm:save name='sw-final-enrich'
 
+ ## --> @rn:write-stream name='edc_oi_inventory_enriched'
 
-
-
+ --> @rn:write-stream name='edc_oi_inventory_enriched'
