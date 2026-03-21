@@ -1,47 +1,85 @@
 
- ## oia-to-snow-cfx
+ ## collab-db-to-pstream-migration
 
- ## All debugging is captured on oia-to-snow-debug-stream
+ ## ========================MAKE SURE TO RUN THE FOLLOWING BEFORE PIPELINE EXECUTION
 
- ## 
+ ## mysql> alter table irmessagesharing add column if not exists migration_status varchar(100);
 
- ## A work around is to mention all child and dependent pipelines here.
+ ## .
+
+ ## mysql> alter table message add column if not exists migration_status varchar(100);
+
+ ## .
+
+ ## mysql> alter table teamincident add column if not exists migration_status varchar(100);
+
+ ## ================================================================================
+
+ ## .
+
+ ## MESSAGE
+
+ ## .
 @c:new-block
  --> @dm:empty
- --> @dm:skip-block-if-shape row_count = 0 & column_count = 0
- --> @exec:run-pipeline name="oia-to-snow-cfx-processor" & ignore_failures="no"
- --> @exec:run-pipeline name="oia-incident-status-tracker-stream" & ignore_failures="no"
- ## Read from Stream
+ --> @dm:addrow table="message" & dbname="98e005500460423c886d8e30d8a9acf6_cfxdimensions_app_collaboratio" & limit=5 & retry_count=5 & retry_interval=10
+ --> #mysqlv2:read migration_status is None or migration_status is not 'SUCCESS1'
+ --> @dm:save name="temp-collab-db-message"
+ ## Write/Publish
 
- --> @c:bookmark-loop bookmark = 'oia-to-snow-cfx-bkmrk' & initial_value = '-1 minute'
+ ## --unique_keys projectid,incidentid,messageid
+
+ --> @dm:selectcolumns exclude="migration_status"
+ --> @dm:to-type columns="createdat,updatedat" & type="str"
+ --> @rn:write-stream name="staging-oia-incidents-collaboration-stream"
+ ## Update the migration_status column on the db
+
+ --> @dm:recall name="temp-collab-db-message"
+ --> @dm:eval migration_status="'SUCCESS'"
+ --> @mysqlv2:update dbname="98e005500460423c886d8e30d8a9acf6_cfxdimensions_app_collaboratio" & table="message" & update_columns="migration_status"
+ ## .
+
+ ## IRMESSAGESHARING
+
+ ## .
+
+ --> @c:new-block
  --> @dm:empty
- --> @dm:addrow name="oia-incidents-delta-stream" & max_rows="1000"
- --> @dm:sleep seconds=5
- ## Query records from Stream
+ --> @dm:addrow table="irmessagesharing" & dbname="98e005500460423c886d8e30d8a9acf6_cfxdimensions_app_collaboratio" & limit=5 & retry_count=5 & retry_interval=10
+ --> #mysqlv2:read migration_status is None or migration_status is not 'SUCCESS1'
+ --> @dm:save name="temp-collab-db-irmessagesharing"
+ ## Write/Publish
 
- ## Change-Here: Pulse to what ever you want
+ ## --unique_keys projectid,incidentid,messageid,shared_to_team
 
- --> #dm:query-persistent-stream timestamp is after '${bookmark}' & (i_source contains 'SNMP_TRAP_Notifications' or i_source contains 'Syslog_udp_Notifications' or i_source contains 'Alert Group') & i_state != 'Closed' & i_state != 'Cancelled'
- --> @dm:skip-block-if-shape row_count = 0
- ## Change-Here: Temp workaround. Flow is NOT gracefully coming back from post exec:run-pipeline
+ --> @dm:selectcolumns exclude="migration_status"
+ --> @dm:to-type columns="shared_time" & type="str"
+ --> @rn:write-stream name="staging-oia-collab-messagesharing-stream"
+ ## Update the migration_status column on the db
 
- --> @dm:save_bookmark name = 'oia-to-snow-cfx-bkmrk' & value_column = 'timestamp' & value_type = 'timestamp' & value_func = 'max'
- --> @dm:save name="temp-qresults"
- ## Debug
+ --> @dm:recall name="temp-collab-db-irmessagesharing"
+ --> @dm:eval migration_status="'SUCCESS'"
+ --> @mysqlv2:update dbname="98e005500460423c886d8e30d8a9acf6_cfxdimensions_app_collaboratio" & table="irmessagesharing" & update_columns="migration_status"
+ ## .
 
- --> @dm:map to="step" & func="fixed" & value="temp-query-stream-results-${bookmark}"
- --> @rn:write-stream compression="auto" & name="oia-to-snow-debug-stream"
- ## Record The Step
+ ## TEAMINCIDENT
 
- --> @dm:eval pipeline="'oia-to-snow-cfx'" & step="'query-persistent-stream'" & stage="'bookmark ${bookmark}'" & status_comments="'Incident:' + incident_id + ',State:' + i_state + ',Delta:' + str(delta)" & status="'INFO'"
- --> @exec:run-pipeline name="oia-incident-status-tracker-stream" & ignore_failures="yes"
- ## Set the Tracing Context
+ ## .
 
- --> @dm:set-tracing-context-from-input columns = "project_id,incident_id"
- --> @dm:save name="temp-query-result-cfx"
- --> @exec:run-pipeline name="oia-to-snow-cfx-processor" & ignore_failures="no"
- ## Save bookmark - only after finishing up processing all the records
-
- --> @dm:recall name="temp-qresults"
- --> @dm:save_bookmark name = 'oia-to-snow-cfx-bkmrk' & value_column = 'timestamp' & value_type = 'timestamp' & value_func = 'max'
+ --> @c:new-block
  --> @dm:empty
+ --> @dm:addrow table="teamincident" & dbname="98e005500460423c886d8e30d8a9acf6_cfxdimensions_app_collaboratio" & limit=5 & retry_count=5 & retry_interval=10
+ --> #mysqlv2:read migration_status is None or migration_status is not 'SUCCESS1'
+ --> @dm:save name="temp-collab-db-teamincident"
+ ## Write/Publish
+
+ ## --unique_keys projectid,incidentid,messageid,team_id,collab_type
+
+ --> @dm:selectcolumns exclude="migration_status"
+ --> @dm:to-type columns="shared_time" & type="str"
+ --> @rn:write-stream name="staging-oia-incidents-external-tickets-stream"
+ ## Update the migration_status column on the db
+
+ --> @dm:recall name="temp-collab-db-teamincident"
+ --> @dm:eval migration_status="'SUCCESS'"
+ --> @mysqlv2:update dbname="98e005500460423c886d8e30d8a9acf6_cfxdimensions_app_collaboratio" & table="teamincident" & update_columns="migration_status"
