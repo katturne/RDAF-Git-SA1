@@ -1,280 +1,166 @@
-
- ## %% import_src_type = "asset-discovery"
 @c:new-block
- --> @dm:empty
- --> @exec:get-input
- --> @dm:save name = "temp-discovery-results"
- ## --> @c:data-loop columns="ip_addr,ec_zip_file_loc_pipeinput" and dataset="temp-discovery-results"
+ --> @dm:recall name="edc_license_domains"
+ ## --> *dm:filter customer is 'ATT'
 
- ## --> @dm:empty
+ --> @dm:save name='temp-cust-domains'
+ ## Collect Consumption
 
- ## --> @dm:addrow DISCOVERY_ZIP_FILE="$ec_zip_file_loc_pipeinput"
+ --> @c:data-loop columns='top_level_domain,customer' and dataset='temp-cust-domains'
+ --> @snowflake:native-query dbname is "CX_DB" and warehouse is "CX_DMP_RPT_WH" and query is "SELECT * FROM CX_DB.CX_DMP_BR.PV_DMP_LICENSE_CONSUMPTION WHERE TOP_LEVEL_DOMAIN = '$top_level_domain';"
+ --> @dm:add-missing-columns columns="execution_status"
+ --> *dm:filter execution_status =="Success"
+ --> @dm:skip-block-if-shape column_count = 3
+ --> @dm:rename-columns billingType="billing_type" &
+license="feature_display_name"
+ --> @dm:fixnull columns = 'license_class,licensed_feature_key,license_device_key,reservation_type,pak_item_id,billingType,license,license_sku_id,domain_name,smart_account_name,virtual_account_name' and value='NA' and apply_for_empty="yes"
+ --> @dm:to_type columns = 'consumed_quantity' & type  = 'int'
+ --> @dm:change-time-format columns="consumption_date,consumption_update_date" and from_format="datetimestr" and to_format="%Y-%m-%d"
+ ## create column for unique customer
 
- ## --> @files:ec-get-discovery-results minio_file_location = "$ec_zip_file_loc_pipeinput" & ip_list = "$ip_addr"  & json_path = "base.data,system.data,interfaces.data,management-target,entityPhysical.data,base.credential-id,ipAddrTable.data"
+ --> @dm:manipulate-string to="customer_name" and func="eval" and value="'$customer'"
+ --> @dm:selectcolumns exclude="attempt_count|execution_reason|execution_status"
+ --> @dm:save name="temp-license_consumption" and append = "yes"
+ ## Collect entitlement
 
- ## --> @dm:save name="temp-df" and append="yes"
+ --> @c:data-loop columns='top_level_domain,customer' and dataset='temp-cust-domains'
+ --> @snowflake:native-query dbname is "CX_DB" and warehouse is "CX_DMP_RPT_WH" and query is "SELECT * FROM CX_DB.CX_DMP_BR.PV_DMP_LICENSE_ENTITLEMENT WHERE TOP_LEVEL_DOMAIN = '$top_level_domain';"
+ --> @dm:add-missing-columns columns="execution_status"
+ --> *dm:filter execution_status =="Success"
+ --> @dm:skip-block-if-shape column_count = 3
+ --> @dm:fixnull columns = 'license_start_date,license_end_date,transaction_date,transaction_update_date' and value = '1970-01-01T00:00:01' and apply_for_empty="yes"
+ --> @dm:fixnull columns = 'license_type,billing_type,entitlement_type,feature_display_name,product_family,license_sku,subscription_reference_id,business_entity,sub_business_entity,virtual_account_name' and value='NA' and apply_for_empty="yes"
+ --> @dm:change-time-format columns="license_start_date,license_end_date,transaction_date,transaction_update_date" and from_format="datetimestr" and to_format="%Y-%m-%d"
+ --> @dm:to_type columns = 'entitled_quantity' and type  = 'int'
+ --> @dm:rename-columns billingType="billing_type" &
+licenseType="license_type" &
+startDate="license_start_date" &
+endDate="license_end_date" &
+subscriptionId="subscription_reference_id" &
+license="feature_display_name" &
+licenseSku="license_sku" &
+smart_account_key="smart_accounts_key" &
+license_sku_id="smart_license_sku_id" &
+sales_order_int="sales_number"
+ ## sales_order_int="bk_so_number_int"
 
- ## --> @c:simple-loop loop_var="base.data,system.data,interfaces.data,management-target,entityPhysical.data,base.credential-id,ipAddrTable.data"
+ ## create column for unique customer
 
- ## --> @dm:set-tracing-context __block__="$loop_var"
-
- ## --> @dm:recall name="temp-df"
-
- ## --> @dm:selectcolumns include="$loop_var|target"
-
- ## --> @dm:rename-columns data="$loop_var"
-
- ## --> @dm:add-missing-columns columns="data"
-
- ## --> *dm:filter data is not null
-
- ## --> @dm:eval-multi-proc data ="data.replace('[[','[') if str(data).startswith('[[') else data" and _max_procs=4
-
- ## --> @dm:eval-multi-proc data ="data.replace(']]',']') if str(data).endswith(']]') else data" and _max_procs=4
-
- ## --> @dm:explode-json column='data'
-
- ## --> @dm:save name="temp-Group-$loop_var"
-
- --> @c:new-block
- --> @dm:recall name = "temp-discovery-results"
- --> @dm:eval path = "'inventory_collection/outputs/'+jobid+'/'+target+'.json'"
- --> @asset-discovery:get-collection-files path_column = "path" &
-groups="base,system,interfaces,management-target,entityPhysical,base.credential-id,ipAddrTable"
- --> @dm:selectcolumns include = "asset_ip|groupname|output"
- --> @dm:explode-json column='output'
- --> @dm:selectcolumns include = "target|data|groupname|asset_ip"
- --> @dm:save name = "temp-group-data"
- --> @c:new-block
- --> @c:simple-loop loop_var= "base,system,interfaces,management-target,entityPhysical,base.credential-id,ipAddrTable"
- --> @dm:recall name = "temp-group-data"
- --> *dm:filter groupname is "$loop_var"
- --> @dm:explode-json column = 'data'
- ## --> @dm:save name = "temp-dff"
-
- --> @dm:save name="temp-Group-$loop_var"
- --> @c:new-block
- --> @dm:recall name= "temp-discovery-results"
- --> @dm:dedup columns = 'target'
- --> @dm:eval customer_id = "customer_id if customer_id else 'single_tenant'"
- --> @dm:copy-columns from="customer_id" and to="org_id"
- --> @dm:save name = "temp-entity-analysis-data"
- ## create device_ops_view,device_view and poe_summary json files
-
- ## --> @c:data-loop columns="ec_zip_file_loc_pipeinput,org_id" and dataset="temp-discovery-results"
-
- ## --> @files:ec-entity-analysis input_zipfile_path= "$ec_zip_file_loc_pipeinput" and output_path = "data/customers/single_tenant/ingestion/device_data" and device_ops_view = True and device_view = True and poe_summary = True
-
- --> @c:data-loop columns="path,customer_id" and dataset="temp-entity-analysis-data"
- --> @files:ec-entity-analysis input_asset_path= "$path" and output_path = "data/customers/$customer_id/ingestion/device_data" and device_ops_view = True and device_view = True and poe_summary = True
- --> @c:new-block
- --> @dm:recall name = 'temp-Group-system'
- --> @dm:add-missing-columns columns="data"
- --> *dm:filter data is not "[]"
- --> @dm:skip-block-if-shape row_count='0'
- --> @dm:skip-block-if-shape column_count=1
- --> @dm:save name="temp-Group-system"
- --> @dm:selectcolumns exclude ='^sysObjectID$|^systemVendorSubID$'
- --> @dm:save name = "temp-system-info"
- --> *dm:filter * get sysContact as 'device_contact',sysLocation as 'device_location',sysName as 'device_hostname',target as 'device_ip'
- --> @dm:save name="temp-system-updated-info"
- --> @c:new-block
- --> @dm:recall name="temp-Group-entityPhysical"
- --> @dm:add-missing-columns columns="data"
- --> *dm:filter data is "[]"
- --> @dm:add-missing-columns columns="entPhysicalClassEnumeratedLabel"
- --> *dm:filter entPhysicalClassEnumeratedLabel is null
- --> @dm:eval entPhysicalClassEnumeratedLabel ="'Chassis'"
- --> @dm:save name="temp-ent-empty"
- --> @c:new-block
- --> @dm:recall name="temp-Group-entityPhysical"
- --> @dm:add-missing-columns columns="data"
- --> *dm:filter data is not "[]"
- --> @dm:save name = "temp-ent-data"
- --> @dm:dedup columns = "target"
- --> @dm:save name = "temp-unique-devices"
- --> *dm:filter entPhysicalClassEnumeratedLabel in ['CHASSIS','chassis']
- --> @dm:save name = "temp-chassis"
- --> @dm:diff base_dataset	= "temp-unique-devices" & key_cols = "target" and keep_data = "yes"
- --> *dm:filter DIFF_RESULT is 'DELETED'
- --> @dm:selectcolumns exclude = "DIFF_RESULT|DIFF_UPDATED_COLUMNS"
- --> @dm:eval entPhysicalClassEnumeratedLabel = "'Chassis'"
- --> @dm:save name = "temp-ent-nochassis"
- --> @c:new-block
- --> @dm:concat names = "temp-ent-empty|temp-ent-data|temp-ent-nochassis"
- --> @dm:save name="temp-entityPhysical-data"
- --> @c:new-block
- --> @dm:set-tracing-context __block__="create-parent-chassis"
- --> @dm:recall name="temp-entityPhysical-data"
- --> @dm:skip-block-if-shape row_count='0'
- --> @dm:skip-block-if-shape column_count=1
- --> @dm:copy-columns from="entPhysicalSerialNum,entPhysicalClassEnumeratedLabel,entPhysicalName" and to="entPhysicalSerialNum,entPhysicalClassEnumeratedLabel,entPhysicalName" and func="strip"
- --> @dm:manipulate-string from="entPhysicalClassEnumeratedLabel" and func="upper" and to = "entPhysicalClassEnumeratedLabel"
- --> @dm:eval entPhysicalSerialNum="entPhysicalName if entPhysicalClassEnumeratedLabel in ['FAN'] else entPhysicalSerialNum"
- --> @dm:eval entPhysicalSerialNum ="target+'_sn' if not entPhysicalSerialNum else  entPhysicalSerialNum"
- --> @dm:manipulate-string from="entPhysicalSerialNum" and func="upper" and to="SN"
- --> *dm:filter SN notin ['BUILTIN', 'N/A']
- --> @dm:save name="temp-Group-entityPhysical"
- ## --> @dm:eval e_class="entPhysicalClassEnumeratedLabel if entPhysicalClassEnumeratedLabel else entPhysicalName if entPhysicalName else None"
-
- ## --> @cfxaia:conditional-statement condition_column="entPhysicalClassEnumeratedLabel" and return_if="entPhysicalClassEnumeratedLabel" and to_column="e_class"
-
- ## --> @cfxaia:conditional-statement condition_column="entPhysicalName" and return_if="entPhysicalName" and to_column="e_class" and replace_if_null="yes"
-
- --> @dm:eval e_class = "entPhysicalClassEnumeratedLabel if entPhysicalClassEnumeratedLabel else None"
- --> @dm:eval e_class = "entPhysicalName if e_class is None else e_class"
- --> *dm:filter e_class in ["Chassis","chassis","CHASSIS"] and entPhysicalSerialNum is not null
- --> @dm:dedup columns="entPhysicalClassEnumeratedLabel,target"
- --> @dm:copy-columns from="entPhysicalSerialNum,entPhysicalModelName" and to="parent_sn,parent_pid"
- --> @dm:manipulate-string to="parent_rows" and func="eval" and value="'yes'"
- --> @dm:save name="temp-device-row"
- ## CHILD ROWS: Create child rows whose Equipment Type is in ["CHASSIS","MODULE","POWERSUPPLY"] by reading entityPhysical group
+ --> @dm:manipulate-string to="customer_name" and func="eval" and value="'$customer'"
+ --> @dm:eval unique_key = "str(customer_name) + str(smart_account_key) +str(virtual_account_key)+  str(licensed_feature_key) +str(endDate) +str(startDate) +str(license_sku_id) + str(subscriptionId) + str(sales_order_line_key)+str(license_entitlement_key)"
+ --> @dm:selectcolumns exclude="attempt_count|execution_reason|execution_status|transaction_date|transaction_update_date"
+ --> @dm:save name="temp-license_entitlement" and append = "yes"
+ ## consolidate consumption into single record for smtAcct-virtualAcct-licensedFeature
 
  --> @c:new-block
- --> @dm:set-tracing-context __block__="create-child-rows"
- --> @dm:recall name="temp-Group-entityPhysical"
- --> @dm:skip-block-if-shape row_count='0'
- --> @dm:skip-block-if-shape column_count=1
- --> *dm:filter entPhysicalClassEnumeratedLabel in ["CHASSIS","MODULE","POWERSUPPLY","FAN"] and entPhysicalSerialNum is not null
- --> @dm:enrich dict="temp-device-row" and src_key_cols="target" and dict_key_cols="target" and enrich_cols="parent_sn,parent_pid"
- --> *dm:filter parent_sn is not null
- --> @dm:save name="temp-child-rows"
- ## --> @c:data-loop columns="ec_zip_file_loc_pipeinput" and dataset="temp-discovery-results"
+ --> @dm:recall name="temp-license_consumption"
+ --> @dm:selectcolumns include="customer_name|domain_name|smart_account_name|smart_account_key|virtual_account_key|virtual_account_name|licensed_feature_key|pak_item_id|^license$|reservation_type|billingType|license_class|license_sku_id|consumed_quantity"
+ --> @dm:groupby columns="customer_name,domain_name,smart_account_name,smart_account_key,virtual_account_name,virtual_account_key,licensed_feature_key,pak_item_id,license,reservation_type,billingType,license_class,license_sku_id" and agg='sum'
+ --> @dm:save name="temp-license_consumed_grp"
+ ## # Build dict for License to Business Entity
 
  --> @c:new-block
- --> @dm:concat names="^temp-device-row$|^temp-child-rows$"
- ## --> @dm:dedup columns="parent_sn,entPhysicalSerialNum,target"
+ --> @dm:recall name="temp-license_entitlement"
+ ## --> *dm:filter license_class is 'SMART'
 
- ## --> @dm:eval org_id="'org_id'"
-
- --> @dm:save name="temp-ent-info"
- --> @c:new-block
- --> @dm:empty
- --> @dm:save name = "temp-base"
- --> @c:new-block
- --> @dm:recall name="temp-Group-base"
- --> @dm:add-missing-columns columns="data"
- --> *dm:filter data is not "[]"
- --> @dm:skip-block-if-shape row_count='0'
- --> @dm:skip-block-if-shape column_count=1
- --> @dm:manipulate-string from="sysDescr" and func = "split" and value="Version" and to ="version"
- --> @dm:manipulate-string from="sysDescr" and to="version" and func="match" and value="(\d+\.\d+\.\d+)"
- --> @dm:manipulate-string from="sysDescr" and to="device_model" and func="match" and value = "\b(?:(?!ribbon)[a-zA-Z\d]+(?:-\d+)*-[a-zA-Z\d]+(?:-\d+)*)\b"
- --> @dm:fixnull-regex columns="version" and apply_for_empty="yes" and value="None"
- ## --> @dm:eval version= "version[1].split(',')[0].split('[')[0].split()[0] if sysDescr else None"
-
- --> @dm:save name="temp-base"
- --> *dm:filter * get target as 'device_ip',sysDescr as 'device_version_summary',systemManagerIP as 'device_mgmt_ip',systemVendorOS as 'device_fw_type',version as 'device_fw_version',systemVendorName as 'systemVendorName'
- --> @dm:save name = 'temp-base-updated-info'
- --> @c:new-block
- --> @dm:empty
- --> @dm:save name="temp-additional-ip-device"
- --> @c:new-block
- --> @dm:concat names="temp-ent-info|temp-base-updated-info"
- --> @dm:save name="temp-ent-info"
- --> @c:new-block
- --> @dm:recall name = 'temp-ent-info'
- --> *dm:filter * get entPhysicalClassEnumeratedLabel as 'device_equip_type',entPhysicalDescr as 'device_eq_description',entPhysicalModelName as 'device_model',entPhysicalSerialNum as 'device_serial_number',target as 'device_ip',parent_sn as 'parent_sn',parent_pid
- --> @dm:enrich dict = 'temp-base-updated-info' & src_key_cols = 'device_ip' & dict_key_cols = 'device_ip' & enrich_cols = 'device_version_summary,device_mgmt_ip,device_fw_type,systemVendorName,device_fw_version'& how_type = "outer"
- --> @dm:manipulate-string from="device_fw_version" and to="device_fw_version" and func="match" and value="^\d+\.\d+\.\d+[A-Za-z]?$"
- ## --> @dm:copy-columns from = "systemVendorName,device_version_summary" and to = "lower_systemVendorName,lower_device_version_summary" and func = "lower"
-
- ## --> @cfxaia:conditional-statement condition_column="lower_systemVendorName" and check_value="yes" and value="Vendor" and operator="contains" and return_if="Vendor" and return_else="systemVendorName" and to_column = "device_vendor"
-
- ## --> @dm:eval device_vendor = "'Cisco' if 'cisco' in lower_systemVendorName else systemVendorName"
-
- --> @dm:copy-columns from = "systemVendorName" and to = "device_vendor"
- ## --> @dm:eval device_vendor="device_vendor if device_vendor else '' if '' in lower_device_version_summary else None"
-
- --> @dm:selectcolumns exclude = "lower_systemVendorName|lower_device_version_summary"
- --> @dm:enrich dict = 'temp-system-updated-info' & src_key_cols = 'device_ip' & dict_key_cols = 'device_ip' & enrich_cols = 'device_contact,device_location,device_hostname'
- --> @dm:map from = 'device_ip,device_serial_number' &  to = "unique_id" & func = "join" & sep = "_"
- --> @dm:fixnull-regex columns=".*" and value="Not Available" and apply_for_empty="yes"
- --> @dm:eval device_object = "'Chassis'"
- --> @dm:manipulate-string from = "device_hostname" and to = "CLLI_code" and func = "substring" and upper_limit = 8
- --> @dm:enrich dict="temp-additional-ip-device" and src_key_cols="device_ip" and dict_key_cols="target" and enrich_cols="ipAdEntAddr" and enrich_cols_as="device_additional_ips"
- --> @dm:eval collection_timestamp = "time_now_as_isoformat()"
- --> @dm:save name = 'temp-devices'
- --> @c:new-block
- --> @dm:empty
- --> @dm:recall name ="temp-devices"
- --> @dm:fixnull-regex columns="device_model" and value="Not Available" and apply_for_empty="yes"
- --> *dm:filter device_model is not 'Not Available'
- --> @dm:save name = 'temp-devices-a'
- --> @c:data-loop dataset = "temp-base"  and columns = "target,device_model"
- --> @dm:recall name ="temp-devices"
- --> *dm:filter device_model is 'Not Available' and device_ip is '$target'
- --> @dm:eval device_model = "'$device_model'"
- --> @dm:copy-columns from = "device_model" and to = "parent_pid"
- --> @dm:save name = 'temp-devices-b' and append = "yes"
- --> @c:new-block
- --> @dm:concat names = "temp-devices-a|temp-devices-b"
- --> @dm:save name = "temp-devices"
- ## Adding ports counts to chassis
+ --> *dm:filter business_entity is not 'NA'
+ --> @dm:selectcolumns include="license$|business_entity|sub_business_entity|product_family|license_class"
+ --> @dm:groupby columns="license,business_entity,sub_business_entity,product_family"
+ --> @dm:rename-columns tot_count="license_class" &
+common_BE="business_entity" &
+common_SBE="sub_business_entity" &
+common_product_family="product_family"
+ --> @dm:sort columns="license,tot_count" and order="asc"
+ --> @dm:dedup columns = 'license' and keep="last"
+ --> @dm:selectcolumns exclude="tot_count"
+ --> @dm:save name="temp-business_dict"
+ ## # Create expiration column for entitlement
 
  --> @c:new-block
- --> @dm:set-tracing-context __block__="interface parsing"
- --> @dm:recall name="temp-Group-interfaces"
- --> @dm:skip-block-if-shape row_count='0'
- --> @dm:skip-block-if-shape column_count=1
- --> @dm:eval ifType="str(int(ifType)).strip() if ifType else ifType"
- --> *dm:filter ifType in ["6","62", "6.0", "62.0"]
- --> @dm:save name="temp-interfaces-ds"
- --> @dm:eval down="'eth_down' if (ifOperStatus==2 and ifAdminStatusEnumeratedLabel=='up') else 'eth_up'"
- --> @dm:eval admin_status = "'admin_down' if (ifAdminStatus==2) else 'admin_up'"
- --> @dm:to-type columns = "ifOperStatus" and type = "int"
- --> @dm:to-type columns="ifType,ifOperStatus,down,admin_status" and type="str"
- --> @dm:implode key_columns="target" and
-merge_columns="ifType,ifOperStatus,down,admin_status,ifName" and dedup_merge_values="no"
- --> @dm:eval total_eth_count="len(ifType.split(','))" &
-up_eth_count="ifOperStatus.split(',').count('1')" &            down_eth_count="total_eth_count-up_eth_count" &            admin_down_count="admin_status.split(',').count('admin_down')"
- --> @dm:selectcolumns include="total_eth_count|up_eth_count|down_eth_count|admin_down_count|target"
- --> @dm:save name="temp-interfaces-counts"
- --> @dm:recall name="temp-devices"
- --> @dm:enrich dict="temp-interfaces-counts" and src_key_cols="device_ip" and dict_key_cols="target"  and enrich_cols="total_eth_count,up_eth_count,down_eth_count,admin_down_count" and enrich_cols_as="total_eth_ports,up_eth_ports,down_eth_ports,admin_down_eth_ports"
- --> @dm:enrich dict="temp-Group-base.credential-id" and src_key_cols="device_ip" and dict_key_cols="target"  and enrich_cols="data" and enrich_cols_as="credential_id"
- --> @dm:add-missing-columns columns="device_eq_description,device_mgmt_ip,device_fw_version,device_fw_type,device_model,device_vendor,device_hostname,device_contact,device_location,device_version_summary,device_serial_number,CLLI_code"
- --> @dm:eval device_vendor = "device_vendor.split(',')[0]"
- --> @dm:save name="temp-devices"
- --> @c:new-block
- --> @dm:empty
- --> @dm:save name="temp-additional-ip"
- ## Parse Interfaces data
+ --> @dm:recall name="temp-license_entitlement"
+ --> @dm:fixnull columns = 'endDate' and value = '1970-01-01'
+ --> @dm:fixnull-regex value='NA'
+ --> @dm:eval days_to_expire = " 20000 if licenseType=='PERPETUAL' else (to_datetime(endDate) - utcnow()).days"
+ --> @dm:eval endTime = "utcnow()"
+ --> @dm:change-time-format columns="endTime" and from_format="datetimestr" and to_format="%A, %m-%d-%Y %I:%M:%S %p %Z"
+ --> @dm:eval endTime = "str(endTime)+str(    'UTC')"
+ --> @dm:eval expiration_color = " '#79BAEC' if (licenseType =='PERPETUAL' or days_to_expire < -19000 ) else '#BB0000' if (days_to_expire < 90 or days_to_expire == 90) else  '#00BB00' if days_to_expire > 90 else '#b0bec5' "
+ --> @dm:eval sort_number = " '3' if (licenseType =='PERPETUAL' or days_to_expire < -19000 ) else '1' if (days_to_expire < 90 or days_to_expire == 90) else  '2' if days_to_expire > 90 else '4' "
+ --> @dm:eval expiration_status = " 'Valid Indefinitely' if (licenseType =='PERPETUAL' or days_to_expire < -19000 ) else  'Already Expired' if (days_to_expire< 0  and days_to_expire > -19000)  else  'Expiring within 90 days' if (days_to_expire < 90 or days_to_expire == 90) else 'Expiring after 90 days' if days_to_expire > 90  else 'NA' "
+ --> @dm:manipulate-string to="source" and func="eval" and value="'entitled'"
+ ## Enrich with consumption
+
+ --> @dm:enrich dict="temp-license_consumed_grp" and src_key_cols="customer_name,smart_account_key,virtual_account_key,licensed_feature_key" and dict_key_cols="customer_name,smart_account_key,virtual_account_key,licensed_feature_key" and enrich_cols="consumed_quantity,reservation_type,pak_item_id"
+ --> @dm:fixnull columns = 'reservation_type,pak_item_id' and value='NA' and apply_for_empty="yes"
+ --> @dm:fixnull columns = 'consumed_quantity' and value=0 and apply_for_empty="yes"
+ --> @dm:eval available_quantity= "(entitled_quantity - consumed_quantity)"
+ --> @dm:save name="temp-license_entitlement"
+ ## Evaluate if all consumed records have an associated entitlement
 
  --> @c:new-block
- --> @dm:set-tracing-context __block__=" map source_ip"
- --> @dm:recall name="temp-Group-interfaces"
- --> @dm:to-type columns="ifIndex" and type="int"
- --> @dm:copy-columns from="ifName" and to="ifDescr"
- --> @dm:add-missing-columns columns="device_additional_ips"
- --> *dm:filter * get target as 'device_ip',ifAlias as 'device_int_alias',ifDescr as 'device_int_name',ifIndex as 'device_int_index',ifName as 'device_int_shortname',ifOperStatusEnumeratedLabel as 'device_interface_status',ifAdminStatusEnumeratedLabel as 'device_interface_admin_status',ifType, ifHCInOctets as 'device_int_in_octets' , ifHCOutOctets as 'device_int_out_octets',ifLastChange as 'if_last_change',device_additional_ips, ifSpeed as 'device_int_speed'
- --> @dm:to-type columns="ifType" and type="int"
- --> @dm:enrich dict = "ifTypeLabel_dict" & src_key_cols = "ifType" & dict_key_cols = "ifType" & enrich_cols = "ifTypeLabel"
- --> @dm:eval if_last_change="int(if_last_change) if if_last_change else None"
- --> @dm:to-type columns="if_last_change" and type="int"
- --> @dm:fixnull columns="if_last_change" and value=0 and apply_for_empty="yes"
- ## --> @cfxaia:conditional-statement condition_column="if_last_change" and operator=">" and check_value="yes" and value="120" and return_if=">120" and to_column="if_chng_days"
+ --> @dm:recall name="temp-license_consumed_grp"
+ --> @dm:enrich dict="temp-license_entitlement" and src_key_cols="customer_name,smart_account_key,virtual_account_key,licensed_feature_key" and dict_key_cols="customer_name,smart_account_key,virtual_account_key,licensed_feature_key" and enrich_cols="sales_order_line_key,sales_order_int"
+ --> *dm:filter sales_order_line_key is null
+ --> @dm:eval entitled_quantity= "0"
+ --> @dm:eval available_quantity= "(entitled_quantity - consumed_quantity)"
+ --> @dm:eval days_to_expire = "-1"
+ --> @dm:add-missing-columns columns="subscriptionId,status,licenseType,licenseSku,business_entity,sub_business_entity,product_family"
+ --> @dm:fixnull columns="subscriptionId,status,licenseType,licenseSku,business_entity,sub_business_entity,product_family" and value='NA' and apply_for_empty="yes"
+ --> @dm:eval sort_number = "4"
+ --> @dm:manipulate-string to="source" and func="eval" and value="'consumed'"
+ --> @dm:eval unique_key = "str(customer_name) + str(smart_account_key) + str(virtual_account_key)+  str(licensed_feature_key) + str(pak_item_id) + str(reservation_type) + str(license_sku_id)+str(billingType)"
+ --> @dm:save name="temp-license_consumption_missing"
+ ## Concatenate
 
- ## --> @cfxaia:conditional-statement condition_column="if_last_change" and operator="<" and check_value="yes" and value="60" and return_if="<60" and to_column="if_chng_days" and replace_if_null="true"
-
- ## --> @cfxaia:conditional-statement condition_column="if_last_change" and return_if="60-120" and to_column="if_chng_days" and replace_if_null="true"
-
- --> @dm:eval if_chng_days = "'>120' if if_last_change > 120 else if_last_change"
- --> @dm:eval if_chng_days = "'<60' if if_last_change > 0 and if_last_change < 60 else if_last_change"
- --> @dm:eval if_chng_days = "'60-120' if if_last_change  > 60  else if_last_change"
- --> @dm:eval if_change_since = "int(time_now_as_ms())-if_last_change*24*60*60*1000 if if_last_change is not None else None"
- --> @dm:enrich dict = 'temp-devices' & src_key_cols = 'device_ip' & dict_key_cols = 'device_ip' & enrich_cols = 'device_eq_description,device_mgmt_ip,device_fw_version,device_fw_type,device_model,device_vendor,device_hostname,device_contact,device_location,device_version_summary,device_serial_number,CLLI_code'
- --> @dm:map from = "device_ip,device_int_name" & to = "unique_id" & func = "join" & sep = "_"
- --> @dm:fixnull-regex columns=".*" and value="Not Available" and apply_for_empty="yes"
- --> @dm:eval device_object = "'Interface'"
- --> @dm:eval collection_timestamp = "time_now_as_isoformat()"
- --> @dm:save name = 'temp-cisco_device_interface_data' and append="yes"
  --> @c:new-block
- --> @dm:recall name="temp-devices"
- --> @dm:eval node_id = "device_ip+'_'+device_object"
- --> @dm:save name="temp-cisco_device_chassis_dict" and append="yes"
- --> @rn:write-stream name = 'network_device_inventory'
+ --> @dm:concat names="temp-license_entitlement|temp-license_consumption_missing"
+ --> @dm:fixnull columns = 'sales_order_line_key,sales_order_int' and value = '-1' and apply_for_empty="yes"
+ --> @dm:save name = "temp-license_details"
+ --> @rn:write-stream name='edc_license_details' and direct_to_opensearch="yes"
+ --> @dm:sleep seconds = 5
  --> @c:new-block
- --> @dm:recall name="temp-cisco_device_interface_data"
- --> @dm:save name="temp-cisco_device_interface_data" and append="yes"
- --> @rn:write-stream name = 'network_device_interfaces'
+ --> @dm:recall name="temp-license_details"
+ --> @dm:selectcolumns include="customer_name|smart_account_name|domain_name|smart_account_key|virtual_account_key|virtual_account_name|^license$|license_class|licensed_feature_key|entitled_quantity"
+ --> @dm:groupby columns="customer_name,smart_account_name,domain_name,smart_account_key,virtual_account_key,virtual_account_name,license,license_class,licensed_feature_key" and agg='sum'
+ ## Bring available and consumed
+
+ --> @dm:enrich dict="temp-license_consumed_grp" and src_key_cols="customer_name,smart_account_key,virtual_account_key,licensed_feature_key" and dict_key_cols="customer_name,smart_account_key,virtual_account_key,licensed_feature_key" and enrich_cols="consumed_quantity"
+ ## Bring most used business entity for license
+
+ --> @dm:enrich dict="temp-business_dict" and src_key_cols="license" and dict_key_cols="license" and enrich_cols="common_BE,common_SBE,common_product_family"
+ --> @dm:fixnull columns = 'consumed_quantity' and value=0 and apply_for_empty="yes"
+ --> @dm:eval available_quantity= "(entitled_quantity - consumed_quantity)"
+ --> @dm:save name="temp-grouping"
+ --> @c:new-block
+ --> @dm:recall name="temp-license_details"
+ --> @dm:selectcolumns include="customer_name|smart_account_key|virtual_account_key|days_to_expire|licenseType|^license$|licensed_feature_key|source"
+ --> @dm:groupby columns="customer_name,smart_account_key,virtual_account_key,license,licensed_feature_key,source" and agg='min'
+ --> @dm:eval exp_status = " 'Valid Indefinitely' if ((licenseType =='PERPETUAL' or days_to_expire < -19000) and source == 'entitled') else 'One or more Expired Licenses' if (days_to_expire< 0  and days_to_expire > -19000 and source == 'entitled')    else  'Expiring within 90 days' if ((days_to_expire < 90 or days_to_expire == 90) and source == 'entitled') else 'Expiring after 90 days' if (days_to_expire > 90 and source == 'entitled') else 'NA' "
+ --> @dm:eval sort_number = " '3' if ((licenseType =='PERPETUAL' or days_to_expire < -19000) and source == 'entitled' ) else '1' if (days_to_expire< 0  and days_to_expire > -19000 and source == 'entitled')    else  '1' if ((days_to_expire < 90 or days_to_expire == 90) and source == 'entitled') else '2' if (days_to_expire > 90 and source == 'entitled') else '4' "
+ --> @dm:eval expiration_color = " '#79BAEC' if ((licenseType =='PERPETUAL' or days_to_expire < -19000) and source == 'entitled' ) else '#BB0000' if ((days_to_expire < 90 or days_to_expire == 90) and source == 'entitled') else  '#00BB00' if (days_to_expire > 90 and source == 'entitled') else '#b0bec5'  "
+ --> @dm:save name="temp-grouping2"
+ ## Enrich grouping for summary with message for expiration
+
+ --> @c:new-block
+ --> @dm:recall name="temp-grouping"
+ --> @dm:enrich dict="temp-grouping2" and src_key_cols="customer_name,smart_account_key,virtual_account_key,licensed_feature_key" and dict_key_cols="customer_name,smart_account_key,virtual_account_key,licensed_feature_key" and enrich_cols="exp_status,expiration_color,sort_number"
+ ## evaluate Alerts
+
+ --> @dm:eval alert_status = " 'Licenses Expired' if (exp_status == 'One or more Expired Licenses') else 'Insufficient Licenses' if (available_quantity<0 ) else 'Licenses Expiring'  if (exp_status == 'Expiring within 90 days') else 'NA' "
+ --> @dm:eval alert_color = " '#FF0000' if (exp_status == 'One or more Expired Licenses') else  '#FFA500' if (available_quantity<0 ) else '#F4C430' if (exp_status == 'Expiring within 90 days') else '#b0bec5'  "
+ --> @dm:save name="temp-summary-details"
+ ## Enrich grouping for summary with TAP
+
+ --> @c:new-block
+ --> @dm:recall name="temp-summary-details"
+ --> @dm:enrich dict="license_tap_dict" and src_key_cols="license" and dict_key_cols="license" and enrich_cols="TAP"
+ --> @dm:fixnull columns = 'license,common_BE,common_product_family' and value='Not Available' and apply_for_empty="yes"
+ --> @dm:save name="temp-edc_license_summary_enrich"
+ --> @c:new-block
+ --> @dm:recall name="temp-edc_license_summary_enrich"
+ --> @dm:eval unique_key = "str(customer_name) + str(smart_account_key) +str(virtual_account_key)+  str(license) +  str(license_class) + str(licensed_feature_key)"
+ --> @dm:eval endTime = "utcnow()"
+ --> @dm:change-time-format columns="endTime" and from_format="datetimestr" and to_format="%A, %m-%d-%Y %I:%M:%S %p %Z"
+ --> @dm:eval endTime = "str(endTime)+str('UTC')"
+ --> @dm:fixnull-regex value='NA'
+ --> @rn:write-stream name='edc_license_summary' and direct_to_opensearch="yes"
+ --> @dm:sleep seconds = 5
