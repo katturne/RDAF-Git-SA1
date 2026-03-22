@@ -1,45 +1,32 @@
 
- ## Bernie Wynia, Cisco Systems, 2025
-
- ## It doesn't seem to have trouble with the following error cases:
-
- ## -- no email addresses are found for template (valid template id)
-
- ## -- invalid template ID (passed in inpute stream)
-
- ## -- malforemd email addressneed
-
- ## Because there is always at least 1 row (potentially with empty columns), this didn't seem to have any impact --> *exec:if-shape num_rows > 0
-
- ## It doesn't seem to be needed because the apply-template and sendmail seem to complete regardless (so we resume on the read-stream)
-
- ## The one case it doesn't handle is if the GenericEmailTemplates references a Template Name that doesn't exist in "Formatting Templates"
+ ## snmp_trap_genaric_raise_alerts
 @c:new-block
- ## Wait for a request to send an email
+ --> @dm:recall name="alert_endpoint_details" & cache_refresh_seconds = 120
+ --> @dm:manipulate-string from = "alertEndpointName" and func = "strip" and to = "alertEndpointName"
+ --> *dm:filter alertEndpointName is 'SNMP_Traps' and webhookURL is not Empty
+ --> @dm:save name = "temp-webhook-url-details"
+ --> @c:new-block
+ ## -->  @rn:read-stream     name = 'snmp_trap_event_stream' & group = 'snmp_trap_event_stream_group_alerts'
 
- --> @rn:read-stream name = "genericEmailSender" & group = "group_genericEmailSender"
- ## When we get one, fetch the template details
+ --> @dm:query-persistent-stream-from-bookmark name = "snmp_trap_event_stream" & bookmark = "snmp_trap_event_stream_bkmrk"
+ --> @dm:enrich dict = "temp-webhook-url-details" & src_key_cols = "customerTag,projectId" & dict_key_cols="customerTag,projectId" & enrich_cols = "webhookURL" & cache_refresh_seconds = 120
+ --> @dm:enrich dict = "device_mapping" & src_key_cols="rda_gw_client_ip" & dict_key_cols = "ip_address" & enrich_cols = "zone,network_type,CLLI_code,city,region,network_code,image,device" & replace_values = "yes" & cache_refresh_seconds = "60"
+ --> @dm:rename-columns device_NEW='device'
+ --> @rn:write-stream name = 'snmp_trap_enriched_events_stream'
+ --> *exec:if-condition webhookURL is not Empty
+ ## --> *dm:filter device_status is "MANAGED"
 
- --> @dm:enrich dict = 'GenericEmailTemplates' & src_key_cols = 'Template_Id' & dict_key_cols = 'Template_Id' & enrich_cols = "Subject,Template_Name"
- ## Formulate the Subject line by appending the Suffix, if provided
-
- --> @dm:add-missing-columns columns = 'Subject_Suffix' & value = ''
- --> @dm:eval Merged_Subject = "Subject + Subject_Suffix"
- ## Figure out who to send it to
-
- --> @dm:enrich dict = 'GenericEmailRecipients' & src_key_cols = 'Template_Id' & dict_key_cols = 'Template_Id' & enrich_cols = "Recipient,User_Enabled" & dedup_dict = "no"
- --> *dm:filter User_Enabled != 'no'
- ## Format the email content
-
- --> @dm:add-missing-columns columns = 'lType' & value = "html"
- --> @dm:apply-template-by-row template_name = "{{row.Template_Name}}" & output_col = "fMessage" & status_col = "Template_Result"
- ## Note that if we fetch an invald template name, the pipeline will abort in the above line (contrary to documentation)
-
- ## It may be helful to uncomment this line when debugging
-
- ## --> @dm:save name = "delete-me-email-working-data"
-
- --> *dm:filter Template_Result = 'ok'
- --> *exec:if-shape num_rows > 0
- --> @email:sendmail-bulk recipient_col = 'Recipient' & message_mime_type_col = 'lType' & subject_col = 'Merged_Subject' & message_col = 'fMessage'
+ --> @dm:add-missing-columns columns = 'mappingStatus' & value = 'found'
+ --> @dm:eval-multi-proc execution_step = "'source_event'"
+ --> *dm:filter mappingStatus is 'found'
+ --> @dm:eval execution_step = "'mapping_filter'"
+ --> @dm:rename-columns snmp_trap_mib = 'snmpTrapMIB' & snmp_trap_name = 'snmpTrapName' & snmp_trap_description = 'snmpTrapDescription' & snmp_trap_oid = 'snmpTrapOID' & device_NEW = 'device_name'
+ --> @dm:enrich-using-rule-dict dict = "snmp_trap_alert_rules_dict" & enrich_columns = "action,reason,state,severity"
+ --> @dm:eval-multi-proc execution_step = "'alert_rule_enrichment'" and   timestamp="utcnow().isoformat()"
+ --> *dm:filter action is 'KEEP'
+ --> @dm:map to = 'snmp_trap_timestamp' and from = 'rda_gw_timestamp'
+ --> @dm:to-json output_column is payload
+ --> @exec:for-loop num_rows = 1
+ --> @restclient:write url  = '{{row.webhookURL}}' & envelope is "{{'{{payload}}'}}" & batch_size = 1
+ --> @exec:end-loop
  --> @exec:end-if
