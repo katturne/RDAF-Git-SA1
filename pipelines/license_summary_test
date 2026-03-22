@@ -1,186 +1,164 @@
-%%template_type="jinja"
+@c:new-block
+ --> @dm:recall name="edc_license_domains"
+ --> *dm:filter customer is 'ATT'
+ --> @dm:save name='temp-cust-domains-trial'
+ ## Collect Consumption
 
-##%% import_src_type = "asset-discovery"
-%%start_inline_object name="context_dynamic_form" and type="data" and format="json"
-{
-    "formFieldList": [
-        {
-            "fieldId": "customer_tag",
-            "label": "Tag of the customer",
-            "required": false,
-            "dataType": "string"
-        }
-    ]
-}
-%%end_inline_object
+ --> @c:data-loop columns='top_level_domain,customer' and dataset='temp-cust-domains-trial'
+ --> @snowflake:native-query dbname is "CX_DB" and warehouse is "CX_DMP_RPT_WH" and query is "SELECT * FROM CX_DB.CX_DMP_BR.PV_DMP_LICENSE_CONSUMPTION WHERE TOP_LEVEL_DOMAIN = '$top_level_domain';"
+ --> @dm:add-missing-columns columns="execution_status"
+ --> *dm:filter execution_status =="Success"
+ --> @dm:skip-block-if-shape column_count = 3
+ --> @dm:rename-columns billingType="billing_type" &
+license="feature_display_name"
+ --> @dm:fixnull columns = 'license_class,licensed_feature_key,license_device_key,reservation_type,pak_item_id,billingType,license,license_sku_id,domain_name,smart_account_name,virtual_account_name' and value='NA' and apply_for_empty="yes"
+ --> @dm:to_type columns = 'consumed_quantity' & type  = 'int'
+ --> @dm:change-time-format columns="consumption_date,consumption_update_date" and from_format="datetimestr" and to_format="%Y-%m-%d"
+ ## create column for unique customer
 
-@dm:empty
-    --> @dm:save name = "temp-customer-context"
+ --> @dm:manipulate-string to="customer_name" and func="eval" and value="'$customer'"
+ --> @dm:selectcolumns exclude="attempt_count|execution_reason|execution_status"
+ --> @dm:save name="temp-license_consumption-trial" and append = "yes"
+ ## Collect entitlement
 
+ --> @c:data-loop columns='top_level_domain,customer' and dataset='temp-cust-domains-trial'
+ --> @snowflake:native-query dbname is "CX_DB" and warehouse is "CX_DMP_RPT_WH" and query is "SELECT * FROM CX_DB.CX_DMP_BR.PV_DMP_LICENSE_ENTITLEMENT WHERE TOP_LEVEL_DOMAIN = '$top_level_domain';"
+ --> @dm:add-missing-columns columns="execution_status"
+ --> *dm:filter execution_status =="Success"
+ --> @dm:skip-block-if-shape column_count = 3
+ --> @dm:fixnull columns = 'license_start_date,license_end_date,transaction_date,transaction_update_date' and value = '1970-01-01T00:00:01' and apply_for_empty="yes"
+ --> @dm:fixnull columns = 'license_type,billing_type,entitlement_type,feature_display_name,product_family,license_sku,subscription_reference_id,business_entity,sub_business_entity,virtual_account_name' and value='NA' and apply_for_empty="yes"
+ --> @dm:change-time-format columns="license_start_date,license_end_date,transaction_date,transaction_update_date" and from_format="datetimestr" and to_format="%Y-%m-%d"
+ --> @dm:to_type columns = 'entitled_quantity' and type  = 'int'
+ --> @dm:rename-columns billingType="billing_type" &
+licenseType="license_type" &
+startDate="license_start_date" &
+endDate="license_end_date" &
+subscriptionId="subscription_reference_id" &
+license="feature_display_name" &
+licenseSku="license_sku" &
+smart_account_key="smart_accounts_key" &
+license_sku_id="smart_license_sku_id" &
+sales_order_int="bk_so_number_int"
+ ## create column for unique customer
 
-   {% if customer_tag %} 
-      {% set customer_id = customer_id %}
-      {% set customer_tag = customer_tag %}
-      {% set customerTag = customer_tag %}
-   {% elif customerTag %} 
-      {% set customer_id = customer_id %}
-      {% set customer_tag = customerTag %}
-   {% else %}
-      {% set customer_id = '' %}
-      {% set customer_tag = '' %}
-   {% endif %}  
+ --> @dm:manipulate-string to="customer_name" and func="eval" and value="'$customer'"
+ --> @dm:eval unique_key = "str(customer_name) + str(smart_account_key) +str(virtual_account_key)+  str(licensed_feature_key) +str(endDate) +str(startDate) +str(license_sku_id) + str(subscriptionId) + str(sales_order_line_key)+str(license_entitlement_key)"
+ --> @dm:selectcolumns exclude="attempt_count|execution_reason|execution_status|transaction_date|transaction_update_date"
+ --> @dm:save name="temp-license_entitlement-trial" and append = "yes"
+ ## consolidate consumption into single record for smtAcct-virtualAcct-licensedFeature
 
+ --> @c:new-block
+ --> @dm:recall name="temp-license_consumption-trial"
+ --> @dm:selectcolumns include="customer_name|domain_name|smart_account_name|smart_account_key|virtual_account_key|virtual_account_name|licensed_feature_key|pak_item_id|^license$|reservation_type|billingType|license_class|license_sku_id|consumed_quantity"
+ --> @dm:groupby columns="customer_name,domain_name,smart_account_name,smart_account_key,virtual_account_name,virtual_account_key,licensed_feature_key,pak_item_id,license,reservation_type,billingType,license_class,license_sku_id" and agg='sum'
+ --> @dm:save name="temp-license_consumed_grp-trial"
+ ## # Build dict for License to Business Entity
 
--->@c:new-block
---> @dm:empty
-    --> @dm:save name = "temp-nodes_l1"
-    ##--> @dm:sleep seconds = "60"
-    --> @dm:empty
-    {% if customer_tag %}
-    --> #dm:query-persistent-stream device_hostname is not Empty and (customer_tag is '{{customer_tag}}') with-input name = "network_device_inventory" & limit = "0"
-     {% else %}  
-     --> #dm:query-persistent-stream device_hostname is not Empty and (customer_tag is empty) with-input name = "network_device_inventory" & limit = "0"          
-     {% endif %}
-    --> @dm:skip-pipeline-if-shape row_count = 0
-    --> @dm:eval country = "device_hostname[0:2]"
-    --> @dm:eval city = "device_hostname[6:9]"
-    --> @dm:eval state = "device_hostname[9:11]"
-    --> @dm:save name = "temp-geomap-data"
-    --> *dm:filter country in ["US"]
-    ##--> @dm:enrich dict = "geo_codes_dict" & src_key_cols = "country,city,state" & dict_key_cols = "country,city,state" & enrich_cols = "latitude,longitude" and replace_values = "yes"
-    --> @rn:write-stream name  = "network_device_inventory"
-    --> @dm:save name = "temp-geomap-us-data"
-    --> @dm:recall name = "temp-geomap-data"
-    --> *dm:filter country not in ["US"]
-    ##--> @dm:enrich dict = "geo_codes_dict" & src_key_cols = "country,city" & dict_key_cols = "country,city" & enrich_cols = "latitude,longitude" and replace_values = "yes"
-    --> @dm:save name = "temp-geomap-nonus-data"
-    --> @rn:write-stream name  = "network_device_inventory"
-    ## Getting inventory data and creating the nodes datasets
-    --> @dm:empty
-    {% if customer_tag %}
-    --> #dm:query-persistent-stream device_equip_type in ["CHASSIS","Chassis","chassis"] and (customer_tag is '{{customer_tag}}') with-input name = "network_device_inventory" & limit = "0"
-    
-    {% else %}
-    --> #dm:query-persistent-stream device_equip_type in ["CHASSIS","Chassis","chassis"] and (customer_tag is empty) with-input name = "network_device_inventory" & limit = "0"
-            
-    {% endif %}
+ --> @c:new-block
+ --> @dm:recall name="temp-license_entitlement-trial"
+ ## --> *dm:filter license_class is 'SMART'
 
-    --> @dm:selectcolumns exclude="_RDA_Id|count_|^timestamp$"
-    --> @dm:dedup columns ="parent_sn"
-    --> @dm:eval-multi-proc node_type="'CHASSIS'" and
-            device_status="'MANAGED'" and
-            source="'CHASSIS'" and
-            device_hostname_short = "device_hostname.split('.')[0]"
-    --> @dm:copy-columns from ="device_hostname_short" and to="node_label"
-    --> @dm:copy-columns from ="device_ip" and to="node_id"
-    --> @dm:eval layer = "'Network'"
-    --> @dm:eval node_id = "device_ip+'_CHASSIS'"
-    --> @dm:eval deviceFamily = "device_model"
-    --> @dm:eval serialNumber = "device_serial_number"
-    --> @dm:eval iconURL="'Router'"
-    --> @dm:save name="temp-chassis-nodes"
+ --> *dm:filter business_entity is not 'NA'
+ --> @dm:selectcolumns include="license$|business_entity|sub_business_entity|product_family|license_class"
+ --> @dm:groupby columns="license,business_entity,sub_business_entity,product_family"
+ --> @dm:rename-columns tot_count="license_class" &
+common_BE="business_entity" &
+common_SBE="sub_business_entity" &
+common_product_family="product_family"
+ --> @dm:sort columns="license,tot_count" and order="asc"
+ --> @dm:dedup columns = 'license' and keep="last"
+ --> @dm:selectcolumns exclude="tot_count"
+ --> @dm:save name="temp-business_dict-trial"
+ ## # Create expiration column for entitlement
 
-## Getting cdp data and creating the nodes datasets where remote device is unmanaged
---> @c:new-block
-    --> @dm:empty
-    {% if customer_tag %}
-    --> #dm:query-persistent-stream device_object in ['LLDP','CDP'] and (customer_tag is '{{customer_tag}}') with-input name = "network_devices_cdp" & limit = "0"
+ --> @c:new-block
+ --> @dm:recall name="temp-license_entitlement-trial"
+ --> @dm:fixnull columns = 'endDate' and value = '1970-01-01'
+ --> @dm:fixnull-regex value='NA'
+ --> @dm:eval days_to_expire = " 20000 if licenseType=='PERPETUAL' else (to_datetime(endDate) - utcnow()).days"
+ --> @dm:eval endTime = "utcnow()"
+ --> @dm:change-time-format columns="endTime" and from_format="datetimestr" and to_format="%A, %m-%d-%Y %I:%M:%S %p %Z"
+ --> @dm:eval endTime = "str(endTime)+str(    'UTC')"
+ --> @dm:eval expiration_color = " '#79BAEC' if (licenseType =='PERPETUAL' or days_to_expire < -19000 ) else '#BB0000' if (days_to_expire < 90 or days_to_expire == 90) else  '#00BB00' if days_to_expire > 90 else '#b0bec5' "
+ --> @dm:eval sort_number = " '3' if (licenseType =='PERPETUAL' or days_to_expire < -19000 ) else '1' if (days_to_expire < 90 or days_to_expire == 90) else  '2' if days_to_expire > 90 else '4' "
+ --> @dm:eval expiration_status = " 'Valid Indefinitely' if (licenseType =='PERPETUAL' or days_to_expire < -19000 ) else  'Already Expired' if (days_to_expire< 0  and days_to_expire > -19000)  else  'Expiring within 90 days' if (days_to_expire < 90 or days_to_expire == 90) else 'Expiring after 90 days' if days_to_expire > 90  else 'NA' "
+ --> @dm:manipulate-string to="source" and func="eval" and value="'entitled'"
+ ## Enrich with consumption
 
-     {% else %}       
-      --> #dm:query-persistent-stream device_object in ['LLDP','CDP'] and (customer_tag is empty) with-input name = "network_devices_cdp" & limit = "0"     
-    {% endif %}
-            
-    --> @dm:eval remote_hostname_short = "remote_device_id.split('.')[0]"
-    --> @dm:save name = "temp-cdp-nodes"
+ --> @dm:enrich dict="temp-license_consumed_grp-trial" and src_key_cols="customer_name,smart_account_key,virtual_account_key,licensed_feature_key" and dict_key_cols="customer_name,smart_account_key,virtual_account_key,licensed_feature_key" and enrich_cols="consumed_quantity,reservation_type,pak_item_id"
+ --> @dm:fixnull columns = 'reservation_type,pak_item_id' and value='NA' and apply_for_empty="yes"
+ --> @dm:fixnull columns = 'consumed_quantity' and value=0 and apply_for_empty="yes"
+ --> @dm:eval available_quantity= "(entitled_quantity - consumed_quantity)"
+ --> @dm:save name="temp-license_entitlement-trial"
+ ## Evaluate if all consumed records have an associated entitlement
 
---> @c:new-block
-    --> @dm:recall name = "temp-cdp-nodes"
-    --> @dm:enrich-conditional dict = "temp-chassis-nodes" and condition is "device_hostname_short is '$remote_hostname_short'" and return_status = "yes"
-    --> *dm:filter meta_enrich_status contains "Failed" and remote_device_id is not "Not Available"
-    --> @dm:dedup columns ="remote_device_id"
-    --> @dm:eval-multi-proc node_type="'CHASSIS'" and
-            device_status="'UNMANAGED'" and
-            source=device_object
-    --> @dm:copy-columns from ="remote_hostname_short" and to="node_label"
-    --> @dm:copy-columns from ="remote_hostname_short" and to="node_id"
-    --> @dm:eval layer = "'Network'"
-    --> @dm:eval node_id = "remote_hostname_short +'_CHASSIS'"
-    --> @dm:eval iconURL="'Router'"
-    --> @dm:save name="temp-cdp-unmanaged-nodes"
+ --> @c:new-block
+ --> @dm:recall name="temp-license_consumed_grp-trial"
+ --> @dm:enrich dict="temp-license_entitlement-trial" and src_key_cols="customer_name,smart_account_key,virtual_account_key,licensed_feature_key" and dict_key_cols="customer_name,smart_account_key,virtual_account_key,licensed_feature_key" and enrich_cols="sales_order_line_key,sales_order_int"
+ --> *dm:filter sales_order_line_key is null
+ --> @dm:eval entitled_quantity= "0"
+ --> @dm:eval available_quantity= "(entitled_quantity - consumed_quantity)"
+ --> @dm:eval days_to_expire = "-1"
+ --> @dm:add-missing-columns columns="subscriptionId,status,licenseType,licenseSku,business_entity,sub_business_entity,product_family"
+ --> @dm:fixnull columns="subscriptionId,status,licenseType,licenseSku,business_entity,sub_business_entity,product_family" and value='NA' and apply_for_empty="yes"
+ --> @dm:eval sort_number = "4"
+ --> @dm:manipulate-string to="source" and func="eval" and value="'consumed'"
+ --> @dm:eval unique_key = "str(customer_name) + str(smart_account_key) + str(virtual_account_key)+  str(licensed_feature_key) + str(pak_item_id) + str(reservation_type) + str(license_sku_id)+str(billingType)"
+ --> @dm:save name="temp-license_consumption_missing-trial"
+ ## Concatenate
 
---> @c:new-block
-    --> @dm:concat names="^temp-chassis-nodes$|^temp-cdp-unmanaged-nodes$"
-    --> @dm:selectcolumns exclude = "target_x|target_y"
-    --> @dm:save name="temp-rdaf_topology_nodes"
-    --> @rn:write-stream name='cfx_rdaf_topology_nodes'
-    --> @graph:insert-nodes dbname = 'cfx_rdaf_topology' & collection = 'cfx_rdaf_topology_nodes' & key_column = 'node_id'
+ --> @c:new-block
+ --> @dm:concat names="temp-license_entitlement-trial|temp-license_consumption_missing-trial"
+ --> @dm:fixnull columns = 'sales_order_line_key,sales_order_int' and value = '-1' and apply_for_empty="yes"
+ --> @dm:save name = "temp-license_details-trial"
+ --> @rn:write-stream name='edc_license_details-trial' and direct_to_opensearch="yes"
+ --> @dm:sleep seconds = 5
+ --> @c:new-block
+ --> @dm:recall name="temp-license_details-trial"
+ --> @dm:selectcolumns include="customer_name|smart_account_name|domain_name|smart_account_key|virtual_account_key|virtual_account_name|^license$|license_class|licensed_feature_key|entitled_quantity"
+ --> @dm:groupby columns="customer_name,smart_account_name,domain_name,smart_account_key,virtual_account_key,virtual_account_name,license,license_class,licensed_feature_key" and agg='sum'
+ ## Bring available and consumed
 
---> @c:new-block
-    --> @dm:empty
-    {% if customer_tag %}
-    --> #dm:query-persistent-stream device_object in ['LLDP','CDP'] and remote_device_id is not "Not Available" and (customer_tag is '{{customer_tag}}') with-input name = "network_devices_cdp" & limit = "0"
-    
-    {% else %} 
-    --> #dm:query-persistent-stream device_object in ['LLDP','CDP'] and remote_device_id is not "Not Available" and (customer_tag is empty) with-input name = "network_devices_cdp" & limit = "0"           
-    {% endif %}
-    
-    --> @dm:eval remote_hostname_short = "remote_device_id.split('.')[0]"
-    --> @dm:eval node_id = "str(remote_hostname_short)+'_CHASSIS' if remote_device_ip == 'Not Available' else str(remote_device_ip)+'_CHASSIS'"
-    --> @dm:eval link_type=device_object
-    --> @dm:eval showAttrs="'^link_type$'"
-    --> @dm:eval direction = "'NO_DIRECTION'"
-    --> @dm:eval relation_type = "'connected-to'"
-    --> @dm:save name = "temp-cdp-edges"
-    --> @dm:enrich dict="temp-chassis-nodes" and src_key_cols="remote_hostname_short" and dict_key_cols="device_hostname_short" and enrich_cols="node_id,node_label,node_type" and enrich_cols_as = "left_id,left_label,left_node_type"
-    --> @dm:enrich dict="temp-chassis-nodes" and src_key_cols="device_ip" and dict_key_cols="device_ip" and enrich_cols="node_id,node_label,node_type" and enrich_cols_as = "right_id,right_label,right_node_type"
-    --> @dm:selectcolumns exclude="node_id|node_label|device_status|device_hostname_short|left_node_id|left_node_label|right_node_id|right_node_label"
-    --> @dm:eval showAttrs="'^link_type$'"
-    --> @dm:eval direction = "'NO_DIRECTION'"
-    --> @dm:eval relation_type = "'connected-to'"
-    --> @dm:dedup columns="left_id,right_id"
-    --> @dm:fixnull columns ="left_id,right_id"
-    --> @dm:map to="edge_id" and func="evaluate" and expr="f'{left_id}#{right_id}' if left_id < right_id else f'{right_id}#{left_id}'"
-    --> *dm:filter left_id is not Empty
-    --> *dm:filter left_id != right_id
-    --> @dm:save name="temp-rdaf-topology-edges"
-    --> @rn:write-stream name='cfx_rdaf_topology_edges'
-    --> @graph:insert-edges dbname = 'cfx_rdaf_topology' & nodes_collection = 'cfx_rdaf_topology_nodes' & edges_collection = 'cfx_rdaf_topology_edges' & left_id = 'left_id' & right_id = 'right_id'
+ --> @dm:enrich dict="temp-license_consumed_grp-trial" and src_key_cols="customer_name,smart_account_key,virtual_account_key,licensed_feature_key" and dict_key_cols="customer_name,smart_account_key,virtual_account_key,licensed_feature_key" and enrich_cols="consumed_quantity"
+ ## Bring most used business entity for license
 
---> @c:new-block
-    --> @dm:empty
-    {% if customer_tag %}
-    --> #dm:query-persistent-stream device_object is "Chassis" and device_equip_type is "CHASSIS" and (customer_tag is '{{customer_tag}}') with-input name = "network_device_inventory" & limit = "0"
-   
-    {% else %}  
-   --> #dm:query-persistent-stream device_object is "Chassis" and device_equip_type is "CHASSIS" and (customer_tag is empty) with-input name = "network_device_inventory" & limit = "0"          
-    {% endif %}
-    --> @dm:eval-multi-proc device_hostname_short = "device_hostname.split('.')[0]" and device_status = "'MANAGED'"
-    --> @dm:save name = "chassis_inventory"
+ --> @dm:enrich dict="temp-business_dict-trial" and src_key_cols="license" and dict_key_cols="license" and enrich_cols="common_BE,common_SBE,common_product_family"
+ --> @dm:fixnull columns = 'consumed_quantity' and value=0 and apply_for_empty="yes"
+ --> @dm:eval available_quantity= "(entitled_quantity - consumed_quantity)"
+ --> @dm:save name="temp-grouping-trial"
+ --> @c:new-block
+ --> @dm:recall name="temp-license_details-trial"
+ --> @dm:selectcolumns include="customer_name|smart_account_key|virtual_account_key|days_to_expire|licenseType|^license$|licensed_feature_key|source"
+ --> @dm:groupby columns="customer_name,smart_account_key,virtual_account_key,license,licensed_feature_key,source" and agg='min'
+ --> @dm:eval exp_status = " 'Valid Indefinitely' if ((licenseType =='PERPETUAL' or days_to_expire < -19000) and source == 'entitled') else 'One or more Expired Licenses' if (days_to_expire< 0  and days_to_expire > -19000 and source == 'entitled')    else  'Expiring within 90 days' if ((days_to_expire < 90 or days_to_expire == 90) and source == 'entitled') else 'Expiring after 90 days' if (days_to_expire > 90 and source == 'entitled') else 'NA' "
+ --> @dm:eval sort_number = " '3' if ((licenseType =='PERPETUAL' or days_to_expire < -19000) and source == 'entitled' ) else '1' if (days_to_expire< 0  and days_to_expire > -19000 and source == 'entitled')    else  '1' if ((days_to_expire < 90 or days_to_expire == 90) and source == 'entitled') else '2' if (days_to_expire > 90 and source == 'entitled') else '4' "
+ --> @dm:eval expiration_color = " '#79BAEC' if ((licenseType =='PERPETUAL' or days_to_expire < -19000) and source == 'entitled' ) else '#BB0000' if ((days_to_expire < 90 or days_to_expire == 90) and source == 'entitled') else  '#00BB00' if (days_to_expire > 90 and source == 'entitled') else '#b0bec5'  "
+ --> @dm:save name="temp-grouping2-trial"
+ ## Enrich grouping for summary with message for expiration
 
---> @c:new-block
-    --> @dm:empty
-    {% if customer_tag %}
-    --> #dm:query-persistent-stream  (customer_tag is '{{customer_tag}}') with-input name = "cfx_rdaf_topology_nodes" & limit = "0"
-      {% else %}   
-       --> #dm:query-persistent-stream  (customer_tag is empty) with-input name = "cfx_rdaf_topology_nodes" & limit = "0"         
-      {% endif %}
-    --> @dm:skip-pipeline-if-shape row_count= 0
-    --> @dm:save name = "temp-nodes_l1"
-    --> *dm:filter device_equip_type is "CHASSIS" and device_hostname is not empty
-    --> @dm:eval country = "device_hostname[0:2]"
-    --> @dm:eval city = "device_hostname[6:9]"
-    --> @dm:eval state = "device_hostname[9:11]"
-    ##--> @dm:enrich dict = "geo_codes_dict" and src_key_cols = "country,city" and dict_key_cols = "country,city" and enrich_cols = "latitude,longitude" and replace_values = "yes"
-    --> @rn:write-stream name = "cfx_rdaf_topology_nodes"
-    --> @dm:recall name = "temp-nodes_l1"
-    --> *dm:filter node_type is "Edge"
-    --> @dm:eval country = "edgeName[0:2]"
-    --> @dm:eval city = "edgeName[6:9]"
-    --> @dm:eval state = "edgeName[9:11]"
-    ##--> @dm:enrich dict = "geo_codes_dict" and src_key_cols = "country,city" and dict_key_cols = "country,city" and enrich_cols = "latitude,longitude" and replace_values = "yes"
-    --> @rn:write-stream name = "cfx_rdaf_topology_nodes"
-    --> @graph:insert-nodes dbname = 'cfx_rdaf_topology' & collection = 'cfx_rdaf_topology_nodes' & key_column = 'node_id'
+ --> @c:new-block
+ --> @dm:recall name="temp-grouping-trial"
+ --> @dm:enrich dict="temp-grouping2-trial" and src_key_cols="customer_name,smart_account_key,virtual_account_key,licensed_feature_key" and dict_key_cols="customer_name,smart_account_key,virtual_account_key,licensed_feature_key" and enrich_cols="exp_status,expiration_color,sort_number"
+ ## evaluate Alerts
 
+ --> @dm:eval alert_status = " 'Licenses Expired' if (exp_status == 'One or more Expired Licenses') else 'Insufficient Licenses' if (available_quantity<0 ) else 'Licenses Expiring'  if (exp_status == 'Expiring within 90 days') else 'NA' "
+ --> @dm:eval alert_color = " '#FF0000' if (exp_status == 'One or more Expired Licenses') else  '#FFA500' if (available_quantity<0 ) else '#F4C430' if (exp_status == 'Expiring within 90 days') else '#b0bec5'  "
+ --> @dm:save name="temp-summary-details-trial"
+ ## Enrich grouping for summary with TAP
 
-
-
+ --> @c:new-block
+ --> @dm:recall name="temp-summary-details-trial"
+ --> @dm:enrich dict="license_tap_dict" and src_key_cols="license" and dict_key_cols="license" and enrich_cols="TAP"
+ --> @dm:fixnull columns = 'license,common_BE,common_product_family' and value='Not Available' and apply_for_empty="yes"
+ --> @dm:save name="edc_license_summary_enrich-trial"
+ --> @dm:save name="temp-edc_license_summary_enrich-trial"
+ --> @c:new-block
+ --> @dm:recall name="temp-edc_license_summary_enrich-trial"
+ --> @dm:eval unique_key = "str(customer_name) + str(smart_account_key) +str(virtual_account_key)+  str(license) +  str(license_class) + str(licensed_feature_key)"
+ --> @dm:eval endTime = "utcnow()"
+ --> @dm:change-time-format columns="endTime" and from_format="datetimestr" and to_format="%A, %m-%d-%Y %I:%M:%S %p %Z"
+ --> @dm:eval endTime = "str(endTime)+str('UTC')"
+ --> @dm:fixnull-regex value='NA'
+ --> @rn:write-stream name='edc_license_summary-trial' and direct_to_opensearch="yes"
+ --> @dm:sleep seconds = 5
