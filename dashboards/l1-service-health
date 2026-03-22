@@ -1,293 +1,657 @@
 {
-  "name": "rca_regression_dashboard",
-  "label": "RCA Regression",
-  "description": "Template dashboard for RCA Regression",
-  "enabled": true,
-  "debug": true,
-  "live_edit": true,
+  "name": "l1-service-health",
+  "description": "L1 Service Health",
+  "label": "Service Health - L1 Users",
+  "enabled": false,
   "dashboard_type": "template",
+  "dashboard_style": "auto",
+  "version": "22.10.7.1",
+  "stream": "oia-alerts-stream",
   "template_variables": {
-    "METRIC_ID": {
-      "contextId": [
-        "marker",
-        "metric_id"
-      ]
+    "PROJECT_ID": {
+      "default": "",
+      "contextId": "projectId"
     },
-    "METRIC_NAME": {
-      "contextId": [
-        "marker",
-        "metric_label"
-      ]
+    "STACK_NAME": {
+      "default": "",
+      "contextId": "stack_name"
     },
-    "ASSET": {
-      "contextId": [
-        "marker",
-        "asset_id"
-      ]
-    },
-    "MODEL_NAME": {
-      "contextId": [
-        "marker",
-        "job_name"
-      ]
-    },
-    "METRIC_UNIT": {
-      "contextId": [
-        "marker",
-        "unit"
-      ]
-    },
-    "STREAM": {
-      "contextId": [
-        "marker",
-        "stream_name"
-      ],
-      "default": "oia-ml-metrics-regression-output"
-    },
-    "INCIDENT_OT": {
-      "contextId": "i_cfx_incident_occurred"
+    "MY_TEMPLATE": {
+      "default": "<details><summary><b>{{row.alertcategory}} - {{row.alerttype}}</b></summary><div class='v-data-table v-data-table--dense theme--light'><div class='v-data-table__wrapper'><table style='width: 300px;'><tbody><tr><td>Source</td><td>{{row.sourcemechanism}}</td></tr><tr><td>Asset ID</td><td>{{row.assetname}}</td></tr><tr><td>Message</td><td>{{row.message}}</td></tr><tr><td>Asset IP</td><td>{{row.assetipaddress}}</td></tr><tr><td>Alert Status</td><td>{{row.sourcestatus}}</td></tr></tbody></table></div></div></details>",
+      "contextId": "MY_TEMPLATE"
     }
+  },
+  "custom_context": {
+    "alert-context": true
   },
   "dashboard_filters": {
     "time_filter": true,
-    "default_time_range": {
-      "from_time": "{{INCIDENT_OT}}",
-      "from_time_delta_hours": -12,
-      "to_time": "{{INCIDENT_OT}}",
-      "to_time_delta_hours": 4,
-      "label": "Incident Time"
-    }
+    "default_time_filter_non_removable": true,
+    "show_default_time_filter": false,
+    "additional_datetime_column_filters": [
+      {
+        "id": "a_created_ts",
+        "label": "Created At"
+      },
+      {
+        "id": "a_updated_ts",
+        "label": "Updated At"
+      }
+    ],
+    "extra_filter": "project_id in {{PROJECT_ID}}",
+    "columns_filter": [
+      {
+        "id": "a_message",
+        "label": "Message",
+        "type": "TEXT"
+      },
+      {
+        "id": "a_asset_name",
+        "label": "Asset Name",
+        "type": "TEXT"
+      },
+      {
+        "id": "a_status",
+        "label": "Source Status",
+        "type": "TEXT"
+      },
+      {
+        "id": "a_severity",
+        "label": "Severity",
+        "type": "TEXT"
+      },
+      {
+        "id": "a_source_mechanism",
+        "label": "Source",
+        "type": "TEXT"
+      },
+      {
+        "id": "a_incident_id",
+        "label": "Incident Id",
+        "type": "TEXT"
+      },
+      {
+        "id": "a_created_ts",
+        "label": "Created At",
+        "type": "DATETIME"
+      },
+      {
+        "id": "a_alert_category",
+        "label": "Alert Category",
+        "type": "TEXT"
+      },
+      {
+        "id": "a_alert_type",
+        "label": "Alert Type",
+        "type": "TEXT"
+      }
+    ],
+    "default_time_filter_labels": [
+      "Last 24 hours"
+    ]
   },
   "dashboard_sections": [
     {
-      "title": "Summary",
+      "title": "Service Health",
       "show_filter": true,
+      "scope_filter": "a_source_mechanism is not 'CORRELATION'  ",
       "widgets": [
         {
-          "widget_type": "pie_chart",
-          "title": "Anomalies by Severity",
-          "stream": "{{STREAM}}",
-          "extra_filter": "anomalies is not None and job_name is '{{MODEL_NAME}}'",
-          "min_width": 6,
-          "height": 6,
-          "max_width": 6,
+          "widget_type": "multi_bar_chart",
+          "title": "Alerts By Severity",
+          "stream": "oia-alerts-stream",
           "ts_column": "timestamp",
-          "column": "_id",
-          "agg": "value_count",
+          "duration_hours": 24,
+          "min_width": 3,
+          "height": 4,
+          "max_width": 4,
           "group_by": [
-            "anomalies_severity"
+            "a_status",
+            "a_severity"
           ],
+          "agg": "sum",
+          "column": "count_",
+          "type": "int",
+          "chartProperties": {
+            "legendLocation": "bottom",
+            "stacked": true,
+            "xAxisLabel": null,
+            "yAxisLabel": null
+          },
           "style": {
             "color-map": {
-              "High": [
-                "#ef5350",
-                "#ffffff"
-              ],
-              "Medium": [
-                "#FFA726",
-                "#ffffff"
-              ],
-              "Low": [
-                "#388e3c",
-                "#ffffff"
-              ]
+              "ACTIVE": "#bb0000",
+              "CLEARED": "#00bb00"
             }
           },
-          "type": "str",
-          "widget_id": "7eba4b7b"
+          "widget_id": "7260c363"
         },
         {
-          "title": "Anomalies",
+          "widget_type": "multi_bar_chart",
+          "title": "Alerts By Type",
+          "stream": "oia-alerts-stream",
+          "ts_column": "timestamp",
+          "duration_hours": 24,
+          "min_width": 3,
+          "height": 4,
+          "max_width": 4,
+          "group_by": [
+            "a_status",
+            "a_alert_type"
+          ],
+          "agg": "sum",
+          "column": "count_",
+          "type": "int",
+          "chartProperties": {
+            "legendLocation": "bottom",
+            "stacked": true,
+            "xAxisLabel": null,
+            "yAxisLabel": null
+          },
+          "style": {
+            "color-map": {
+              "ACTIVE": "#bb0000",
+              "CLEARED": "#00bb00"
+            }
+          },
+          "widget_id": "ad86d413"
+        },
+        {
+          "widget_type": "multi_bar_chart",
+          "title": "Alerts By Source",
+          "stream": "oia-alerts-stream",
+          "ts_column": "timestamp",
+          "duration_hours": 24,
+          "min_width": 3,
+          "height": 4,
+          "max_width": 4,
+          "group_by": [
+            "a_status",
+            "a_source_mechanism"
+          ],
+          "agg": "sum",
+          "column": "count_",
+          "type": "int",
+          "chartProperties": {
+            "legendLocation": "bottom",
+            "stacked": true,
+            "xAxisLabel": null,
+            "yAxisLabel": null
+          },
+          "style": {
+            "color-map": {
+              "ACTIVE": "#bb0000",
+              "CLEARED": "#00bb00"
+            }
+          },
+          "widget_id": "1846665b"
+        },
+        {
+          "title": "Alerts",
           "widget_type": "tabular",
-          "stream": "{{STREAM}}",
-          "extra_filter": "anomalies is not None and job_name is '{{MODEL_NAME}}'",
-          "min_width": 6,
-          "height": 6,
-          "max_width": 6,
+          "max_width": 12,
+          "height": 12,
+          "min_width": 12,
+          "stream": "oia-alerts-stream",
+          "ts_column": "timestamp",
+          "duration_hours": 24,
           "paginated": true,
+          "resizableColumns": false,
           "remote_searchable": true,
-          "max_rows": 50,
+          "remote_searchable_cols": [
+            "a_alert_category",
+            "a_source_mechanism",
+            "a_id",
+            "a_incident_id",
+            "customer_id",
+            "a_asset_ip_address",
+            "a_asset_name",
+            "a_severity",
+            "a_message",
+            "a_status",
+            "project_id"
+          ],
           "sorting": [
             {
               "timestamp": "desc"
             }
           ],
           "columns": {
-            "timestamp": "Timestamp",
-            "asset_id": "Asset ID",
-            "asset_name": "Asset Name",
-            "metric_name": "Metric Name",
-            "severity_color": {
-              "title": "Sev_2",
+            "a_alert_category": {
+              "title": "Alert Category",
+              "type": "GROUPED",
+              "group": {
+                "a_source_mechanism": "Source",
+                "a_asset_ip_address": "Asset Id",
+                "a_status": "Source Status",
+                "a_message": "Message"
+              },
+              "color-column": "a_state_color"
+            },
+            "a_state_color": {
               "type": "COLOR-MAP",
-              "source-column": "anomalies_severity",
+              "source-column": "a_status",
               "color-map": {
-                "High": "#ef5350",
-                "Medium": "#FFA726",
-                "Low": "#388e3c"
+                "CLEARED": "#00bb00",
+                "ACTIVE": "#bb0000"
               }
             },
-            "anomalies_severity": {
-              "title": "Severity",
-              "htmlTemplateForRow": "<span class='badge' style='background-color: {{'{{ row.severity_color }}'}}' > {{'{{ row.anomalies_severity }}'}} </span>",
-              "defaultWidth": 150
+            "timestamp": {
+              "title": "Timestamp",
+              "type": "DATETIME"
+            },
+            "a_created_ts": {
+              "title": "Created",
+              "type": "DATETIME"
+            },
+            "a_severity": "Severity",
+            "a_asset_name": "Asset",
+            "a_incident_id": {
+              "title": "Incident ID",
+              "key": true
+            },
+            "a_id": {
+              "title": "Id",
+              "visible": false,
+              "key": true
+            },
+            "customer_id": {
+              "title": "Customer Id",
+              "visible": false,
+              "hidden": true,
+              "key": true
+            },
+            "project_id": {
+              "title": "Project Id",
+              "visible": false,
+              "key": true
             }
           },
-          "custom_columns": [
+          "actions": [
             {
-              "id": "value1",
-              "label": "Value",
-              "expr": "round(value,2)"
+              "identifier": "alert-processor:cfx.alert.clear",
+              "permission": "oia:alert:clear",
+              "selectionType": "SINGLE",
+              "title": "Clear Alert",
+              "type": "POPUP_FORM",
+              "api-endpoint": {
+                "methodName": "invokeAppApi:getFormById",
+                "namespace": "io.cfx.dimensions.app",
+                "params": [
+                  {
+                    "context": {},
+                    "form_id": "cfx.alert.clear"
+                  }
+                ],
+                "parse-output": false,
+                "service-name": "alert-processor",
+                "stringified-params": true
+              }
+            },
+            {
+              "title": "Alert Details",
+              "permission": "oia:alert:view",
+              "type": "POPUP_REPORT",
+              "templateUrl": "cfx-oia/source-alert-report",
+              "icon": "mdi mdi-plus",
+              "selectionType": "SINGLE",
+              "identifier": "alert-processor:cfx.alert.payload.view",
+              "drillDownLinkField": "message",
+              "drillDownContext": "id",
+              "displayLabelColumnId": "message",
+              "api-endpoint": {
+                "service-name": "alert-processor",
+                "namespace": "io.cfx.dimensions.app",
+                "methodName": "invokeAppApi:viewAlertData",
+                "stringified-params": true,
+                "useReportContext": true,
+                "parse-output": false,
+                "params": [
+                  {
+                    "context": {}
+                  }
+                ]
+              }
+            },
+            {
+              "title": "View Incident",
+              "permission": "oia:alert:view",
+              "type": "GO_TO_APP_STATE",
+              "stateName": "app.featureapp",
+              "appName": "user-dashboard/incident-details-app",
+              "selectionType": "SINGLE",
+              "drillDownLinkField": "a_incident_id",
+              "drillDownContext": "a_incident_id",
+              "destinationContext": "incidentid",
+              "displayLabelColumnId": "Incident ID",
+              "contextParamList": {
+                "contextParams": [
+                  {
+                    "paramKey": "project_id",
+                    "paramId": "projectId"
+                  },
+                  {
+                    "paramKey": "a_incident_id",
+                    "paramId": "incidentid"
+                  },
+                  {
+                    "paramKey": "a_incident_id",
+                    "paramId": "incident_id"
+                  },
+                  {
+                    "paramKey": "project_id",
+                    "paramId": "roomid"
+                  },
+                  {
+                    "paramKey": "project_id",
+                    "paramId": "projectid"
+                  }
+                ]
+              },
+              "actionCondition": {
+                "actionControl": "SHOW_IF",
+                "conditionalField": [
+                  {
+                    "conditionType": "NOT_EQUAL",
+                    "conditionValue": "SUPPRESSED",
+                    "fieldId": "a_correlation_status"
+                  },
+                  {
+                    "conditionType": "NOT_EQUAL",
+                    "conditionValue": "Not Available",
+                    "fieldId": "a_incident_id"
+                  }
+                ]
+              }
             }
           ],
-          "widget_id": "94a3fc11"
-        },
-        {
-          "widget_type": "shaded_chart_multisource",
-          "title": "Forecasting and Anomaly Detection ({{METRIC_NAME}} - {{ASSET}})",
-          "show-markers": true,
-          "max_width": 12,
-          "min_width": 12,
-          "height": 8,
-          "chartProperties": {
-            "yAxisLabel": "{{METRIC_NAME}} ({{METRIC_UNIT}})",
-            "xAxisLabel": "Time"
-          },
-          "sources": [
-            {
-              "type": "train",
-              "downsample": false,
-              "stream": "{{STREAM}}",
-              "extra_filter": "job_name is '{{MODEL_NAME}}' and status is 'Success'",
-              "ts_column": "timestamp",
-              "baseline_column": "baseline",
-              "anomalies_column": "anomalies",
-              "predicted_column": "predicted",
-              "predicted_anomalies": "predicted_anomalies",
-              "upperBound_column": "upperBound",
-              "lowerBound_column": "lowerBound",
-              "duration_hours": 1000000,
-              "synchronized-group": 0
-            }
+          "severity_columns": [
+            "a_severity"
           ],
-          "widget_id": "7a134625"
+          "widget_id": "dd5ade61"
         }
       ]
     }
   ],
   "pstream_dashboards": [
     {
-      "title": "Summary",
+      "title": "Service Health",
       "show_filter": true,
+      "scope_filter": "a_source_mechanism is not 'CORRELATION'  ",
       "widgets": [
         {
-          "widget_type": "pie_chart",
-          "title": "Anomalies by Severity",
-          "stream": "{{STREAM}}",
-          "extra_filter": "anomalies is not None and job_name is '{{MODEL_NAME}}'",
-          "min_width": 6,
-          "height": 6,
-          "max_width": 6,
+          "widget_type": "multi_bar_chart",
+          "title": "Alerts By Severity",
+          "stream": "oia-alerts-stream",
           "ts_column": "timestamp",
-          "column": "_id",
-          "agg": "value_count",
+          "duration_hours": 24,
+          "min_width": 3,
+          "height": 4,
+          "max_width": 4,
           "group_by": [
-            "anomalies_severity"
+            "a_status",
+            "a_severity"
           ],
+          "agg": "sum",
+          "column": "count_",
+          "type": "int",
+          "chartProperties": {
+            "legendLocation": "bottom",
+            "stacked": true,
+            "xAxisLabel": null,
+            "yAxisLabel": null
+          },
           "style": {
             "color-map": {
-              "High": [
-                "#ef5350",
-                "#ffffff"
-              ],
-              "Medium": [
-                "#FFA726",
-                "#ffffff"
-              ],
-              "Low": [
-                "#388e3c",
-                "#ffffff"
-              ]
+              "ACTIVE": "#bb0000",
+              "CLEARED": "#00bb00"
             }
           },
-          "type": "str",
-          "widget_id": "7eba4b7b"
+          "widget_id": "7260c363"
         },
         {
-          "title": "Anomalies",
+          "widget_type": "multi_bar_chart",
+          "title": "Alerts By Type",
+          "stream": "oia-alerts-stream",
+          "ts_column": "timestamp",
+          "duration_hours": 24,
+          "min_width": 3,
+          "height": 4,
+          "max_width": 4,
+          "group_by": [
+            "a_status",
+            "a_alert_type"
+          ],
+          "agg": "sum",
+          "column": "count_",
+          "type": "int",
+          "chartProperties": {
+            "legendLocation": "bottom",
+            "stacked": true,
+            "xAxisLabel": null,
+            "yAxisLabel": null
+          },
+          "style": {
+            "color-map": {
+              "ACTIVE": "#bb0000",
+              "CLEARED": "#00bb00"
+            }
+          },
+          "widget_id": "ad86d413"
+        },
+        {
+          "widget_type": "multi_bar_chart",
+          "title": "Alerts By Source",
+          "stream": "oia-alerts-stream",
+          "ts_column": "timestamp",
+          "duration_hours": 24,
+          "min_width": 3,
+          "height": 4,
+          "max_width": 4,
+          "group_by": [
+            "a_status",
+            "a_source_mechanism"
+          ],
+          "agg": "sum",
+          "column": "count_",
+          "type": "int",
+          "chartProperties": {
+            "legendLocation": "bottom",
+            "stacked": true,
+            "xAxisLabel": null,
+            "yAxisLabel": null
+          },
+          "style": {
+            "color-map": {
+              "ACTIVE": "#bb0000",
+              "CLEARED": "#00bb00"
+            }
+          },
+          "widget_id": "1846665b"
+        },
+        {
+          "title": "Alerts",
           "widget_type": "tabular",
-          "stream": "{{STREAM}}",
-          "extra_filter": "anomalies is not None and job_name is '{{MODEL_NAME}}'",
-          "min_width": 6,
-          "height": 6,
-          "max_width": 6,
+          "max_width": 12,
+          "height": 12,
+          "min_width": 12,
+          "stream": "oia-alerts-stream",
+          "ts_column": "timestamp",
+          "duration_hours": 24,
           "paginated": true,
+          "resizableColumns": false,
           "remote_searchable": true,
-          "max_rows": 50,
+          "remote_searchable_cols": [
+            "a_alert_category",
+            "a_source_mechanism",
+            "a_id",
+            "a_incident_id",
+            "customer_id",
+            "a_asset_ip_address",
+            "a_asset_name",
+            "a_severity",
+            "a_message",
+            "a_status",
+            "project_id"
+          ],
           "sorting": [
             {
               "timestamp": "desc"
             }
           ],
           "columns": {
-            "timestamp": "Timestamp",
-            "asset_id": "Asset ID",
-            "asset_name": "Asset Name",
-            "metric_name": "Metric Name",
-            "severity_color": {
-              "title": "Sev_2",
+            "a_alert_category": {
+              "title": "Alert Category",
+              "type": "GROUPED",
+              "group": {
+                "a_source_mechanism": "Source",
+                "a_asset_ip_address": "Asset Id",
+                "a_status": "Source Status",
+                "a_message": "Message"
+              },
+              "color-column": "a_state_color"
+            },
+            "a_state_color": {
               "type": "COLOR-MAP",
-              "source-column": "anomalies_severity",
+              "source-column": "a_status",
               "color-map": {
-                "High": "#ef5350",
-                "Medium": "#FFA726",
-                "Low": "#388e3c"
+                "CLEARED": "#00bb00",
+                "ACTIVE": "#bb0000"
               }
             },
-            "anomalies_severity": {
-              "title": "Severity",
-              "htmlTemplateForRow": "<span class='badge' style='background-color: {{'{{ row.severity_color }}'}}' > {{'{{ row.anomalies_severity }}'}} </span>",
-              "defaultWidth": 150
+            "timestamp": {
+              "title": "Timestamp",
+              "type": "DATETIME"
+            },
+            "a_created_ts": {
+              "title": "Created",
+              "type": "DATETIME"
+            },
+            "a_severity": "Severity",
+            "a_asset_name": "Asset",
+            "a_incident_id": {
+              "title": "Incident ID",
+              "key": true
+            },
+            "a_id": {
+              "title": "Id",
+              "visible": false,
+              "key": true
+            },
+            "customer_id": {
+              "title": "Customer Id",
+              "visible": false,
+              "hidden": true,
+              "key": true
+            },
+            "project_id": {
+              "title": "Project Id",
+              "visible": false,
+              "key": true
             }
           },
-          "custom_columns": [
+          "actions": [
             {
-              "id": "value1",
-              "label": "Value",
-              "expr": "round(value,2)"
+              "identifier": "alert-processor:cfx.alert.clear",
+              "permission": "oia:alert:clear",
+              "selectionType": "SINGLE",
+              "title": "Clear Alert",
+              "type": "POPUP_FORM",
+              "api-endpoint": {
+                "methodName": "invokeAppApi:getFormById",
+                "namespace": "io.cfx.dimensions.app",
+                "params": [
+                  {
+                    "context": {},
+                    "form_id": "cfx.alert.clear"
+                  }
+                ],
+                "parse-output": false,
+                "service-name": "alert-processor",
+                "stringified-params": true
+              }
+            },
+            {
+              "title": "Alert Details",
+              "permission": "oia:alert:view",
+              "type": "POPUP_REPORT",
+              "templateUrl": "cfx-oia/source-alert-report",
+              "icon": "mdi mdi-plus",
+              "selectionType": "SINGLE",
+              "identifier": "alert-processor:cfx.alert.payload.view",
+              "drillDownLinkField": "message",
+              "drillDownContext": "id",
+              "displayLabelColumnId": "message",
+              "api-endpoint": {
+                "service-name": "alert-processor",
+                "namespace": "io.cfx.dimensions.app",
+                "methodName": "invokeAppApi:viewAlertData",
+                "stringified-params": true,
+                "useReportContext": true,
+                "parse-output": false,
+                "params": [
+                  {
+                    "context": {}
+                  }
+                ]
+              }
+            },
+            {
+              "title": "View Incident",
+              "permission": "oia:alert:view",
+              "type": "GO_TO_APP_STATE",
+              "stateName": "app.featureapp",
+              "appName": "user-dashboard/incident-details-app",
+              "selectionType": "SINGLE",
+              "drillDownLinkField": "a_incident_id",
+              "drillDownContext": "a_incident_id",
+              "destinationContext": "incidentid",
+              "displayLabelColumnId": "Incident ID",
+              "contextParamList": {
+                "contextParams": [
+                  {
+                    "paramKey": "project_id",
+                    "paramId": "projectId"
+                  },
+                  {
+                    "paramKey": "a_incident_id",
+                    "paramId": "incidentid"
+                  },
+                  {
+                    "paramKey": "a_incident_id",
+                    "paramId": "incident_id"
+                  },
+                  {
+                    "paramKey": "project_id",
+                    "paramId": "roomid"
+                  },
+                  {
+                    "paramKey": "project_id",
+                    "paramId": "projectid"
+                  }
+                ]
+              },
+              "actionCondition": {
+                "actionControl": "SHOW_IF",
+                "conditionalField": [
+                  {
+                    "conditionType": "NOT_EQUAL",
+                    "conditionValue": "SUPPRESSED",
+                    "fieldId": "a_correlation_status"
+                  },
+                  {
+                    "conditionType": "NOT_EQUAL",
+                    "conditionValue": "Not Available",
+                    "fieldId": "a_incident_id"
+                  }
+                ]
+              }
             }
           ],
-          "widget_id": "94a3fc11"
-        },
-        {
-          "widget_type": "shaded_chart_multisource",
-          "title": "Forecasting and Anomaly Detection ({{METRIC_NAME}} - {{ASSET}})",
-          "show-markers": true,
-          "max_width": 12,
-          "min_width": 12,
-          "height": 8,
-          "chartProperties": {
-            "yAxisLabel": "{{METRIC_NAME}} ({{METRIC_UNIT}})",
-            "xAxisLabel": "Time"
-          },
-          "sources": [
-            {
-              "type": "train",
-              "downsample": false,
-              "stream": "{{STREAM}}",
-              "extra_filter": "job_name is '{{MODEL_NAME}}' and status is 'Success'",
-              "ts_column": "timestamp",
-              "baseline_column": "baseline",
-              "anomalies_column": "anomalies",
-              "predicted_column": "predicted",
-              "predicted_anomalies": "predicted_anomalies",
-              "upperBound_column": "upperBound",
-              "lowerBound_column": "lowerBound",
-              "duration_hours": 1000000,
-              "synchronized-group": 0
-            }
+          "severity_columns": [
+            "a_severity"
           ],
-          "widget_id": "7a134625"
+          "widget_id": "dd5ade61"
         }
       ]
     }
