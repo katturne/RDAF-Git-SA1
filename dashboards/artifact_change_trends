@@ -1,59 +1,221 @@
 {
-  "name": "niki-preview-template",
-  "label": "Preview template",
-  "description": "Preview template",
-  "context_label_id": "deviceName",
-  "dashboard_folder": "Default",
-  "version": "2024-04-03_02",
+  "name": "artifact_change_trends",
+  "label": "Health: Artifact Change Trend",
+  "description": "Artifact Changes: Insights",
+  "dashboard_folder": "RDAF_Health_Trends",
+  "version": "2025-02-11_2",
   "enabled": false,
-  "debug": true,
-  "live_edit": true,
   "dashboard_type": "template",
-  "template_variables": {
-    "deviceName": {
-      "contextId": "deviceName"
-    }
-  },
+  "stream": "rda_system_audit_logs",
+  "live_edit": true,
   "dashboard_filters": {
-    "columns_filter": [],
-    "group_filters": []
+    "time_filter": true,
+    "default_time_filter_labels": [
+      "Last 1 month"
+    ],
+    "columns_filter": [
+      {
+        "id": "operation",
+        "label": "Operation",
+        "type": "TEXT"
+      }
+    ],
+    "group_filters": [
+      {
+        "stream": "rda_system_audit_logs",
+        "title": "Operation",
+        "extra_filter": "user_id != 'SERVICE' and operation in [ 'ADD', 'UPDATE', 'DELETE'] ",
+        "limit": 50,
+        "group_by": [
+          "operation"
+        ],
+        "ts_column": "timestamp",
+        "agg": "cardinality",
+        "column": "operation",
+        "type": "int",
+        "show_counts": false
+      },
+      {
+        "stream": "rda_system_audit_logs",
+        "title": "Artifact Type",
+        "extra_filter": "user_id != 'SERVICE' and operation in [ 'ADD', 'UPDATE', 'DELETE'] ",
+        "limit": 50,
+        "group_by": [
+          "artifact_type"
+        ],
+        "ts_column": "timestamp",
+        "agg": "cardinality",
+        "column": "artifact_type",
+        "type": "int",
+        "show_counts": false
+      }
+    ]
   },
   "dashboard_sections": [
     {
-      "title": "Summary",
+      "title": "Artifact Changes",
       "show_filter": true,
       "widgets": [
         {
-          "title": "Product",
-          "widget_type": "summary",
-          "duration_hours": 1080,
-          "paginated": false,
-          "max_rows": 1,
-          "limit": 1,
+          "widget_type": "label",
+          "context_filter": "show_traces is 'yes'",
           "max_width": 12,
-          "height": 5,
+          "height": 0.5,
           "min_width": 12,
-          "stream": "sample_json",
+          "label": "<div style='text-align:center;width:100%;'><h1><a style='text-decoration:none;color:#0066ff;' target='_blank'>Artifact Change Trend</a></h1></div>",
+          "widget_id": "33317e49"
+        },
+        {
+          "widget_type": "pie_chart",
+          "title": "Artifacts Changed",
+          "duration_hours": 1080,
+          "stream": "rda_system_audit_logs",
           "ts_column": "timestamp",
-          "extra_filter": "deviceName is {{ deviceName }} ",
+          "extra_filter": "user_id != 'SERVICE' and operation in [ 'ADD', 'UPDATE', 'DELETE'] ",
+          "column": "count_",
+          "agg": "value_count",
+          "group_by": [
+            "artifact_type"
+          ],
+          "min_width": 4,
+          "height": 4,
+          "max_width": 4,
+          "widget_id": "b015e2a2"
+        },
+        {
+          "title": "Artifact Changes Trend (Daily)",
+          "widget_type": "timeseries",
+          "stream": "rda_system_audit_logs",
+          "ts_column": "timestamp",
+          "extra_filter": "user_id != 'SERVICE' and operation in [ 'ADD', 'UPDATE', 'DELETE']",
+          "duration_hours": 1080,
+          "max_width": 8,
+          "height": 5,
+          "min_width": 8,
+          "gap_interval": "keep",
+          "chartProperties": {
+            "yAxisLabel": "Artifacts",
+            "xAxisLabel": "Local Time",
+            "legendLocation": "bottom",
+            "isDownsamplingDisabled": true,
+            "mode": "selection",
+            "column-id": "timestamp",
+            "options": {
+              "axes": {
+                "display": false
+              }
+            }
+          },
+          "interval": "1d",
+          "group_by": [
+            "artifact_type"
+          ],
+          "series_spec": [
+            {
+              "column": "artifact_type",
+              "agg": "value_count",
+              "type": "int"
+            }
+          ],
+          "widget_id": "ed5ca8c1"
+        },
+        {
+          "title": "Artifacts changed",
+          "widget_type": "counter",
+          "label": "",
+          "min_width": 5,
+          "max_width": 5,
+          "height": 4,
+          "unit": "",
+          "group_by": [
+            "operation"
+          ],
+          "style": {
+            "color-map": {
+              "DELETE": "#df0000",
+              "ADD": "#00df00",
+              "UPDATE": "#ad00bd"
+            }
+          },
+          "stream": "rda_system_audit_logs",
+          "extra_filter": "user_id != 'SERVICE' and operation in [ 'ADD', 'UPDATE', 'DELETE'] ",
+          "ts_column": "timestamp",
+          "duration_hours": 1080,
+          "column": "count_",
+          "agg": "sum",
+          "type": "int",
+          "widget_id": "d73e52ec"
+        },
+        {
+          "title": "Top Artifacts",
+          "widget_type": "tabular",
+          "duration_hours": 1080,
+          "max_width": 7,
+          "max_rows": 10,
+          "height": 5,
+          "min_width": 7,
+          "stream": "rda_system_audit_logs",
+          "ts_column": "timestamp",
+          "extra_filter": "user_id != 'SERVICE' and operation in [ 'ADD', 'UPDATE', 'DELETE']",
+          "paginated": false,
           "columns": {
-            "deviceName": {
-              "title": "Devicename",
-              "type": "TEXT",
-              "hidden": false,
+            "artifact_type": {
+              "title": "Artifact Type",
               "key": true
             },
-            "info": {
-              "title": "Info",
-              "type": "TEXT",
-              "hidden": false,
+            "artifact_name": {
+              "title": "Artifact Name",
               "key": true
             },
-            "detail": {
-              "title": "Detail",
-              "type": "TEXT",
-              "hidden": true,
-              "key": true
+            "operation": {
+              "title": "Operation",
+              "key": false
+            }
+          },
+          "pivot": {
+            "pivot_type": "advanced",
+            "group_by": [
+              "artifact_type",
+              "artifact_name",
+              "operation"
+            ],
+            "series": [
+              {
+                "column": "count_",
+                "agg": "sum",
+                "type": "int",
+                "label": "Count"
+              }
+            ]
+          },
+          "widget_id": "954ed85a"
+        },
+        {
+          "title": "Modified Artifact List",
+          "widget_type": "tabular",
+          "duration_hours": 1080,
+          "max_width": 12,
+          "height": 8,
+          "min_width": 12,
+          "stream": "rda_system_audit_logs",
+          "ts_column": "timestamp",
+          "extra_filter": "user_id != 'SERVICE' and operation in [ 'ADD', 'UPDATE', 'DELETE']",
+          "columns": {
+            "artifact_type": {
+              "title": "Artifact Type",
+              "type": "TEXT"
+            },
+            "artifact_name": {
+              "title": "Artifact Name",
+              "type": "TEXT"
+            },
+            "operation": {
+              "title": "Operation",
+              "type": "TEXT"
+            },
+            "user_id": {
+              "title": "User",
+              "type": "TEXT"
             },
             "timestamp": {
               "title": "Timestamp",
@@ -61,63 +223,176 @@
               "visible": true
             }
           },
-          "widget_id": "a69be2eb"
-        },
-        {
-          "widget_type": "codeblock",
-          "title": "Code Block",
-          "stream": "sample_json",
-          "virtual_scrolling": true,
-          "extra_filter": "deviceName is {{ deviceName }} and detail is not None GET detail ",
-          "columns": {
-            "detail": {
-              "type": "TEXT",
-              "hidden": false,
-              "key": true
-            }
-          },
-          "lang": "json",
-          "widget_id": "72f885d9"
+          "widget_id": "0877d31e"
         }
       ]
     }
   ],
   "pstream_dashboards": [
     {
-      "title": "Summary",
+      "title": "Artifact Changes",
       "show_filter": true,
       "widgets": [
         {
-          "title": "Product",
-          "widget_type": "summary",
-          "duration_hours": 1080,
-          "paginated": false,
-          "max_rows": 1,
-          "limit": 1,
+          "widget_type": "label",
+          "context_filter": "show_traces is 'yes'",
           "max_width": 12,
-          "height": 5,
+          "height": 0.5,
           "min_width": 12,
-          "stream": "sample_json",
+          "label": "<div style='text-align:center;width:100%;'><h1><a style='text-decoration:none;color:#0066ff;' target='_blank'>Artifact Change Trend</a></h1></div>",
+          "widget_id": "33317e49"
+        },
+        {
+          "widget_type": "pie_chart",
+          "title": "Artifacts Changed",
+          "duration_hours": 1080,
+          "stream": "rda_system_audit_logs",
           "ts_column": "timestamp",
-          "extra_filter": "deviceName is {{ deviceName }} ",
+          "extra_filter": "user_id != 'SERVICE' and operation in [ 'ADD', 'UPDATE', 'DELETE'] ",
+          "column": "count_",
+          "agg": "value_count",
+          "group_by": [
+            "artifact_type"
+          ],
+          "min_width": 4,
+          "height": 4,
+          "max_width": 4,
+          "widget_id": "b015e2a2"
+        },
+        {
+          "title": "Artifact Changes Trend (Daily)",
+          "widget_type": "timeseries",
+          "stream": "rda_system_audit_logs",
+          "ts_column": "timestamp",
+          "extra_filter": "user_id != 'SERVICE' and operation in [ 'ADD', 'UPDATE', 'DELETE']",
+          "duration_hours": 1080,
+          "max_width": 8,
+          "height": 5,
+          "min_width": 8,
+          "gap_interval": "keep",
+          "chartProperties": {
+            "yAxisLabel": "Artifacts",
+            "xAxisLabel": "Local Time",
+            "legendLocation": "bottom",
+            "isDownsamplingDisabled": true,
+            "mode": "selection",
+            "column-id": "timestamp",
+            "options": {
+              "axes": {
+                "display": false
+              }
+            }
+          },
+          "interval": "1d",
+          "group_by": [
+            "artifact_type"
+          ],
+          "series_spec": [
+            {
+              "column": "artifact_type",
+              "agg": "value_count",
+              "type": "int"
+            }
+          ],
+          "widget_id": "ed5ca8c1"
+        },
+        {
+          "title": "Artifacts changed",
+          "widget_type": "counter",
+          "label": "",
+          "min_width": 5,
+          "max_width": 5,
+          "height": 4,
+          "unit": "",
+          "group_by": [
+            "operation"
+          ],
+          "style": {
+            "color-map": {
+              "DELETE": "#df0000",
+              "ADD": "#00df00",
+              "UPDATE": "#ad00bd"
+            }
+          },
+          "stream": "rda_system_audit_logs",
+          "extra_filter": "user_id != 'SERVICE' and operation in [ 'ADD', 'UPDATE', 'DELETE'] ",
+          "ts_column": "timestamp",
+          "duration_hours": 1080,
+          "column": "count_",
+          "agg": "sum",
+          "type": "int",
+          "widget_id": "d73e52ec"
+        },
+        {
+          "title": "Top Artifacts",
+          "widget_type": "tabular",
+          "duration_hours": 1080,
+          "max_width": 7,
+          "max_rows": 10,
+          "height": 5,
+          "min_width": 7,
+          "stream": "rda_system_audit_logs",
+          "ts_column": "timestamp",
+          "extra_filter": "user_id != 'SERVICE' and operation in [ 'ADD', 'UPDATE', 'DELETE']",
+          "paginated": false,
           "columns": {
-            "deviceName": {
-              "title": "Devicename",
-              "type": "TEXT",
-              "hidden": false,
+            "artifact_type": {
+              "title": "Artifact Type",
               "key": true
             },
-            "info": {
-              "title": "Info",
-              "type": "TEXT",
-              "hidden": false,
+            "artifact_name": {
+              "title": "Artifact Name",
               "key": true
             },
-            "detail": {
-              "title": "Detail",
-              "type": "TEXT",
-              "hidden": true,
-              "key": true
+            "operation": {
+              "title": "Operation",
+              "key": false
+            }
+          },
+          "pivot": {
+            "pivot_type": "advanced",
+            "group_by": [
+              "artifact_type",
+              "artifact_name",
+              "operation"
+            ],
+            "series": [
+              {
+                "column": "count_",
+                "agg": "sum",
+                "type": "int",
+                "label": "Count"
+              }
+            ]
+          },
+          "widget_id": "954ed85a"
+        },
+        {
+          "title": "Modified Artifact List",
+          "widget_type": "tabular",
+          "duration_hours": 1080,
+          "max_width": 12,
+          "height": 8,
+          "min_width": 12,
+          "stream": "rda_system_audit_logs",
+          "ts_column": "timestamp",
+          "extra_filter": "user_id != 'SERVICE' and operation in [ 'ADD', 'UPDATE', 'DELETE']",
+          "columns": {
+            "artifact_type": {
+              "title": "Artifact Type",
+              "type": "TEXT"
+            },
+            "artifact_name": {
+              "title": "Artifact Name",
+              "type": "TEXT"
+            },
+            "operation": {
+              "title": "Operation",
+              "type": "TEXT"
+            },
+            "user_id": {
+              "title": "User",
+              "type": "TEXT"
             },
             "timestamp": {
               "title": "Timestamp",
@@ -125,23 +400,7 @@
               "visible": true
             }
           },
-          "widget_id": "a69be2eb"
-        },
-        {
-          "widget_type": "codeblock",
-          "title": "Code Block",
-          "stream": "sample_json",
-          "virtual_scrolling": true,
-          "extra_filter": "deviceName is {{ deviceName }} and detail is not None GET detail ",
-          "columns": {
-            "detail": {
-              "type": "TEXT",
-              "hidden": false,
-              "key": true
-            }
-          },
-          "lang": "json",
-          "widget_id": "72f885d9"
+          "widget_id": "0877d31e"
         }
       ]
     }
