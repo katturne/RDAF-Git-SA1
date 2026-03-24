@@ -1,40 +1,71 @@
-@c:new-block
+@dm:create-persistent-stream name="dashboard_export_email_status" and unique_cols="job_id" and retention_days=1
  --> @dm:empty
- --> @dm:addrow name='edc_cust_pid_sw' and limit=0
- --> #dm:query-persistent-stream
- --> @dm:add-missing-columns columns="key" and value='key'
- --> @dm:add-missing-columns columns="source" and value='software'
- --> @dm:save name='temp-sw-data'
- --> @dm:save name='added-sw-data'
- ## creates a list of unique customers
+ --> @dm:save name="temp-df"
+ --> @c:new-block
+ --> @dm:empty
+ --> @exec:define-function name="handle_error"
+ --> @dm:empty
+ --> @dm:addrow status="Failed" and reason="Error: email sending process failed to the email ID '{{recipient}}'" and job_id="{{job_id}}" and ingestion_id="{{ingestion_id}}"
+ --> @rn:write-stream name="rda_dashboard_schedule_logs"
+ --> @exec:end-function
+ ## --> @c:new-block
+
+ ## --> @dm:empty
+
+ ## --> @exec:retry-loop retries=3 & retry_delay_millis=5000 & on_failure_callback="handle_error"
+
+ ## --> @dm:addrow name="dashboard_export_email_status" & limit = '0'
+
+ ## --> #dm:query-persistent-stream job_id=="{{job_id}}"
+
+ ## --> @dm:save name="temp-original"
+
+ ## --> @dm:skip-block-if-shape row_count="0"
+
+ ## --> @dm:eval collection_timestamp = "int(time_now_as_ms())"
+
+ ## --> @dm:eval diff="collection_timestamp-rda_timestamp"
+
+ ## --> *dm:filter diff > 300000
+
+ ## --> @dm:save name="temp-df"
+
+ ## --> @dm:skip-block-if-shape row_count="0"
+
+ ## --> @dm:empty
+
+ ## --> @dm:addrow job_id="{{job_id}}"
+
+ ## --> @email:sendmail-data recipient="{{recipient}}" and minio_file_location="{{minio_path}}" and subject="{{subject}}"
+
+ ## --> @rn:write-stream name="dashboard_export_email_status"
+
+ ## --> @dm:empty
+
+ ## --> @dm:addrow status="The exported file is successfully sent to the email ID '{{recipient}}'"
+
+ ## --> @dm:eval reason=None
+
+ ## --> @dm:eval job_id="'{{job_id}}'" and ingestion_id="'{{ingestion_id}}'"
+
+ ## --> @rn:write-stream name="rda_dashboard_schedule_logs"
+
+ ## --> @exec:end-loop
 
  --> @c:new-block
- --> @dm:recall name='temp-sw-data'
- --> @dm:groupby columns='customer'
- ## --> @dm:to_type columns = 'contract_number' &
-
- ## type  = 'int'
-
- --> @dm:save name='temp-unique-cust-name'
- ## Queries data for the customer from edc_oi_enriched_stream
-
- --> @c:data-loop dataset='temp-unique-cust-name' and columns='customer'
  --> @dm:empty
- --> @dm:addrow name='edc_oi_inventory_enriched' and limit=0
- --> #dm:query-persistent-stream customer_name=='$customer'
- --> @dm:save name='temp-hw-eol-details' and append='yes'
- --> @dm:save name='test1-hw-eol-details' and append='yes'
- ## enriches the processed columns to edc_oi_inventory_enriched
+ --> @exec:retry-loop retries=3 & retry_delay_millis=5000 & on_failure_callback="handle_error"
+ ## --> @dm:recall name="temp-original"
 
- --> @c:new-block
- --> @dm:recall name='temp-hw-eol-details'
- ## --> @dm:selectcolumns exclude='sw_status_x|sw_expiring_qtr_x|sw_expiring_year_x'
-
- --> @dm:enrich dict='test-sw-eol-details' and src_key_cols='contract_number,customer_name,product_name' and dict_key_cols='contract_number_str,customer,product_id' and enrich_cols='swEOL_endOfSaleDate,swEOL_bulletinUrl,swEOL_bulletinTitle,swEOL_bulletinNumber,swEOL_softwareEOXId,EndOfLifeDate,sw_expiring_qtr,sw_expiring_year,sw_status'
- --> @dm:save name='final-enrich'
- --> @dm:rename-columns EndOfLifeDate='EndOfLifeDate_y'
- --> @dm:fixnull columns='swEOL_endOfSaleDate,swEOL_bulletinUrl,swEOL_bulletinTitle,swEOL_bulletinNumber,swEOL_softwareEOXId,EndOfLifeDate,sw_expiring_qtr,sw_expiring_year,sw_status' and value="Not Available"  and apply_for_empty="yes"
- --> @dm:rename-columns swEOL_lastDayOfSupportDate='EndOfLifeDate'
- --> @rn:write-stream name='edc_sweol_data'
- --> @dm:selectcolumns exclude='^(customer|product_id|contarct_number)$'
- --> @rn:write-stream name='edc_oi_inventory_enriched'
+ --> @dm:empty
+ --> @dm:skip-block-if-shape row_count>0
+ --> @dm:empty
+ --> @dm:addrow job_id="{{job_id}}"
+ --> @email:sendmail-data recipient="{{recipient}}" and minio_file_location="{{minio_path}}" and subject="{{subject}}"
+ --> @rn:write-stream name="dashboard_export_email_status"
+ --> @dm:empty
+ --> @dm:addrow status="The exported file is successfully sent to the email ID '{{recipient}}'"
+ --> @dm:eval reason=None
+ --> @dm:eval job_id="'{{job_id}}'" and ingestion_id="'{{ingestion_id}}'"
+ --> @rn:write-stream name="rda_dashboard_schedule_logs"
+ --> @exec:end-loop
