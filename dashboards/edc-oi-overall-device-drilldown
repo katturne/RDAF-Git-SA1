@@ -1,1188 +1,628 @@
 {
-  "name": "rda-pipeline",
-  "label": "Pipelines",
-  "description": "Pipelines",
-  "version": "23.3.30.1",
-  "enabled": true,
-  "stream": "rda_pipelines_meta",
-  "debug": true,
-  "dashboard_style": "tabbed",
+  "name": "edc-oi-overall-device-drilldown",
+  "label": "Device Details",
+  "description": "EDC Device Drilldown Details",
+  "version": "2026-02-10-01",
+  "enabled": false,
+  "context_label_id": "serial_number",
+  "dashboard_folder": "OI",
+  "dashboard_style": "auto",
+  "live_edit": true,
   "dashboard_type": "template",
-  "status_poller": {},
-  "template_variables": {},
+  "template_variables": {
+    "PROJECT_NAME": {
+      "contextId": "project_name"
+    },
+    "SERIAL_NUMBER": {
+      "contextId": "serial_number"
+    },
+    "SW_VERSION": {
+      "contextId": "sw_version"
+    },
+    "SW_OS_TYPE": {
+      "contextId": "sw_os_type"
+    },
+    "PRODUCT_ID": {
+      "contextId": "product_id"
+    }
+  },
+  "dashboard_pages": [],
   "dashboard_filters": {
-    "time_filter": true,
-    "default_time_filter_non_removable": false,
-    "show_default_time_filter": false,
-    "additional_datetime_column_filters": [
-      {
-        "id": "saved_time",
-        "label": "Saved Time"
-      },
-      {
-        "id": "timestamp",
-        "label": "Timestamp"
-      }
-    ],
-    "columns_filter": [
-      {
-        "id": "folder",
-        "label": "Folder",
-        "type": "TEXT"
-      },
-      {
-        "id": "name",
-        "label": "Name",
-        "type": "TEXT"
-      },
-      {
-        "id": "description",
-        "label": "Description",
-        "type": "TEXT"
-      },
-      {
-        "id": "category",
-        "label": "Category",
-        "type": "TEXT"
-      },
-      {
-        "id": "usecase",
-        "label": "Usecase",
-        "type": "DOUBLE"
-      },
-      {
-        "id": "version",
-        "label": "Lastest Version",
-        "type": "TEXT"
-      },
-      {
-        "id": "versions_count",
-        "label": "Versions",
-        "type": "TEXT"
-      },
-      {
-        "id": "versions",
-        "label": "Versions",
-        "type": "TEXT"
-      },
-      {
-        "id": "saved_time",
-        "label": "Saved Time",
-        "type": "DATETIME"
-      },
-      {
-        "id": "reltime",
-        "label": "When",
-        "type": "DATETIME"
-      },
-      {
-        "id": "timestamp",
-        "label": "Timestamp",
-        "type": "DATETIME"
-      },
-      {
-        "id": "_RDA_Id",
-        "label": "Id",
-        "type": "TEXT"
-      }
-    ],
+    "time_filter": false,
     "default_time_filter_labels": [
-      "Last 1 month"
+      "Last 12 months"
     ],
-    "group_filters": [
-      {
-        "stream": "rda_pipelines_meta",
-        "title": "Category",
-        "group_by": [
-          "category"
-        ],
-        "ts_column": "timestamp",
-        "agg": "value_count",
-        "column": "_RDA_Id",
-        "type": "str"
-      }
-    ]
+    "columns_filter": [],
+    "group_filters": []
   },
   "dashboard_sections": [
     {
-      "title": "Published Pipelines",
+      "title": "Device Details",
       "show_filter": true,
-      "projects": [
-        "ACME"
-      ],
       "widgets": [
         {
-          "title": "Published Pipelines",
+          "title": "SW EOLs",
           "widget_type": "tabular",
-          "stream": "rda_pipelines_meta",
-          "ts_column": "timestamp",
-          "min_width": 12,
-          "height": 12,
           "max_width": 12,
-          "paginated": true,
-          "refreshRequired": true,
-          "timebased": false,
-          "max_rows": 50,
+          "height": 5,
+          "min_width": 12,
+          "stream": "edc_customer_inventory",
+          "extra_filter": "project_name is '{{PROJECT_NAME}}' and serial_number is '{{SERIAL_NUMBER}}'",
+          "duration_hours": 1080,
+          "ts_column": "timestamp",
           "columns": {
-            "folder": {
-              "title": "Folder",
-              "key": false
+            "swEOL_softwareEOXId": {
+              "title": "SW EOL ID",
+              "type": "DOUBLE"
             },
-            "name": {
-              "title": "Name",
-              "key": true
+            "swEOL_bulletinNumber": {
+              "title": "Bulletin Number",
+              "type": "TEXT",
+              "htmlTemplateForRow": "{% raw %} <a href=\"{{row.swEOL_bulletinUrl}}\" target='_blank'>{{row. swEOL_bulletinNumber}}</a>{% endraw %}"
             },
-            "description": {
-              "title": "Description",
-              "visible": true,
-              "key": true
-            },
-            "category": {
-              "title": "Category",
-              "key": true
-            },
-            "usecase": {
-              "title": "Usecase",
-              "key": true
-            },
-            "version": {
-              "title": "Latest Version",
+            "swEOL_bulletinTitle": {
+              "title": "Bulleting Title",
+              "type": "TEXT",
               "visible": true
             },
-            "versions_count": {
-              "title": "Versions",
-              "visible": true,
-              "key": false
+            "sw_status_color": {
+              "type": "COLOR-MAP",
+              "source-column": "sw_status",
+              "color-map": {
+                "Expired": "#BB0000",
+                "Expiring in a Quarter": "#F6C309",
+                "Expiring in 8 Quarters": "#FF9800",
+                "Expiring after 8 Quarters": "#1ECBE1",
+                "No EOL": "#00BB00"
+              }
             },
-            "versions": {
-              "title": "Versions",
+            "sw_version": "SW Version",
+            "sw_status": {
+              "title": "SW Status",
+              "type": "TEXT",
+              "htmlTemplateForRow": "{% raw %}<span class='badge' style='background-color: {{ row.sw_status_color }}' > {{ row.sw_status }} </span>{% endraw %}",
+              "visible": true
+            },
+            "product_id": "Product ID",
+            "serial_number": {
+              "title": "Serial Number",
+              "type": "TEXT",
               "visible": false
             },
-            "saved_time": {
-              "title": "Saved Time",
-              "type": "DATETIME",
-              "key": false
+            "product_family": "Product Family",
+            "swEOL_endOfLifeAnnouncementDate": {
+              "title": "EOL Announcement",
+              "type": "DATE"
             },
-            "reltime": {
-              "title": "When",
-              "type": "DATETIME",
-              "visible": true
+            "swEOL_endOfSaleDate": {
+              "title": "End Of Sale",
+              "type": "DATE"
             },
-            "timestamp": {
-              "title": "Timestamp",
-              "visible": false,
-              "hidden": false,
-              "key": false
+            "swEOL_endOfSoftwareMaintenanceReleasesDate": {
+              "title": "End Of Software Maintenance Releases",
+              "type": "DATE"
             },
-            "_RDA_Id": {
-              "title": " RDA_Id",
-              "visible": false,
-              "hidden": false,
-              "key": false
+            "swEOL_endOfVulnerabilitySecuritySupportDate": {
+              "title": "End Of Vulnerability Security Support",
+              "type": "DATE"
+            },
+            "swEOL_lastDayOfSupportDate": {
+              "title": "Last Day of Support",
+              "type": "DATE"
             }
           },
-          "actions": [
-            {
-              "permission": "rda:pipeline:add",
-              "title": "Add with Text",
-              "icon": "mdi mdi-plus",
-              "type": "POPUP_FORM",
-              "selectionType": "NONE",
-              "identifier": "saas-service-action:add-pipeline-text",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.pipeline.add.text"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:pipeline:view",
-              "title": "Pipeline in Plain Text",
-              "type": "POPUP_FORM",
-              "drillDownLinkField": "name",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:view-pipeline",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.pipeline.view"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:pipeline:edit",
-              "title": "Edit",
-              "icon": "mdi mdi-plus",
-              "type": "GO_TO_APP_STATE",
-              "appName": "user-dashboard/rda-pipeline-studio-app",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:add-pipeline-studio"
-            },
-            {
-              "permission": "rda:pipeline:edit",
-              "title": "Edit Pipeline in Plain Text",
-              "type": "POPUP_FORM",
-              "drillDownLinkField": "name",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:edit-pipeline",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.pipeline.edit"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:pipeline:view",
-              "title": "Version History",
-              "type": "POPUP_REPORT",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:pipeline-view-versions",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getReport",
-                "stringified-params": false,
-                "parse-output": false,
-                "params": [
-                  {
-                    "reportId": "rda.saas.pipeline.tabular.report"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:traces:view",
-              "title": "View Traces",
-              "type": "GO_TO_APP_STATE",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:job-pipeline-traces",
-              "appName": "user-dashboard/rda-pipeline-studio-trace-app"
-            },
-            {
-              "permission": "rda:logs:view",
-              "title": "View Logs",
-              "type": "POPUP_REPORT",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:job-pipeline-logs",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getReport",
-                "stringified-params": false,
-                "parse-output": false,
-                "params": [
-                  {
-                    "reportId": "rda.saas.worker.logs"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:pipeline:run",
-              "title": "Run",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:run-pipeline",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.pipeline.run"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:pipeline:delete",
-              "title": "Delete",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:delete-pipeline",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.pipeline.delete"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:pipeline:view",
-              "title": "View Dependencies",
-              "type": "POPUP_REPORT",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:pipeline-dependency",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getReport",
-                "stringified-params": false,
-                "parse-output": false,
-                "params": [
-                  {
-                    "reportId": "rda.saas.pipeline.dependency.report"
-                  }
-                ]
-              }
-            }
-          ],
-          "widget_id": "e7ab7cd8"
-        }
-      ]
-    },
-    {
-      "title": "Draft Pipelines",
-      "show_filter": true,
-      "projects": [
-        "ACME"
-      ],
-      "widgets": [
+          "widget_id": "c5f4de2f"
+        },
         {
-          "title": "Draft Pipelines",
+          "title": "Security Advisories",
           "widget_type": "tabular",
-          "stream": "rda_draft_pipelines_meta",
-          "ts_column": "timestamp",
-          "min_width": 12,
-          "height": 12,
           "max_width": 12,
-          "paginated": true,
-          "refreshRequired": true,
-          "timebased": false,
-          "max_rows": 50,
-          "columns": {
-            "folder": {
-              "title": "Folder",
-              "key": false
-            },
-            "name": {
-              "title": "Name",
-              "key": true
-            },
-            "description": {
-              "title": "Description",
-              "visible": true,
-              "key": true
-            },
-            "category": {
-              "title": "Category",
-              "key": true
-            },
-            "usecase": {
-              "title": "Usecase",
-              "key": true
-            },
-            "version": {
-              "title": "Latest Version",
-              "visible": true
-            },
-            "versions_count": {
-              "title": "Versions",
-              "visible": true,
-              "key": false
-            },
-            "versions": {
-              "title": "Versions",
-              "visible": false
-            },
-            "saved_time": {
-              "title": "Saved Time",
-              "type": "DATETIME",
-              "key": false
-            },
-            "reltime": {
-              "title": "when",
-              "type": "DATETIME",
-              "visible": true
-            },
-            "timestamp": {
-              "title": "Timestamp",
-              "visible": false,
-              "hidden": false,
-              "key": false
-            },
-            "_RDA_Id": {
-              "title": " RDA_Id",
-              "visible": false,
-              "hidden": false,
-              "key": false
-            }
-          },
-          "actions": [
+          "height": 6,
+          "min_width": 12,
+          "stream": "edc_customer_productAlerts",
+          "context_filter": "project_name is 'ATT-Mobility'",
+          "duration_hours": 1080,
+          "ts_column": "timestamp",
+          "extra_filter": "(serial_number is '{{SERIAL_NUMBER}}' )",
+          "sorting": [
             {
-              "permission": "rda:pipeline:add",
-              "title": "Add with Builder",
-              "icon": "mdi mdi-plus",
-              "type": "GO_TO_APP_STATE",
-              "appName": "user-dashboard/rda-pipeline-studio-app",
-              "selectionType": "NONE",
-              "identifier": "saas-service-action:add-pipeline-studio"
-            },
-            {
-              "permission": "rda:pipeline:add",
-              "title": "Add with Text",
-              "icon": "mdi mdi-plus",
-              "type": "POPUP_FORM",
-              "selectionType": "NONE",
-              "identifier": "saas-service-action:add-pipeline-text",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.pipeline.add.text"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:pipeline:import",
-              "title": "Import from Catalog",
-              "icon": "mdi mdi-plus",
-              "type": "POPUP_FORM",
-              "selectionType": "NONE",
-              "identifier": "saas-service-action:pipeline-import",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.pipeline.import"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:pipeline:view",
-              "title": "Pipeline in Plain Text",
-              "type": "POPUP_FORM",
-              "drillDownLinkField": "name",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:view-pipeline",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.pipeline.view"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:pipeline:edit",
-              "title": "Edit",
-              "icon": "mdi mdi-plus",
-              "type": "GO_TO_APP_STATE",
-              "appName": "user-dashboard/rda-pipeline-studio-app",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:edit-pipeline-studio"
-            },
-            {
-              "permission": "rda:pipeline:edit",
-              "title": "Edit Pipeline in Plain Text",
-              "type": "POPUP_FORM",
-              "drillDownLinkField": "name",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:edit-pipeline",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.pipeline.edit"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:pipeline:view",
-              "title": "Version History",
-              "type": "POPUP_REPORT",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:draft-pipeline-view-versions",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getReport",
-                "stringified-params": false,
-                "parse-output": false,
-                "params": [
-                  {
-                    "reportId": "rda.saas.pipeline.tabular.report"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:traces:view",
-              "title": "View Traces",
-              "type": "GO_TO_APP_STATE",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:job-pipeline-traces",
-              "appName": "user-dashboard/rda-pipeline-studio-trace-app"
-            },
-            {
-              "permission": "rda:logs:view",
-              "title": "View Logs",
-              "type": "POPUP_REPORT",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:job-pipeline-logs",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getReport",
-                "stringified-params": false,
-                "parse-output": false,
-                "params": [
-                  {
-                    "reportId": "rda.saas.worker.logs"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:pipeline:verify",
-              "title": "Verify",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:verify-pipeline",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.pipeline.verify"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:pipeline:run",
-              "title": "Run",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:run-pipeline",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.pipeline.run"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:pipeline:publish",
-              "title": "Publish",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:publish-pipeline",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.pipeline.publish"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:pipeline:delete",
-              "title": "Delete",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:delete-draft-pipeline",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.pipeline.delete"
-                  }
-                ]
-              }
+              "secAdv_confidence_score": "desc",
+              "secAdv_impact_score": "desc"
             }
           ],
-          "widget_id": "8ce18929"
+          "columns": {
+            "secAdv_psirtColdId": {
+              "title": "Security Advisory Col ID",
+              "type": "DOUBLE"
+            },
+            "secAdv_psirtAdvisoryId": {
+              "title": "Security Advisory ID",
+              "type": "TEXT",
+              "htmlTemplateForRow": "{% raw %} <a href=\"{{row.secAdv_bulletinUrl}}\" target='_blank'>{{row.secAdv_psirtAdvisoryId}}</a>{% endraw %}"
+            },
+            "secAdv_bulletinTitle": "Title",
+            "secAdv_confidence_color": {
+              "type": "COLOR-MAP",
+              "source-column": "secAdv_match_confidence",
+              "color-map": {
+                "Not Vulnerable": "#00BB00",
+                "Vulnerable": "#BB0000",
+                "Potentially Vulnerable": "#F6C309"
+              }
+            },
+            "secAdv_match_confidence": {
+              "title": "Confidence",
+              "type": "TEXT",
+              "htmlTemplateForRow": "{% raw %}<span class='badge' style='background-color: {{ row.secAdv_confidence_color }}' > {{ row.secAdv_match_confidence }} </span>{% endraw %}",
+              "visible": true
+            },
+            "secAdv_impact_rating_color": {
+              "type": "COLOR-MAP",
+              "source-column": "secAdv_securityImpactRating",
+              "color-map": {
+                "Critical": "#8B0000",
+                "High": "#FF4500",
+                "Medium": "#ff8b11",
+                "Low": "#f3ce20"
+              }
+            },
+            "secAdv_securityImpactRating": {
+              "title": "Impact Rating",
+              "type": "TEXT",
+              "htmlTemplateForRow": "{% raw %}<span class='badge' style='background-color: {{ row.secAdv_impact_rating_color }}' > {{ row.secAdv_securityImpactRating }} </span>{% endraw %}",
+              "visible": true
+            },
+            "product_name": "Product ID",
+            "serial_number": "Serial Number",
+            "product_family": "Product Family",
+            "sw_version": "SW Version",
+            "sw_os_type": {
+              "title": "OS Type",
+              "type": "TEXT",
+              "visible": false
+            },
+            "productType": {
+              "title": "Product Type",
+              "type": "TEXT",
+              "visible": false
+            },
+            "secAdv_ciscoBugIds": {
+              "title": "Bug IDs",
+              "type": "TEXT"
+            },
+            "secAdv_cveId": {
+              "title": "CVE IDs",
+              "type": "TEXT"
+            },
+            "secAdv_match_confidence_reason": "Confidence Reason",
+            "secAdv_bulletinLastUpdated": {
+              "title": "Published",
+              "type": "DATETIME"
+            },
+            "secAdv_bulletinVersion": {
+              "title": "Version",
+              "type": "TEXT"
+            },
+            "secAdv_bulletinUrl": {
+              "title": "URL",
+              "type": "TEXT",
+              "visible": false
+            },
+            "secAdv_bulletinSummary": {
+              "title": "Summary",
+              "type": "TEXT",
+              "visible": false
+            },
+            "secAdv_bulletinMappingCaveat": {
+              "title": "Caveat",
+              "type": "TEXT",
+              "visible": false
+            }
+          },
+          "widget_id": "8f645323"
+        },
+        {
+          "title": "Security Advisories",
+          "widget_type": "tabular",
+          "max_width": 12,
+          "height": 6,
+          "min_width": 12,
+          "stream": "edc_customer_productAlerts",
+          "context_filter": "project_name is not 'ATT-Mobility'",
+          "duration_hours": 1080,
+          "ts_column": "timestamp",
+          "extra_filter": "(project_name is '{{PROJECT_NAME}}' and product_id is '{{PRODUCT_ID}}' and sw_version is '{{SW_VERSION}}' and sw_os_type is '{{SW_OS_TYPE}}' )",
+          "sorting": [
+            {
+              "secAdv_confidence_score": "desc",
+              "secAdv_impact_score": "desc"
+            }
+          ],
+          "columns": {
+            "secAdv_psirtColdId": {
+              "title": "Security Advisory Col ID",
+              "type": "DOUBLE"
+            },
+            "secAdv_psirtAdvisoryId": {
+              "title": "Security Advisory ID",
+              "type": "TEXT",
+              "htmlTemplateForRow": "{% raw %} <a href=\"{{row.secAdv_bulletinUrl}}\" target='_blank'>{{row.secAdv_psirtAdvisoryId}}</a>{% endraw %}"
+            },
+            "secAdv_bulletinTitle": "Title",
+            "secAdv_confidence_color": {
+              "type": "COLOR-MAP",
+              "source-column": "secAdv_match_confidence",
+              "color-map": {
+                "Not Vulnerable": "#00BB00",
+                "Vulnerable": "#BB0000",
+                "Potentially Vulnerable": "#F6C309"
+              }
+            },
+            "secAdv_match_confidence": {
+              "title": "Confidence",
+              "type": "TEXT",
+              "htmlTemplateForRow": "{% raw %}<span class='badge' style='background-color: {{ row.secAdv_confidence_color }}' > {{ row.secAdv_match_confidence }} </span>{% endraw %}",
+              "visible": true
+            },
+            "secAdv_impact_rating_color": {
+              "type": "COLOR-MAP",
+              "source-column": "secAdv_securityImpactRating",
+              "color-map": {
+                "Critical": "#8B0000",
+                "High": "#FF4500",
+                "Medium": "#ff8b11",
+                "Low": "#f3ce20"
+              }
+            },
+            "secAdv_securityImpactRating": {
+              "title": "Impact Rating",
+              "type": "TEXT",
+              "htmlTemplateForRow": "{% raw %}<span class='badge' style='background-color: {{ row.secAdv_impact_rating_color }}' > {{ row.secAdv_securityImpactRating }} </span>{% endraw %}",
+              "visible": true
+            },
+            "product_id": "Product ID",
+            "serial_number": {
+              "title": "Serial Number",
+              "type": "TEXT",
+              "visible": false
+            },
+            "sw_version": "SW Version",
+            "sw_os_type": {
+              "title": "OS Type",
+              "type": "TEXT",
+              "visible": false
+            },
+            "productType": {
+              "title": "Product Type",
+              "type": "TEXT",
+              "visible": false
+            },
+            "secAdv_cveId": {
+              "title": "CVE IDs",
+              "type": "TEXT"
+            },
+            "secAdv_match_confidence_reason": "Confidence Reason",
+            "secAdv_bulletinLastUpdated": {
+              "title": "Published",
+              "type": "DATETIME"
+            },
+            "secAdv_bulletinVersion": {
+              "title": "Version",
+              "type": "TEXT"
+            },
+            "secAdv_bulletinUrl": {
+              "title": "URL",
+              "type": "TEXT",
+              "visible": false
+            },
+            "secAdv_bulletinSummary": {
+              "title": "Summary",
+              "type": "TEXT",
+              "visible": false
+            },
+            "secAdv_bulletinMappingCaveat": {
+              "title": "Caveat",
+              "type": "TEXT",
+              "visible": false
+            }
+          },
+          "widget_id": "3cf88777"
         }
       ]
     }
   ],
   "pstream_dashboards": [
     {
-      "title": "Published Pipelines",
+      "title": "Device Details",
       "show_filter": true,
-      "projects": [
-        "ACME"
-      ],
       "widgets": [
         {
-          "title": "Published Pipelines",
+          "title": "SW EOLs",
           "widget_type": "tabular",
-          "stream": "rda_pipelines_meta",
-          "ts_column": "timestamp",
-          "min_width": 12,
-          "height": 12,
           "max_width": 12,
-          "paginated": true,
-          "refreshRequired": true,
-          "timebased": false,
-          "max_rows": 50,
+          "height": 5,
+          "min_width": 12,
+          "stream": "edc_customer_inventory",
+          "extra_filter": "project_name is '{{PROJECT_NAME}}' and serial_number is '{{SERIAL_NUMBER}}'",
+          "duration_hours": 1080,
+          "ts_column": "timestamp",
           "columns": {
-            "folder": {
-              "title": "Folder",
-              "key": false
+            "swEOL_softwareEOXId": {
+              "title": "SW EOL ID",
+              "type": "DOUBLE"
             },
-            "name": {
-              "title": "Name",
-              "key": true
+            "swEOL_bulletinNumber": {
+              "title": "Bulletin Number",
+              "type": "TEXT",
+              "htmlTemplateForRow": "{% raw %} <a href=\"{{row.swEOL_bulletinUrl}}\" target='_blank'>{{row. swEOL_bulletinNumber}}</a>{% endraw %}"
             },
-            "description": {
-              "title": "Description",
-              "visible": true,
-              "key": true
-            },
-            "category": {
-              "title": "Category",
-              "key": true
-            },
-            "usecase": {
-              "title": "Usecase",
-              "key": true
-            },
-            "version": {
-              "title": "Latest Version",
+            "swEOL_bulletinTitle": {
+              "title": "Bulleting Title",
+              "type": "TEXT",
               "visible": true
             },
-            "versions_count": {
-              "title": "Versions",
-              "visible": true,
-              "key": false
+            "sw_status_color": {
+              "type": "COLOR-MAP",
+              "source-column": "sw_status",
+              "color-map": {
+                "Expired": "#BB0000",
+                "Expiring in a Quarter": "#F6C309",
+                "Expiring in 8 Quarters": "#FF9800",
+                "Expiring after 8 Quarters": "#1ECBE1",
+                "No EOL": "#00BB00"
+              }
             },
-            "versions": {
-              "title": "Versions",
+            "sw_version": "SW Version",
+            "sw_status": {
+              "title": "SW Status",
+              "type": "TEXT",
+              "htmlTemplateForRow": "{% raw %}<span class='badge' style='background-color: {{ row.sw_status_color }}' > {{ row.sw_status }} </span>{% endraw %}",
+              "visible": true
+            },
+            "product_id": "Product ID",
+            "serial_number": {
+              "title": "Serial Number",
+              "type": "TEXT",
               "visible": false
             },
-            "saved_time": {
-              "title": "Saved Time",
-              "type": "DATETIME",
-              "key": false
+            "product_family": "Product Family",
+            "swEOL_endOfLifeAnnouncementDate": {
+              "title": "EOL Announcement",
+              "type": "DATE"
             },
-            "reltime": {
-              "title": "When",
-              "type": "DATETIME",
-              "visible": true
+            "swEOL_endOfSaleDate": {
+              "title": "End Of Sale",
+              "type": "DATE"
             },
-            "timestamp": {
-              "title": "Timestamp",
-              "visible": false,
-              "hidden": false,
-              "key": false
+            "swEOL_endOfSoftwareMaintenanceReleasesDate": {
+              "title": "End Of Software Maintenance Releases",
+              "type": "DATE"
             },
-            "_RDA_Id": {
-              "title": " RDA_Id",
-              "visible": false,
-              "hidden": false,
-              "key": false
+            "swEOL_endOfVulnerabilitySecuritySupportDate": {
+              "title": "End Of Vulnerability Security Support",
+              "type": "DATE"
+            },
+            "swEOL_lastDayOfSupportDate": {
+              "title": "Last Day of Support",
+              "type": "DATE"
             }
           },
-          "actions": [
-            {
-              "permission": "rda:pipeline:add",
-              "title": "Add with Text",
-              "icon": "mdi mdi-plus",
-              "type": "POPUP_FORM",
-              "selectionType": "NONE",
-              "identifier": "saas-service-action:add-pipeline-text",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.pipeline.add.text"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:pipeline:view",
-              "title": "Pipeline in Plain Text",
-              "type": "POPUP_FORM",
-              "drillDownLinkField": "name",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:view-pipeline",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.pipeline.view"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:pipeline:edit",
-              "title": "Edit",
-              "icon": "mdi mdi-plus",
-              "type": "GO_TO_APP_STATE",
-              "appName": "user-dashboard/rda-pipeline-studio-app",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:add-pipeline-studio"
-            },
-            {
-              "permission": "rda:pipeline:edit",
-              "title": "Edit Pipeline in Plain Text",
-              "type": "POPUP_FORM",
-              "drillDownLinkField": "name",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:edit-pipeline",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.pipeline.edit"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:pipeline:view",
-              "title": "Version History",
-              "type": "POPUP_REPORT",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:pipeline-view-versions",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getReport",
-                "stringified-params": false,
-                "parse-output": false,
-                "params": [
-                  {
-                    "reportId": "rda.saas.pipeline.tabular.report"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:traces:view",
-              "title": "View Traces",
-              "type": "GO_TO_APP_STATE",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:job-pipeline-traces",
-              "appName": "user-dashboard/rda-pipeline-studio-trace-app"
-            },
-            {
-              "permission": "rda:logs:view",
-              "title": "View Logs",
-              "type": "POPUP_REPORT",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:job-pipeline-logs",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getReport",
-                "stringified-params": false,
-                "parse-output": false,
-                "params": [
-                  {
-                    "reportId": "rda.saas.worker.logs"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:pipeline:run",
-              "title": "Run",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:run-pipeline",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.pipeline.run"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:pipeline:delete",
-              "title": "Delete",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:delete-pipeline",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.pipeline.delete"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:pipeline:view",
-              "title": "View Dependencies",
-              "type": "POPUP_REPORT",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:pipeline-dependency",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getReport",
-                "stringified-params": false,
-                "parse-output": false,
-                "params": [
-                  {
-                    "reportId": "rda.saas.pipeline.dependency.report"
-                  }
-                ]
-              }
-            }
-          ],
-          "widget_id": "e7ab7cd8"
-        }
-      ]
-    },
-    {
-      "title": "Draft Pipelines",
-      "show_filter": true,
-      "projects": [
-        "ACME"
-      ],
-      "widgets": [
+          "widget_id": "c5f4de2f"
+        },
         {
-          "title": "Draft Pipelines",
+          "title": "Security Advisories",
           "widget_type": "tabular",
-          "stream": "rda_draft_pipelines_meta",
-          "ts_column": "timestamp",
-          "min_width": 12,
-          "height": 12,
           "max_width": 12,
-          "paginated": true,
-          "refreshRequired": true,
-          "timebased": false,
-          "max_rows": 50,
-          "columns": {
-            "folder": {
-              "title": "Folder",
-              "key": false
-            },
-            "name": {
-              "title": "Name",
-              "key": true
-            },
-            "description": {
-              "title": "Description",
-              "visible": true,
-              "key": true
-            },
-            "category": {
-              "title": "Category",
-              "key": true
-            },
-            "usecase": {
-              "title": "Usecase",
-              "key": true
-            },
-            "version": {
-              "title": "Latest Version",
-              "visible": true
-            },
-            "versions_count": {
-              "title": "Versions",
-              "visible": true,
-              "key": false
-            },
-            "versions": {
-              "title": "Versions",
-              "visible": false
-            },
-            "saved_time": {
-              "title": "Saved Time",
-              "type": "DATETIME",
-              "key": false
-            },
-            "reltime": {
-              "title": "when",
-              "type": "DATETIME",
-              "visible": true
-            },
-            "timestamp": {
-              "title": "Timestamp",
-              "visible": false,
-              "hidden": false,
-              "key": false
-            },
-            "_RDA_Id": {
-              "title": " RDA_Id",
-              "visible": false,
-              "hidden": false,
-              "key": false
-            }
-          },
-          "actions": [
+          "height": 6,
+          "min_width": 12,
+          "stream": "edc_customer_productAlerts",
+          "context_filter": "project_name is 'ATT-Mobility'",
+          "duration_hours": 1080,
+          "ts_column": "timestamp",
+          "extra_filter": "(serial_number is '{{SERIAL_NUMBER}}' )",
+          "sorting": [
             {
-              "permission": "rda:pipeline:add",
-              "title": "Add with Builder",
-              "icon": "mdi mdi-plus",
-              "type": "GO_TO_APP_STATE",
-              "appName": "user-dashboard/rda-pipeline-studio-app",
-              "selectionType": "NONE",
-              "identifier": "saas-service-action:add-pipeline-studio"
-            },
-            {
-              "permission": "rda:pipeline:add",
-              "title": "Add with Text",
-              "icon": "mdi mdi-plus",
-              "type": "POPUP_FORM",
-              "selectionType": "NONE",
-              "identifier": "saas-service-action:add-pipeline-text",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.pipeline.add.text"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:pipeline:import",
-              "title": "Import from Catalog",
-              "icon": "mdi mdi-plus",
-              "type": "POPUP_FORM",
-              "selectionType": "NONE",
-              "identifier": "saas-service-action:pipeline-import",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.pipeline.import"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:pipeline:view",
-              "title": "Pipeline in Plain Text",
-              "type": "POPUP_FORM",
-              "drillDownLinkField": "name",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:view-pipeline",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.pipeline.view"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:pipeline:edit",
-              "title": "Edit",
-              "icon": "mdi mdi-plus",
-              "type": "GO_TO_APP_STATE",
-              "appName": "user-dashboard/rda-pipeline-studio-app",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:edit-pipeline-studio"
-            },
-            {
-              "permission": "rda:pipeline:edit",
-              "title": "Edit Pipeline in Plain Text",
-              "type": "POPUP_FORM",
-              "drillDownLinkField": "name",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:edit-pipeline",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.pipeline.edit"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:pipeline:view",
-              "title": "Version History",
-              "type": "POPUP_REPORT",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:draft-pipeline-view-versions",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getReport",
-                "stringified-params": false,
-                "parse-output": false,
-                "params": [
-                  {
-                    "reportId": "rda.saas.pipeline.tabular.report"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:traces:view",
-              "title": "View Traces",
-              "type": "GO_TO_APP_STATE",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:job-pipeline-traces",
-              "appName": "user-dashboard/rda-pipeline-studio-trace-app"
-            },
-            {
-              "permission": "rda:logs:view",
-              "title": "View Logs",
-              "type": "POPUP_REPORT",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:job-pipeline-logs",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getReport",
-                "stringified-params": false,
-                "parse-output": false,
-                "params": [
-                  {
-                    "reportId": "rda.saas.worker.logs"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:pipeline:verify",
-              "title": "Verify",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:verify-pipeline",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.pipeline.verify"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:pipeline:run",
-              "title": "Run",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:run-pipeline",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.pipeline.run"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:pipeline:publish",
-              "title": "Publish",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:publish-pipeline",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.pipeline.publish"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:pipeline:delete",
-              "title": "Delete",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:delete-draft-pipeline",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.pipeline.delete"
-                  }
-                ]
-              }
+              "secAdv_confidence_score": "desc",
+              "secAdv_impact_score": "desc"
             }
           ],
-          "widget_id": "8ce18929"
+          "columns": {
+            "secAdv_psirtColdId": {
+              "title": "Security Advisory Col ID",
+              "type": "DOUBLE"
+            },
+            "secAdv_psirtAdvisoryId": {
+              "title": "Security Advisory ID",
+              "type": "TEXT",
+              "htmlTemplateForRow": "{% raw %} <a href=\"{{row.secAdv_bulletinUrl}}\" target='_blank'>{{row.secAdv_psirtAdvisoryId}}</a>{% endraw %}"
+            },
+            "secAdv_bulletinTitle": "Title",
+            "secAdv_confidence_color": {
+              "type": "COLOR-MAP",
+              "source-column": "secAdv_match_confidence",
+              "color-map": {
+                "Not Vulnerable": "#00BB00",
+                "Vulnerable": "#BB0000",
+                "Potentially Vulnerable": "#F6C309"
+              }
+            },
+            "secAdv_match_confidence": {
+              "title": "Confidence",
+              "type": "TEXT",
+              "htmlTemplateForRow": "{% raw %}<span class='badge' style='background-color: {{ row.secAdv_confidence_color }}' > {{ row.secAdv_match_confidence }} </span>{% endraw %}",
+              "visible": true
+            },
+            "secAdv_impact_rating_color": {
+              "type": "COLOR-MAP",
+              "source-column": "secAdv_securityImpactRating",
+              "color-map": {
+                "Critical": "#8B0000",
+                "High": "#FF4500",
+                "Medium": "#ff8b11",
+                "Low": "#f3ce20"
+              }
+            },
+            "secAdv_securityImpactRating": {
+              "title": "Impact Rating",
+              "type": "TEXT",
+              "htmlTemplateForRow": "{% raw %}<span class='badge' style='background-color: {{ row.secAdv_impact_rating_color }}' > {{ row.secAdv_securityImpactRating }} </span>{% endraw %}",
+              "visible": true
+            },
+            "product_name": "Product ID",
+            "serial_number": "Serial Number",
+            "product_family": "Product Family",
+            "sw_version": "SW Version",
+            "sw_os_type": {
+              "title": "OS Type",
+              "type": "TEXT",
+              "visible": false
+            },
+            "productType": {
+              "title": "Product Type",
+              "type": "TEXT",
+              "visible": false
+            },
+            "secAdv_ciscoBugIds": {
+              "title": "Bug IDs",
+              "type": "TEXT"
+            },
+            "secAdv_cveId": {
+              "title": "CVE IDs",
+              "type": "TEXT"
+            },
+            "secAdv_match_confidence_reason": "Confidence Reason",
+            "secAdv_bulletinLastUpdated": {
+              "title": "Published",
+              "type": "DATETIME"
+            },
+            "secAdv_bulletinVersion": {
+              "title": "Version",
+              "type": "TEXT"
+            },
+            "secAdv_bulletinUrl": {
+              "title": "URL",
+              "type": "TEXT",
+              "visible": false
+            },
+            "secAdv_bulletinSummary": {
+              "title": "Summary",
+              "type": "TEXT",
+              "visible": false
+            },
+            "secAdv_bulletinMappingCaveat": {
+              "title": "Caveat",
+              "type": "TEXT",
+              "visible": false
+            }
+          },
+          "widget_id": "8f645323"
+        },
+        {
+          "title": "Security Advisories",
+          "widget_type": "tabular",
+          "max_width": 12,
+          "height": 6,
+          "min_width": 12,
+          "stream": "edc_customer_productAlerts",
+          "context_filter": "project_name is not 'ATT-Mobility'",
+          "duration_hours": 1080,
+          "ts_column": "timestamp",
+          "extra_filter": "(project_name is '{{PROJECT_NAME}}' and product_id is '{{PRODUCT_ID}}' and sw_version is '{{SW_VERSION}}' and sw_os_type is '{{SW_OS_TYPE}}' )",
+          "sorting": [
+            {
+              "secAdv_confidence_score": "desc",
+              "secAdv_impact_score": "desc"
+            }
+          ],
+          "columns": {
+            "secAdv_psirtColdId": {
+              "title": "Security Advisory Col ID",
+              "type": "DOUBLE"
+            },
+            "secAdv_psirtAdvisoryId": {
+              "title": "Security Advisory ID",
+              "type": "TEXT",
+              "htmlTemplateForRow": "{% raw %} <a href=\"{{row.secAdv_bulletinUrl}}\" target='_blank'>{{row.secAdv_psirtAdvisoryId}}</a>{% endraw %}"
+            },
+            "secAdv_bulletinTitle": "Title",
+            "secAdv_confidence_color": {
+              "type": "COLOR-MAP",
+              "source-column": "secAdv_match_confidence",
+              "color-map": {
+                "Not Vulnerable": "#00BB00",
+                "Vulnerable": "#BB0000",
+                "Potentially Vulnerable": "#F6C309"
+              }
+            },
+            "secAdv_match_confidence": {
+              "title": "Confidence",
+              "type": "TEXT",
+              "htmlTemplateForRow": "{% raw %}<span class='badge' style='background-color: {{ row.secAdv_confidence_color }}' > {{ row.secAdv_match_confidence }} </span>{% endraw %}",
+              "visible": true
+            },
+            "secAdv_impact_rating_color": {
+              "type": "COLOR-MAP",
+              "source-column": "secAdv_securityImpactRating",
+              "color-map": {
+                "Critical": "#8B0000",
+                "High": "#FF4500",
+                "Medium": "#ff8b11",
+                "Low": "#f3ce20"
+              }
+            },
+            "secAdv_securityImpactRating": {
+              "title": "Impact Rating",
+              "type": "TEXT",
+              "htmlTemplateForRow": "{% raw %}<span class='badge' style='background-color: {{ row.secAdv_impact_rating_color }}' > {{ row.secAdv_securityImpactRating }} </span>{% endraw %}",
+              "visible": true
+            },
+            "product_id": "Product ID",
+            "serial_number": {
+              "title": "Serial Number",
+              "type": "TEXT",
+              "visible": false
+            },
+            "sw_version": "SW Version",
+            "sw_os_type": {
+              "title": "OS Type",
+              "type": "TEXT",
+              "visible": false
+            },
+            "productType": {
+              "title": "Product Type",
+              "type": "TEXT",
+              "visible": false
+            },
+            "secAdv_cveId": {
+              "title": "CVE IDs",
+              "type": "TEXT"
+            },
+            "secAdv_match_confidence_reason": "Confidence Reason",
+            "secAdv_bulletinLastUpdated": {
+              "title": "Published",
+              "type": "DATETIME"
+            },
+            "secAdv_bulletinVersion": {
+              "title": "Version",
+              "type": "TEXT"
+            },
+            "secAdv_bulletinUrl": {
+              "title": "URL",
+              "type": "TEXT",
+              "visible": false
+            },
+            "secAdv_bulletinSummary": {
+              "title": "Summary",
+              "type": "TEXT",
+              "visible": false
+            },
+            "secAdv_bulletinMappingCaveat": {
+              "title": "Caveat",
+              "type": "TEXT",
+              "visible": false
+            }
+          },
+          "widget_id": "3cf88777"
         }
       ]
     }
