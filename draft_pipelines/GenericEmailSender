@@ -1,45 +1,27 @@
 
- ## Bernie Wynia, Cisco Systems, 2025
-
- ## It doesn't seem to have trouble with the following error cases:
-
- ## -- no email addresses are found for template (valid template id)
-
- ## -- invalid template ID (passed in inpute stream)
-
- ## -- malforemd email addressneed
-
- ## Because there is always at least 1 row (potentially with empty columns), this didn't seem to have any impact --> *exec:if-shape num_rows > 0
-
- ## It doesn't seem to be needed because the apply-template and sendmail seem to complete regardless (so we resume on the read-stream)
-
- ## The one case it doesn't handle is if the GenericEmailTemplates references a Template Name that doesn't exist in "Formatting Templates"
-@c:new-block
- ## Wait for a request to send an email
-
- --> @rn:read-stream name = "genericEmailSender" & group = "group_genericEmailSender"
- ## When we get one, fetch the template details
-
- --> @dm:enrich dict = 'GenericEmailTemplates' & src_key_cols = 'Template_Id' & dict_key_cols = 'Template_Id' & enrich_cols = "Subject,Template_Name"
- ## Formulate the Subject line by appending the Suffix, if provided
-
- --> @dm:add-missing-columns columns = 'Subject_Suffix' & value = ''
- --> @dm:eval Merged_Subject = "Subject + Subject_Suffix"
- ## Figure out who to send it to
-
- --> @dm:enrich dict = 'GenericEmailRecipients' & src_key_cols = 'Template_Id' & dict_key_cols = 'Template_Id' & enrich_cols = "Recipient,User_Enabled" & dedup_dict = "no"
- --> *dm:filter User_Enabled != 'no'
- ## Format the email content
-
- --> @dm:add-missing-columns columns = 'lType' & value = "html"
- --> @dm:apply-template-by-row template_name = "{{row.Template_Name}}" & output_col = "fMessage" & status_col = "Template_Result"
- ## Note that if we fetch an invald template name, the pipeline will abort in the above line (contrary to documentation)
-
- ## It may be helful to uncomment this line when debugging
-
- ## --> @dm:save name = "delete-me-email-working-data"
-
- --> *dm:filter Template_Result = 'ok'
- --> *exec:if-shape num_rows > 0
- --> @email:sendmail-bulk recipient_col = 'Recipient' & message_mime_type_col = 'lType' & subject_col = 'Merged_Subject' & message_col = 'fMessage'
- --> @exec:end-if
+ ## Name: incident_notify_jenkins
+@dm:empty
+ --> @agent:agent-irm:irmagent:getIncidentDetails roomId='$ROOM_ID' and incidentId='$INCIDENT_ID'
+ --> @dm:map to="jenkins_job" & func="fixed" & value="$jenkins_job"
+ --> @dm:map to="alertid" & func="fixed" & value="$alert_id"
+ --> @dm:map to="incident_url" & func="fixed" & value="$incident_url"
+ --> @dm:map to="jenkins_fields_usr" & func="fixed" & value="$jenkins_fields_usr"
+ --> @dm:map to="jenkins_fields_tkn" & func="fixed" & value="$jenkins_fields_tkn"
+ --> @dm:save name='temp-incident_details'
+ --> *dm:filter jenkins_job is not None
+ --> @dm:skip-pipeline-if-shape row_count = 0
+ --> @dm:eval jenkins_job = "jenkins_job.replace('\'',chr(34))"
+ --> @dm:eval jenkins_fields_url = "json_loads(jenkins_job)['job_url']"
+ --> *dm:filter jenkins_fields_url is not None
+ --> @dm:skip-pipeline-if-shape row_count = 0
+ --> @dm:eval jenkins_fields_params = "json_dumps(json_loads(jenkins_job)['params'])"
+ --> @dm:map to="pipeline_name" & func="fixed" & value="incident_notify_jenkins"
+ --> @dm:save name="temp-jenkins-fields"
+ --> @c:data-loop dataset= "temp-jenkins-fields" & columns = "jenkins_fields_url,jenkins_fields_tkn,jenkins_fields_usr,incidentid,jenkins_fields_params,customerid,roomid,summary,createdby"
+ --> @dm:empty
+ --> @dm:addrow customerid="$customerid" & roomid="$roomid" & incidentid="$incidentid"  & creator="$createdby"
+ --> @restclient:write method = 'post' and url = '$jenkins_fields_url' and username='$jenkins_fields_usr' and password='$jenkins_fields_tkn' and encoding='json' and envelope='json=$jenkins_fields_params'
+ --> @dm:eval notification_message="'Incident $incidentid shared with $jenkins_fields_url successfully'"
+ --> @dm:map to="notification_subject" & func="fixed" & value="Notification Message from Jenkins-RDAPipeline"
+ --> @rn:write-stream name="oia-incident-collab-message-stream"
+ --> @dm:map to="pipeline_name" & func="fixed" & value="incident_notify_jenkins"
