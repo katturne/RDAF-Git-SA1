@@ -1,9 +1,58 @@
-@restclient:read url="https://id.cisco.com/oauth2/default/v1/token" and method="POST" and `Content-Type`='application/x-www-form-urlencoded' and encoding = "urlencode" and payload = '{"grant_type":"client_credentials","client_id":"cqiui-ser","client_secret":"uK_5wNET3M-Q_1_xIEXkzFPASDtw8MI5jVRWNcjmq6kmM-bU2L-lpYdTSwQTibMR"}' and `Accept`= "*/*"
- --> @dm:add-missing-columns columns = 'static' & value = "token"
- --> @dm:save name = "circuit_token1"
- --> @c:data-loop columns="access_token" and dataset="circuit_token1"
- --> @restclient:read url="https://wwwin-cqifq-cae-rcdn.cisco.com/cqimqipservices/v1/crpmhwthreemonth" and method="POST" and `Authorization`= "Bearer $access_token" and `Content-Type`='application/json' and payload = '{ "filter": [ { "value":["ADP"], "field":"customerName", "condition":"in" }, {"value":["ADP"], "field":"networkName", "condition":"in" }, { "value":["ADP - ADP"], "field":"customerAndNetworkName", "condition":"in" }, { "value":[], "field":"productFamily", "condition":"in" }, { "value":[], "field":"gpid", "condition":"in" }, { "value":[], "field":"vertical", "condition":"in" }, { "value":[], "field":"contractNumber", "condition":"in" }, { "value":[], "field":"softwareVersion", "condition":"in" }, { "value":["202508"], "field":"calendarMonth", "condition":"in" } ] }'
- --> @dm:save name = "output"
- --> @dm:recall name = "output"
- --> @dm:selectcolumns include="gpid|productFamily|month3CRR"
- --> @rn:write-stream name="month3CRR-stream"
+@dm:empty
+ --> @exec:get-input
+ --> @dm:save name="temp-dataset"
+ --> @c:new-block
+ --> @dm:recall name="temp-dataset"
+ --> @dm:check_columns must_contain = 'customer' &action ='skip-block'
+ ## --> @dm:save name="test-del-dataset"
+
+ --> @dm:save name="temp-del-dataset"
+ --> @c:new-block
+ --> @dm:empty
+ --> @dm:save name='edc_status'
+ ## delete enriched stream
+
+ --> @c:data-loop columns='customer' and dataset='temp-del-dataset' and return_empty='yes'
+ ## --> @dm:recall name="temp-row-del-dataset"
+
+ ## --> @dm:check_columns must_contain = 'customer' &action ='skip-block'
+
+ ## --> *dm:filter customer_name = '$customer_name'
+
+ --> @dm:recall name='edc_status' and return_empty = 'yes'
+ --> @dm:addrow dummy='key'
+ --> @dm:add-missing-columns columns='customer_name' and  value="$customer"
+ --> @dm:manipulate-string to="status" and func="eval" and value="'Starting to delete the data'"
+ --> @rn:write-stream name ='edc_update_status'
+ --> @dm:empty
+ --> @dm:addrow name = "edc_oi_inventory_grouped" & conflicts = "proceed" & timeout = 1200
+ --> #dm:pstream-delete-data-by-query customer_name=="$customer"
+ --> @dm:empty
+ --> @dm:addrow name = "edc_oi_inventory_enriched" & conflicts = "proceed" & timeout = 1200
+ --> #dm:pstream-delete-data-by-query customer_name=="$customer"
+ --> @dm:sleep seconds = 5
+ --> @dm:recall name='edc_status' and return_empty = 'yes'
+ --> @dm:addrow dummy='key'
+ --> @dm:add-missing-columns columns='customer_name' and  value="$customer"
+ --> @dm:manipulate-string to="status" and func="eval" and value="'Completed data deletion'"
+ --> @rn:write-stream name ='edc_update_status'
+ --> @c:new-block
+ --> @dm:recall name="temp-del-dataset"  and return_empty='yes'
+ --> @dm:check_columns must_not_contain = 'customer' &action ='skip-block'
+ --> @dm:recall name='edc_status' and return_empty = 'yes'
+ --> @dm:addrow dummy='key'
+ --> @dm:add-missing-columns columns='customer_name' and  value="$customer"
+ --> @dm:manipulate-string to="status" and func="eval" and value="'Starting to delete data for all customers'"
+ --> @rn:write-stream name ='edc_update_status'
+ --> @dm:empty
+ --> @dm:addrow name = "edc_oi_inventory_grouped" & conflicts = "proceed" & timeout = 1200
+ --> #dm:pstream-delete-data-by-query count_ is 1
+ --> @dm:empty
+ --> @dm:addrow name = "edc_oi_inventory_enriched" & conflicts = "proceed" & timeout = 1200
+ --> #dm:pstream-delete-data-by-query count_ is 1
+ --> @dm:sleep seconds = 5
+ --> @dm:recall name='edc_status' and return_empty = 'yes'
+ --> @dm:addrow dummy='key'
+ --> @dm:add-missing-columns columns='customer_name' and  value="$customer"
+ --> @dm:manipulate-string to="status" and func="eval" and value="'Data deleted for all customers'"
+ --> @rn:write-stream name ='edc_update_status'
