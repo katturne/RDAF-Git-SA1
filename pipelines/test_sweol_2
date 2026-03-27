@@ -1,56 +1,40 @@
-@dm:empty
- --> @dm:addrow name = 'edc_customer_inventory' and limit=0
- --> #dm:query-persistent-stream project_name='CRS' and sw_version!='Not Available'
- --> @dm:selectcolumns exclude='PID'
- --> @dm:manipulate-string to="customer" and func="eval" and value="'ATT'"
- --> @dm:save name='temp-contract_data'
- --> @c:new-block
+@c:new-block
  --> @dm:empty
- --> @dm:save name = "enriched-values"
- ## Generate unique list of PID-SW version to process
+ --> @dm:addrow name='edc_cust_pid_sw' and limit=0
+ --> #dm:query-persistent-stream
+ --> @dm:add-missing-columns columns="key" and value='key'
+ --> @dm:add-missing-columns columns="source" and value='software'
+ --> @dm:save name='temp-sw-data'
+ --> @dm:save name='added-sw-data'
+ ## creates a list of unique customers
 
  --> @c:new-block
- --> @dm:recall name="temp-contract_data"
- --> *dm:filter sw_version!='Not Available'
- --> *dm:filter sw_os_type is not null
- ## new column product_id
+ --> @dm:recall name='temp-sw-data'
+ --> @dm:groupby columns='customer'
+ ## --> @dm:to_type columns = 'contract_number' &
 
- --> @dm:copy-columns from="product_name" and to="product_id"
- --> @dm:eval product_id = "product_id.replace('=', '')"
- --> @dm:eval tokens = "product_id.rsplit('-', 1)"
- --> @dm:eval product_id = "tokens[0] if len(tokens) > 1 and tokens[1] in ['RF'] else product_id"
- --> @dm:selectcolumns exclude = "tokens"
- --> @dm:save name = "temp-contract_data"
- --> @dm:selectcolumns include="^customer$|project_name|^product_id|sw_os_type|sw_version|instance_id"
- --> @dm:groupby columns ="customer,project_name,product_id,sw_os_type,sw_version"
- --> @dm:rename-columns instance_id="total"
- ## remove unnecessary characters from sw_version
+ ## type  = 'int'
 
- --> @dm:eval sw_version = "sw_version.replace('Copyright', '')"
- --> @dm:eval sw_version = "sw_version.replace('[Default]', '')"
- --> @dm:eval sw_version = "str(sw_version).strip()"
- --> @dm:eval unique_key = "str(customer) + str(product_id) + str(sw_os_type) + str(sw_version)"
- --> @dm:save name="temp-input-dataset"
- ## Process SW EoL
+ --> @dm:save name='temp-unique-cust-name'
+ ## Queries data for the customer from edc_oi_enriched_stream
 
- ## declaring thrid level child pipelines
-
- --> @c:new-block
+ --> @c:data-loop dataset='temp-unique-cust-name' and columns='customer'
  --> @dm:empty
- --> @exec:define-function name="define_child_pipelines"
- --> @exec:run-pipeline name ="edc_generate_token" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_sw_get_data" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_sweol_enrich" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_processing_sw_data" & ignore_failures = "no"
- --> @exec:end-function
- ## collecting the file and storing it in edc_cust_pid_sw stream, collecting the API data and adding the processed data to edc_sw_raw_data
+ --> @dm:addrow name='edc_oi_inventory_enriched' and limit=0
+ --> #dm:query-persistent-stream customer_name=='$customer'
+ --> @dm:save name='temp-hw-eol-details' and append='yes'
+ --> @dm:save name='test1-hw-eol-details' and append='yes'
+ ## enriches the processed columns to edc_oi_inventory_enriched
 
  --> @c:new-block
- --> @dm:recall name='temp-input-dataset'
- ## --> @rn:write-stream name='edc_cust_pid_sw'
+ --> @dm:recall name='temp-hw-eol-details'
+ ## --> @dm:selectcolumns exclude='sw_status_x|sw_expiring_qtr_x|sw_expiring_year_x'
 
- --> @dm:head n=250
- --> @dm:save name="temp-cust_pid_sw"
- --> @exec:run-pipeline name ="edc_sw_run_scan" & ignore_failures = "no"
- --> @dm:save name='enriched-values' and append="yes"
- --> @dm:save name='temp-enriched-sweol-values' and append="yes"
+ --> @dm:enrich dict='test-sw-eol-details' and src_key_cols='contract_number,customer_name,product_name' and dict_key_cols='contract_number_str,customer,product_id' and enrich_cols='swEOL_endOfSaleDate,swEOL_bulletinUrl,swEOL_bulletinTitle,swEOL_bulletinNumber,swEOL_softwareEOXId,EndOfLifeDate,sw_expiring_qtr,sw_expiring_year,sw_status'
+ --> @dm:save name='final-enrich'
+ --> @dm:rename-columns EndOfLifeDate='EndOfLifeDate_y'
+ --> @dm:fixnull columns='swEOL_endOfSaleDate,swEOL_bulletinUrl,swEOL_bulletinTitle,swEOL_bulletinNumber,swEOL_softwareEOXId,EndOfLifeDate,sw_expiring_qtr,sw_expiring_year,sw_status' and value="Not Available"  and apply_for_empty="yes"
+ --> @dm:rename-columns swEOL_lastDayOfSupportDate='EndOfLifeDate'
+ --> @rn:write-stream name='edc_sweol_data'
+ --> @dm:selectcolumns exclude='^(customer|product_id|contarct_number)$'
+ --> @rn:write-stream name='edc_oi_inventory_enriched'
