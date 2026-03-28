@@ -1,3 +1,20 @@
-@exec:get-input
- --> @dm:save name="test-input-data"
- --> @rn:write-stream name='edc_cust_pid_sw'
+@c:new-block
+ --> @dm:empty
+ ## Get submitted form fields
+
+ --> @exec:get-input
+ ## Exclude label as it contains unneeded info that should not be written to stream later
+
+ --> @dm:selectcolumns exclude='.*_label'
+ --> @dm:save name='temp-input_data'
+ --> @dm:selectcolumns include="swlicenses_details_csv"
+ --> @dm:explode-json column="swlicenses_details_csv"
+ --> @dm:save name="temp-input-dataset"
+ --> @c:new-block
+ --> @c:data-loop dataset="temp-input-dataset" and columns="bucketName,objectName"
+ --> @dm:recall name="temp-input-dataset"
+ --> @dm:skip-block-if-shape row_count=0
+ --> @dm:get-from-location path="$bucketName/$objectName"
+ --> @dm:save name="temp-uploaded-file-data"
+ --> @dm:save name="uploaded-swlicenses-data"
+ --> @rn:write-stream name="test3-stream-input"
