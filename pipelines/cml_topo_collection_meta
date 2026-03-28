@@ -1,23 +1,38 @@
-folder: Default
-name: cml_topo_collection
-description: test pipeline
-data_path: pipelines/data/cml_topo_collection/1.0.0/data.json
-usecase: ''
-category: ''
-sources: {}
-artifacts:
-- artifact_type: dataset
-  artifact_name: cml-interface-data
-  access: write
-- artifact_type: dataset
-  artifact_name: cml-ospf-data
-  access: write
-- artifact_type: dataset
-  artifact_name: cml-cdp-data
-  access: write
-- artifact_type: dataset
-  artifact_name: cml-bgp-data
-  access: write
-version: 1.0.0
-file_type: json
-checksum: 8f68c601
+@dm:empty
+ --> @exec:get-input
+ --> @dm:save name='stream-input'
+ --> @dm:save name='temp-sw-data'
+ ## creating payload for each row
+
+ --> @c:data-loop columns='transaction_id,sw_version,sw_os_type' and dataset='temp-sw-data'
+ --> @dm:empty
+ --> @dm:addrow key='key'
+ --> @dm:add-missing-columns columns='data' and value='{"input": { "transaction_id": "$transaction_id","cloudStorage": true,"scanTrigger": "ManualScan","icTypes": ["softwareEoX"],"client_app": {"app_name": "OI","client_id": "0oaknwhn14c4dkz131d7"},"device_details": {"softwareType": "$sw_os_type","model": "CISCO2501","softwareVersionNumber":"$sw_version", "serialNumber": "coronas2"}}}'
+ ## --> @dm:eval data='json_dumps(data)'
+
+ ## --> @dm:eval key="'key'"
+
+ --> @dm:enrich dict ="temp-sw-data" and src_key_cols="key" and dict_key_cols="key" and enrich_cols = "access_token"
+ --> @dm:save name="temp-scan_payload"
+ --> @dm:save name="sw_payload"
+ ## Run Scan
+
+ --> @c:data-loop columns="access_token,data" and dataset="temp-scan_payload"
+ --> @restclient:read url="https://api-cx.cisco.com/us/perf/ironbank/v1/scan/jobs/feb_device_scan/async" and payload ='$data' and method="POST" and `Authorization`= "Bearer $access_token" and `Content-Type`="application/json"
+ --> @dm:eval key="'key'"
+ --> @dm:enrich dict ="temp-scan_payload" and src_key_cols="key" and dict_key_cols="key" and enrich_cols = "access_token"
+ --> @dm:save name="temp-run-scan"
+ --> @dm:sleep seconds = 5
+ ## Get results from scan
+
+ --> @c:data-loop columns="access_token,id" and dataset="temp-run-scan"
+ --> @restclient:read url="https://api-cx.cisco.com/us/perf/ironbank/v1/scan/jobs/$id" and method="GET" and Authorization= "Bearer $access_token" and `Accept`="*/*" and Connection="keep-alive"
+ --> @dm:add-missing-columns columns='key' and value='key'
+ --> @dm:save name="temp-scan_result"
+ --> @dm:save name="scan-results-sw"
+ --> @c:new-block
+ --> @dm:recall name='temp-sw-data'
+ --> @dm:add-missing-columns columns='key' and value='key'
+ --> @dm:enrich dict ="temp-scan_result" and src_key_cols="key" and dict_key_cols="key" and enrich_cols = "issues"
+ --> @dm:save name='temp-sweol-data'
+ --> @dm:save name='sweol-data'

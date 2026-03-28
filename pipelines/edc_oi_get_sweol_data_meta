@@ -1,23 +1,20 @@
-folder: OI
-name: edc_oi_get_sweol_data
-description: test pipeline
-data_path: pipelines/data/edc_oi_get_sweol_data/2025_09_23_2/data.json
-usecase: groupby and enrich changes
-category: ''
-sources:
-  rn:
-    name: rn
-    type: rn
-artifacts:
-- artifact_type: pipeline
-  artifact_name: edc_oi_process_sw_data
-  access: read
-- artifact_type: rda-network-stream
-  artifact_name: edc_sweol_data
-  access: write
-- artifact_type: rda-network-stream
-  artifact_name: edc_oi_inventory_enriched
-  access: write
-version: '2025_09_23_2'
-file_type: json
-checksum: 26b17d5e
+@c:new-block
+ --> @dm:empty
+ ## Get submitted form fields
+
+ --> @exec:get-input
+ ## Exclude label as it contains unneeded info that should not be written to stream later
+
+ --> @dm:selectcolumns exclude='.*_label'
+ --> @dm:save name='temp-input_data'
+ --> @dm:selectcolumns include="sweox_csv"
+ --> @dm:explode-json column="sweox_csv"
+ --> @dm:save name="temp-input-dataset"
+ --> @c:new-block
+ --> @c:data-loop dataset="temp-input-dataset" and columns="bucketName,objectName"
+ --> @dm:recall name="temp-input-dataset"
+ --> @dm:skip-block-if-shape row_count=0
+ --> @dm:get-from-location path="$bucketName/$objectName"
+ --> @dm:save name="temp-uploaded-file-data"
+ --> @dm:save name="uploaded-sweox-data"
+ --> @rn:write-stream name="test1-stream-input"
