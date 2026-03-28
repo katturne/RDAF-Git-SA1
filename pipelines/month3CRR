@@ -1,9 +1,26 @@
-@restclient:read url="https://id.cisco.com/oauth2/default/v1/token" and method="POST" and `Content-Type`='application/x-www-form-urlencoded' and encoding = "urlencode" and payload = '{"grant_type":"client_credentials","client_id":"cqiui-ser","client_secret":"uK_5wNET3M-Q_1_xIEXkzFPASDtw8MI5jVRWNcjmq6kmM-bU2L-lpYdTSwQTibMR"}' and `Accept`= "*/*"
- --> @dm:add-missing-columns columns = 'static' & value = "token"
- --> @dm:save name = "circuit_token1"
- --> @c:data-loop columns="access_token" and dataset="circuit_token1"
- --> @restclient:read url="https://wwwin-cqifq-cae-rcdn.cisco.com/cqimqipservices/v1/crpmhwthreemonth" and method="POST" and `Authorization`= "Bearer $access_token" and `Content-Type`='application/json' and payload = '{ "filter": [ { "value":["ADP"], "field":"customerName", "condition":"in" }, {"value":["ADP"], "field":"networkName", "condition":"in" }, { "value":["ADP - ADP"], "field":"customerAndNetworkName", "condition":"in" }, { "value":[], "field":"productFamily", "condition":"in" }, { "value":[], "field":"gpid", "condition":"in" }, { "value":[], "field":"vertical", "condition":"in" }, { "value":[], "field":"contractNumber", "condition":"in" }, { "value":[], "field":"softwareVersion", "condition":"in" }, { "value":["202508"], "field":"calendarMonth", "condition":"in" } ] }'
- --> @dm:save name = "output"
- --> @dm:recall name = "output"
- --> @dm:selectcolumns include="gpid|productFamily|month3CRR"
- --> @rn:write-stream name="month3CRR-stream"
+@dm:empty
+ --> @exec:get-input
+ --> @dm:save name="file_upload0"
+ --> @dm:selectcolumns include="fileUpload|Option"
+ --> @dm:explode-json column="fileUpload"
+ --> @dm:save name="temp-input-dataset"
+ --> @dm:save name="file_upload"
+ --> @c:new-block
+ --> @c:data-loop dataset="temp-input-dataset" and columns="bucketName,objectName,Option"
+ --> @dm:recall name="temp-input-dataset"
+ --> @dm:skip-block-if-shape row_count=0
+ --> @dm:get-from-location path="$bucketName/$objectName"
+ --> @dm:save name="temp-uploaded-file-data"
+ --> @c:new-block
+ --> @c:data-loop dataset="file_upload0" and columns="customer_name,proj_name,Option"
+ --> *exec:if-condition '$Option' == 'option_2'
+ --> @dm:recall name="temp-uploaded-file-data"
+ --> @dm:add-missing-columns columns = 'Customer' &
+value = '$customer_name'
+ --> @dm:add-missing-columns columns = 'Project Name' &
+value = '$proj_name'
+ --> @dm:save name="file_upload2"
+ --> @rn:write-stream name = "input_data"
+ --> @c:new-block
+ --> @dm:recall name="temp-uploaded-file-data"
+ --> @rn:write-stream name = "input_data"

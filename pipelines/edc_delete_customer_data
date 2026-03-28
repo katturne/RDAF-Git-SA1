@@ -1,58 +1,28 @@
-@dm:empty
+
+ ## =========================================
+
+ ## Write to status stream
+
+ ## Save form fields in historical stream
+
+ ## =========================================
+@c:new-block
+ ## Get submitted form fields
+
  --> @exec:get-input
- --> @dm:save name="temp-dataset"
- --> @c:new-block
- --> @dm:recall name="temp-dataset"
- --> @dm:check_columns must_contain = 'customer' &action ='skip-block'
- ## --> @dm:save name="test-del-dataset"
+ --> @dm:selectcolumns exclude='.*_label'
+ --> @dm:selectcolumns include='customer_list|USER_ID'
+ ## Separate customer
 
- --> @dm:save name="temp-del-dataset"
- --> @c:new-block
+ --> @dm:explode-json column='customer_list'
+ --> @dm:save name='temp-cusomer_pid_form'
+ --> @dm:save name='edc-cusomer_pid_form'
+ --> @c:data-loop dataset="temp-cusomer_pid_form" and columns="customer,USER_ID"
  --> @dm:empty
- --> @dm:save name='edc_status'
- ## delete enriched stream
-
- --> @c:data-loop columns='customer' and dataset='temp-del-dataset' and return_empty='yes'
- ## --> @dm:recall name="temp-row-del-dataset"
-
- ## --> @dm:check_columns must_contain = 'customer' &action ='skip-block'
-
- ## --> *dm:filter customer_name = '$customer_name'
-
- --> @dm:recall name='edc_status' and return_empty = 'yes'
- --> @dm:addrow dummy='key'
- --> @dm:add-missing-columns columns='customer_name' and  value="$customer"
- --> @dm:manipulate-string to="status" and func="eval" and value="'Starting to delete the data'"
- --> @rn:write-stream name ='edc_update_status'
- --> @dm:empty
- --> @dm:addrow name = "edc_oi_inventory_grouped" & conflicts = "proceed" & timeout = 1200
- --> #dm:pstream-delete-data-by-query customer_name=="$customer"
- --> @dm:empty
- --> @dm:addrow name = "edc_oi_inventory_enriched" & conflicts = "proceed" & timeout = 1200
- --> #dm:pstream-delete-data-by-query customer_name=="$customer"
- --> @dm:sleep seconds = 5
- --> @dm:recall name='edc_status' and return_empty = 'yes'
- --> @dm:addrow dummy='key'
- --> @dm:add-missing-columns columns='customer_name' and  value="$customer"
- --> @dm:manipulate-string to="status" and func="eval" and value="'Completed data deletion'"
- --> @rn:write-stream name ='edc_update_status'
- --> @c:new-block
- --> @dm:recall name="temp-del-dataset"  and return_empty='yes'
- --> @dm:check_columns must_not_contain = 'customer' &action ='skip-block'
- --> @dm:recall name='edc_status' and return_empty = 'yes'
- --> @dm:addrow dummy='key'
- --> @dm:add-missing-columns columns='customer_name' and  value="$customer"
- --> @dm:manipulate-string to="status" and func="eval" and value="'Starting to delete data for all customers'"
- --> @rn:write-stream name ='edc_update_status'
- --> @dm:empty
- --> @dm:addrow name = "edc_oi_inventory_grouped" & conflicts = "proceed" & timeout = 1200
- --> #dm:pstream-delete-data-by-query count_ is 1
- --> @dm:empty
- --> @dm:addrow name = "edc_oi_inventory_enriched" & conflicts = "proceed" & timeout = 1200
- --> #dm:pstream-delete-data-by-query count_ is 1
- --> @dm:sleep seconds = 5
- --> @dm:recall name='edc_status' and return_empty = 'yes'
- --> @dm:addrow dummy='key'
- --> @dm:add-missing-columns columns='customer_name' and  value="$customer"
- --> @dm:manipulate-string to="status" and func="eval" and value="'Data deleted for all customers'"
- --> @rn:write-stream name ='edc_update_status'
+ --> @dm:addrow name="edc_oi_inventory_grouped" and limit=0
+ --> #dm:query-persistent-stream customer_name='$customer' and item_type is 'CHASSIS' and product_type in ['ROUTER','SWITCH','FUNCSYSTM','MULTIPROD']
+ --> *dm:filter contract_number is not NULL
+ --> @dm:selectcolumns include='customer_name|contract_number|product_name|combination_count'
+ --> @dm:addrow user_id="$USER_ID"
+ --> @dm:groupby columns ="customer_name,contract_number,product_name"
+ --> @dm:save name='edc_cust_contract_pid'
