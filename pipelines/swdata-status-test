@@ -1,14 +1,15 @@
 @dm:empty
- --> @dm:recall name="10dataset"
- --> @dm:save name="test-status"
- --> @dm:sleep seconds = 20
- --> #dm:query-persistent-stream pipeline_name is "swdata-status-test" with-input name="rda_system_worker_traces"
- --> @dm:sort columns = 'timestamp' and order = "descending"
- --> @dm:head n = 1
- --> @dm:selectcolumns include = 'status_type|pipeline_name|jobid|timestamp'
- --> @dm:save name="temp-tempo"
- --> @dm:recall name="temp-tempo"
- --> @dm:enrich dict ="temp1-temp" & src_key_cols="pipeline_name" & dict_key_cols="pipeline_name" &
-enrich_cols="USER_ID,proj_name,customer_name"
- --> @dm:save name="temp1-temp" and append="no"
- --> @rn:write-stream name = "status-stream"
+ --> @exec:get-input
+ ## --> @dm:save name='stream-input'
+
+ --> @dm:save name='temp-generate_token_creds'
+ ## Generate token
+
+ --> @c:data-loop columns='content_type,client_secret,client_id,grant_type' and dataset='temp-generate_token_creds'
+ --> @restclient:read url="https://int-id.cisco.com/oauth2/aussduh26AoUqMpmQ1d6/v1/token?grant_type=$grant_type&client_id=$client_id&client_secret=$client_secret" and
+`method`="POST" and
+`Content-Type`='$content_type' and
+`Accept`='*/*'
+ --> @dm:eval key="'key'"
+ --> @dm:save name="temp-token"
+ --> @dm:save name='test-token'
