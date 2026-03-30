@@ -1,41 +1,54 @@
-folder: Default
-name: test_update_data
-description: test pipeline
-data_path: draft-pipelines/data/test_update_data/2025_04_25_02/data.json
-usecase: ''
-category: ''
-sources:
-  rn:
-    name: rn
-    type: rn
-  snowflake:
-    name: snowflake
-    type: snowflake
-artifacts:
-- artifact_type: dataset
-  artifact_name: test-retrieve-dataset
-  access: read
-- artifact_type: dataset
-  artifact_name: edc_status
-  access: write
-- artifact_type: dataset
-  artifact_name: edc_status
-  access: read
-- artifact_type: rda-network-stream
-  artifact_name: edc_update_status
-  access: write
-- artifact_type: dataset
-  artifact_name: test-edc-inventory-level4
-  access: write
-- artifact_type: rda-network-stream
-  artifact_name: edc_oi_inventory_grouped_1
-  access: write
-- artifact_type: rda-network-stream
-  artifact_name: edc_update_status
-  access: write
-- artifact_type: rda-network-stream
-  artifact_name: edc_update_status
-  access: write
-version: '2025_04_25_02'
-file_type: json
-checksum: a045888a
+@c:new-block
+ --> @dm:recall name='before-explode-sweol'
+ --> @dm:dedup columns='product_id,sw_os_type,sw_version'
+ --> *dm:filter issues is not '[]'
+ --> @dm:save name='before-explode-sweol-new'
+ --> @dm:eval issues='eval(issues)'
+ --> @dm:eval issues='json_dumps(issues)'
+ --> @dm:explode-json column="issues"
+ --> @dm:eval eoXAlert='json_dumps(eoXAlert)'
+ --> @dm:explode-json column="eoXAlert"
+ --> @dm:save name='temp-sweol'
+ ## --> @dm:save name='exploded-sweol'
+
+ ## --> @c:new-block
+
+ ## --> @dm:recall name='added-sw-data'
+
+ ## --> @dm:addrow product_id='AIR-AP2802E-B-K9' and sw_version='17.12.4.208' and sw_os_type='IOS-XE' and contract_number='9517555'
+
+ ## --> @dm:enrich dict='before-explode-sweol-new' and src_key_cols='product_id,sw_os_type,sw_version' and dict_key_cols='product_id,sw_os_type,sw_version' and enrich_cols='issues' and how_type='inner' and dedup_dict='no'
+
+ ## --> @dm:save name='test-sweol_cn_enriched'
+
+ ## --> @dm:empty
+
+ ## --> @dm:addrow name='edc_oi_inventory_enriched' and limit=0
+
+ ## --> #dm:query-persistent-stream customer_name=='ATT'
+
+ ## --> @dm:save name='temp-hw-data'
+
+ ## --> @c:new-block
+
+ ## --> @dm:recall name='temp-hw-data'
+
+ ## --> @dm:to-type columns='contract_number' and type='int'
+
+ ## --> @dm:save name='temp-hw-data'
+
+ ## --> @c:new-block
+
+ ## --> @dm:recall name='test-sweol_cn_enriched'
+
+ ## --> @dm:to-type columns='contract_number' and type='int'
+
+ ## --> @dm:enrich dict='temp-hw-data' and src_key_cols='product_id,contract_number,customer' and dict_key_cols='product_id,contract_number,customer_name' and enrich_cols='gu_name,savm_sales_level_4_name,coverage,covered_line_status,business_entity,business_sub_entity,bk_end_of_life_request_num,bk_eol_bulletin_product_typ_cd,hwEOL_endOfNewServiceAttachmentDate,hwEOL_endOfRoutineFailureAnalysisDate,hwEOL_endOfSoftwareMaintenanceReleasesDate,hwEOL_endOfServiceContractRenewalDate,hwEOL_endOfLifeAnnouncementDate,eol_product_name,item_type,hwEOL_endOfSaleDate,hwEOL_lastDayOfSupportDate,product_description,product_family,product_family_description,product_type,product_list_price,portfolio_desc,usage_code,combination_count,execution_status,total_product_list_price,unique_key,hw_status,hw_expiring_qtr,hw_expiring_year,last_updated_time,product_name' and how_type='inner' and replace_values='yes'
+
+ ## --> @dm:save name='enriched-op-35-inv'
+
+ --> @dm:recall name='temp-sweol'
+ --> *dm:filter customer == 'ATT'
+ --> @exec:run-pipeline name='edc_processing_sw_data'
+ --> @dm:to-type columns='contract_number' and type='int'
+ --> @dm:save name='processed-sw-op'
