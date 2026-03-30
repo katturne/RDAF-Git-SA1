@@ -1,12 +1,12 @@
 {
-  "name": "view-delta",
-  "label": "View Delta",
-  "description": "View Delta",
+  "name": "oia-alert-group-view-details-os",
+  "label": "OIA Alert Group View details",
+  "description": "OIA Alert Group View details Dashboard",
   "version": "23.1.2",
   "enabled": true,
-  "stream": "oia-alerts-delta-stream",
   "dashboard_style": "auto",
   "status_poller": {},
+  "stream": "oia-alerts-stream",
   "dashboard_type": "template",
   "template_variables": {
     "PROJECT_ID": {
@@ -22,10 +22,15 @@
       "default": null,
       "contextId": "a_incident_id",
       "type": "stack"
+    },
+    "SOURCE_DASHBOARD_ID": {
+      "default": "user-dashboard-oia-alert-group-view-details-os",
+      "contextId": "sourceDashboardId"
     }
   },
   "dashboard_filters": {
-    "time_filter": true,
+    "time_filter": false,
+    "extra_filter": "a_correlation_parent is '{{CORRELATION_PARENT_ID}}'",
     "default_time_filter_non_removable": true,
     "show_default_time_filter": false,
     "additional_datetime_column_filters": [
@@ -260,8 +265,8 @@
         "type": "DATETIME"
       },
       {
-        "id": "a_reviveat_ts",
-        "label": "Revive At",
+        "id": "a_en_revivededat",
+        "label": "Revived Time",
         "type": "DATETIME"
       },
       {
@@ -271,6 +276,20 @@
       }
     ]
   },
+  "import": [
+    {
+      "from": "oia-alerts-os",
+      "as": "alerts"
+    },
+    {
+      "from": "oia-alerts-os",
+      "as": "alerts_source_timeseries"
+    },
+    {
+      "from": "oia-alerts-os",
+      "as": "alerts_severity_timeseries"
+    }
+  ],
   "dashboard_sections": [
     {
       "title": "alerts",
@@ -280,326 +299,67 @@
       ],
       "widgets": [
         {
-          "title": "Alerts",
-          "widget_type": "tabular",
-          "stream": "oia-alerts-delta-stream",
+          "title": "Correlated Alerts",
+          "widget_type": "custom_counter",
+          "stream": "oia-alerts-stream",
+          "max_width": 4,
+          "height": 3,
+          "min_width": 4,
           "ts_column": "a_updated_ts",
+          "duration_hours": 1000,
+          "column": "a_id",
+          "agg": "cardinality",
+          "type": "str",
+          "widget_id": "02be1e20"
+        },
+        {
+          "title": "Impacted Assets",
+          "widget_type": "custom_counter",
+          "stream": "oia-alerts-stream",
+          "max_width": 4,
+          "height": 3,
+          "min_width": 4,
+          "ts_column": "a_updated_ts",
+          "duration_hours": 1000,
+          "column": "a_asset_name",
+          "agg": "cardinality",
+          "type": "str",
+          "widget_id": "c1343580"
+        },
+        {
+          "title": "Alert Sources",
+          "widget_type": "custom_counter",
+          "stream": "oia-alerts-stream",
+          "max_width": 4,
+          "height": 3,
+          "min_width": 4,
+          "ts_column": "a_updated_ts",
+          "duration_hours": 1000,
+          "column": "a_source_systemname",
+          "agg": "cardinality",
+          "type": "str",
+          "widget_id": "7d509138"
+        },
+        {
+          "extends": "alerts_source_timeseries:alerts_by_source_timeseries",
+          "min_width": 6,
+          "height": 6,
+          "max_width": 6,
+          "widget_id": "94a3fc11"
+        },
+        {
+          "extends": "alerts_severity_timeseries:alerts_by_severity_timeseries",
+          "min_width": 6,
+          "height": 6,
+          "max_width": 6,
+          "widget_id": "1b94aab1"
+        },
+        {
+          "extends": "alerts:alerts_tabular",
           "min_width": 12,
           "height": 12,
           "max_width": 12,
-          "paginated": true,
-          "resizableColumns": false,
-          "include_context_in_query": true,
-          "include_context_keys": [
-            "a_id"
-          ],
-          "remote_searchable": true,
-          "remote_searchable_cols": [
-            "a_id",
-            "a_message",
-            "a_correlation_status",
-            "a_severity",
-            "a_status",
-            "a_incident_id",
-            "a_ticket_id",
-            "a_source_systemname",
-            "a_asset_name",
-            "a_asset_ip_address"
-          ],
-          "refreshRequired": true,
-          "timebased": false,
-          "max_rows": 50,
-          "columns": {
-            "a_id": {
-              "title": "Alert Id",
-              "visible": false,
-              "key": true,
-              "defaultWidth": 150
-            },
-            "a_alert_key": {
-              "title": "Alert Key",
-              "visible": false,
-              "defaultWidth": 150
-            },
-            "customer_id": {
-              "title": "Customer Id",
-              "visible": false,
-              "hidden": false,
-              "key": true,
-              "defaultWidth": 150
-            },
-            "project_id": {
-              "title": "Project Id",
-              "visible": false,
-              "hidden": false,
-              "key": true,
-              "defaultWidth": 150
-            },
-            "a_message": {
-              "title": "Message",
-              "formatter": "truncate",
-              "defaultWidth": 270
-            },
-            "a_correlation_status": {
-              "title": "Correlation Status",
-              "defaultWidth": 150
-            },
-            "a_event_id": {
-              "title": "Event Id",
-              "description": "Id of the ingestion-tracker event",
-              "visible": false,
-              "key": true,
-              "defaultWidth": 150
-            },
-            "a_source_event_id": {
-              "title": "Source Event ID",
-              "visible": false,
-              "defaultWidth": 150
-            },
-            "a_severity_color": {
-              "title": "Sev_2",
-              "type": "COLOR-MAP",
-              "source-column": "a_severity",
-              "color-map": {
-                "SEVERE": "#B71C1C",
-                "CRITICAL": "#E53935",
-                "MAJOR": "#F57C00",
-                "MINOR": "#FFA726",
-                "WARNING": "#FFD54F",
-                "NOTIFICATION": "#4DD0E1",
-                "INFORMATION": "#03A9F4"
-              }
-            },
-            "a_severity": {
-              "title": "Severity",
-              "htmlTemplateForRow": "<span class='badge' style='background-color: {{'{{ row.a_severity_color }}'}}' > {{'{{ row.a_severity }}'}} </span>",
-              "defaultWidth": 150
-            },
-            "a_state_color": {
-              "type": "COLOR-MAP",
-              "source-column": "a_status",
-              "color-map": {
-                "CLEARED": "#4CAF50",
-                "ACTIVE": "#FFA726"
-              }
-            },
-            "a_status": {
-              "title": "Monitoring Status",
-              "htmlTemplateForRow": "<span class='badge' style='background-color: {{'{{ row.a_state_color }}'}}' > {{'{{ row.a_status }}'}} </span>",
-              "defaultWidth": 150
-            },
-            "a_incident_id": {
-              "title": "Incident",
-              "key": true,
-              "defaultWidth": 150
-            },
-            "delta": {
-              "title": "Delta",
-              "key": true,
-              "visible": false,
-              "defaultWidth": 150
-            },
-            "a_ticket_id": {
-              "title": "ITSM Ticket",
-              "defaultWidth": 100
-            },
-            "a_source_systemname": {
-              "title": "Source",
-              "defaultWidth": 100
-            },
-            "a_raised_ts": {
-              "title": "Raised At",
-              "type": "DATETIME",
-              "defaultWidth": 180
-            },
-            "a_created_ts": {
-              "title": "Created At",
-              "type": "DATETIME",
-              "defaultWidth": 180
-            },
-            "a_updated_ts": {
-              "title": "Updated At",
-              "type": "DATETIME",
-              "defaultWidth": 180
-            },
-            "a_cleared_ts": {
-              "title": "Cleared At",
-              "type": "DATETIME",
-              "defaultWidth": 180
-            },
-            "a_sourceeventreceivedat_ts": {
-              "title": "Source Event Received At",
-              "type": "DATETIME",
-              "visible": false,
-              "defaultWidth": 200
-            },
-            "a_lastraisereceivedat_ts": {
-              "title": "Last Raise Received At",
-              "type": "DATETIME",
-              "visible": false,
-              "defaultWidth": 180
-            },
-            "a_raisedreceivedat_ts": {
-              "title": "Raise Received At",
-              "type": "DATETIME",
-              "visible": false,
-              "defaultWidth": 180
-            },
-            "a_clearreceivedat_ts": {
-              "title": "Clear Received At",
-              "type": "DATETIME",
-              "visible": false,
-              "defaultWidth": 180
-            },
-            "a_reviveat_ts": {
-              "title": "Revive At",
-              "type": "DATETIME",
-              "visible": false,
-              "defaultWidth": 180
-            },
-            "a_en_revivededat": {
-              "title": "Revived Time",
-              "type": "DATETIME",
-              "visible": false,
-              "defaultWidth": 180
-            },
-            "a_en_revivedrulename": {
-              "title": "Revived From Policy",
-              "visible": false,
-              "defaultWidth": 200
-            },
-            "a_asset_name": {
-              "title": "Asset Name",
-              "defaultWidth": 150
-            },
-            "a_asset_type": {
-              "title": "Asset Type",
-              "defaultWidth": 150
-            },
-            "a_asset_ip_address": {
-              "title": "IP Address",
-              "defaultWidth": 150
-            },
-            "a_en_fqdn": {
-              "title": "Fully Qualified Domain Name",
-              "defaultWidth": 250
-            },
-            "a_component_name": {
-              "title": "Component Name",
-              "visible": false,
-              "defaultWidth": 150
-            },
-            "a_source_mechanism": {
-              "title": "Source Mechanism",
-              "visible": false,
-              "defaultWidth": 150
-            },
-            "a_rule_name": {
-              "title": "Policy Name",
-              "defaultWidth": 180
-            },
-            "a_burst_rule_name": {
-              "title": " Correlation Burst Policy",
-              "visible": false,
-              "defaultWidth": 180
-            },
-            "a_alert_category": {
-              "title": "Alert Category",
-              "defaultWidth": 180
-            },
-            "a_alert_type": {
-              "title": "Alert Type",
-              "defaultWidth": 150
-            },
-            "a_cluster_label": {
-              "title": "Cluster",
-              "visible": false,
-              "defaultWidth": 150
-            },
-            "a_cluster_score": {
-              "title": "Cluster Score",
-              "type": "DOUBLE",
-              "visible": false,
-              "defaultWidth": 150
-            },
-            "a_correlation_parent": {
-              "title": "Correlation Parent ID",
-              "visible": false,
-              "defaultWidth": 150
-            },
-            "a_repeat_count": {
-              "title": "Repeat Count",
-              "type": "DOUBLE",
-              "defaultWidth": 180
-            },
-            "a_en_stack_name": {
-              "title": "Stack Name",
-              "visible": false,
-              "defaultWidth": 180
-            },
-            "a_en_node_id": {
-              "title": "Node ID",
-              "visible": false,
-              "hidden": true
-            },
-            "a_rule_type": {
-              "title": "Policy Type",
-              "visible": false,
-              "defaultWidth": 150
-            },
-            "a_cleared_by": {
-              "title": "Cleared By",
-              "visible": false,
-              "defaultWidth": 150
-            },
-            "a_clearcode": {
-              "title": "Clear Code",
-              "visible": false,
-              "defaultWidth": 150
-            },
-            "a_clear_message": {
-              "title": "Clear Message",
-              "visible": false,
-              "defaultWidth": 150
-            },
-            "a_cause_notes": {
-              "title": "Cause Notes",
-              "visible": false,
-              "defaultWidth": 150
-            },
-            "alert-context": {
-              "title": "alert-context",
-              "value": true,
-              "key": true,
-              "type": "FIXED_VALUE",
-              "hidden": true,
-              "visible": false
-            }
-          },
-          "actions": [
-            {
-              "title": "View Alert Delta",
-              "permission": "oia:alert:view",
-              "type": "POPUP_REPORT",
-              "icon": "mdi mdi-plus",
-              "selectionType": "SINGLE",
-              "identifier": "alert-processor:cfx.alert.delta.view",
-              "api-endpoint": {
-                "service-name": "alert-processor-companion",
-                "namespace": "io.cfx.dimensions.app",
-                "methodName": "invokeAppApi:viewdeltaForAlert",
-                "stringified-params": true,
-                "useReportContext": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "context": {}
-                  }
-                ]
-              }
-            }
-          ],
-          "widget_id": "94a3fc11"
+          "widget_id": "13ef28ac"
         }
       ]
     }
@@ -613,326 +373,67 @@
       ],
       "widgets": [
         {
-          "title": "Alerts",
-          "widget_type": "tabular",
-          "stream": "oia-alerts-delta-stream",
+          "title": "Correlated Alerts",
+          "widget_type": "custom_counter",
+          "stream": "oia-alerts-stream",
+          "max_width": 4,
+          "height": 3,
+          "min_width": 4,
           "ts_column": "a_updated_ts",
+          "duration_hours": 1000,
+          "column": "a_id",
+          "agg": "cardinality",
+          "type": "str",
+          "widget_id": "02be1e20"
+        },
+        {
+          "title": "Impacted Assets",
+          "widget_type": "custom_counter",
+          "stream": "oia-alerts-stream",
+          "max_width": 4,
+          "height": 3,
+          "min_width": 4,
+          "ts_column": "a_updated_ts",
+          "duration_hours": 1000,
+          "column": "a_asset_name",
+          "agg": "cardinality",
+          "type": "str",
+          "widget_id": "c1343580"
+        },
+        {
+          "title": "Alert Sources",
+          "widget_type": "custom_counter",
+          "stream": "oia-alerts-stream",
+          "max_width": 4,
+          "height": 3,
+          "min_width": 4,
+          "ts_column": "a_updated_ts",
+          "duration_hours": 1000,
+          "column": "a_source_systemname",
+          "agg": "cardinality",
+          "type": "str",
+          "widget_id": "7d509138"
+        },
+        {
+          "extends": "alerts_source_timeseries:alerts_by_source_timeseries",
+          "min_width": 6,
+          "height": 6,
+          "max_width": 6,
+          "widget_id": "94a3fc11"
+        },
+        {
+          "extends": "alerts_severity_timeseries:alerts_by_severity_timeseries",
+          "min_width": 6,
+          "height": 6,
+          "max_width": 6,
+          "widget_id": "1b94aab1"
+        },
+        {
+          "extends": "alerts:alerts_tabular",
           "min_width": 12,
           "height": 12,
           "max_width": 12,
-          "paginated": true,
-          "resizableColumns": false,
-          "include_context_in_query": true,
-          "include_context_keys": [
-            "a_id"
-          ],
-          "remote_searchable": true,
-          "remote_searchable_cols": [
-            "a_id",
-            "a_message",
-            "a_correlation_status",
-            "a_severity",
-            "a_status",
-            "a_incident_id",
-            "a_ticket_id",
-            "a_source_systemname",
-            "a_asset_name",
-            "a_asset_ip_address"
-          ],
-          "refreshRequired": true,
-          "timebased": false,
-          "max_rows": 50,
-          "columns": {
-            "a_id": {
-              "title": "Alert Id",
-              "visible": false,
-              "key": true,
-              "defaultWidth": 150
-            },
-            "a_alert_key": {
-              "title": "Alert Key",
-              "visible": false,
-              "defaultWidth": 150
-            },
-            "customer_id": {
-              "title": "Customer Id",
-              "visible": false,
-              "hidden": false,
-              "key": true,
-              "defaultWidth": 150
-            },
-            "project_id": {
-              "title": "Project Id",
-              "visible": false,
-              "hidden": false,
-              "key": true,
-              "defaultWidth": 150
-            },
-            "a_message": {
-              "title": "Message",
-              "formatter": "truncate",
-              "defaultWidth": 270
-            },
-            "a_correlation_status": {
-              "title": "Correlation Status",
-              "defaultWidth": 150
-            },
-            "a_event_id": {
-              "title": "Event Id",
-              "description": "Id of the ingestion-tracker event",
-              "visible": false,
-              "key": true,
-              "defaultWidth": 150
-            },
-            "a_source_event_id": {
-              "title": "Source Event ID",
-              "visible": false,
-              "defaultWidth": 150
-            },
-            "a_severity_color": {
-              "title": "Sev_2",
-              "type": "COLOR-MAP",
-              "source-column": "a_severity",
-              "color-map": {
-                "SEVERE": "#B71C1C",
-                "CRITICAL": "#E53935",
-                "MAJOR": "#F57C00",
-                "MINOR": "#FFA726",
-                "WARNING": "#FFD54F",
-                "NOTIFICATION": "#4DD0E1",
-                "INFORMATION": "#03A9F4"
-              }
-            },
-            "a_severity": {
-              "title": "Severity",
-              "htmlTemplateForRow": "<span class='badge' style='background-color: {{'{{ row.a_severity_color }}'}}' > {{'{{ row.a_severity }}'}} </span>",
-              "defaultWidth": 150
-            },
-            "a_state_color": {
-              "type": "COLOR-MAP",
-              "source-column": "a_status",
-              "color-map": {
-                "CLEARED": "#4CAF50",
-                "ACTIVE": "#FFA726"
-              }
-            },
-            "a_status": {
-              "title": "Monitoring Status",
-              "htmlTemplateForRow": "<span class='badge' style='background-color: {{'{{ row.a_state_color }}'}}' > {{'{{ row.a_status }}'}} </span>",
-              "defaultWidth": 150
-            },
-            "a_incident_id": {
-              "title": "Incident",
-              "key": true,
-              "defaultWidth": 150
-            },
-            "delta": {
-              "title": "Delta",
-              "key": true,
-              "visible": false,
-              "defaultWidth": 150
-            },
-            "a_ticket_id": {
-              "title": "ITSM Ticket",
-              "defaultWidth": 100
-            },
-            "a_source_systemname": {
-              "title": "Source",
-              "defaultWidth": 100
-            },
-            "a_raised_ts": {
-              "title": "Raised At",
-              "type": "DATETIME",
-              "defaultWidth": 180
-            },
-            "a_created_ts": {
-              "title": "Created At",
-              "type": "DATETIME",
-              "defaultWidth": 180
-            },
-            "a_updated_ts": {
-              "title": "Updated At",
-              "type": "DATETIME",
-              "defaultWidth": 180
-            },
-            "a_cleared_ts": {
-              "title": "Cleared At",
-              "type": "DATETIME",
-              "defaultWidth": 180
-            },
-            "a_sourceeventreceivedat_ts": {
-              "title": "Source Event Received At",
-              "type": "DATETIME",
-              "visible": false,
-              "defaultWidth": 200
-            },
-            "a_lastraisereceivedat_ts": {
-              "title": "Last Raise Received At",
-              "type": "DATETIME",
-              "visible": false,
-              "defaultWidth": 180
-            },
-            "a_raisedreceivedat_ts": {
-              "title": "Raise Received At",
-              "type": "DATETIME",
-              "visible": false,
-              "defaultWidth": 180
-            },
-            "a_clearreceivedat_ts": {
-              "title": "Clear Received At",
-              "type": "DATETIME",
-              "visible": false,
-              "defaultWidth": 180
-            },
-            "a_reviveat_ts": {
-              "title": "Revive At",
-              "type": "DATETIME",
-              "visible": false,
-              "defaultWidth": 180
-            },
-            "a_en_revivededat": {
-              "title": "Revived Time",
-              "type": "DATETIME",
-              "visible": false,
-              "defaultWidth": 180
-            },
-            "a_en_revivedrulename": {
-              "title": "Revived From Policy",
-              "visible": false,
-              "defaultWidth": 200
-            },
-            "a_asset_name": {
-              "title": "Asset Name",
-              "defaultWidth": 150
-            },
-            "a_asset_type": {
-              "title": "Asset Type",
-              "defaultWidth": 150
-            },
-            "a_asset_ip_address": {
-              "title": "IP Address",
-              "defaultWidth": 150
-            },
-            "a_en_fqdn": {
-              "title": "Fully Qualified Domain Name",
-              "defaultWidth": 250
-            },
-            "a_component_name": {
-              "title": "Component Name",
-              "visible": false,
-              "defaultWidth": 150
-            },
-            "a_source_mechanism": {
-              "title": "Source Mechanism",
-              "visible": false,
-              "defaultWidth": 150
-            },
-            "a_rule_name": {
-              "title": "Policy Name",
-              "defaultWidth": 180
-            },
-            "a_burst_rule_name": {
-              "title": " Correlation Burst Policy",
-              "visible": false,
-              "defaultWidth": 180
-            },
-            "a_alert_category": {
-              "title": "Alert Category",
-              "defaultWidth": 180
-            },
-            "a_alert_type": {
-              "title": "Alert Type",
-              "defaultWidth": 150
-            },
-            "a_cluster_label": {
-              "title": "Cluster",
-              "visible": false,
-              "defaultWidth": 150
-            },
-            "a_cluster_score": {
-              "title": "Cluster Score",
-              "type": "DOUBLE",
-              "visible": false,
-              "defaultWidth": 150
-            },
-            "a_correlation_parent": {
-              "title": "Correlation Parent ID",
-              "visible": false,
-              "defaultWidth": 150
-            },
-            "a_repeat_count": {
-              "title": "Repeat Count",
-              "type": "DOUBLE",
-              "defaultWidth": 180
-            },
-            "a_en_stack_name": {
-              "title": "Stack Name",
-              "visible": false,
-              "defaultWidth": 180
-            },
-            "a_en_node_id": {
-              "title": "Node ID",
-              "visible": false,
-              "hidden": true
-            },
-            "a_rule_type": {
-              "title": "Policy Type",
-              "visible": false,
-              "defaultWidth": 150
-            },
-            "a_cleared_by": {
-              "title": "Cleared By",
-              "visible": false,
-              "defaultWidth": 150
-            },
-            "a_clearcode": {
-              "title": "Clear Code",
-              "visible": false,
-              "defaultWidth": 150
-            },
-            "a_clear_message": {
-              "title": "Clear Message",
-              "visible": false,
-              "defaultWidth": 150
-            },
-            "a_cause_notes": {
-              "title": "Cause Notes",
-              "visible": false,
-              "defaultWidth": 150
-            },
-            "alert-context": {
-              "title": "alert-context",
-              "value": true,
-              "key": true,
-              "type": "FIXED_VALUE",
-              "hidden": true,
-              "visible": false
-            }
-          },
-          "actions": [
-            {
-              "title": "View Alert Delta",
-              "permission": "oia:alert:view",
-              "type": "POPUP_REPORT",
-              "icon": "mdi mdi-plus",
-              "selectionType": "SINGLE",
-              "identifier": "alert-processor:cfx.alert.delta.view",
-              "api-endpoint": {
-                "service-name": "alert-processor-companion",
-                "namespace": "io.cfx.dimensions.app",
-                "methodName": "invokeAppApi:viewdeltaForAlert",
-                "stringified-params": true,
-                "useReportContext": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "context": {}
-                  }
-                ]
-              }
-            }
-          ],
-          "widget_id": "94a3fc11"
+          "widget_id": "13ef28ac"
         }
       ]
     }
