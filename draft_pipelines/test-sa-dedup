@@ -1,6 +1,16 @@
-@c:new-block
- --> @dm:query-persistent-stream-from-bookmark name="fsm-oia-snow-ticket-inputs" and bookmark="fsm-att-oia-to-snow-create-bkmrk" and query="timestamp is after -24 hours and fsmFirableEventName is 'create-ticket'"
- --> @dm:save name="temp-create-input"
- --> @dm:map to="step" & func="fixed" & value="c0"
- --> @rn:write-stream compression="auto" & name="debug-fsm-att"
- --> @exec:run-pipeline name="create_snow_ticket_processor" & ignore_failures="no"
+@dm:empty
+ --> @dm:addrow name='edc_cust_pid_sw' and limit=0
+ --> #dm:query-persistent-stream
+ --> @dm:dedup columns='product_id,sw_os_type,sw_version'
+ --> @dm:save name='temp-pid'
+ --> @c:new-block
+ --> @dm:empty
+ --> @dm:addrow name='edc_oi_inventory_enriched' and limit=0
+ --> #dm:query-persistent-stream customer_name equals 'ATT'
+ --> @dm:save name='temp-source'
+ --> @c:new-block
+ --> @dm:recall name='temp-source'
+ --> @dm:enrich dict='temp-pid' and src_key_cols='product_name,contract_number,customer_name' and dict_key_cols='product_id,contract_number,customer' and enrich_cols='_id'
+ --> @dm:save name='before-output'
+ --> @dm:dedup columns='product_name,contract_number,customer_name'
+ --> @dm:save name='after-output'
