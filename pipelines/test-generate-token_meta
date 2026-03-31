@@ -1,32 +1,71 @@
-folder: Default
-name: test-generate-token
-description: test pipeline
-data_path: pipelines/data/test-generate-token/2025_06_13_02/data.json
-usecase: ''
-category: ''
-sources: {}
-artifacts:
-- artifact_type: dataset
-  artifact_name: added-sw-data
-  access: write
-- artifact_type: dataset
-  artifact_name: generate_token_creds
-  access: read
-- artifact_type: pipeline
-  artifact_name: edc_generate_token
-  access: read
-- artifact_type: dataset
-  artifact_name: unique-added-sw-data
-  access: write
-- artifact_type: dataset
-  artifact_name: test-loop-time
-  access: write
-- artifact_type: pipeline
-  artifact_name: edc_sw_get_data
-  access: read
-- artifact_type: dataset
-  artifact_name: test-sweol
-  access: write
-version: '2025_06_13_02'
-file_type: json
-checksum: e03b2c46
+@dm:create-persistent-stream name="dashboard_export_email_status" and unique_cols="job_id" and retention_days=1
+ --> @dm:empty
+ --> @dm:save name="temp-df"
+ --> @c:new-block
+ --> @dm:empty
+ --> @exec:define-function name="handle_error"
+ --> @dm:empty
+ --> @dm:addrow status="Failed" and reason="Error: email sending process failed to the email ID '{{recipient}}'" and job_id="{{job_id}}" and ingestion_id="{{ingestion_id}}"
+ --> @rn:write-stream name="rda_dashboard_schedule_logs"
+ --> @exec:end-function
+ ## --> @c:new-block
+
+ ## --> @dm:empty
+
+ ## --> @exec:retry-loop retries=3 & retry_delay_millis=5000 & on_failure_callback="handle_error"
+
+ ## --> @dm:addrow name="dashboard_export_email_status" & limit = '0'
+
+ ## --> #dm:query-persistent-stream job_id=="{{job_id}}"
+
+ ## --> @dm:save name="temp-original"
+
+ ## --> @dm:skip-block-if-shape row_count="0"
+
+ ## --> @dm:eval collection_timestamp = "int(time_now_as_ms())"
+
+ ## --> @dm:eval diff="collection_timestamp-rda_timestamp"
+
+ ## --> *dm:filter diff > 300000
+
+ ## --> @dm:save name="temp-df"
+
+ ## --> @dm:skip-block-if-shape row_count="0"
+
+ ## --> @dm:empty
+
+ ## --> @dm:addrow job_id="{{job_id}}"
+
+ ## --> @email:sendmail-data recipient="{{recipient}}" and minio_file_location="{{minio_path}}" and subject="{{subject}}"
+
+ ## --> @rn:write-stream name="dashboard_export_email_status"
+
+ ## --> @dm:empty
+
+ ## --> @dm:addrow status="The exported file is successfully sent to the email ID '{{recipient}}'"
+
+ ## --> @dm:eval reason=None
+
+ ## --> @dm:eval job_id="'{{job_id}}'" and ingestion_id="'{{ingestion_id}}'"
+
+ ## --> @rn:write-stream name="rda_dashboard_schedule_logs"
+
+ ## --> @exec:end-loop
+
+ --> @c:new-block
+ --> @dm:empty
+ --> @exec:retry-loop retries=3 & retry_delay_millis=5000 & on_failure_callback="handle_error"
+ ## --> @dm:recall name="temp-original"
+
+ --> @dm:empty
+ --> @dm:skip-block-if-shape row_count>0
+ --> @dm:empty
+ --> @dm:addrow job_id="{{job_id}}"
+ --> @email:sendmail-data recipient="{{recipient}}" and minio_file_location="{{minio_path}}" and subject="{{subject}}"
+ --> @rn:write-stream name="dashboard_export_email_status"
+ --> @dm:empty
+ --> @dm:addrow status="The exported file is successfully sent to the email ID '{{recipient}}'"
+ --> @dm:eval reason=None
+ --> @dm:eval job_id="'{{job_id}}'" and ingestion_id="'{{ingestion_id}}'"
+ --> @rn:write-stream name="rda_dashboard_schedule_logs"
+ --> @exec:end-loop
