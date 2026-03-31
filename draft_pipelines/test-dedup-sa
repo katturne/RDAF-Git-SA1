@@ -1,3 +1,9 @@
-@exec:get-input
- --> @dm:selectcolumns include='^region_name$|^aws_access_key_id$|^aws_secret_access_key$'
- --> @diagnostictools:AwsAlarms region_name = 'region_name' and aws_access_key_id = 'aws_access_key_id' and aws_secret_access_key='aws_secret_access_key' and json_output_flag = 'True'
+@dm:recall name='sa-raw-data'
+ --> @dm:eval unique_key="unique_key"
+ ## --> @dm:to-type columns='customer,product_name,product_id,sw_version,sw_os_type,advisoryId,PsirtID' and type='str'
+
+ --> @dm:implode key_columns='unique_key' and merge_columns='AdvisoryId,PsirtID,product_name,product_id' and dedup_merge_values='no' and keep_columns='AdvisoryId,PsirtID'
+ --> @dm:eval transaction_id_list="str(product_id).split(',')"
+ --> @dm:eval record_count = "len(transaction_id_list)"
+ --> *dm:filter record_count > 1
+ --> @dm:save name="test-implode-sw"
