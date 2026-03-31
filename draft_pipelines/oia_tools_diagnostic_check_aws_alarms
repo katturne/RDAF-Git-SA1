@@ -1,3 +1,9 @@
-@exec:get-input
- --> @dm:selectcolumns include='^region_name$|^aws_access_key_id$|^aws_secret_access_key$'
- --> @diagnostictools:AwsAlarms region_name = 'region_name' and aws_access_key_id = 'aws_access_key_id' and aws_secret_access_key='aws_secret_access_key' and json_output_flag = 'True'
+@c:new-block
+ --> @dm:empty
+ --> @dm:addrow name="edc_customer_inventory" & limit = '0' and sort_by_col='timestamp' and sort_type='desc'
+ --> #dm:query-persistent-stream project_name is 'ATT-Mobility'
+ --> @dm:save name='temp-customer'
+ --> @c:new-block
+ --> @dm:recall-chunked name="temp-customer" and num_rows=2000
+ --> @Kafka_grafana:write-stream name="edc_customer_inventory_1"
+ --> @dm:sleep seconds = 3
