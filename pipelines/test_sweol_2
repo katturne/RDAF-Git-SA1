@@ -1,9 +1,56 @@
-@restclient:read url="https://id.cisco.com/oauth2/default/v1/token" and method="POST" and `Content-Type`='application/x-www-form-urlencoded' and encoding = "urlencode" and payload = '{"grant_type":"client_credentials","client_id":"cqiui-ser","client_secret":"uK_5wNET3M-Q_1_xIEXkzFPASDtw8MI5jVRWNcjmq6kmM-bU2L-lpYdTSwQTibMR"}' and `Accept`= "*/*"
- --> @dm:add-missing-columns columns = 'static' & value = "token"
- --> @dm:save name = "circuit_token1"
- --> @c:data-loop columns="access_token" and dataset="circuit_token1"
- --> @restclient:read url="https://wwwin-cqifq-cae-rcdn.cisco.com/cqimqipservices/v1/crpmhwthreemonth" and method="POST" and `Authorization`= "Bearer $access_token" and `Content-Type`='application/json' and payload = '{ "filter": [ { "value":["ADP"], "field":"customerName", "condition":"in" }, {"value":["ADP"], "field":"networkName", "condition":"in" }, { "value":["ADP - ADP"], "field":"customerAndNetworkName", "condition":"in" }, { "value":[], "field":"productFamily", "condition":"in" }, { "value":[], "field":"gpid", "condition":"in" }, { "value":[], "field":"vertical", "condition":"in" }, { "value":[], "field":"contractNumber", "condition":"in" }, { "value":[], "field":"softwareVersion", "condition":"in" }, { "value":["202508"], "field":"calendarMonth", "condition":"in" } ] }'
- --> @dm:save name = "output"
- --> @dm:recall name = "output"
- --> @dm:selectcolumns include="gpid|productFamily|month3CRR"
- --> @rn:write-stream name="month3CRR-stream"
+@dm:empty
+ --> @dm:addrow name = 'edc_customer_inventory' and limit=0
+ --> #dm:query-persistent-stream project_name='CRS' and sw_version!='Not Available'
+ --> @dm:selectcolumns exclude='PID'
+ --> @dm:manipulate-string to="customer" and func="eval" and value="'ATT'"
+ --> @dm:save name='temp-contract_data'
+ --> @c:new-block
+ --> @dm:empty
+ --> @dm:save name = "enriched-values"
+ ## Generate unique list of PID-SW version to process
+
+ --> @c:new-block
+ --> @dm:recall name="temp-contract_data"
+ --> *dm:filter sw_version!='Not Available'
+ --> *dm:filter sw_os_type is not null
+ ## new column product_id
+
+ --> @dm:copy-columns from="product_name" and to="product_id"
+ --> @dm:eval product_id = "product_id.replace('=', '')"
+ --> @dm:eval tokens = "product_id.rsplit('-', 1)"
+ --> @dm:eval product_id = "tokens[0] if len(tokens) > 1 and tokens[1] in ['RF'] else product_id"
+ --> @dm:selectcolumns exclude = "tokens"
+ --> @dm:save name = "temp-contract_data"
+ --> @dm:selectcolumns include="^customer$|project_name|^product_id|sw_os_type|sw_version|instance_id"
+ --> @dm:groupby columns ="customer,project_name,product_id,sw_os_type,sw_version"
+ --> @dm:rename-columns instance_id="total"
+ ## remove unnecessary characters from sw_version
+
+ --> @dm:eval sw_version = "sw_version.replace('Copyright', '')"
+ --> @dm:eval sw_version = "sw_version.replace('[Default]', '')"
+ --> @dm:eval sw_version = "str(sw_version).strip()"
+ --> @dm:eval unique_key = "str(customer) + str(product_id) + str(sw_os_type) + str(sw_version)"
+ --> @dm:save name="temp-input-dataset"
+ ## Process SW EoL
+
+ ## declaring thrid level child pipelines
+
+ --> @c:new-block
+ --> @dm:empty
+ --> @exec:define-function name="define_child_pipelines"
+ --> @exec:run-pipeline name ="edc_generate_token" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_sw_get_data" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_sweol_enrich" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_processing_sw_data" & ignore_failures = "no"
+ --> @exec:end-function
+ ## collecting the file and storing it in edc_cust_pid_sw stream, collecting the API data and adding the processed data to edc_sw_raw_data
+
+ --> @c:new-block
+ --> @dm:recall name='temp-input-dataset'
+ ## --> @rn:write-stream name='edc_cust_pid_sw'
+
+ --> @dm:head n=250
+ --> @dm:save name="temp-cust_pid_sw"
+ --> @exec:run-pipeline name ="edc_sw_run_scan" & ignore_failures = "no"
+ --> @dm:save name='enriched-values' and append="yes"
+ --> @dm:save name='temp-enriched-sweol-values' and append="yes"
