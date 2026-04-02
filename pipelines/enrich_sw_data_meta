@@ -1,45 +1,32 @@
-@c:new-block
- --> @dm:recall name="test-inv-network"
- --> @dm:selectcolumns exclude="^unique_key|swEOL|secAdv"
- --> @dm:save name='temp-contract_data_network_only'
- --> @c:new-block
- --> @dm:recall name="temp-contract_data_network_only"
- ## Separate what could not be matched yet
-
- ## --> *dm:filter item_type is NULL
-
- ## --> @dm:skip-block-if-shape row_count = 0
-
- --> @dm:selectcolumns include="product_name|product_id"
- --> @dm:dedup columns = "product_id"
- --> @dm:map from = "product_id" & to = "product_id_new" & func = "concat" & prefix = "'" & suffix = "'"
- --> @dm:selectcolumns include="product_id_new"
- --> @dm:save name = "temp-contract_data_network_only_pids"
- --> @c:data-loop columns='product_id_new' and dataset="temp-contract_data_network_only_pids"
- --> @snowflake:native-query dbname is "CX_DB" and warehouse is "CX_DMP_RPT_WH" and query is "SELECT PRODUCT_NAME, COVERAGE, BUSINESS_ENTITY, BUSINESS_SUB_ENTITY, BK_END_OF_LIFE_REQUEST_NUM, BK_EOL_BULLETIN_PRODUCT_TYP_CD, END_OF_NEW_SVC_ATTACHMENT_DT, END_OF_ROUTINE_FAIL_ANLYSYS_DT, END_OF_SOFTWARE_MAINTENANCE_DT, END_OF_SVC_CONTRACT_RNWL_DT, EOL_EXTERNAL_ANNOUNCE_DT, END_OF_SECURITY_VULN_SUPPORT_DT, EOL_PRODUCT_NAME, ITEM_TYPE, LAST_DATE_OF_SALE, LAST_DATE_OF_SUPPORT, PRODUCT_DESCRIPTION, PRODUCT_FAMILY, PRODUCT_FAMILY_DESCRIPTION, PRODUCT_TYPE, PRODUCT_LIST_PRICE FROM CX_DB.CX_DMP_EBV.BV_ASSET WHERE PRODUCT_NAME IN ($product_id_new) LIMIT 1;"
- --> @dm:add-missing-columns columns="execution_status"
- --> *dm:filter execution_status =="Success"
- --> @dm:skip-block-if-shape column_count = 3
- --> @dm:selectcolumns exclude = "execution_reason|execution_status"
- ## new column product_id to simplify product is during sw scan
-
- --> @dm:copy-columns from="product_name" and to="product_id"
- --> @dm:eval product_id = "product_id.replace('=', '')"
- --> @dm:eval tokens = "product_id.rsplit('-', 1)"
- --> @dm:eval product_id = "tokens[0] if len(tokens) > 1 and tokens[1] in ['RF'] else product_id"
- --> @dm:selectcolumns exclude = "tokens"
- --> @dm:save name="temp-inv_only_hw_data" and append='yes'
- ## Enrich the devices were missing HW eol data
-
- --> @c:new-block
- --> @dm:recall name="temp-contract_data_network_only"
- ## Separate what could not be matched yet
-
- ## --> *dm:filter item_type is NULL
-
- --> @dm:enrich dict="temp-inv_only_hw_data" and src_key_cols="product_id" and dict_key_cols="product_id" and enrich_cols="product_name,business_entity,business_sub_entity,bk_end_of_life_request_num,bk_eol_bulletin_product_typ_cd,end_of_new_svc_attachment_dt,end_of_routine_fail_anlysys_dt,end_of_software_maintenance_dt,end_of_svc_contract_rnwl_dt,eol_external_announce_dt,eol_product_name,last_date_of_sale,last_date_of_support,end_of_security_vuln_support_dt,product_description,product_family,product_family_description,product_type,item_type,product_list_price" and replace_values='yes'
- --> @dm:save name = "temp-contract_data_network_only_1"
- --> @c:new-block
- --> @dm:recall name="temp-contract_data_network_only_1"
- --> *dm:filter item_type is not NULL
- --> @dm:save name = "test-contract_data"
+folder: Default
+name: enrich_sw_data
+description: test pipeline
+data_path: pipelines/data/enrich_sw_data/2025_06_16_02/data.json
+usecase: ''
+category: ''
+sources:
+  rn:
+    name: rn
+    type: rn
+artifacts:
+- artifact_type: dataset
+  artifact_name: added-sw-data
+  access: write
+- artifact_type: dataset
+  artifact_name: test1-hw-eol-details
+  access: write
+- artifact_type: dataset
+  artifact_name: test-sw-eol-details
+  access: read
+- artifact_type: dataset
+  artifact_name: final-enrich
+  access: write
+- artifact_type: rda-network-stream
+  artifact_name: edc_sweol_data
+  access: write
+- artifact_type: rda-network-stream
+  artifact_name: edc_oi_inventory_enriched
+  access: write
+version: '2025_06_16_02'
+file_type: json
+checksum: f97facac
