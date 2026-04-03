@@ -1,71 +1,138 @@
-@dm:create-persistent-stream name="dashboard_export_email_status" and unique_cols="job_id" and retention_days=1
- --> @dm:empty
- --> @dm:save name="temp-df"
- --> @c:new-block
- --> @dm:empty
- --> @exec:define-function name="handle_error"
- --> @dm:empty
- --> @dm:addrow status="Failed" and reason="Error: email sending process failed to the email ID '{{recipient}}'" and job_id="{{job_id}}" and ingestion_id="{{ingestion_id}}"
- --> @rn:write-stream name="rda_dashboard_schedule_logs"
- --> @exec:end-function
- ## --> @c:new-block
 
- ## --> @dm:empty
+ ## BUILD OSPF EDGES
+@c:new-block
+ --> @dm:recall name = "cml-ospf-data"
+ --> @dm:rename-columns remote_ip="address"
+ --> @dm:rename-columns local_interface="interface"
+ --> @dm:rename-columns left_id="source_ip"
+ ## lookup remote device's interface and managemet ip address from the remote_ip
 
- ## --> @exec:retry-loop retries=3 & retry_delay_millis=5000 & on_failure_callback="handle_error"
+ --> @dm:enrich dict="cml-interface-data" and src_key_cols="remote_ip" and dict_key_cols="ipaddr" and enrich_cols="intf,source_ip" and enrich_cols_as="neighbor_interface,right_id"
+ ## Lookup local ip address configured on the local_interface
 
- ## --> @dm:addrow name="dashboard_export_email_status" & limit = '0'
+ --> @dm:enrich dict="cml-interface-data" and src_key_cols="local_interface,left_id" and dict_key_cols="intf,source_ip" and enrich_cols="ipaddr"
+ --> @dm:rename-columns local_ip="ipaddr_y"
+ --> @dm:eval link_type="'OSPF'"
+ --> @dm:eval style_color="'#3333BB'"
+ --> @dm:eval style_width="'3'"
+ --> @dm:add-missing-columns columns="priority,state,dead_time,neighbor_id" and value=""
+ ## Cleanup unnecessary columns that are not required
 
- ## --> #dm:query-persistent-stream job_id=="{{job_id}}"
+ --> @dm:selectcolumns exclude="collection_status"
+ --> @dm:selectcolumns exclude="collection_timestamp"
+ --> @dm:selectcolumns exclude="local_interface.1"
+ --> @dm:selectcolumns exclude="local_interface.2"
+ --> @dm:selectcolumns exclude="local_interface.3"
+ --> @dm:selectcolumns exclude="reason"
+ --> @dm:selectcolumns exclude="command"
+ --> @dm:selectcolumns exclude="condition"
+ --> @dm:selectcolumns exclude="condition_matched"
+ --> @dm:selectcolumns exclude="reachability"
+ --> @dm:selectcolumns exclude="ipaddr_x"
+ --> @dm:selectcolumns exclude="ipaddr_y"
+ --> @dm:selectcolumns exclude="intf"
+ --> @dm:selectcolumns exclude="source_ip"
+ ## Declare attributes to show in the topology when the link is clicked
 
- ## --> @dm:save name="temp-original"
+ --> @dm:eval showAttrs="'^local_ip$|^local_interface$|^remote_ip$|^neighbor_interface$|^priority$|^state$|^dead_time$|^neighbor_id$'"
+ --> @dm:save name="temp-edges-ospf"
+ ## END OF OSPF TOPOLOGY CALCULATION
 
- ## --> @dm:skip-block-if-shape row_count="0"
-
- ## --> @dm:eval collection_timestamp = "int(time_now_as_ms())"
-
- ## --> @dm:eval diff="collection_timestamp-rda_timestamp"
-
- ## --> *dm:filter diff > 300000
-
- ## --> @dm:save name="temp-df"
-
- ## --> @dm:skip-block-if-shape row_count="0"
-
- ## --> @dm:empty
-
- ## --> @dm:addrow job_id="{{job_id}}"
-
- ## --> @email:sendmail-data recipient="{{recipient}}" and minio_file_location="{{minio_path}}" and subject="{{subject}}"
-
- ## --> @rn:write-stream name="dashboard_export_email_status"
-
- ## --> @dm:empty
-
- ## --> @dm:addrow status="The exported file is successfully sent to the email ID '{{recipient}}'"
-
- ## --> @dm:eval reason=None
-
- ## --> @dm:eval job_id="'{{job_id}}'" and ingestion_id="'{{ingestion_id}}'"
-
- ## --> @rn:write-stream name="rda_dashboard_schedule_logs"
-
- ## --> @exec:end-loop
+ ## BUILD CDP EDGES
 
  --> @c:new-block
  --> @dm:empty
- --> @exec:retry-loop retries=3 & retry_delay_millis=5000 & on_failure_callback="handle_error"
- ## --> @dm:recall name="temp-original"
+ --> @dm:recall name = "cml-cdp-data"
+ --> @dm:rename-columns remote_ip="mgmt_ip"
+ --> @dm:rename-columns local_interface="local_port"
+ --> @dm:rename-columns neighbor_interface="remote_port"
+ --> @dm:rename-columns left_id="source_ip"
+ --> @dm:rename-columns remote_hostname="dest_host"
+ --> @dm:rename-columns remote_platform="platform"
+ --> @dm:rename-columns remote_version="version"
+ ## lookup remote device's managemet ip address from the remote_ip and set it as right_id
 
+ --> @dm:enrich dict="cml-interface-data" and src_key_cols="neighbor_interface,remote_ip" and dict_key_cols="intf,ipaddr" and enrich_cols="source_ip" and enrich_cols_as="right_id"
+ ## Lookup local ip address configured on the local_interface
+
+ --> @dm:enrich dict="cml-interface-data" and src_key_cols="local_interface,left_id" and dict_key_cols="intf,source_ip" and enrich_cols="ipaddr"
+ --> @dm:rename-columns local_ip="ipaddr_y"
+ ## Cleanup unnecessary columns that are not required
+
+ --> @dm:selectcolumns exclude="collection_status"
+ --> @dm:selectcolumns exclude="collection_timestamp"
+ --> @dm:selectcolumns exclude="reason"
+ --> @dm:selectcolumns exclude="command"
+ --> @dm:selectcolumns exclude="condition"
+ --> @dm:selectcolumns exclude="condition_matched"
+ --> @dm:selectcolumns exclude="reachability"
+ --> @dm:selectcolumns exclude="sysname"
+ --> @dm:selectcolumns exclude="ipaddr_x"
+ --> @dm:selectcolumns exclude="ipaddr_y"
+ --> @dm:selectcolumns exclude="intf"
+ --> @dm:selectcolumns exclude="source_ip"
+ --> @dm:eval link_type="'CDP'"
+ --> @dm:eval style_color="'#4DD0E1'"
+ --> @dm:eval style_width="'2'"
+ ## Declare attributes to show in the topology when the link is clicked
+
+ --> @dm:eval showAttrs="'^local_ip$|^local_interface$|^remote_ip$|^neighbor_interface$|^remote_platform$|^remote_hostname$|^remote_version$'"
+ --> @dm:save name="temp-edges-cdp"
+ ## END OF CDP TOPOLOGY CALCULATION
+
+ ## BUILD BGP EDGES
+
+ --> @c:new-block
  --> @dm:empty
- --> @dm:skip-block-if-shape row_count>0
- --> @dm:empty
- --> @dm:addrow job_id="{{job_id}}"
- --> @email:sendmail-data recipient="{{recipient}}" and minio_file_location="{{minio_path}}" and subject="{{subject}}"
- --> @rn:write-stream name="dashboard_export_email_status"
- --> @dm:empty
- --> @dm:addrow status="The exported file is successfully sent to the email ID '{{recipient}}'"
- --> @dm:eval reason=None
- --> @dm:eval job_id="'{{job_id}}'" and ingestion_id="'{{ingestion_id}}'"
- --> @rn:write-stream name="rda_dashboard_schedule_logs"
- --> @exec:end-loop
+ --> @dm:recall name = "cml-bgp-data"
+ --> @dm:rename-columns left_id="source_ip"
+ --> @dm:rename-columns local_ip="localhost_ip"
+ --> @dm:selectcolumns exclude="remote_ip"
+ --> @dm:rename-columns remote_ip="neighbor"
+ ## lookup remote device's managemet ip address from the remote_ip and set it as right_id
+
+ --> @dm:enrich dict="cml-interface-data" and src_key_cols="remote_ip" and dict_key_cols="ipaddr" and enrich_cols="source_ip" and enrich_cols_as="right_id"
+ --> @dm:eval link_type="'BGP'"
+ --> @dm:eval style_color="'#837619'"
+ --> @dm:eval style_width="'4'"
+ --> @dm:add-missing-columns columns="local_ip,remote_ip,remote_router_id,vrf" and value=""
+ ## Cleanup unnecessary columns that are not required
+
+ --> @dm:selectcolumns exclude="collection_status"
+ --> @dm:selectcolumns exclude="collection_timestamp"
+ --> @dm:selectcolumns exclude="reason"
+ --> @dm:selectcolumns exclude="command"
+ --> @dm:selectcolumns exclude="condition"
+ --> @dm:selectcolumns exclude="condition_matched"
+ --> @dm:selectcolumns exclude="reachability"
+ --> @dm:selectcolumns exclude="ipaddr"
+ ## Declare attributes to show in the topology when the link is clicked
+
+ --> @dm:eval showAttrs="'^bgp_state$|^remote_as$|^local_ip$|^remote_ip$|^remote_router_id$'"
+ --> @dm:save name="temp-edges-bgp"
+ ## END OF BGP TOPOLOGY CALCULATION
+
+ ## Combine all the edges and publish it to stream
+
+ --> @c:new-block
+ --> @dm:concat names="^temp-edges-.*$"
+ --> @dm:eval relation_type="'connects-to'"
+ --> @dm:eval direction="'NO_DIRECTION'"
+ --> @dm:fixnull columns="dead_time,local_interface,neighbor_id,neighbor_interface,priority,state,bgp_state,local_ip,localhost_port,neighbor_uptime,remote_as,remote_port,remote_router_id,remote_as,neighbor_uptime,capabilities,remote_platform,remote_version,remote_hostname" and value="''"
+ --> @dm:save name="temp-edges"
+ ## -->  @rn:write-stream name="cml_topo_edges"
+
+ ## Calculate nodes
+
+ --> @dm:selectcolumns include="left_id"
+ --> @dm:dedup columns="left_id"
+ --> @dm:rename-columns node_id="left_id"
+ --> @dm:enrich dict="cml_cisco_device_chassis_dict" and src_key_cols="node_id" and dict_key_cols="device_ip" and enrich_cols="device_hostname,device_model,device_serial_number,device_fw_type,device_fw_version"
+ --> @dm:rename-columns node_label="device_ip"
+ --> @dm:eval layer="'Network'"
+ --> @dm:eval node_type="'Router'"
+ --> @dm:eval iconURL="'Router'"
+ --> @rn:write-stream name="cml_topo_nodes"
+ --> @c:new-block
+ --> @dm:recall name="temp-edges"
+ --> @rn:write-stream name="cml_topo_edges"
