@@ -1,72 +1,137 @@
 {
-  "name": "ai-placeholder-dashboard",
-  "label": "Placeholder",
-  "description": "Placeholder",
+  "name": "ai-llm-page-credentials",
+  "label": "LLM Credentials Management Page",
+  "description": "LLM Credentials Management Page",
   "enabled": true,
-  "dashboard_type": "template",
+  "dashboard_type": "dashboard",
   "dashboard_folder": "AI",
+  "dashboard_style": "auto",
+  "stream": "rda_secret_meta",
   "dashboard_filters": {
-    "time_filter": false
+    "time_filter": true,
+    "columns_filter": [
+      {
+        "id": "name",
+        "label": "Name",
+        "type": "TEXT"
+      },
+      {
+        "id": "type",
+        "label": "Type",
+        "type": "TEXT"
+      },
+      {
+        "id": "typeDescription",
+        "label": "Type Description",
+        "type": "TEXT"
+      },
+      {
+        "id": "checksum",
+        "label": "Checksum",
+        "type": "TEXT"
+      },
+      {
+        "id": "saved_time",
+        "label": "Saved Time",
+        "type": "DATETIME"
+      }
+    ]
   },
   "dashboard_sections": [
     {
-      "title": "AI",
-      "show_filter": false,
+      "title": "LLMs",
+      "show_filter": true,
       "widgets": [
         {
-          "title": "Domains",
+          "title": "LLMs",
           "widget_type": "tabular",
-          "min_width": 12,
-          "height": 6,
-          "max_width": 12,
-          "timebased": false,
-          "timestamp": "timestamp",
-          "stream": "mcp_domains",
+          "stream": "rda_secrets_meta",
+          "duration_hours": 87600,
+          "remote_searchable": true,
+          "remote_searchable_cols": [
+            "name",
+            "type",
+            "typeDescription",
+            "checksum"
+          ],
+          "ts_column": "saved_time",
+          "paginated": true,
+          "extra_filter": "customerTag is empty and type is 'llm'",
+          "height": 10,
+          "min_wdith": 12,
           "columns": {
-            "domain": {
+            "name": {
               "title": "Name",
               "key": true
             },
-            "description": {
-              "title": "Description",
-              "key": false
-            },
-            "enabled_color": {
-              "type": "COLOR-MAP",
-              "source-column": "enabled",
-              "color-map": {
-                "yes": "#4CAF50",
-                "no": "#B71C1C"
-              }
-            },
-            "enabled": {
-              "title": "Enabled",
-              "htmlTemplateForRow": "<span class='badge' style='background-color: {{'{{ row.enabled_color }}'}}' > {{'{{ row.enabled }}'}} </span>",
-              "key": false
-            },
-            "tools": {
-              "title": "Tools",
-              "key": false
-            },
-            "textResources": {
-              "title": "Resources",
-              "key": false
-            },
-            "contents": {
-              "title": "YAML",
-              "defaultWidth": 500,
-              "visible": false,
+            "type": {
+              "title": "Type",
               "key": true
+            },
+            "typeDescription": {
+              "title": "description"
+            },
+            "has_credential_check": {
+              "title": "Credential Check",
+              "visible": false
+            },
+            "checksum": {
+              "title": "Checksum"
+            },
+            "tags": {
+              "title": "Tags",
+              "type": "TEXT",
+              "key": true
+            },
+            "customerTag": {
+              "title": "Customer Tag",
+              "type": "TEXT",
+              "key": true,
+              "hidden": true
+            },
+            "saved_time": {
+              "title": "Saved Time",
+              "type": "DATETIME"
+            },
+            "timestamp": {
+              "title": "When",
+              "type": "HUMANIZE_TIME_DELTA",
+              "source-column": "saved_time",
+              "sortable": false
             }
           },
-          "widget_id": "2630645a",
+          "custom_columns": [
+            {
+              "id": "rowStyleClass",
+              "hidden": true,
+              "visiblle": false,
+              "expr": "'bg-fading-blue' if time_now_as_ms() - isoformat_to_ms(saved_time) <= 120000 else None"
+            },
+            {
+              "id": "artifact_name",
+              "label": "Artifact Name",
+              "expr": "name",
+              "key": true,
+              "visible": false,
+              "sortable": false
+            },
+            {
+              "id": "artifact_type",
+              "label": "Artifact Type",
+              "expr": "'source'",
+              "key": true,
+              "visible": false,
+              "sortable": false
+            }
+          ],
           "actions": [
             {
-              "permission": "rda:github:view",
+              "permission": "rda:credential:add",
               "title": "Add",
+              "icon": "mdi mdi-plus",
               "type": "POPUP_FORM",
               "selectionType": "NONE",
-              "identifier": "saas-service-action:aiadministration-add-mcpserver",
+              "identifier": "saas-service-action:vault-add",
               "api-endpoint": {
                 "service-name": "saas-reports",
                 "methodName": "getForm",
@@ -74,17 +139,20 @@
                 "parse-output": false,
                 "params": [
                   {
-                    "formId": "rda.saas.mcpserver.local.add"
+                    "formId": "rda.saas.vault.add",
+                    "extension_types": [
+                      "llm"
+                    ]
                   }
                 ]
               }
             },
             {
-              "permission": "rda:github:view",
+              "permission": "rda:credential:edit",
               "title": "Edit",
               "type": "POPUP_FORM",
               "selectionType": "SINGLE",
-              "identifier": "saas-service-action:aiadministration-edit-mcpserver",
+              "identifier": "saas-service-action:vault-edit",
               "api-endpoint": {
                 "service-name": "saas-reports",
                 "methodName": "getForm",
@@ -92,17 +160,19 @@
                 "parse-output": false,
                 "params": [
                   {
-                    "formId": "rda.saas.mcpserver.local.edit"
+                    "formId": "rda.saas.vault.edit"
                   }
                 ]
               }
             },
             {
-              "permission": "rda:github:view",
-              "title": "Delete",
+              "permission": "rda:credential:view",
+              "title": "View",
               "type": "POPUP_FORM",
               "selectionType": "SINGLE",
-              "identifier": "saas-service-action:aiadministration-delete-mcpserver",
+              "displayLabelColumnId": "name",
+              "drillDownLinkField": "name",
+              "identifier": "saas-service-action:vault-view",
               "api-endpoint": {
                 "service-name": "saas-reports",
                 "methodName": "getForm",
@@ -110,75 +180,185 @@
                 "parse-output": false,
                 "params": [
                   {
-                    "formId": "rda.saas.mcpserver.local.delete"
+                    "formId": "rda.saas.vault.view"
                   }
                 ]
               }
+            },
+            {
+              "permission": "rda:credential:verify",
+              "title": "Verify Credentials",
+              "type": "POPUP_FORM",
+              "selectionType": "SINGLE",
+              "identifier": "saas-service-action:vault-edit",
+              "actionCondition": {
+                "actionControl": "HIDE_IF",
+                "conditionalField": [
+                  {
+                    "conditionType": "EQUAL",
+                    "conditionValue": "false",
+                    "fieldId": "has_credential_check"
+                  }
+                ]
+              },
+              "api-endpoint": {
+                "service-name": "saas-reports",
+                "methodName": "getForm",
+                "stringified-params": true,
+                "parse-output": false,
+                "params": [
+                  {
+                    "formId": "rda.saas.vault.validateConenctivity"
+                  }
+                ]
+              }
+            },
+            {
+              "permission": "rda:credential:assign_tag",
+              "title": "Manage Tags",
+              "type": "POPUP_FORM",
+              "selectionType": "SINGLE",
+              "identifier": "saas-service-action:assign-tag",
+              "api-endpoint": {
+                "methodName": "getForm",
+                "params": [
+                  {
+                    "formId": "rda.saas.tags.assign"
+                  }
+                ],
+                "parse-output": false,
+                "service-name": "saas-reports",
+                "stringified-params": true
+              }
+            },
+            {
+              "permission": "rda:credential:verify",
+              "title": "Delete",
+              "type": "POPUP_FORM",
+              "selectionType": "SINGLE",
+              "identifier": "saas-service-action:vault-delete",
+              "api-endpoint": {
+                "service-name": "saas-reports",
+                "methodName": "getForm",
+                "stringified-params": true,
+                "parse-output": false,
+                "params": [
+                  {
+                    "formId": "rda.saas.vault.delete"
+                  }
+                ]
+              }
+            },
+            {
+              "permission": "rda:credential:view",
+              "appName": "user-dashboard/rda-artifact-dependencies-app",
+              "identifier": "launch.url.dashboard",
+              "selectionType": "SINGLE",
+              "stateName": "app.featureapp",
+              "title": "View Dependencies",
+              "type": "GO_TO_APP_STATE"
             }
-          ]
+          ],
+          "widget_id": "9a21b5c6"
         }
       ]
     }
   ],
   "pstream_dashboards": [
     {
-      "title": "AI",
-      "show_filter": false,
+      "title": "LLMs",
+      "show_filter": true,
       "widgets": [
         {
-          "title": "Domains",
+          "title": "LLMs",
           "widget_type": "tabular",
-          "min_width": 12,
-          "height": 6,
-          "max_width": 12,
-          "timebased": false,
-          "timestamp": "timestamp",
-          "stream": "mcp_domains",
+          "stream": "rda_secrets_meta",
+          "duration_hours": 87600,
+          "remote_searchable": true,
+          "remote_searchable_cols": [
+            "name",
+            "type",
+            "typeDescription",
+            "checksum"
+          ],
+          "ts_column": "saved_time",
+          "paginated": true,
+          "extra_filter": "customerTag is empty and type is 'llm'",
+          "height": 10,
+          "min_wdith": 12,
           "columns": {
-            "domain": {
+            "name": {
               "title": "Name",
               "key": true
             },
-            "description": {
-              "title": "Description",
-              "key": false
-            },
-            "enabled_color": {
-              "type": "COLOR-MAP",
-              "source-column": "enabled",
-              "color-map": {
-                "yes": "#4CAF50",
-                "no": "#B71C1C"
-              }
-            },
-            "enabled": {
-              "title": "Enabled",
-              "htmlTemplateForRow": "<span class='badge' style='background-color: {{'{{ row.enabled_color }}'}}' > {{'{{ row.enabled }}'}} </span>",
-              "key": false
-            },
-            "tools": {
-              "title": "Tools",
-              "key": false
-            },
-            "textResources": {
-              "title": "Resources",
-              "key": false
-            },
-            "contents": {
-              "title": "YAML",
-              "defaultWidth": 500,
-              "visible": false,
+            "type": {
+              "title": "Type",
               "key": true
+            },
+            "typeDescription": {
+              "title": "description"
+            },
+            "has_credential_check": {
+              "title": "Credential Check",
+              "visible": false
+            },
+            "checksum": {
+              "title": "Checksum"
+            },
+            "tags": {
+              "title": "Tags",
+              "type": "TEXT",
+              "key": true
+            },
+            "customerTag": {
+              "title": "Customer Tag",
+              "type": "TEXT",
+              "key": true,
+              "hidden": true
+            },
+            "saved_time": {
+              "title": "Saved Time",
+              "type": "DATETIME"
+            },
+            "timestamp": {
+              "title": "When",
+              "type": "HUMANIZE_TIME_DELTA",
+              "source-column": "saved_time",
+              "sortable": false
             }
           },
-          "widget_id": "2630645a",
+          "custom_columns": [
+            {
+              "id": "rowStyleClass",
+              "hidden": true,
+              "visiblle": false,
+              "expr": "'bg-fading-blue' if time_now_as_ms() - isoformat_to_ms(saved_time) <= 120000 else None"
+            },
+            {
+              "id": "artifact_name",
+              "label": "Artifact Name",
+              "expr": "name",
+              "key": true,
+              "visible": false,
+              "sortable": false
+            },
+            {
+              "id": "artifact_type",
+              "label": "Artifact Type",
+              "expr": "'source'",
+              "key": true,
+              "visible": false,
+              "sortable": false
+            }
+          ],
           "actions": [
             {
-              "permission": "rda:github:view",
+              "permission": "rda:credential:add",
               "title": "Add",
+              "icon": "mdi mdi-plus",
               "type": "POPUP_FORM",
               "selectionType": "NONE",
-              "identifier": "saas-service-action:aiadministration-add-mcpserver",
+              "identifier": "saas-service-action:vault-add",
               "api-endpoint": {
                 "service-name": "saas-reports",
                 "methodName": "getForm",
@@ -186,17 +366,20 @@
                 "parse-output": false,
                 "params": [
                   {
-                    "formId": "rda.saas.mcpserver.local.add"
+                    "formId": "rda.saas.vault.add",
+                    "extension_types": [
+                      "llm"
+                    ]
                   }
                 ]
               }
             },
             {
-              "permission": "rda:github:view",
+              "permission": "rda:credential:edit",
               "title": "Edit",
               "type": "POPUP_FORM",
               "selectionType": "SINGLE",
-              "identifier": "saas-service-action:aiadministration-edit-mcpserver",
+              "identifier": "saas-service-action:vault-edit",
               "api-endpoint": {
                 "service-name": "saas-reports",
                 "methodName": "getForm",
@@ -204,17 +387,19 @@
                 "parse-output": false,
                 "params": [
                   {
-                    "formId": "rda.saas.mcpserver.local.edit"
+                    "formId": "rda.saas.vault.edit"
                   }
                 ]
               }
             },
             {
-              "permission": "rda:github:view",
-              "title": "Delete",
+              "permission": "rda:credential:view",
+              "title": "View",
               "type": "POPUP_FORM",
               "selectionType": "SINGLE",
-              "identifier": "saas-service-action:aiadministration-delete-mcpserver",
+              "displayLabelColumnId": "name",
+              "drillDownLinkField": "name",
+              "identifier": "saas-service-action:vault-view",
               "api-endpoint": {
                 "service-name": "saas-reports",
                 "methodName": "getForm",
@@ -222,12 +407,86 @@
                 "parse-output": false,
                 "params": [
                   {
-                    "formId": "rda.saas.mcpserver.local.delete"
+                    "formId": "rda.saas.vault.view"
                   }
                 ]
               }
+            },
+            {
+              "permission": "rda:credential:verify",
+              "title": "Verify Credentials",
+              "type": "POPUP_FORM",
+              "selectionType": "SINGLE",
+              "identifier": "saas-service-action:vault-edit",
+              "actionCondition": {
+                "actionControl": "HIDE_IF",
+                "conditionalField": [
+                  {
+                    "conditionType": "EQUAL",
+                    "conditionValue": "false",
+                    "fieldId": "has_credential_check"
+                  }
+                ]
+              },
+              "api-endpoint": {
+                "service-name": "saas-reports",
+                "methodName": "getForm",
+                "stringified-params": true,
+                "parse-output": false,
+                "params": [
+                  {
+                    "formId": "rda.saas.vault.validateConenctivity"
+                  }
+                ]
+              }
+            },
+            {
+              "permission": "rda:credential:assign_tag",
+              "title": "Manage Tags",
+              "type": "POPUP_FORM",
+              "selectionType": "SINGLE",
+              "identifier": "saas-service-action:assign-tag",
+              "api-endpoint": {
+                "methodName": "getForm",
+                "params": [
+                  {
+                    "formId": "rda.saas.tags.assign"
+                  }
+                ],
+                "parse-output": false,
+                "service-name": "saas-reports",
+                "stringified-params": true
+              }
+            },
+            {
+              "permission": "rda:credential:verify",
+              "title": "Delete",
+              "type": "POPUP_FORM",
+              "selectionType": "SINGLE",
+              "identifier": "saas-service-action:vault-delete",
+              "api-endpoint": {
+                "service-name": "saas-reports",
+                "methodName": "getForm",
+                "stringified-params": true,
+                "parse-output": false,
+                "params": [
+                  {
+                    "formId": "rda.saas.vault.delete"
+                  }
+                ]
+              }
+            },
+            {
+              "permission": "rda:credential:view",
+              "appName": "user-dashboard/rda-artifact-dependencies-app",
+              "identifier": "launch.url.dashboard",
+              "selectionType": "SINGLE",
+              "stateName": "app.featureapp",
+              "title": "View Dependencies",
+              "type": "GO_TO_APP_STATE"
             }
-          ]
+          ],
+          "widget_id": "9a21b5c6"
         }
       ]
     }
