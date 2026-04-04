@@ -1,71 +1,15 @@
-folder: katturne
-name: test_get_sweol
-description: test pipeline
-data_path: draft-pipelines/data/test_get_sweol/2025-06-16_6/data.json
-usecase: ''
-category: ''
-sources:
-  rn:
-    name: rn
-    type: rn
-artifacts:
-- artifact_type: dataset
-  artifact_name: project-enriched-sweol-values
-  access: write
-- artifact_type: pipeline
-  artifact_name: edc_generate_token
-  access: read
-- artifact_type: pipeline
-  artifact_name: edc_sw_get_data
-  access: read
-- artifact_type: pipeline
-  artifact_name: edc_sweol_enrich
-  access: read
-- artifact_type: pipeline
-  artifact_name: edc_processing_sw_data
-  access: read
-- artifact_type: pipeline
-  artifact_name: edc_sw_run_scan
-  access: read
-- artifact_type: dataset
-  artifact_name: project-enriched-sweol-values
-  access: write
-- artifact_type: pipeline
-  artifact_name: edc_processing_sw_data
-  access: read
-- artifact_type: dataset
-  artifact_name: test-sw-eol-details
-  access: write
-- artifact_type: dataset
-  artifact_name: final-enrich
-  access: write
-- artifact_type: rda-network-stream
-  artifact_name: edc_sweol_data
-  access: write
-- artifact_type: dataset
-  artifact_name: test-contract_data
-  access: write
-- artifact_type: dataset
-  artifact_name: added-sw-data-1
-  access: write
-- artifact_type: dataset
-  artifact_name: generate_token_creds
-  access: read
-- artifact_type: pipeline
-  artifact_name: edc_generate_token
-  access: read
-- artifact_type: dataset
-  artifact_name: added-sw-data
-  access: write
-- artifact_type: pipeline
-  artifact_name: edc_sw_get_data
-  access: read
-- artifact_type: dataset
-  artifact_name: sweol-data-run-scan
-  access: write
-- artifact_type: dataset
-  artifact_name: test-sweol
-  access: write
-version: 2025-06-16_6
-file_type: json
-checksum: 409ce0dc
+
+ ## Bernie Wynia, Cisco Systems, 2025
+@c:new-block
+ ## Wait for an Incident
+
+ --> @rn:read-stream name = "oia-incidents-stream" & group = "group_oia-incidents-stream"
+ --> @dm:json-to-html output_column = "h_config_items" & input_column = "i_config_items"
+ --> @dm:eval lMessage = "'IncidentId:' + (incident_id) + '</br>Alerts:' + str(i_alert_count)  + '</br></br>' + (i_description) + '</br></br>' + (h_config_items) "
+ --> @dm:add-missing-columns columns = 'Template_Id' & value = 'incident_received'
+ ## I don't know why it can't find the timestamp column. Works fine in Studio, but live pipeline fails
+
+ --> @dm:change-time-format columns = "i_updated_ts" & from_format = "ms" & to_format = "datetimestr"
+ --> @dm:eval Subject_Suffix = "(incident_id) + ' to state ' + (i_state) + ' at ' + (i_updated_ts) "
+ --> @dm:selectcolumns include = "^Template_Id$|^lMessage$|^Subject_Suffix$"
+ --> @rn:write-stream name = "genericEmailSender"
