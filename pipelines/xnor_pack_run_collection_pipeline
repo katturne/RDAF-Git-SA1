@@ -1,20 +1,28 @@
-@c:new-block
- --> @dm:empty
- ## Get submitted form fields
 
+ ## 1 here we are taking command collection
+@dm:empty
  --> @exec:get-input
- ## Exclude label as it contains unneeded info that should not be written to stream later
-
- --> @dm:selectcolumns exclude='.*_label'
- --> @dm:save name='temp-input_data'
- --> @dm:selectcolumns include="secadv_csv"
- --> @dm:explode-json column="secadv_csv"
- --> @dm:save name="temp-input-dataset"
+ --> @dm:explode-json column="commands"
+ --> @dm:save name="temp-command-collction"
  --> @c:new-block
- --> @c:data-loop dataset="temp-input-dataset" and columns="bucketName,objectName"
- --> @dm:recall name="temp-input-dataset"
- --> @dm:skip-block-if-shape row_count=0
- --> @dm:get-from-location path="$bucketName/$objectName"
- --> @dm:save name="temp-uploaded-file-data"
- --> @dm:save name="uploaded-secadv-data"
- --> @rn:write-stream name="test2-stream-input"
+ --> @exec:get-input
+ --> @dm:explode-json column="commands"
+ --> @dm:explode-json column="rules" and prefix_parent_key="yes"
+ --> @dm:save name="test-spilt-rules"
+ --> @c:new-block
+ --> @dm:recall name="temp-command-collction"
+ --> @dm:explode-json column="Inventory"
+ --> @dm:save name="temp-command-collction"
+ --> @dm:add-missing-columns columns="Upgradeid,start_time,status,action_type"
+ --> @dm:eval OrderId="f'ORDER_{uuid()[:8]}'"
+ --> @dm:eval start_time="start_time or now().isoformat()"
+ --> @dm:eval status="status or 'Triggered'"
+ --> @dm:eval action_type="action_type or 'Upgrade'"
+ --> @dm:selectcolumns include="^Node_Name$|^Node_Type$|^IP_Address$|^SW_Version$|^target$|^OrderId$|^status$|^__uuid$|^action_type$"
+ --> @dm:save name = "xnor-upgrade-details"
+ --> @c:new-block
+ --> @dm:recall name="temp-command-collction"
+ --> @dm:selectcolumns include="^IP_Address$|^command$|^id$|^rules$"
+ --> @dm:save name="test-split-command"
+ --> @c:new-block
+ --> @exec:run-pipeline name = "xnor_pack_command_collection_main"
