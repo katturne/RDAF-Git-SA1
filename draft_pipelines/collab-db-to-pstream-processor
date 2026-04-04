@@ -1,60 +1,42 @@
 
- ## .
-
- ## collab-db-to-pstream-processor
-
- ## .
+ ## Generate token
 @c:new-block
- --> @exec:get-input
- --> @dm:save name="temp-irm-incident-ids-concat"
- --> @c:data-loop dataset="temp-irm-incident-ids-concat" & columns="incident_id,project_id"
- ## .
+ --> @restclient:read url="https://int-id.cisco.com/oauth2/aussduh26AoUqMpmQ1d6/v1/token?grant_type=client_credentials&client_id=0oaknwhn14c4dkz131d7&client_secret=5uFg2IE0bCHKV75823fFZ-HYJGfIawA5UyZg_KrxArhLghWlLoTSV5EA6G_wjymB" and
+`method`="POST" and
+`Content-Type`='application/x-www-form-urlencoded' and
+`Accept`='*/*'
+ --> @dm:eval key="'key'"
+ --> @dm:save name="temp-token"
+ --> @dm:save name="original-token"
+ ## Build payload
 
+ --> @c:new-block
  --> @dm:empty
- --> @dm:addrow current_loop="${loop_index}" & incidents="$incident_id" & projectids="$project_id"
- --> @mysqlv2:native-query dbname="0bde1fc06a7542c3a6a4c47d85f64d9d_cfxdimensions_app_collaboratio" & query="select * from message where incidentid in ($incident_id) and projectid in ($project_id)"
- --> @dm:skip-block-if-shape row_count=0
- --> @dm:check-columns must_contain="incidentid" & action="skip-block"
- --> @dm:selectcolumns exclude="execution_status|execution_reason|attempt_count"
- --> @dm:save name="temp-collab-msgs-db-${loop_index}"
- --> @c:data-loop dataset="temp-irm-incident-ids-concat" & columns="incident_id,project_id"
- ## .
+ ## This payload is for Security Advisories
 
- --> @dm:empty
- --> @dm:addrow current_loop="${loop_index}" & incidents="$incident_id" & projectids="$project_id"
- --> @mysqlv2:native-query dbname="0bde1fc06a7542c3a6a4c47d85f64d9d_cfxdimensions_app_collaboratio" & query="select ms.*, m.customerid, m.projectid, m.incidentid from irmessagesharing ms inner join message m on m.messageid=ms.message_id where m.incidentid in ($incident_id) and m.projectid in ($project_id)"
- --> @dm:skip-block-if-shape row_count=0
- --> @dm:check-columns must_contain="incidentid" & action="skip-block"
- --> @dm:selectcolumns exclude="execution_status|execution_reason|attempt_count"
- --> @dm:save name="temp-collab-irmsharing-db-${loop_index}"
- --> @c:data-loop dataset="temp-irm-incident-ids-concat" & columns="incident_id,project_id"
- ## .
+ ## --> @dm:addrow data='{"input":{"transaction_id":"6e86f3db55880afdc57e11c278637c19748faae7b","cloudStorage":true,"scanTrigger":"ManualScan","icTypes":["securityAdvisory"],"includePotentialVulnerableResults":true,"client_app":{"app_name":"OI","client_id":"0oaknwhn14c4dkz131d7"},"device_details":{"deviceType":"IOS-XE","model":"ASR9K","version":"6.5.3","serialNumber":"FXS2014Q1KG"}}}'
 
- --> @dm:empty
- --> @dm:addrow current_loop="${loop_index}" & incidents="$incident_id" & projectids="$project_id"
- --> @mysqlv2:native-query dbname="0bde1fc06a7542c3a6a4c47d85f64d9d_cfxdimensions_app_collaboratio" & query="select * from teamincident where incident_id in ($incident_id) and project_id in ($project_id)"
- --> @dm:skip-block-if-shape row_count=0
- --> @dm:check-columns must_contain="incident_id" & action="skip-block"
- --> @dm:selectcolumns exclude="execution_status|execution_reason|attempt_count"
- --> @dm:save name="temp-collab-teamincidents-db-${loop_index}"
- --> @c:new-block
- --> @dm:concat names="temp-collab-msgs-db-*"
- --> @dm:skip-block-if-shape row_count=0
- --> @dm:change-time-format columns="createdat,updatedat" & from_format="datetimestr" & to_format="datetimestr"
- --> @dm:copy-columns to="timestamp" & from="updatedat"
- --> @dm:fixnull-regex
- --> @rn:write-stream name="oia-incidents-collaboration-stream"
- --> @c:new-block
- --> @dm:concat names="temp-collab-irmsharing-db-*"
- --> @dm:skip-block-if-shape row_count=0
- --> @dm:change-time-format columns="shared_time" & from_format="datetimestr" & to_format="datetimestr"
- --> @dm:copy-columns to="timestamp" & from="shared_time"
- --> @dm:fixnull-regex
- --> @rn:write-stream name="oia-collab-messagesharing-stream"
- --> @c:new-block
- --> @dm:concat names="temp-collab-teamincidents-db-*"
- --> @dm:skip-block-if-shape row_count=0
- --> @dm:change-time-format columns="shared_time" & from_format="datetimestr" & to_format="datetimestr"
- --> @dm:copy-columns to="timestamp" & from="shared_time"
- --> @dm:fixnull-regex
- --> @rn:write-stream name="oia-incidents-external-tickets-stream"
+ ## This payload is for SW EoX
+
+ --> @dm:addrow data='{"input": { "transaction_id": "6e86f3db89230afdc511221c278637c19748faae65","cloudStorage": true,"scanTrigger": "ManualScan","icTypes": ["softwareEoX"],"client_app": {"app_name": "OI","client_id": "0oaknwhn14c4dkz131d7"},"device_details": {"softwareType": "IOS XR","model": "CISCO2501","softwareVersionNumber":"12.0(21a)", "serialNumber": "coronas2"}}}'
+ --> @dm:eval key="'key'"
+ --> @dm:enrich dict ="temp-token" and src_key_cols="key" and dict_key_cols="key" and enrich_cols = "access_token"
+ ## --> @dm:save name="temp_scan_payload"
+
+ --> @dm:save name="og_scan_payload"
+ ## Run Scan
+
+ --> @c:data-loop columns="access_token,data" and dataset="og_scan_payload"
+ --> @restclient:read url="https://api-cx.cisco.com/us/perf/ironbank/v1/scan/jobs/feb_device_scan/async" and payload = '$data' and method="POST" and Authorization= "Bearer $access_token"
+ --> @dm:eval key="'key'"
+ --> @dm:enrich dict ="og_scan_payload" and src_key_cols="key" and dict_key_cols="key" and enrich_cols = "access_token"
+ --> @dm:save name="og_scan_id"
+ --> @dm:sleep seconds = 5
+ ## Get results from scan
+
+ --> @c:data-loop columns="access_token,id" and dataset="og_scan_id"
+ --> @restclient:read url="https://api-cx.cisco.com/us/perf/ironbank/v1/scan/jobs/$id" and method="GET" and Authorization= "Bearer $access_token" and `Accept`="*/*" and Connection="keep-alive"
+ --> @dm:eval issues="json_dumps(issues)"
+ --> @dm:explode-json column="issues"
+ --> @dm:save name="temp-scan_result"
+ --> @dm:save name="og_scan_result"
