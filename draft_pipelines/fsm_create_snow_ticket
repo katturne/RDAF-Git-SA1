@@ -1,13 +1,6 @@
-@dm:empty
- --> @dm:recall name='generate_token_creds'
- --> @dm:save name='temp-generate_token_creds'
- ## Generate token
-
- --> @c:data-loop columns='content_type,client_secret,client_id,grant_type' and dataset='temp-generate_token_creds'
- --> @restclient:read url="https://int-id.cisco.com/oauth2/aussduh26AoUqMpmQ1d6/v1/token?grant_type=$grant_type&client_id=$client_id&client_secret=$client_secret" and
-`method`="POST" and
-`Content-Type`='$content_type' and
-`Accept`='*/*'
- --> @dm:eval key="'key'"
- --> @dm:save name="temp-access-token"
- --> @dm:save name='test-token'
+@c:new-block
+ --> @dm:query-persistent-stream-from-bookmark name="fsm-oia-snow-ticket-inputs" and bookmark="fsm-att-oia-to-snow-create-bkmrk" and query="timestamp is after -24 hours and fsmFirableEventName is 'create-ticket'"
+ --> @dm:save name="temp-create-input"
+ --> @dm:map to="step" & func="fixed" & value="c0"
+ --> @rn:write-stream compression="auto" & name="debug-fsm-att"
+ --> @exec:run-pipeline name="create_snow_ticket_processor" & ignore_failures="no"
