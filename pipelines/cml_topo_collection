@@ -1,195 +1,89 @@
-@c:new-block
- --> @dm:recall name="edc_pid_ostype_dict"
- --> @dm:rename-columns sw_os_type_dict="sw_os_type"
- --> @dm:save name='temp-pid-ostype'
- ## To fix incorrect SW EOL data provided by Ironbank and NP
-
+@dm:empty
+ --> @dm:addrow profile_name = 'ios_show_ip_int_brief' and
+command = 'show ip interface brief' and
+textfsm_url = 'https://raw.githubusercontent.com/networktocode/ntc-templates/master/ntc_templates/templates/cisco_ios_show_ip_interface_brief.textfsm' and
+condition = '{% raw %}{{device_fw_type == "Cisco IOS"}}{% endraw %}'
+ --> @dm:addrow profile_name = 'iosxr_show_ip_int_brief' and
+command = 'show ip interface brief' and
+textfsm_url = 'https://raw.githubusercontent.com/networktocode/ntc-templates/master/ntc_templates/templates/cisco_xr_show_ip_interface_brief.textfsm' and
+condition = '{% raw %}{{device_fw_type == "Cisco IOS XR"}}{% endraw %}'
+ --> @dm:addrow profile_name = 'ios_show_ip_ospf_neighbor' and
+command = 'show ip ospf neighbor' and
+textfsm_url = 'https://raw.githubusercontent.com/networktocode/ntc-templates/master/ntc_templates/templates/cisco_ios_show_ip_ospf_neighbor.textfsm' and
+condition = '{% raw %}{{device_fw_type == "Cisco IOS"}}{% endraw %}'
+ --> @dm:addrow profile_name = 'iosxr_show_ip_ospf_neighbor' and
+command = 'show ip ospf neighbor' and
+textfsm_url = 'https://raw.githubusercontent.com/networktocode/ntc-templates/master/ntc_templates/templates/cisco_xr_show_ospf_neighbor.textfsm' and
+condition = '{% raw %}{{device_fw_type == "Cisco IOS XR"}}{% endraw %}'
+ --> @dm:addrow profile_name = 'ios_show_cdp_neighbors' and
+command = 'show cdp neighbors detail' and
+textfsm_url = 'https://raw.githubusercontent.com/networktocode/ntc-templates/master/ntc_templates/templates/cisco_ios_show_cdp_neighbors_detail.textfsm' and
+condition = '{% raw %}{{device_fw_type == "Cisco IOS"}}{% endraw %}'
+ --> @dm:addrow profile_name = 'iosxr_show_cdp_neighbors' and
+command = 'show cdp neighbors detail' and
+textfsm_url = 'https://raw.githubusercontent.com/networktocode/ntc-templates/master/ntc_templates/templates/cisco_xr_show_cdp_neighbors_detail.textfsm' and
+condition = '{% raw %}{{device_fw_type == "Cisco IOS XR"}}{% endraw %}'
+ --> @dm:addrow profile_name = 'ios_show_ip_bgp_neighbor' and
+command = 'show ip bgp neighbors' and
+textfsm_url = 'https://raw.githubusercontent.com/networktocode/ntc-templates/master/ntc_templates/templates/cisco_ios_show_ip_bgp_neighbors.textfsm' and
+condition = '{% raw %}{{device_fw_type == "Cisco IOS"}}{% endraw %}'
+ --> @dm:addrow profile_name = 'iosxr_show_ip_bgp_neighbor' and
+command = 'show ip bgp neighbors' and
+textfsm_content = "Value NEIGHBOR (\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\nValue VRF (\S+)\nValue REMOTE_AS (\d+)\nValue PEER_GROUP (\S+)\nValue REMOTE_ROUTER_ID (\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\nValue BGP_STATE (\w+)\nValue LOCALHOST_IP (\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\nValue LOCALHOST_PORT (\d+)\nValue REMOTE_IP (\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\nValue REMOTE_PORT (\d+)\nValue INBOUND_ROUTEMAP (\S+)\nValue OUTBOUND_ROUTEMAP (\S+)\n\nStart\n  # Capture first line, which shows the BGP neighor and remote AS number\n  ^BGP\s+neighbor\s+is -> Continue.Record\n  ^BGP\s+neighbor\s+is\s+${NEIGHBOR},?(\s+vrf\s+${VRF},)?(\s+remote\s+AS\s+${REMOTE_AS})?\n  ^\s+Remote AS ${REMOTE_AS}\n  # Capture BGP peer group\n  # Example: 'Member of peer-group RR_SERVERS for session parameters'\n  ^\s*Member\s+of\s+peer-group\s+${PEER_GROUP}\n  # \n  # Capture remote router ID\n  # Example: ' BGP state = Established, up for 7w3d'\n  ^.+[rR]emote\s+router\s+ID\s+${REMOTE_ROUTER_ID}\n  #\n  # Capture BGP state\n  # Example: ' BGP state = Established, up for 7w3d'\n  ^\s+BGP\s+state\s+=\s+${BGP_STATE}\n  #\n  # Capture Inbound/Outbound Route Maps\n  # Example: 'Route map for incoming advertisements is BGP_Vendor_in'\n  # Example: 'Route map for outgoing advertisements is BGP_Vendor_out'\n  ^\s+Route\s+map\s+for\s+incoming\s+advertisements\s+is\s+${INBOUND_ROUTEMAP}\n  ^\s+Route\s+map\s+for\s+outgoing\s+advertisements\s+is\s+${OUTBOUND_ROUTEMAP}\n  #\n  # Match local host and port\n  # Example: 'Local host: 10.10.255.13, Local port: 39443'\n  ^\s*Local\s+host:\s+${LOCALHOST_IP},\s+Local\s+port:\s+${LOCALHOST_PORT}\n  # \n  # Match local host and port\n  # Example: 'Local host: 10.10.255.13, Local port: 39443'\n  ^\s*Foreign\s+host:\s+${REMOTE_IP},\s+Foreign\s+port:\s+${REMOTE_PORT}\n  #^.+ -> Error" and
+condition = '{% raw %}{{device_fw_type == "Cisco IOS XR"}}{% endraw %}'
+ --> @dm:save name = 'temp-profile_dataset'
  --> @c:new-block
  --> @dm:empty
- --> @dm:addrow rule_id = "A1" & rule = "sw_version contains '12\.2\(18\)SXF' " & sw_status_f="Expired"
- --> @dm:addrow rule_id = "A2" & rule = "sw_version contains '6\.2\(' and sw_os_type is 'NX-OS' " & sw_status_f="Expired"
- --> @dm:addrow rule_id = "A3" & rule = "sw_version contains '15\.1\(1\)S'" & sw_status_f="Expired"
- --> @dm:addrow rule_id = "A4" & rule = "sw_version contains '12\.2\(14\)Z'" & sw_status_f="Expired"
- --> @dm:save name='temp-sweox-errs-dict'
+ --> @dm:addrow device_ip = '9.3.252.31-9.3.252.40,9.3.252.90-9.3.252.100' and profiles = 'ios_show_ip_int_brief, iosxr_show_ip_int_brief, ios_show_ip_ospf_neighbor, iosxr_show_ip_ospf_neighbor, ios_show_cdp_neighbors, iosxr_show_cdp_neighbors, iosxr_show_ip_bgp_neighbor, ios_show_ip_bgp_neighbor'
+ --> @dm:save name = "temp-collection-set"
  --> @c:new-block
- --> @dm:recall name="contract_data_IB"
- --> *dm:filter match_inv contains 'Network'
- --> *dm:filter sw_os_type == 'Not Available'
- --> @dm:selectcolumns exclude="sw_status|^swEOL|^secAdv|product_id"
- ## enrich with OS Type
-
- --> @dm:enrich dict="temp-pid-ostype" and src_key_cols="product_name" and dict_key_cols="PID" and enrich_cols="sw_os_type_dict" and case_insensitive="yes"
- --> @cfxaia:conditional-statement condition_column="sw_os_type" and operator="=" and check_value="yes" and value ="Not Available" and return_if="sw_os_type_dict" and return_else="sw_os_type"
- --> @dm:fixnull columns="sw_os_type" and value="Not Available" and apply_for_empty="yes"
- ## new column product_id to simplify product is during sw scan
-
- --> @dm:copy-columns from="product_name" and to="product_id"
- --> @dm:eval product_id = "product_id.replace('=', '')"
- --> @dm:eval tokens = "product_id.rsplit('-', 1)"
- --> @dm:eval product_id = "tokens[0] if len(tokens) > 1 and tokens[1] in ['RF'] else product_id"
- --> @dm:selectcolumns exclude = "tokens|PID"
- --> @dm:save name="temp-contract_data" and append='yes'
- ## Generate unique list of PID-SW version to process
-
+ --> @dm:recall name = "temp-collection-set"
+ --> @network_device_cisco123:run-commands ip_column_name = 'device_ip' and
+profile_dataset_name = 'temp-profile_dataset' and
+devices_details_dataset = 'cml_cisco_device_chassis_dict' and
+profile_column_name = 'profiles'
+ --> *dm:filter collection_status is "Success"
+ --> @dm:save name="temp-out1"
  --> @c:new-block
- --> @dm:recall name="temp-contract_data"
- --> *dm:filter sw_version!='Not Available'
- --> *dm:filter sw_os_type is not null
- --> *dm:filter product_name is not in ['null','Unknown']
- --> @dm:selectcolumns include="customer|^product_id|sw_os_type|sw_version|instance_id"
- --> @dm:groupby columns ="customer,product_id,sw_os_type,sw_version"
- --> @dm:rename-columns total="instance_id"
- --> @dm:eval unique_key = "str(product_id) + str(sw_os_type) + str(sw_version)"
- --> @dm:save name="temp-input-dataset"
- ## ################################
-
- ## Process SW EOL
-
- ## declaring thrid level child pipelines
-
+ --> @dm:recall name = "temp-collection-set"
+ --> @network_device_cisco:run-commands ip_column_name = 'device_ip' and
+profile_dataset_name = 'temp-profile_dataset' and
+devices_details_dataset = 'cml_cisco_device_chassis_dict' and
+profile_column_name = 'profiles'
+ --> *dm:filter collection_status is "Success"
+ --> @dm:save name="temp-out2"
  --> @c:new-block
- --> @dm:empty
- --> @exec:define-function name="define_child_pipelines"
- --> @exec:run-pipeline name ="edc_oi_get_product_alerts" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_oi_product_alerts_raw" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_oi_product_alerts_run_scan" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_oi_generate_token" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_oi_process_sw_data" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_oi_get_sweol_data" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_oi_get_security_advisories_data" & ignore_failures = "no"
- --> @exec:end-function
- ## collecting the file and storing it in edc_cust_pid_sw stream, collecting the API data and adding the processed data to edc_sw_raw_data
-
+ --> @dm:recall name = "temp-collection-set"
+ --> @network_device_cisco01:run-commands ip_column_name = 'device_ip' and
+profile_dataset_name = 'temp-profile_dataset' and
+devices_details_dataset = 'cml_cisco_device_chassis_dict' and
+profile_column_name = 'profiles'
+ --> *dm:filter collection_status is "Success"
+ --> @dm:save name="temp-out3"
  --> @c:new-block
- --> @dm:recall name='temp-input-dataset'
- --> @dm:save name="temp-cust_pid_sw"
- --> @dm:save name="customer_pid_sw"
- --> @dm:eval source="'software'"
- --> @exec:run-pipeline name ="edc_oi_product_alerts_raw" & ignore_failures = "no"
- --> @dm:save name='temp-enriched-sweol-values'
- ## #Temporary bypass to use already process data from dataset api-response. Above section needs to be commended out
-
- ## --> @c:new-block
-
- ## --> @dm:recall name='api-response'
-
- ## --> @dm:save name='temp-enriched-sweol-values'
-
- ## Process SWEoL
-
+ --> @dm:concat names = "temp-out.*"
+ --> @dm:save name="temp-collection-output"
  --> @c:new-block
- --> @dm:recall name='temp-enriched-sweol-values'
- --> @dm:save name='temp-sweol-data'
- ## creates a list of unique customers
-
+ --> @dm:recall name = "temp-collection-output"
+ --> *dm:filter command is "show ip interface brief"
+ --> @dm:explode-json column="parsed_json"
+ --> @dm:save name="cml-interface-data"
  --> @c:new-block
- --> @dm:recall name='temp-sweol-data'
- --> @dm:groupby columns='customer'
- --> @dm:save name='temp-unique-cust-name'
- ## Queries data for the customer from edc_customer inventory
-
- --> @c:data-loop dataset='temp-unique-cust-name' and columns='customer'
- --> @dm:recall name='temp-contract_data'
- --> *dm:filter customer == '$customer'
- --> @dm:save name='temp-hw-eol-details' and append='yes'
- ## processes the software columns for the customer
-
- --> @c:data-loop columns='customer' and dataset='temp-unique-cust-name'
- --> @dm:recall name='temp-sweol-data'
- --> *dm:filter customer == '$customer'
- --> @exec:run-pipeline name='edc_oi_process_sw_data'
- --> @dm:save name='temp-sw-eol-details'
- ## enriches the processed columns to  edc_customer inventory
-
+ --> @dm:recall name = "temp-collection-output"
+ --> *dm:filter command is "show ip ospf neighbor"
+ --> @dm:explode-json column="parsed_json"
+ --> @dm:save name="cml-ospf-data"
  --> @c:new-block
- --> @dm:recall name='temp-hw-eol-details'
- ## --> @dm:selectcolumns exclude='sw_status_x|sw_expiring_qtr_x|sw_expiring_year_x'
-
- --> @dm:enrich dict='temp-sw-eol-details' and src_key_cols='product_id,sw_version' and dict_key_cols='product_id,sw_version' and enrich_cols='SoftwareEOXId,BulletinNumber,BulletinHeadline,BulletinURL,EndOfSaleDate,EndOfEngineeringDate,EndOfLifeDate,PostDate,EndOfLifeInternalAnnouncementDate,EndOfLifeExternalAnnouncementDate,EndOfLastHardwareShipDate,EndOfHardwareNewServiceAttachmentDate,EndOfHardwareRoutineFailureAnalysisDate,EndOfBUEngineeringSupportTACDate,EndOfHardwareServiceContractRenewalDate,EndOfSignatureReleasesDate,EndOfSoftwareAvailabilityDate,EndOfSoftwareLicenseAvailabilityDate,EndOfSoftwareVulnerabilityOrSecuritySupportDate,created,customerVisible,external_text,external_title,firstIcAlertId,groups,icIssueId,icProblemId,ignored,lastIcAlertId,eoXAlertType,name,openedOn,resultType,severity,severityText,state,updated,deviceSN,runType,filename,icType,atticaStatus,cdetsList,retry,associatedGroups,sw_expiring_qtr,sw_expiring_year,sw_status' and replace_values='yes'
- --> @dm:save name='final-enrich'
- --> @dm:rename-columns EndOfLifeDate='EndOfLifeDate_y'
- --> @dm:fixnull columns='SoftwareEOXId,BulletinNumber,BulletinHeadline,BulletinURL,EndOfSaleDate,EndOfEngineeringDate,EndOfLifeDate,PostDate,EndOfLifeInternalAnnouncementDate,EndOfLifeExternalAnnouncementDate,EndOfLastHardwareShipDate,EndOfHardwareNewServiceAttachmentDate,EndOfHardwareRoutineFailureAnalysisDate,EndOfBUEngineeringSupportTACDate,EndOfHardwareServiceContractRenewalDate,EndOfSignatureReleasesDate,EndOfSoftwareAvailabilityDate,EndOfSoftwareLicenseAvailabilityDate,EndOfSoftwareVulnerabilityOrSecuritySupportDate,created,customerVisible,external_text,external_title,firstIcAlertId,groups,icIssueId,icProblemId,ignored,lastIcAlertId,eoXAlertType,name,openedOn,resultType,severity,severityText,state,updated,deviceSN,runType,filename,icType,atticaStatus,cdetsList,retry,associatedGroups,sw_expiring_qtr,sw_expiring_year,sw_status' and value="Not Available"  and apply_for_empty="yes"
- --> @dm:rename-columns swEOL_softwareEOXId='SoftwareEOXId' and swEOL_bulletinNumber='BulletinNumber' and swEOL_bulletinTitle='BulletinHeadline' and swEOL_bulletinUrl='BulletinURL' and swEOL_endOfSaleDate='EndOfSaleDate' and
-swEOL_endOfSoftwareMaintenanceReleasesDate='EndOfEngineeringDate' and swEOL_lastDayOfSupportDate='EndOfLifeDate' and
-swEOL_endOfVulnerabilitySecuritySupportDate='EndOfSoftwareVulnerabilityOrSecuritySupportDate' and swEOL_endOfLifeAnnouncementDate='EndOfLifeExternalAnnouncementDate'
- --> @dm:selectcolumns exclude='^(EndOfLifeInternalAnnouncementDate|EndOfLastHardwareShipDate|EndOfHardwareNewServiceAttachmentDate|EndOfHardwareRoutineFailureAnalysisDate|EndOfBUEngineeringSupportTACDate|EndOfHardwareServiceContractRenewalDate|EndOfSignatureReleasesDate|EndOfSoftwareAvailabilityDate|EndOfSoftwareLicenseAvailabilityDate|created|customerVisible|external_text|external_title|firstIcAlertId|groups|icIssueId|icProblemId|ignored|lastIcAlertId|eoXAlertType|name|openedOn|resultType|severity|severityText|state|updated|deviceSN|runType|filename|icType|atticaStatus|cdetsList|retry|associatedGroups)$'
- ## --> @dm:save name='test-contract_data'
-
- --> @dm:save name='temp-contract_data'
- ## #Process Security Advisories
-
- ## collecting the file and storing it in edc_cust_pid_sw stream, collecting the API data
-
+ --> @dm:recall name = "temp-collection-output"
+ --> *dm:filter command is "show cdp neighbors detail"
+ --> @dm:explode-json column="parsed_json"
+ --> @dm:mergecolumns include="destination_host|dest_host" and to="dest_host"
+ --> @dm:mergecolumns include="management_ip|mgmt_ip" and to="mgmt_ip"
+ --> @dm:mergecolumns include="software_version|version" and to="version"
+ --> @dm:eval mgmt_ip="mgmt_ip.strip()"
+ --> @dm:save name="cml-cdp-data"
  --> @c:new-block
- --> @dm:recall name='temp-input-dataset'
- --> @dm:save name="temp-cust_pid_sec"
- --> @dm:eval source="'security_advisory'"
- --> @exec:run-pipeline name ="edc_oi_product_alerts_raw" & ignore_failures = "no"
- --> @dm:save name='temp-enriched-secadv-values'
- ## Process SecAdv
-
- --> @c:new-block
- --> @dm:recall name='temp-enriched-secadv-values'
- --> @dm:save name='temp-secadv-data'
- ## creates a list of unique customers
-
- --> @c:new-block
- --> @dm:recall name='temp-secadv-data'
- --> @dm:groupby columns='customer'
- --> @dm:save name='temp-unique-cust-name'
- ## Queries data for the customer from edc_customer inventory
-
- --> @c:data-loop dataset='temp-unique-cust-name' and columns='customer'
- --> @dm:recall name='temp-contract_data'
- --> *dm:filter customer == '$customer'
- --> @dm:save name='temp-secadv-details' and append='yes'
- --> @c:new-block
- --> @dm:recall name='temp-secadv-data'
- --> @dm:to-type columns='advisoryId,PsirtID' and type='str'
- --> @dm:add-missing-columns columns="PsirtID,MatchConfidence,MatchReason,MatchDefinition,HeadlineName,AdvisoryId,BulletinURL,Summary,Details,RevisedDate,RevisionNumber,PublishedDate,SeverityLevelName,CvssScore,CveId,_id,advisoryId,created,customerVisible,external_text,external_title,firstIcAlertId,groups,icIssueId,icProblemId,ignored,lastIcAlertId,matchDefinition,matchInfo,matchConfidence,missingInfo,moreInfo,name,openedOn,resultType,resultSubType,severity,severityText,state,updated,deviceSN,source,runType,filename,icType,atticaStatus,cdetsList,retry,associatedGroups,key,current_time_ms_loop,token_expiry_time,access_token,expires_in,token_type,sw_version,sw_os_type,product_id,transaction_id,eoXAlert,eoXAlertType,DocumentId"
- --> @dm:eval matchConfidence = "'Potentially Vulnerable' if matchConfidence == 'POTVUL' else 'Vulnerable' if matchConfidence == 'VUL' else matchConfidence"
- --> @dm:eval secAdv_confidence_score = "100 if matchConfidence == 'Vulnerable' else 99 if matchConfidence == 'Potentially Vulnerable' else 98 if matchConfidence == 'Not Vulnerable' else 0"
- --> @dm:eval secAdv_impact_score = "100 if SeverityLevelName == 'Critical' else 99 if SeverityLevelName == 'High' else 98 if SeverityLevelName == 'Medium' else 97 if SeverityLevelName == 'Low' else 0"
- --> @dm:fixnull columns="PsirtID,MatchConfidence,MatchReason,MatchDefinition,HeadlineName,AdvisoryId,BulletinURL,Summary,Details,RevisedDate,RevisionNumber,PublishedDate,SeverityLevelName,CvssScore,CveId,_id,advisoryId,created,customerVisible,external_text,external_title,firstIcAlertId,groups,icIssueId,icProblemId,ignored,lastIcAlertId,matchDefinition,matchInfo,matchConfidence,missingInfo,moreInfo,name,openedOn,resultType,resultSubType,severity,severityText,state,updated,deviceSN,source,runType,filename,icType,atticaStatus,cdetsList,retry,associatedGroups,key,current_time_ms_loop,token_expiry_time,expires_in,token_type,sw_version,sw_os_type,product_id,transaction_id,eoXAlert,eoXAlertType,DocumentId,secAdv_confidence_score" and value="Not Available" and apply_for_empty="yes"
- --> @dm:rename-columns secAdv_match_confidence ='matchConfidence' and secAdv_securityImpactRating='SeverityLevelName' and secAdv_bulletinTitle='external_title' and secAdv_psirtAdvisoryId='advisoryId' and ID = '_id' and secAdv_bulletinUrl ='BulletinURL' and secAdv_bulletinSummary ='Summary' and secAdv_cveId='CveId' and secAdv_cvssBase='CvssScore' and secAdv_match_confidence_reason='MatchReason' and secAdv_psirtColdId ='PsirtID' and secAdv_bulletinFirstPublished ='PublishedDate' and secAdv_bulletinVersion='RevisionNumber' and secAdv_bulletinLastUpdated='RevisedDate'
- --> @dm:gc
- ## --> @dm:manipulate-string from="customer_name,project_name,secAdv_psirtColdId,serial_number" and func="concat_columns" and to="unique_key" and value="_"
-
- --> @dm:save name='temp-secadv-data'
- --> @dm:save name='conract-secadv-data'
- ## Deduping Security Advisories based on matchConfidence priority
-
- --> @c:new-block
- --> @dm:recall name="temp-secadv-data"
- --> @dm:skip-block-if-shape row_count="0"
- --> @dm:sort columns='secAdv_confidence_score,secAdv_impact_score' and order='descending'
- --> @dm:dedup columns='product_id,sw_version,sw_os_type'
- --> @dm:save name="temp-secadv-data-dedups"
- --> @c:new-block
- --> @dm:recall name='temp-secadv-details'
- --> @dm:enrich dict='temp-secadv-data-dedups' and src_key_cols='product_id,sw_version' and dict_key_cols='product_id,sw_version' and enrich_cols='secAdv_match_confidence,secAdv_securityImpactRating' and replace_values="yes"
- --> @dm:add-missing-columns columns="secAdv_match_confidence,secAdv_securityImpactRating"
- --> @dm:fixnull columns="secAdv_match_confidence,secAdv_securityImpactRating" and value="Not Available" and apply_for_empty="yes"
- --> @dm:gc
- --> @dm:save name='temp-contract_data'
- ## Enrich with sw recommendation and evaluate compliance
-
- --> @c:new-block
- --> @dm:recall name="temp-contract_data"
- ## --> @dm:enrich-using-rule-dict dict = "temp-recommended_release" & enrich_columns = "recommended_sw_version" and cache="yes"
-
- ## --> @dm:eval sw_release_compliance="'Yes' if ((recommended_sw_version==sw_version) and recommended_sw_version and sw_version)  else 'No' if ((recommended_sw_version!=sw_version) and recommended_sw_version and sw_version) else 'Unknown' if (sw_version) else 'NA'"
-
- ## --> @dm:save name='test-contract_data'
-
- ## To fix incorrect SW EOL data provided by Ironbank and NP
-
- --> @dm:enrich-using-rule-dict dict = "temp-sweox-errs-dict" & enrich_columns = "sw_status_f" and cache="no"
- --> @cfxaia:conditional-statement condition_column="sw_status_f" and return_if="sw_status_f" and return_else="sw_status"
- --> @dm:copy-columns from="sw_status_f" and to="sw_status"
- --> @dm:selectcolumns exclude="sw_status_f"
- ## Re-evaluate product_id to be able to keep '-RF'
-
- --> @dm:copy-columns from="product_name" and to="product_id"
- --> @dm:eval product_id = "product_id.replace('=', '')"
- --> @dm:save name = "contract_data_IB_1"
+ --> @dm:recall name = "temp-collection-output"
+ --> *dm:filter command is "show ip bgp neighbors"
+ --> @dm:explode-json column="parsed_json"
+ --> @dm:save name="cml-bgp-data"
