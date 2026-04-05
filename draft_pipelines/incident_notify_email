@@ -1,42 +1,18 @@
 
- ## .
-
- ## collab-db-to-pstream-bydate
-
- ## .
-@c:new-block
- ## .
-
- --> @dm:empty
- --> @mysqlv2:native-query dbname="0bde1fc06a7542c3a6a4c47d85f64d9d_cfxdimensions_app_collaboratio" & query="select customerid,projectid,incidentid,messagetype,messageid,sourcemessageid,sourcesystemid,sourcesystemname,sourcepayload,senderid,sendername,subject,sourcedetails,senderdetails,recipients,attributes,createdby,updatedby,createdat,updatedat,content from message where createdat >= TIMESTAMP('2024-08-07 00:00:00')"
- --> @dm:skip-block-if-shape row_count=0
- --> @dm:check-columns must_contain="incidentid" & action="skip-block"
- --> @dm:selectcolumns exclude="execution_status|execution_reason|attempt_count"
- --> @dm:change-time-format columns="createdat,updatedat" & from_format="datetimestr" & to_format="datetimestr"
- --> @dm:copy-columns to="timestamp" & from="updatedat"
- --> @dm:fixnull-regex
- --> @rn:write-stream name="oia-incidents-collaboration-stream"
-@c:new-block
- ## .
-
- --> @dm:empty
- --> @mysqlv2:native-query dbname="0bde1fc06a7542c3a6a4c47d85f64d9d_cfxdimensions_app_collaboratio" & query="select ms.message_id,ms.shared_to_team,ms.type,ms.shared_to,ms.shared_by,ms.shared_time,ms.medium,ms.attachment_name,m.customerid,m.projectid,m.incidentid from irmessagesharing ms inner join message m on m.messageid=ms.message_id where m.createdat >= TIMESTAMP('2024-08-07 00:00:00')"
- --> @dm:skip-block-if-shape row_count=0
- --> @dm:check-columns must_contain="incidentid" & action="skip-block"
- --> @dm:selectcolumns exclude="execution_status|execution_reason|attempt_count"
- --> @dm:change-time-format columns="shared_time" & from_format="datetimestr" & to_format="datetimestr"
- --> @dm:copy-columns to="timestamp" & from="shared_time"
- --> @dm:fixnull-regex
- --> @rn:write-stream name="oia-collab-messagesharing-stream"
-@c:new-block
- ## .
-
- --> @dm:empty
- --> @mysqlv2:native-query dbname="0bde1fc06a7542c3a6a4c47d85f64d9d_cfxdimensions_app_collaboratio" & query="select team_id,customer_id,project_id,incident_id,collab_type,ticket_number,shared_time,ticket_id,link from teamincident where shared_time >= TIMESTAMP('2024-08-07 00:00:00')"
- --> @dm:skip-block-if-shape row_count=0
- --> @dm:check-columns must_contain="incident_id" & action="skip-block"
- --> @dm:selectcolumns exclude="execution_status|execution_reason|attempt_count"
- --> @dm:change-time-format columns="shared_time" & from_format="datetimestr" & to_format="datetimestr"
- --> @dm:copy-columns to="timestamp" & from="shared_time"
- --> @dm:fixnull-regex
- --> @rn:write-stream name="oia-incidents-external-tickets-stream"
+ ## Name: incident_notify_email
+@dm:empty
+ --> @agent:agent-irm:irmagent:getIncidentDetails roomId='$ROOM_ID' and incidentId='$INCIDENT_ID'
+ --> @dm:map to="email_recipients" & func="fixed" & value="$email_recipients"
+ --> @dm:map to="alertid" & func="fixed" & value="$alert_id"
+ --> @dm:map to="incident_url" & func="fixed" & value="$incident_url"
+ --> @dm:save name='temp-incident_details'
+ --> *dm:filter email_recipients is not None
+ --> @dm:skip-pipeline-if-shape row_count = 0
+ --> @dm:eval message=" 'IncidentId:' + str(incidentid) + ',\n<br>AlertId:' + str(alertid) + ',\n<br>Summary:' + json_dumps(summary) + '\n<br>' + incident_url + '\n<br>Powered by CloudFabrix RDAF' "
+ --> @dm:eval subject="'Incident ' + incidentid + ' shared by CFX OIA Application'"
+ --> @dm:map to="message_mime_type" & func="fixed" & value="html"
+ --> @email_sender:sendmail-bulk recipient_col="email_recipients" & subject_col="subject" & message_col="message"
+ --> @dm:eval notification_message="'Incident ' + incidentid + ' shared with ' +  email_recipients  + ' successfully'"
+ --> @dm:map to="notification_subject" & func="fixed" & value="Notification Message from Email-RDAPipeline"
+ --> @rn:write-stream name="oia-incident-collab-message-stream"
+ --> @dm:map to="pipeline_name" & func="fixed" & value="incident_notify_email"
