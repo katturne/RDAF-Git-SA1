@@ -1,23 +1,14 @@
-folder: OI
-name: edc_oi_get_sweol_data
-description: test pipeline
-data_path: pipelines/data/edc_oi_get_sweol_data/2025_09_23_2/data.json
-usecase: groupby and enrich changes
-category: ''
-sources:
-  rn:
-    name: rn
-    type: rn
-artifacts:
-- artifact_type: pipeline
-  artifact_name: edc_oi_process_sw_data
-  access: read
-- artifact_type: rda-network-stream
-  artifact_name: edc_sweol_data
-  access: write
-- artifact_type: rda-network-stream
-  artifact_name: edc_oi_inventory_enriched
-  access: write
-version: '2025_09_23_2'
-file_type: json
-checksum: 26b17d5e
+@dm:empty
+ --> @dm:recall name="10dataset"
+ --> @dm:save name="test-status"
+ --> @dm:sleep seconds = 20
+ --> #dm:query-persistent-stream pipeline_name is "swdata-status-test" with-input name="rda_system_worker_traces"
+ --> @dm:sort columns = 'timestamp' and order = "descending"
+ --> @dm:head n = 1
+ --> @dm:selectcolumns include = 'status_type|pipeline_name|jobid|timestamp'
+ --> @dm:save name="temp-tempo"
+ --> @dm:recall name="temp-tempo"
+ --> @dm:enrich dict ="temp1-temp" & src_key_cols="pipeline_name" & dict_key_cols="pipeline_name" &
+enrich_cols="USER_ID,proj_name,customer_name"
+ --> @dm:save name="temp1-temp" and append="no"
+ --> @rn:write-stream name = "status-stream"
