@@ -1,8 +1,9 @@
-@dm:empty
- --> @dm:addrow name='edc_oi_inventory_enriched' and limit=0
- --> #dm:query-persistent-stream customer_name=='ATT'
- ## --> @dm:manipulate-string from="customer_name,contract_number,product_name" and func="concat_columns" and to="enrich_ingestion_id"
+@dm:recall name='sa-raw-data'
+ --> @dm:eval unique_key="unique_key"
+ ## --> @dm:to-type columns='customer,product_name,product_id,sw_version,sw_os_type,advisoryId,PsirtID' and type='str'
 
- --> @dm:manipulate-string from="contract_number,customer_name,product_name,coverage" and func="concat_columns" and to="unique_payload_inputs"
- --> @dm:dedup columns ='unique_payload_inputs'
- --> @dm:save name='test-unique-att'
+ --> @dm:implode key_columns='unique_key' and merge_columns='AdvisoryId,PsirtID,product_name,product_id' and dedup_merge_values='no' and keep_columns='AdvisoryId,PsirtID'
+ --> @dm:eval transaction_id_list="str(product_id).split(',')"
+ --> @dm:eval record_count = "len(transaction_id_list)"
+ --> *dm:filter record_count > 1
+ --> @dm:save name="test-implode-sw"

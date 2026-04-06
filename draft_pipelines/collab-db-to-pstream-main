@@ -1,149 +1,76 @@
-{
-  "name": "niki-preview-template",
-  "label": "Preview template",
-  "description": "Preview template",
-  "context_label_id": "deviceName",
-  "dashboard_folder": "Default",
-  "version": "2024-04-03_02",
-  "enabled": false,
-  "debug": true,
-  "live_edit": true,
-  "dashboard_type": "template",
-  "template_variables": {
-    "deviceName": {
-      "contextId": "deviceName"
-    }
-  },
-  "dashboard_filters": {
-    "columns_filter": [],
-    "group_filters": []
-  },
-  "dashboard_sections": [
-    {
-      "title": "Summary",
-      "show_filter": true,
-      "widgets": [
-        {
-          "title": "Product",
-          "widget_type": "summary",
-          "duration_hours": 1080,
-          "paginated": false,
-          "max_rows": 1,
-          "limit": 1,
-          "max_width": 12,
-          "height": 5,
-          "min_width": 12,
-          "stream": "sample_json",
-          "ts_column": "timestamp",
-          "extra_filter": "deviceName is {{ deviceName }} ",
-          "columns": {
-            "deviceName": {
-              "title": "Devicename",
-              "type": "TEXT",
-              "hidden": false,
-              "key": true
-            },
-            "info": {
-              "title": "Info",
-              "type": "TEXT",
-              "hidden": false,
-              "key": true
-            },
-            "detail": {
-              "title": "Detail",
-              "type": "TEXT",
-              "hidden": true,
-              "key": true
-            },
-            "timestamp": {
-              "title": "Timestamp",
-              "type": "DATETIME",
-              "visible": true
-            }
-          },
-          "widget_id": "a69be2eb"
-        },
-        {
-          "widget_type": "codeblock",
-          "title": "Code Block",
-          "stream": "sample_json",
-          "virtual_scrolling": true,
-          "extra_filter": "deviceName is {{ deviceName }} and detail is not None GET detail ",
-          "columns": {
-            "detail": {
-              "type": "TEXT",
-              "hidden": false,
-              "key": true
-            }
-          },
-          "lang": "json",
-          "widget_id": "72f885d9"
-        }
-      ]
-    }
-  ],
-  "pstream_dashboards": [
-    {
-      "title": "Summary",
-      "show_filter": true,
-      "widgets": [
-        {
-          "title": "Product",
-          "widget_type": "summary",
-          "duration_hours": 1080,
-          "paginated": false,
-          "max_rows": 1,
-          "limit": 1,
-          "max_width": 12,
-          "height": 5,
-          "min_width": 12,
-          "stream": "sample_json",
-          "ts_column": "timestamp",
-          "extra_filter": "deviceName is {{ deviceName }} ",
-          "columns": {
-            "deviceName": {
-              "title": "Devicename",
-              "type": "TEXT",
-              "hidden": false,
-              "key": true
-            },
-            "info": {
-              "title": "Info",
-              "type": "TEXT",
-              "hidden": false,
-              "key": true
-            },
-            "detail": {
-              "title": "Detail",
-              "type": "TEXT",
-              "hidden": true,
-              "key": true
-            },
-            "timestamp": {
-              "title": "Timestamp",
-              "type": "DATETIME",
-              "visible": true
-            }
-          },
-          "widget_id": "a69be2eb"
-        },
-        {
-          "widget_type": "codeblock",
-          "title": "Code Block",
-          "stream": "sample_json",
-          "virtual_scrolling": true,
-          "extra_filter": "deviceName is {{ deviceName }} and detail is not None GET detail ",
-          "columns": {
-            "detail": {
-              "type": "TEXT",
-              "hidden": false,
-              "key": true
-            }
-          },
-          "lang": "json",
-          "widget_id": "72f885d9"
-        }
-      ]
-    }
-  ]
-}
+
+ ## name: collab-db-to-pstream-main
+
+ ## .
+
+ ## Use this if we want to reset bookmark and re-run again
+@c:new-block
+ --> @dm:empty
+ ## --> @dm:addrow i_created_ts="2023-08-01 00:00:00"
+
+ ## --> @dm:save_bookmark name = 'irm_incident_bkmrk' & value_column = 'i_created_ts' & value_type = 'timestamp' & value_func = 'max'
+
+ --> @dm:save name = "temp-1"
+ ## .
+
+ ## Main Driver is IRM's oia-incidents-stream.
+
+ ## As one time activity, We pull all incidents from oia-incidents-stream and use them to migrate corresponding collab messages, and team incidents. we may have duplicates from last 90 days.
+
+ ## .
+
+ --> @c:new-block
+ --> @dm:empty
+ --> @dm:save name="temp-irm-incident-ids-concat"
+ ## We can do read all in one go and split them up by 999 and use sql-in clause.
+
+ ## or
+
+ ## Read in batches using bookmark and process them in batches
+
+ ## SQL IN clause might have limitation of max 999 IDs
+
+ --> @c:bookmark-loop bookmark="irm_incident_bkmrk" & initial_value ="2023-08-01 00:00:00" & max_iterations=1
+ --> @dm:empty
+ --> @dm:addrow name="oia-incidents-stream" & limit=999 & sort_by_col="i_created_ts" & sort_type="asc"
+ --> #dm:query-persistent-stream i_created_ts is after '${bookmark}'
+ --> @dm:skip-block-if-shape row_count=0
+ --> @dm:check-columns must_contain="incident_id" & action="skip-block"
+ ## .
+
+ --> @dm:selectcolumns include="project_id|customer_id|incident_id|i_state|i_created_ts|i_updated_ts|timestamp"
+ --> @dm:save name="temp-irm-incidents"
+ ## .
+
+ --> @dm:selectcolumns include="incident_id|project_id"
+ --> @dm:map to="name" & func="fixed" & value="incident"
+ --> @dm:save name="temp-irm-incident-ids"
+ ## .
+
+ ## --> @exec:for-loop num_rows = 999
+
+ --> @dm:eval incident_id="incident_id + '\',\''"
+ --> @dm:eval project_id="project_id + '\',\''"
+ --> @dm:groupby columns="name" & agg="sum"
+ ## .
+
+ --> @dm:eval incident_id="incident_id.replace('CFX', '\'CFX', 1)"
+ --> @dm:eval incident_id="incident_id[:-2] if (incident_id.endswith(',\'')) else incident_id"
+ ## .
+
+ --> @dm:eval project_id="project_id.replace('', '\'', 1)"
+ --> @dm:eval project_id="project_id[:-2] if (project_id.endswith(',\'')) else project_id"
+ ## .
+
+ --> @dm:save name="temp-irm-incident-ids-concat"
+ ## --> @exec:end-loop & append="yes"
+
+ ## .
+
+ --> @exec:run-pipeline name="collab-db-to-pstream-processor" & ignore_failures="no"
+ ## increment the bookmark
+
+ --> @dm:recall name="temp-irm-incidents"
+ --> @dm:change-time-format columns="i_created_ts" & from_format="ms" & to_format="datetimestr"
+ --> @dm:save_bookmark name = 'irm_incident_bkmrk' & value_column = 'i_created_ts' & value_type = 'timestamp' & value_func = 'max'
+ --> @dm:sleep seconds = 1
