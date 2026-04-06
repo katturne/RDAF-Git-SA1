@@ -1,477 +1,1162 @@
 {
-  "name": "customer_SNMP_Traps",
-  "label": "SNMP Traps",
-  "description": "SNMP traps dashboard",
-  "version": "2024.02.27",
-  "enabled": true,
-  "dashboard_folder": "NetworkDevicePack",
-  "dashboard_style": "auto",
-  "template_variables": {
-    "CUST_ID": {
-      "contextId": "customer_id"
-    },
-    "PROJ_ID": {
-      "contextId": "projectId"
-    },
-    "CUST_TAG": {
-      "contextId": "customer_tag"
+  "name": "bcs-oi-pa-security-advisories-enriched",
+  "label": "Product Alerts - Security Advisories",
+  "description": "BCS Product Alerts Summary dashboard",
+  "version": "2023-07-13-02",
+  "stream": "bcs_oi_inv_enriched",
+  "enabled": false,
+  "live_edit": true,
+  "dashboard_folder": "BCS_productAlerts_SecAdv_Summary",
+  "dashboard_style": "tabbed",
+  "dashboard_type": "dashboard",
+  "stream_query_mapping": {
+    "bcs_oi_inv_enriched": {},
+    "bcs_oi_productalerts-enriched": {
+      "sw_status": null
     }
   },
-  "status_poller": {
-    "stream": "snmp_trap_event_stream_all",
-    "frequency": 10,
-    "columns": [
-      "timestamp"
-    ],
-    "sorting": [
-      {
-        "timestamp": "desc"
-      }
-    ],
-    "query": "timestamp is after '${timestamp}'",
-    "defaults": {
-      "timestamp": "$UTCNOW"
-    },
-    "action": "refresh"
-  },
+  "dashboard_pages": [],
   "dashboard_filters": {
-    "default_time_filter_labels": [
-      "Last 24 hours"
-    ],
-    "extra_filter": "project_id in {{PROJ_ID}} or project_id is empty",
     "time_filter": true,
+    "default_time_filter_labels": [
+      "Last 12 months"
+    ],
+    "extra_filter": "(  timestamp is after 'Sep 14, 2024 10am' and physicalAssetSubtype not contains 'WAP' ) ",
     "columns_filter": [
       {
-        "id": "rda_gw_client_ip",
-        "label": "Device IP",
+        "id": "deviceId",
+        "label": "Device ID",
+        "type": "DOUBLE"
+      },
+      {
+        "id": "deviceName",
+        "label": "Asset Name",
         "type": "TEXT"
       },
       {
-        "id": "device_hostname",
-        "label": "Device Hostname",
+        "id": "deviceIp",
+        "label": "Asset IP",
         "type": "TEXT"
       },
       {
-        "id": "message",
-        "label": "Message",
+        "id": "serialNumber",
+        "label": "Serial Number",
         "type": "TEXT"
       },
       {
-        "id": "snmpVersion",
-        "label": "SNMP Version",
+        "id": "physicalAssetId",
+        "label": "Physical Asset ID",
+        "type": "DOUBLE"
+      },
+      {
+        "id": "physicalAssetType",
+        "label": "Physical Asset Type",
         "type": "TEXT"
       },
       {
-        "id": "device_vendor",
-        "label": "Device Vendor",
+        "id": "productId",
+        "label": "Product Id",
         "type": "TEXT"
       },
       {
-        "id": "device_status",
-        "label": "Device Status",
+        "id": "bugIds",
+        "label": "Bug IDS",
         "type": "TEXT"
       },
       {
-        "id": "snmpTrapDescription",
-        "label": "MIB Description",
+        "id": "bulletinFirstPublishedTimestamp",
+        "label": "Published",
+        "type": "DATETIME"
+      },
+      {
+        "id": "bulletinLastUpdatedTimestamp",
+        "label": "Last Updated",
+        "type": "DATETIME"
+      },
+      {
+        "id": "bulletinSummary",
+        "label": "Summary",
         "type": "TEXT"
       },
       {
-        "id": "snmpTrapName",
-        "label": "Trap Name",
+        "id": "bulletinTitle",
+        "label": "Title",
         "type": "TEXT"
       },
       {
-        "id": "device_fw_version",
-        "label": "OS Version",
+        "id": "bulletinUrl",
+        "label": "URL",
         "type": "TEXT"
       },
       {
-        "id": "snmpTrapOID",
-        "label": "Trap OID",
+        "id": "bulletinVersion",
+        "label": "Version",
         "type": "TEXT"
       },
       {
-        "id": "snmpTrapMIB",
-        "label": "MIB Name",
+        "id": "commonVulnerabilityScoringSystemBaseScore",
+        "label": "Common Vulnerability Scoring System Base Score",
+        "type": "TEXT"
+      },
+      {
+        "id": "commonVulnerabilityScoringSystemTemporalScore",
+        "label": "Common Vulnerability Scoring System Temporal Score",
+        "type": "TEXT"
+      },
+      {
+        "id": "cveIds",
+        "label": "CveIds",
+        "type": "TEXT"
+      },
+      {
+        "id": "securityAdvisoryColdId",
+        "label": "Security Advisory Cold ID",
+        "type": "DOUBLE"
+      },
+      {
+        "id": "securityAdvisoryId",
+        "label": "Security Advisory ID",
+        "type": "TEXT"
+      },
+      {
+        "id": "secAdv_securityImpactRating",
+        "label": "Security Advisory Severity",
+        "type": "TEXT"
+      },
+      {
+        "id": "secAdv_matchConfidence",
+        "label": "Security Advisory Status",
+        "type": "TEXT"
+      },
+      {
+        "id": "matchConfidenceReason",
+        "label": "Security Advisory Status Reason",
         "type": "TEXT"
       }
     ],
-    "group_filters": [
+    "group_filters1": [
       {
-        "stream": "snmp_trap_event_stream_all",
-        "title": "Vendor",
+        "stream": "bcs_oi_inv_enriched",
+        "title": "Equipment Type",
+        "extra_filter": "(`secAdv_matchConfidence` not in [\"Not Vulnerable\",\"Not Available\"])",
         "group_by": [
-          "device_vendor"
+          "physicalAssetType"
         ],
         "ts_column": "timestamp",
+        "duration_hours": 1080,
+        "limit": 200,
         "agg": "sum",
-        "column": "count_"
+        "column": "combination_count",
+        "type": "int"
       },
       {
-        "stream": "snmp_trap_event_stream_all",
-        "title": "Status",
+        "stream": "bcs_oi_inv_enriched",
+        "title": "SW Type",
+        "extra_filter": "(`secAdv_matchConfidence` not in [\"Not Vulnerable\",\"Not Available\"])",
         "group_by": [
-          "device_status"
+          "sw_os_type"
         ],
         "ts_column": "timestamp",
+        "duration_hours": 1080,
+        "limit": 200,
         "agg": "sum",
-        "column": "count_"
+        "column": "combination_count",
+        "type": "int"
       },
       {
-        "stream": "snmp_trap_event_stream_all",
-        "title": "Trap Name",
+        "stream": "bcs_oi_inv_enriched",
+        "title": "SW Version",
+        "extra_filter": "(`secAdv_matchConfidence` not in [\"Not Vulnerable\",\"Not Available\"])",
         "group_by": [
-          "snmpTrapName"
+          "sw_version"
         ],
         "ts_column": "timestamp",
+        "duration_hours": 1080,
+        "limit": 200,
         "agg": "sum",
-        "column": "count_"
+        "column": "combination_count",
+        "type": "int"
       },
       {
-        "stream": "snmp_trap_event_stream_all",
-        "title": "MIB Name",
+        "stream": "bcs_oi_inv_enriched",
+        "title": "Product ID",
+        "extra_filter": "(`secAdv_matchConfidence` not in [\"Not Vulnerable\",\"Not Available\"])",
         "group_by": [
-          "snmpTrapMIB"
+          "product_name"
         ],
         "ts_column": "timestamp",
+        "duration_hours": 1080,
+        "limit": 200,
         "agg": "sum",
-        "column": "count_"
+        "column": "combination_count",
+        "type": "int"
+      },
+      {
+        "stream": "bcs_oi_inv_enriched",
+        "title": "Product Family",
+        "extra_filter": "(`secAdv_matchConfidence` not in [\"Not Vulnerable\",\"Not Available\"])",
+        "group_by": [
+          "productFamily"
+        ],
+        "ts_column": "timestamp",
+        "duration_hours": 1080,
+        "limit": 200,
+        "agg": "sum",
+        "column": "combination_count",
+        "type": "int"
+      },
+      {
+        "stream": "bcs_oi_inv_enriched",
+        "title": "Security Advisory Status",
+        "extra_filter1": "(`secAdv_matchConfidence` not in [\"Not Vulnerable\",\"Not Available\"])",
+        "group_by": [
+          "secAdv_matchConfidence"
+        ],
+        "ts_column": "timestamp",
+        "duration_hours": 1080,
+        "limit": 200,
+        "agg": "sum",
+        "column": "combination_count",
+        "type": "int"
+      },
+      {
+        "stream": "bcs_oi_inv_enriched",
+        "title": "Security Advisory Severity",
+        "extra_filter1": "(`secAdv_matchConfidence` not in [\"Not Vulnerable\",\"Not Available\"])",
+        "group_by": [
+          "secAdv_securityImpactRating"
+        ],
+        "ts_column": "timestamp",
+        "duration_hours": 1080,
+        "limit": 200,
+        "agg": "sum",
+        "column": "combination_count",
+        "type": "int"
+      },
+      {
+        "stream": "bcs_oi_inv_enriched",
+        "title": "Internet Facing",
+        "extra_filter1": "(`secAdv_matchConfidence` not in [\"Not Vulnerable\",\"Not Available\"])",
+        "group_by": [
+          "to_internet"
+        ],
+        "ts_column": "timestamp",
+        "duration_hours": 1080,
+        "limit": 200,
+        "agg": "sum",
+        "column": "combination_count",
+        "type": "int"
       }
     ]
   },
   "dashboard_sections": [
     {
-      "title": "snmp details",
+      "title": "Summary",
+      "scope_filter": "(`secAdv_matchConfidence` not in [\"Not Vulnerable\",\"Not Available\"])",
       "show_filter": true,
       "widgets": [
         {
           "widget_type": "label",
-          "max_width": 12,
-          "height": 0.5,
+          "label": "<div style='text-align:center;width:100%;'><h2><a style='text-decoration:none;color:#0066ff;' target='_blank'> Security Advisories </a></h2></div>",
           "min_width": 12,
-          "label": "<div style='text-align:center;width:100%;'><h1><a style='text-decoration:none;color:#0066ff;' target='_blank'>Customer SNMP Traps</a></h1></div>",
-          "widget_id": "33317e49"
+          "height": 0.3,
+          "max_width": 12,
+          "widget_id": "dd3ae8ae"
         },
         {
-          "title": "Total Traps",
+          "title": "Total Assets Impacted",
           "widget_type": "custom_counter",
-          "formatter": "DescriptiveCountFormatter",
-          "stream": "snmp_trap_event_stream_all",
-          "extra_filter0": "project_id in {{PROJ_ID}} or project_id is empty",
+          "duration_hours": 1080,
+          "extra_filter": "(cfx_physicalAssetType in 'Chassis')",
+          "stream": "bcs_oi_inv_enriched",
           "ts_column": "timestamp",
-          "column": "_id",
+          "column": "deviceId",
           "agg": "value_count",
           "type": "int",
-          "max_width": 3,
-          "height": 4,
           "min_width": 3,
+          "height": 4,
+          "max_width": 3,
           "style": {
             "color-list": [
-              "#215CC3"
+              "#0000FF"
             ]
           },
-          "widget_id": "df82078f"
+          "widget_id": "e412e074"
         },
         {
-          "title": "By Trap",
+          "title": "Security Advisory Severity",
           "widget_type": "pie_chart",
-          "stream": "snmp_trap_event_stream_all",
-          "extra_filter": "project_id in {{PROJ_ID}} or project_id is empty",
+          "extra_filter": "(cfx_physicalAssetType in 'Chassis')",
+          "stream": "bcs_oi_inv_enriched",
           "ts_column": "timestamp",
-          "group_by": [
-            "snmpTrapName"
-          ],
-          "column": "count_",
+          "duration_hours": 1080,
+          "column": "deviceId",
           "agg": "value_count",
+          "style": {
+            "color-map": {
+              "Critical": "#8B0000",
+              "High": "#FF4500",
+              "Medium": "#F6C309",
+              "Low": "#00BB00",
+              "Not Available": "#8c8c8c"
+            }
+          },
+          "group_by": [
+            "secAdv_securityImpactRating"
+          ],
+          "min_width": 3,
+          "height": 4,
+          "max_width": 3,
+          "widget_id": "dfd378ed"
+        },
+        {
+          "title": "Security Advisory Status",
+          "widget_type": "pie_chart",
+          "extra_filter": "(cfx_physicalAssetType in 'Chassis')",
+          "stream": "bcs_oi_inv_enriched",
+          "ts_column": "timestamp",
+          "duration_hours": 1080,
+          "column": "deviceId",
+          "agg": "value_count",
+          "style": {
+            "color-map": {
+              "Vulnerable": [
+                "#BB0000"
+              ],
+              "Potentially Vulnerable": [
+                "#F6C309"
+              ],
+              "Not Vulnerable": [
+                "#00BB00"
+              ]
+            }
+          },
+          "group_by": [
+            "secAdv_matchConfidence"
+          ],
+          "min_width": 3,
+          "height": 4,
+          "max_width": 3,
+          "widget_id": "2fa024db"
+        },
+        {
+          "title": "Total Sec Adv Bulletins",
+          "widget_type": "custom_counter",
+          "duration_hours": 1080,
+          "stream": "bcs_oi_productalerts-enriched",
+          "extra_filter": "source in 'securityAdvisories' and physicalAssetSubtype not contains 'WAP' ",
+          "ts_column": "timestamp",
+          "column": "securityAdvisoryColdId",
           "type": "int",
-          "min_width": 5,
-          "height": 4,
-          "max_width": 5,
-          "widget_id": "43799fef"
-        },
-        {
-          "title": "Traps by IP",
-          "widget_type": "pie_chart",
-          "stream": "snmp_trap_event_stream_all",
-          "extra_filter": "project_id in {{PROJ_ID}} or project_id is empty",
-          "ts_column": "timestamp",
-          "column": "count_",
-          "agg": "value_count",
-          "group_by": [
-            "rda_gw_client_ip"
-          ],
-          "type": "str",
-          "min_width": 4,
-          "height": 4,
-          "max_width": 8,
-          "widget_id": "5d627f3e"
-        },
-        {
-          "widget_type": "pie_chart",
-          "title": "Traps by Managed Status",
-          "stream": "snmp_trap_event_stream_all",
-          "extra_filter": "project_id in {{PROJ_ID}} or project_id is empty",
-          "ts_column": "timestamp",
-          "column": "count_",
-          "agg": "sum",
-          "group_by": [
-            "device_status"
-          ],
-          "min_width": 4,
-          "height": 4,
-          "max_width": 4,
-          "widget_id": "b9f66b8"
-        },
-        {
-          "widget_type": "pie_chart",
-          "title": "Assets by Managed Status ",
-          "stream": "snmp_trap_event_stream_all",
-          "extra_filter": "project_id in {{PROJ_ID}} or project_id is empty",
-          "ts_column": "timestamp",
-          "column": "rda_gw_client_ip",
           "agg": "cardinality",
-          "group_by": [
-            "device_status"
-          ],
-          "min_width": 4,
+          "min_width": 3,
           "height": 4,
-          "max_width": 4,
-          "widget_id": "b2266b8"
+          "max_width": 3,
+          "style": {
+            "color-list": [
+              "#0000FF"
+            ]
+          },
+          "widget_id": "52ca4890"
         },
         {
-          "title": "Unmanaged Devices",
-          "widget_type": "tabular",
-          "max_width": 4,
-          "height": 4,
-          "min_width": 4,
-          "extra_filter": "device_status contains 'UNMANAGED' and (project_id in {{PROJ_ID}} or project_id is empty)",
-          "stream": "snmp_trap_event_stream_all",
+          "widget_type": "multi_bar_chart",
+          "title": "Security Advisory Status by Severity",
+          "duration_hours": 1080,
           "ts_column": "timestamp",
+          "extra_filter": "(cfx_physicalAssetType in 'Chassis')",
+          "stream": "bcs_oi_inv_enriched",
+          "min_width": 12,
+          "height": 4,
+          "max_width": 12,
+          "limit": 20,
+          "group_by": [
+            "secAdv_matchConfidence",
+            "secAdv_securityImpactRating"
+          ],
+          "style": {
+            "color-map": {
+              "Not Vulnerable": "#00BB00",
+              "Potentially Vulnerable": "#F6C309",
+              "Vulnerable": "#BB0000"
+            }
+          },
+          "agg": "value_count",
+          "column": "deviceId",
+          "chartProperties": {
+            "legendLocation": "right",
+            "stacked": true,
+            "xAxisLabel": "Impact",
+            "yAxisLabel": "Count"
+          },
+          "widget_id": "4e8e2917"
+        },
+        {
+          "title": "Devices Count by Security Advisories",
+          "widget_type": "tabular",
+          "max_width": 12,
+          "height": 6,
+          "min_width": 12,
+          "duration_hours": 1080,
+          "ts_column": "timestamp",
+          "extra_filter": "source in 'securityAdvisories' and physicalAssetSubtype not contains 'WAP' ",
+          "stream": "bcs_oi_productalerts-enriched",
+          "remote_searchable": true,
+          "remote_searchable_cols": [
+            "securityAdvisoryColdId",
+            "securityAdvisoryId",
+            "bulletinTitle",
+            "secAdv_matchConfidence",
+            "secAdv_securityImpactRating"
+          ],
           "columns": {
-            "rda_gw_client_ip": "IP Address"
+            "securityAdvisoryColdId": {
+              "title": "Security Advisory Col ID",
+              "type": "DOUBLE",
+              "key": true,
+              "htmlTemplateForRow": "<a href=\"{{row.bulletinUrl}}\" target='_blank'>{{row.securityAdvisoryColdId}}</a>"
+            },
+            "securityAdvisoryId": {
+              "title": "Security Advisory ID",
+              "type": "TEXT"
+            },
+            "bulletinTitle": "Title",
+            "secAdv_confidence_color": {
+              "type": "COLOR-MAP",
+              "source-column": "secAdv_matchConfidence",
+              "color-map": {
+                "Not Vulnerable": "#00BB00",
+                "Vulnerable": "#BB0000",
+                "Potentially Vulnerable": "#F6C309"
+              }
+            },
+            "secAdv_matchConfidence": {
+              "title": "Security Advisory Status",
+              "type": "TEXT",
+              "key": true,
+              "htmlTemplateForRow": "<span class='badge' style='background-color: {{ row.secAdv_confidence_color }}' > {{ row.secAdv_matchConfidence }} </span>",
+              "visible": true
+            },
+            "secAdv_impact_rating_color": {
+              "type": "COLOR-MAP",
+              "source-column": "secAdv_securityImpactRating",
+              "color-map": {
+                "Critical": "#8B0000",
+                "High": "#FF4500",
+                "Medium": "#F6C309",
+                "Low": "#00BB00"
+              }
+            },
+            "secAdv_securityImpactRating": {
+              "title": "Security Advisory Severity",
+              "type": "TEXT",
+              "htmlTemplateForRow": "<span class='badge' style='background-color: {{ row.secAdv_impact_rating_color }}' > {{ row.secAdv_securityImpactRating }} </span>",
+              "visible": true
+            },
+            "id": {
+              "title": "ID",
+              "value": "user-dashboard-bcs-oi-pa-security-advisories-enriched-details",
+              "key": true,
+              "type": "FIXED_VALUE",
+              "hidden": true,
+              "visible": false
+            },
+            "value": "Impacted Device Count"
           },
           "pivot": {
             "group_by": [
-              "rda_gw_client_ip"
+              "securityAdvisoryColdId",
+              "securityAdvisoryId",
+              "bulletinTitle",
+              "secAdv_matchConfidence",
+              "secAdv_securityImpactRating",
+              "bulletinUrl"
             ],
-            "column": "count_",
+            "column": "deviceId",
             "agg": "value_count"
           },
-          "widget_id": "kz1MoAWD"
+          "actions": [
+            {
+              "appName": "user-dashboard",
+              "permission": "aia:page:view",
+              "drillDownContext": "id",
+              "drillDownLinkField": "value",
+              "identifier": "securityAdvisoryId",
+              "selectionType": "SINGLE",
+              "stateName": "app.featureapp",
+              "contextParamList": {
+                "contextParams": [
+                  {
+                    "paramKey": "securityAdvisoryColdId",
+                    "paramId": "a_securityAdvisoryColdId"
+                  },
+                  {
+                    "paramKey": "secAdv_matchConfidence",
+                    "paramId": "a_secAdv_matchConfidence"
+                  },
+                  {
+                    "paramKey": "securityAdvisoryId",
+                    "paramId": "a_securityAdvisoryId"
+                  }
+                ]
+              },
+              "title": "View Details",
+              "type": "GO_TO_APP_STATE"
+            }
+          ],
+          "widget_id": "ac6d2dd4"
         },
         {
-          "title": "SNMP Traps",
+          "title": "Assets with Security Advisories",
           "widget_type": "tabular",
           "max_width": 12,
           "height": 8,
           "min_width": 12,
-          "stream": "snmp_trap_event_stream_all",
-          "extra_filter": "project_id in {{PROJ_ID}} or project_id is empty",
+          "duration_hours": 1080,
           "ts_column": "timestamp",
-          "resizableColumns": false,
-          "max_rows": 100,
-          "showRowSummary": true,
-          "sorting": [
+          "extra_filter": "(cfx_physicalAssetType in 'Chassis')",
+          "stream": "bcs_oi_inv_enriched",
+          "columns": {
+            "deviceId": {
+              "title": "Device ID",
+              "type": "TEXT",
+              "key": true,
+              "visible": false
+            },
+            "deviceName": "Asset Name",
+            "deviceIp": "Asset IP",
+            "productId": "Product ID",
+            "serialNumber": "Serial Number",
+            "secAdv_confidence_color": {
+              "type": "COLOR-MAP",
+              "source-column": "secAdv_matchConfidence",
+              "color-map": {
+                "Not Vulnerable": "#00BB00",
+                "Vulnerable": "#BB0000",
+                "Potentially Vulnerable": "#F6C309"
+              }
+            },
+            "secAdv_matchConfidence": {
+              "title": "Security Advisory Status",
+              "type": "TEXT",
+              "htmlTemplateForRow": "<span class='badge' style='background-color: {{ row.secAdv_confidence_color }}' > {{ row.secAdv_matchConfidence }} </span>",
+              "visible": true
+            },
+            "secAdv_impact_rating_color": {
+              "type": "COLOR-MAP",
+              "source-column": "secAdv_securityImpactRating",
+              "color-map": {
+                "Critical": "#8B0000",
+                "High": "#FF4500",
+                "Medium": "#F6C309",
+                "Low": "#00BB00"
+              }
+            },
+            "secAdv_securityImpactRating": {
+              "title": "Security Advisory Severity",
+              "type": "TEXT",
+              "htmlTemplateForRow": "<span class='badge' style='background-color: {{ row.secAdv_impact_rating_color }}' > {{ row.secAdv_securityImpactRating }} </span>",
+              "visible": true
+            },
+            "productFamily": "Product Family",
+            "physicalAssetType": {
+              "title": "Equipment Type",
+              "type": "TEXT"
+            },
+            "softwareType": "SW Type",
+            "softwareVersion": "SW Version",
+            "productType": {
+              "title": "Product Type",
+              "type": "TEXT",
+              "visible": false
+            },
+            "to_internet": {
+              "title": "Internet Facing",
+              "type": "TEXT",
+              "visible": false
+            },
+            "physicalAssetId": {
+              "title": "Physical Asset ID",
+              "type": "DOUBLE",
+              "visible": false
+            },
+            "deviceType": {
+              "title": "Device Type",
+              "type": "TEXT",
+              "visible": false
+            },
+            "deviceStatus": {
+              "title": "Device Status",
+              "type": "TEXT",
+              "visible": false
+            },
+            "ipAddress": {
+              "title": "IP Address",
+              "type": "TEXT",
+              "visible": false
+            },
+            "id": {
+              "title": "ID",
+              "value": "user-dashboard-bcs-oi-overall-device-enriched-drilldown",
+              "key": true,
+              "type": "FIXED_VALUE",
+              "hidden": true,
+              "visible": false
+            }
+          },
+          "actions": [
             {
-              "timestamp": "desc"
+              "appName": "user-dashboard",
+              "permission": "aia:page:view",
+              "drillDownContext": "id",
+              "drillDownLinkField": "deviceName",
+              "identifier": "deviceName",
+              "selectionType": "SINGLE",
+              "stateName": "app.featureapp",
+              "title": "View Details",
+              "type": "GO_TO_APP_STATE"
             }
           ],
-          "remote_searchable": true,
-          "remote_searchable_cols": [
-            "rda_gw_client_ip",
-            "snmpTrapOID",
-            "device_vendor",
-            "device_status",
-            "snmpTrapMIB",
-            "snmpVersion",
-            "rda_gw_client_ip",
-            "snmpTrapName"
-          ],
+          "widget_id": "c37dd86e"
+        }
+      ]
+    },
+    {
+      "title": "Details",
+      "widgets": [
+        {
+          "title": "Security Advisories",
+          "widget_type": "tabular",
+          "max_width": 12,
+          "height": 8,
+          "min_width": 12,
+          "duration_hours": 1080,
+          "ts_column": "timestamp",
+          "stream": "bcs_oi_productalerts-enriched",
+          "extra_filter": "source in 'securityAdvisories'",
           "columns": {
-            "timestamp": "Timestamp",
-            "rda_gw_client_ip": "Device",
-            "device_hostname": "Device Hostname",
-            "message": "Message",
-            "snmpVersion": "SNMP Version",
-            "device_vendor": "Vendor",
-            "device_status": "Status",
-            "snmpTrapDescription": "MIB Description",
-            "snmpTrapName": "Trap Name",
-            "snmpTrapMIB": "MIB Name",
-            "device_fw_version": "OS Version",
-            "snmpTrapOID": "Trap OID"
+            "securityAdvisoryColdId": {
+              "title": "Security Advisory Col ID",
+              "htmlTemplateForRow": "<a href=\"{{row.bulletinUrl}}\" target='_blank'>{{row.securityAdvisoryColdId}}</a>"
+            },
+            "securityAdvisoryId": {
+              "title": "Security Advisory ID",
+              "type": "TEXT"
+            },
+            "secAdv_confidence_color": {
+              "type": "COLOR-MAP",
+              "source-column": "secAdv_matchConfidence",
+              "color-map": {
+                "Not Vulnerable": "#00BB00",
+                "Vulnerable": "#BB0000",
+                "Potentially Vulnerable": "#F6C309"
+              }
+            },
+            "secAdv_matchConfidence": {
+              "title": "Confidence",
+              "type": "TEXT",
+              "htmlTemplateForRow": "<span class='badge' style='background-color: {{ row.secAdv_confidence_color }}' > {{ row.secAdv_matchConfidence }} </span>"
+            },
+            "secAdv_impact_rating_color": {
+              "type": "COLOR-MAP",
+              "source-column": "secAdv_securityImpactRating",
+              "color-map": {
+                "Critical": "#8B0000",
+                "High": "#FF4500",
+                "Medium": "#F6C309",
+                "Low": "#00BB00"
+              }
+            },
+            "secAdv_securityImpactRating": {
+              "title": "Security Advisory Severity",
+              "type": "TEXT",
+              "htmlTemplateForRow": "<span class='badge' style='background-color: {{ row.secAdv_impact_rating_color }}' > {{ row.secAdv_securityImpactRating }} </span>",
+              "visible": true
+            },
+            "matchConfidenceReason": "Security Advisory Status Reason",
+            "deviceId": {
+              "title": "Device ID",
+              "type": "TEXT",
+              "key": true,
+              "visible": false
+            },
+            "bulletinTitle": "Title",
+            "bulletinUrl": {
+              "title": "URL",
+              "type": "TEXT",
+              "visible": false
+            }
           },
-          "widget_id": "46a6b5b6"
+          "pivot": {
+            "group_by": [
+              "securityAdvisoryColdId",
+              "securityAdvisoryId",
+              "secAdv_matchConfidence",
+              "bulletinTitle",
+              "secAdv_securityImpactRating",
+              "matchConfidenceReason",
+              "bulletinUrl"
+            ],
+            "column": "deviceId",
+            "agg": "value_count"
+          },
+          "widget_id": "d2c3b1a6"
         }
       ]
     }
   ],
-  "dashboard_type": "template",
-  "dashboard_pages": [],
   "pstream_dashboards": [
     {
-      "title": "snmp details",
+      "title": "Summary",
+      "scope_filter": "(`secAdv_matchConfidence` not in [\"Not Vulnerable\",\"Not Available\"])",
       "show_filter": true,
       "widgets": [
         {
           "widget_type": "label",
-          "max_width": 12,
-          "height": 0.5,
+          "label": "<div style='text-align:center;width:100%;'><h2><a style='text-decoration:none;color:#0066ff;' target='_blank'> Security Advisories </a></h2></div>",
           "min_width": 12,
-          "label": "<div style='text-align:center;width:100%;'><h1><a style='text-decoration:none;color:#0066ff;' target='_blank'>Customer SNMP Traps</a></h1></div>",
-          "widget_id": "33317e49"
+          "height": 0.3,
+          "max_width": 12,
+          "widget_id": "dd3ae8ae"
         },
         {
-          "title": "Total Traps",
+          "title": "Total Assets Impacted",
           "widget_type": "custom_counter",
-          "formatter": "DescriptiveCountFormatter",
-          "stream": "snmp_trap_event_stream_all",
-          "extra_filter0": "project_id in {{PROJ_ID}} or project_id is empty",
+          "duration_hours": 1080,
+          "extra_filter": "(cfx_physicalAssetType in 'Chassis')",
+          "stream": "bcs_oi_inv_enriched",
           "ts_column": "timestamp",
-          "column": "_id",
+          "column": "deviceId",
           "agg": "value_count",
           "type": "int",
-          "max_width": 3,
-          "height": 4,
           "min_width": 3,
+          "height": 4,
+          "max_width": 3,
           "style": {
             "color-list": [
-              "#215CC3"
+              "#0000FF"
             ]
           },
-          "widget_id": "df82078f"
+          "widget_id": "e412e074"
         },
         {
-          "title": "By Trap",
+          "title": "Security Advisory Severity",
           "widget_type": "pie_chart",
-          "stream": "snmp_trap_event_stream_all",
-          "extra_filter": "project_id in {{PROJ_ID}} or project_id is empty",
+          "extra_filter": "(cfx_physicalAssetType in 'Chassis')",
+          "stream": "bcs_oi_inv_enriched",
           "ts_column": "timestamp",
-          "group_by": [
-            "snmpTrapName"
-          ],
-          "column": "count_",
+          "duration_hours": 1080,
+          "column": "deviceId",
           "agg": "value_count",
+          "style": {
+            "color-map": {
+              "Critical": "#8B0000",
+              "High": "#FF4500",
+              "Medium": "#F6C309",
+              "Low": "#00BB00",
+              "Not Available": "#8c8c8c"
+            }
+          },
+          "group_by": [
+            "secAdv_securityImpactRating"
+          ],
+          "min_width": 3,
+          "height": 4,
+          "max_width": 3,
+          "widget_id": "dfd378ed"
+        },
+        {
+          "title": "Security Advisory Status",
+          "widget_type": "pie_chart",
+          "extra_filter": "(cfx_physicalAssetType in 'Chassis')",
+          "stream": "bcs_oi_inv_enriched",
+          "ts_column": "timestamp",
+          "duration_hours": 1080,
+          "column": "deviceId",
+          "agg": "value_count",
+          "style": {
+            "color-map": {
+              "Vulnerable": [
+                "#BB0000"
+              ],
+              "Potentially Vulnerable": [
+                "#F6C309"
+              ],
+              "Not Vulnerable": [
+                "#00BB00"
+              ]
+            }
+          },
+          "group_by": [
+            "secAdv_matchConfidence"
+          ],
+          "min_width": 3,
+          "height": 4,
+          "max_width": 3,
+          "widget_id": "2fa024db"
+        },
+        {
+          "title": "Total Sec Adv Bulletins",
+          "widget_type": "custom_counter",
+          "duration_hours": 1080,
+          "stream": "bcs_oi_productalerts-enriched",
+          "extra_filter": "source in 'securityAdvisories' and physicalAssetSubtype not contains 'WAP' ",
+          "ts_column": "timestamp",
+          "column": "securityAdvisoryColdId",
           "type": "int",
-          "min_width": 5,
-          "height": 4,
-          "max_width": 5,
-          "widget_id": "43799fef"
-        },
-        {
-          "title": "Traps by IP",
-          "widget_type": "pie_chart",
-          "stream": "snmp_trap_event_stream_all",
-          "extra_filter": "project_id in {{PROJ_ID}} or project_id is empty",
-          "ts_column": "timestamp",
-          "column": "count_",
-          "agg": "value_count",
-          "group_by": [
-            "rda_gw_client_ip"
-          ],
-          "type": "str",
-          "min_width": 4,
-          "height": 4,
-          "max_width": 8,
-          "widget_id": "5d627f3e"
-        },
-        {
-          "widget_type": "pie_chart",
-          "title": "Traps by Managed Status",
-          "stream": "snmp_trap_event_stream_all",
-          "extra_filter": "project_id in {{PROJ_ID}} or project_id is empty",
-          "ts_column": "timestamp",
-          "column": "count_",
-          "agg": "sum",
-          "group_by": [
-            "device_status"
-          ],
-          "min_width": 4,
-          "height": 4,
-          "max_width": 4,
-          "widget_id": "b9f66b8"
-        },
-        {
-          "widget_type": "pie_chart",
-          "title": "Assets by Managed Status ",
-          "stream": "snmp_trap_event_stream_all",
-          "extra_filter": "project_id in {{PROJ_ID}} or project_id is empty",
-          "ts_column": "timestamp",
-          "column": "rda_gw_client_ip",
           "agg": "cardinality",
-          "group_by": [
-            "device_status"
-          ],
-          "min_width": 4,
+          "min_width": 3,
           "height": 4,
-          "max_width": 4,
-          "widget_id": "b2266b8"
+          "max_width": 3,
+          "style": {
+            "color-list": [
+              "#0000FF"
+            ]
+          },
+          "widget_id": "52ca4890"
         },
         {
-          "title": "Unmanaged Devices",
-          "widget_type": "tabular",
-          "max_width": 4,
-          "height": 4,
-          "min_width": 4,
-          "extra_filter": "device_status contains 'UNMANAGED' and (project_id in {{PROJ_ID}} or project_id is empty)",
-          "stream": "snmp_trap_event_stream_all",
+          "widget_type": "multi_bar_chart",
+          "title": "Security Advisory Status by Severity",
+          "duration_hours": 1080,
           "ts_column": "timestamp",
+          "extra_filter": "(cfx_physicalAssetType in 'Chassis')",
+          "stream": "bcs_oi_inv_enriched",
+          "min_width": 12,
+          "height": 4,
+          "max_width": 12,
+          "limit": 20,
+          "group_by": [
+            "secAdv_matchConfidence",
+            "secAdv_securityImpactRating"
+          ],
+          "style": {
+            "color-map": {
+              "Not Vulnerable": "#00BB00",
+              "Potentially Vulnerable": "#F6C309",
+              "Vulnerable": "#BB0000"
+            }
+          },
+          "agg": "value_count",
+          "column": "deviceId",
+          "chartProperties": {
+            "legendLocation": "right",
+            "stacked": true,
+            "xAxisLabel": "Impact",
+            "yAxisLabel": "Count"
+          },
+          "widget_id": "4e8e2917"
+        },
+        {
+          "title": "Devices Count by Security Advisories",
+          "widget_type": "tabular",
+          "max_width": 12,
+          "height": 6,
+          "min_width": 12,
+          "duration_hours": 1080,
+          "ts_column": "timestamp",
+          "extra_filter": "source in 'securityAdvisories' and physicalAssetSubtype not contains 'WAP' ",
+          "stream": "bcs_oi_productalerts-enriched",
+          "remote_searchable": true,
+          "remote_searchable_cols": [
+            "securityAdvisoryColdId",
+            "securityAdvisoryId",
+            "bulletinTitle",
+            "secAdv_matchConfidence",
+            "secAdv_securityImpactRating"
+          ],
           "columns": {
-            "rda_gw_client_ip": "IP Address"
+            "securityAdvisoryColdId": {
+              "title": "Security Advisory Col ID",
+              "type": "DOUBLE",
+              "key": true,
+              "htmlTemplateForRow": "<a href=\"{{row.bulletinUrl}}\" target='_blank'>{{row.securityAdvisoryColdId}}</a>"
+            },
+            "securityAdvisoryId": {
+              "title": "Security Advisory ID",
+              "type": "TEXT"
+            },
+            "bulletinTitle": "Title",
+            "secAdv_confidence_color": {
+              "type": "COLOR-MAP",
+              "source-column": "secAdv_matchConfidence",
+              "color-map": {
+                "Not Vulnerable": "#00BB00",
+                "Vulnerable": "#BB0000",
+                "Potentially Vulnerable": "#F6C309"
+              }
+            },
+            "secAdv_matchConfidence": {
+              "title": "Security Advisory Status",
+              "type": "TEXT",
+              "key": true,
+              "htmlTemplateForRow": "<span class='badge' style='background-color: {{ row.secAdv_confidence_color }}' > {{ row.secAdv_matchConfidence }} </span>",
+              "visible": true
+            },
+            "secAdv_impact_rating_color": {
+              "type": "COLOR-MAP",
+              "source-column": "secAdv_securityImpactRating",
+              "color-map": {
+                "Critical": "#8B0000",
+                "High": "#FF4500",
+                "Medium": "#F6C309",
+                "Low": "#00BB00"
+              }
+            },
+            "secAdv_securityImpactRating": {
+              "title": "Security Advisory Severity",
+              "type": "TEXT",
+              "htmlTemplateForRow": "<span class='badge' style='background-color: {{ row.secAdv_impact_rating_color }}' > {{ row.secAdv_securityImpactRating }} </span>",
+              "visible": true
+            },
+            "id": {
+              "title": "ID",
+              "value": "user-dashboard-bcs-oi-pa-security-advisories-enriched-details",
+              "key": true,
+              "type": "FIXED_VALUE",
+              "hidden": true,
+              "visible": false
+            },
+            "value": "Impacted Device Count"
           },
           "pivot": {
             "group_by": [
-              "rda_gw_client_ip"
+              "securityAdvisoryColdId",
+              "securityAdvisoryId",
+              "bulletinTitle",
+              "secAdv_matchConfidence",
+              "secAdv_securityImpactRating",
+              "bulletinUrl"
             ],
-            "column": "count_",
+            "column": "deviceId",
             "agg": "value_count"
           },
-          "widget_id": "kz1MoAWD"
+          "actions": [
+            {
+              "appName": "user-dashboard",
+              "permission": "aia:page:view",
+              "drillDownContext": "id",
+              "drillDownLinkField": "value",
+              "identifier": "securityAdvisoryId",
+              "selectionType": "SINGLE",
+              "stateName": "app.featureapp",
+              "contextParamList": {
+                "contextParams": [
+                  {
+                    "paramKey": "securityAdvisoryColdId",
+                    "paramId": "a_securityAdvisoryColdId"
+                  },
+                  {
+                    "paramKey": "secAdv_matchConfidence",
+                    "paramId": "a_secAdv_matchConfidence"
+                  },
+                  {
+                    "paramKey": "securityAdvisoryId",
+                    "paramId": "a_securityAdvisoryId"
+                  }
+                ]
+              },
+              "title": "View Details",
+              "type": "GO_TO_APP_STATE"
+            }
+          ],
+          "widget_id": "ac6d2dd4"
         },
         {
-          "title": "SNMP Traps",
+          "title": "Assets with Security Advisories",
           "widget_type": "tabular",
           "max_width": 12,
           "height": 8,
           "min_width": 12,
-          "stream": "snmp_trap_event_stream_all",
-          "extra_filter": "project_id in {{PROJ_ID}} or project_id is empty",
+          "duration_hours": 1080,
           "ts_column": "timestamp",
-          "resizableColumns": false,
-          "max_rows": 100,
-          "showRowSummary": true,
-          "sorting": [
+          "extra_filter": "(cfx_physicalAssetType in 'Chassis')",
+          "stream": "bcs_oi_inv_enriched",
+          "columns": {
+            "deviceId": {
+              "title": "Device ID",
+              "type": "TEXT",
+              "key": true,
+              "visible": false
+            },
+            "deviceName": "Asset Name",
+            "deviceIp": "Asset IP",
+            "productId": "Product ID",
+            "serialNumber": "Serial Number",
+            "secAdv_confidence_color": {
+              "type": "COLOR-MAP",
+              "source-column": "secAdv_matchConfidence",
+              "color-map": {
+                "Not Vulnerable": "#00BB00",
+                "Vulnerable": "#BB0000",
+                "Potentially Vulnerable": "#F6C309"
+              }
+            },
+            "secAdv_matchConfidence": {
+              "title": "Security Advisory Status",
+              "type": "TEXT",
+              "htmlTemplateForRow": "<span class='badge' style='background-color: {{ row.secAdv_confidence_color }}' > {{ row.secAdv_matchConfidence }} </span>",
+              "visible": true
+            },
+            "secAdv_impact_rating_color": {
+              "type": "COLOR-MAP",
+              "source-column": "secAdv_securityImpactRating",
+              "color-map": {
+                "Critical": "#8B0000",
+                "High": "#FF4500",
+                "Medium": "#F6C309",
+                "Low": "#00BB00"
+              }
+            },
+            "secAdv_securityImpactRating": {
+              "title": "Security Advisory Severity",
+              "type": "TEXT",
+              "htmlTemplateForRow": "<span class='badge' style='background-color: {{ row.secAdv_impact_rating_color }}' > {{ row.secAdv_securityImpactRating }} </span>",
+              "visible": true
+            },
+            "productFamily": "Product Family",
+            "physicalAssetType": {
+              "title": "Equipment Type",
+              "type": "TEXT"
+            },
+            "softwareType": "SW Type",
+            "softwareVersion": "SW Version",
+            "productType": {
+              "title": "Product Type",
+              "type": "TEXT",
+              "visible": false
+            },
+            "to_internet": {
+              "title": "Internet Facing",
+              "type": "TEXT",
+              "visible": false
+            },
+            "physicalAssetId": {
+              "title": "Physical Asset ID",
+              "type": "DOUBLE",
+              "visible": false
+            },
+            "deviceType": {
+              "title": "Device Type",
+              "type": "TEXT",
+              "visible": false
+            },
+            "deviceStatus": {
+              "title": "Device Status",
+              "type": "TEXT",
+              "visible": false
+            },
+            "ipAddress": {
+              "title": "IP Address",
+              "type": "TEXT",
+              "visible": false
+            },
+            "id": {
+              "title": "ID",
+              "value": "user-dashboard-bcs-oi-overall-device-enriched-drilldown",
+              "key": true,
+              "type": "FIXED_VALUE",
+              "hidden": true,
+              "visible": false
+            }
+          },
+          "actions": [
             {
-              "timestamp": "desc"
+              "appName": "user-dashboard",
+              "permission": "aia:page:view",
+              "drillDownContext": "id",
+              "drillDownLinkField": "deviceName",
+              "identifier": "deviceName",
+              "selectionType": "SINGLE",
+              "stateName": "app.featureapp",
+              "title": "View Details",
+              "type": "GO_TO_APP_STATE"
             }
           ],
-          "remote_searchable": true,
-          "remote_searchable_cols": [
-            "rda_gw_client_ip",
-            "snmpTrapOID",
-            "device_vendor",
-            "device_status",
-            "snmpTrapMIB",
-            "snmpVersion",
-            "rda_gw_client_ip",
-            "snmpTrapName"
-          ],
+          "widget_id": "c37dd86e"
+        }
+      ]
+    },
+    {
+      "title": "Details",
+      "widgets": [
+        {
+          "title": "Security Advisories",
+          "widget_type": "tabular",
+          "max_width": 12,
+          "height": 8,
+          "min_width": 12,
+          "duration_hours": 1080,
+          "ts_column": "timestamp",
+          "stream": "bcs_oi_productalerts-enriched",
+          "extra_filter": "source in 'securityAdvisories'",
           "columns": {
-            "timestamp": "Timestamp",
-            "rda_gw_client_ip": "Device",
-            "device_hostname": "Device Hostname",
-            "message": "Message",
-            "snmpVersion": "SNMP Version",
-            "device_vendor": "Vendor",
-            "device_status": "Status",
-            "snmpTrapDescription": "MIB Description",
-            "snmpTrapName": "Trap Name",
-            "snmpTrapMIB": "MIB Name",
-            "device_fw_version": "OS Version",
-            "snmpTrapOID": "Trap OID"
+            "securityAdvisoryColdId": {
+              "title": "Security Advisory Col ID",
+              "htmlTemplateForRow": "<a href=\"{{row.bulletinUrl}}\" target='_blank'>{{row.securityAdvisoryColdId}}</a>"
+            },
+            "securityAdvisoryId": {
+              "title": "Security Advisory ID",
+              "type": "TEXT"
+            },
+            "secAdv_confidence_color": {
+              "type": "COLOR-MAP",
+              "source-column": "secAdv_matchConfidence",
+              "color-map": {
+                "Not Vulnerable": "#00BB00",
+                "Vulnerable": "#BB0000",
+                "Potentially Vulnerable": "#F6C309"
+              }
+            },
+            "secAdv_matchConfidence": {
+              "title": "Confidence",
+              "type": "TEXT",
+              "htmlTemplateForRow": "<span class='badge' style='background-color: {{ row.secAdv_confidence_color }}' > {{ row.secAdv_matchConfidence }} </span>"
+            },
+            "secAdv_impact_rating_color": {
+              "type": "COLOR-MAP",
+              "source-column": "secAdv_securityImpactRating",
+              "color-map": {
+                "Critical": "#8B0000",
+                "High": "#FF4500",
+                "Medium": "#F6C309",
+                "Low": "#00BB00"
+              }
+            },
+            "secAdv_securityImpactRating": {
+              "title": "Security Advisory Severity",
+              "type": "TEXT",
+              "htmlTemplateForRow": "<span class='badge' style='background-color: {{ row.secAdv_impact_rating_color }}' > {{ row.secAdv_securityImpactRating }} </span>",
+              "visible": true
+            },
+            "matchConfidenceReason": "Security Advisory Status Reason",
+            "deviceId": {
+              "title": "Device ID",
+              "type": "TEXT",
+              "key": true,
+              "visible": false
+            },
+            "bulletinTitle": "Title",
+            "bulletinUrl": {
+              "title": "URL",
+              "type": "TEXT",
+              "visible": false
+            }
           },
-          "widget_id": "46a6b5b6"
+          "pivot": {
+            "group_by": [
+              "securityAdvisoryColdId",
+              "securityAdvisoryId",
+              "secAdv_matchConfidence",
+              "bulletinTitle",
+              "secAdv_securityImpactRating",
+              "matchConfidenceReason",
+              "bulletinUrl"
+            ],
+            "column": "deviceId",
+            "agg": "value_count"
+          },
+          "widget_id": "d2c3b1a6"
         }
       ]
     }
