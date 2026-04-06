@@ -1,38 +1,26 @@
-folder: katturne
-name: test_get_sweol
-description: test pipeline
-data_path: pipelines/data/test_get_sweol/2025-06-25_1/data.json
-usecase: ''
-category: ''
-sources:
-  snowflake:
-    name: snowflake
-    type: snowflake
-  cfxaia:
-    name: cfxaia
-    type: cfxaia
-  rn:
-    name: rn
-    type: rn
-artifacts:
-- artifact_type: dataset
-  artifact_name: $sw_dataset
-  access: read
-- artifact_type: dataset
-  artifact_name: edc_pid_ostype_dict
-  access: read
-- artifact_type: dataset
-  artifact_name: test-sw-eol-details
-  access: read
-- artifact_type: dataset
-  artifact_name: final-enrich
-  access: write
-- artifact_type: dataset
-  artifact_name: test-contract_data
-  access: write
-- artifact_type: rda-network-stream
-  artifact_name: edc_customer_inventory
-  access: write
-version: 2025-06-25_1
-file_type: json
-checksum: '75563284'
+@dm:empty
+ --> @exec:get-input
+ --> @dm:save name="file_upload0"
+ --> @dm:selectcolumns include="fileUpload|Option"
+ --> @dm:explode-json column="fileUpload"
+ --> @dm:save name="temp-input-dataset"
+ --> @dm:save name="file_upload"
+ --> @c:new-block
+ --> @c:data-loop dataset="temp-input-dataset" and columns="bucketName,objectName,Option"
+ --> @dm:recall name="temp-input-dataset"
+ --> @dm:skip-block-if-shape row_count=0
+ --> @dm:get-from-location path="$bucketName/$objectName"
+ --> @dm:save name="temp-uploaded-file-data"
+ --> @c:new-block
+ --> @c:data-loop dataset="file_upload0" and columns="customer_name,proj_name,Option"
+ --> *exec:if-condition '$Option' == 'option_2'
+ --> @dm:recall name="temp-uploaded-file-data"
+ --> @dm:add-missing-columns columns = 'Customer' &
+value = '$customer_name'
+ --> @dm:add-missing-columns columns = 'Project Name' &
+value = '$proj_name'
+ --> @dm:save name="file_upload2"
+ --> @rn:write-stream name = "input_data"
+ --> @c:new-block
+ --> @dm:recall name="temp-uploaded-file-data"
+ --> @rn:write-stream name = "input_data"
