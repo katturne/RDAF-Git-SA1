@@ -1,54 +1,85 @@
+
+ ## collab-db-to-pstream-migration
+
+ ## ========================MAKE SURE TO RUN THE FOLLOWING BEFORE PIPELINE EXECUTION
+
+ ## mysql> alter table irmessagesharing add column if not exists migration_status varchar(100);
+
+ ## .
+
+ ## mysql> alter table message add column if not exists migration_status varchar(100);
+
+ ## .
+
+ ## mysql> alter table teamincident add column if not exists migration_status varchar(100);
+
+ ## ================================================================================
+
+ ## .
+
+ ## MESSAGE
+
+ ## .
 @c:new-block
- --> @dm:recall name='before-explode-sweol'
- --> @dm:dedup columns='product_id,sw_os_type,sw_version'
- --> *dm:filter issues is not '[]'
- --> @dm:save name='before-explode-sweol-new'
- --> @dm:eval issues='eval(issues)'
- --> @dm:eval issues='json_dumps(issues)'
- --> @dm:explode-json column="issues"
- --> @dm:eval eoXAlert='json_dumps(eoXAlert)'
- --> @dm:explode-json column="eoXAlert"
- --> @dm:save name='temp-sweol'
- ## --> @dm:save name='exploded-sweol'
+ --> @dm:empty
+ --> @dm:addrow table="message" & dbname="98e005500460423c886d8e30d8a9acf6_cfxdimensions_app_collaboratio" & limit=5 & retry_count=5 & retry_interval=10
+ --> #mysqlv2:read migration_status is None or migration_status is not 'SUCCESS1'
+ --> @dm:save name="temp-collab-db-message"
+ ## Write/Publish
 
- ## --> @c:new-block
+ ## --unique_keys projectid,incidentid,messageid
 
- ## --> @dm:recall name='added-sw-data'
+ --> @dm:selectcolumns exclude="migration_status"
+ --> @dm:to-type columns="createdat,updatedat" & type="str"
+ --> @rn:write-stream name="staging-oia-incidents-collaboration-stream"
+ ## Update the migration_status column on the db
 
- ## --> @dm:addrow product_id='AIR-AP2802E-B-K9' and sw_version='17.12.4.208' and sw_os_type='IOS-XE' and contract_number='9517555'
+ --> @dm:recall name="temp-collab-db-message"
+ --> @dm:eval migration_status="'SUCCESS'"
+ --> @mysqlv2:update dbname="98e005500460423c886d8e30d8a9acf6_cfxdimensions_app_collaboratio" & table="message" & update_columns="migration_status"
+ ## .
 
- ## --> @dm:enrich dict='before-explode-sweol-new' and src_key_cols='product_id,sw_os_type,sw_version' and dict_key_cols='product_id,sw_os_type,sw_version' and enrich_cols='issues' and how_type='inner' and dedup_dict='no'
+ ## IRMESSAGESHARING
 
- ## --> @dm:save name='test-sweol_cn_enriched'
+ ## .
 
- ## --> @dm:empty
+ --> @c:new-block
+ --> @dm:empty
+ --> @dm:addrow table="irmessagesharing" & dbname="98e005500460423c886d8e30d8a9acf6_cfxdimensions_app_collaboratio" & limit=5 & retry_count=5 & retry_interval=10
+ --> #mysqlv2:read migration_status is None or migration_status is not 'SUCCESS1'
+ --> @dm:save name="temp-collab-db-irmessagesharing"
+ ## Write/Publish
 
- ## --> @dm:addrow name='edc_oi_inventory_enriched' and limit=0
+ ## --unique_keys projectid,incidentid,messageid,shared_to_team
 
- ## --> #dm:query-persistent-stream customer_name=='ATT'
+ --> @dm:selectcolumns exclude="migration_status"
+ --> @dm:to-type columns="shared_time" & type="str"
+ --> @rn:write-stream name="staging-oia-collab-messagesharing-stream"
+ ## Update the migration_status column on the db
 
- ## --> @dm:save name='temp-hw-data'
+ --> @dm:recall name="temp-collab-db-irmessagesharing"
+ --> @dm:eval migration_status="'SUCCESS'"
+ --> @mysqlv2:update dbname="98e005500460423c886d8e30d8a9acf6_cfxdimensions_app_collaboratio" & table="irmessagesharing" & update_columns="migration_status"
+ ## .
 
- ## --> @c:new-block
+ ## TEAMINCIDENT
 
- ## --> @dm:recall name='temp-hw-data'
+ ## .
 
- ## --> @dm:to-type columns='contract_number' and type='int'
+ --> @c:new-block
+ --> @dm:empty
+ --> @dm:addrow table="teamincident" & dbname="98e005500460423c886d8e30d8a9acf6_cfxdimensions_app_collaboratio" & limit=5 & retry_count=5 & retry_interval=10
+ --> #mysqlv2:read migration_status is None or migration_status is not 'SUCCESS1'
+ --> @dm:save name="temp-collab-db-teamincident"
+ ## Write/Publish
 
- ## --> @dm:save name='temp-hw-data'
+ ## --unique_keys projectid,incidentid,messageid,team_id,collab_type
 
- ## --> @c:new-block
+ --> @dm:selectcolumns exclude="migration_status"
+ --> @dm:to-type columns="shared_time" & type="str"
+ --> @rn:write-stream name="staging-oia-incidents-external-tickets-stream"
+ ## Update the migration_status column on the db
 
- ## --> @dm:recall name='test-sweol_cn_enriched'
-
- ## --> @dm:to-type columns='contract_number' and type='int'
-
- ## --> @dm:enrich dict='temp-hw-data' and src_key_cols='product_id,contract_number,customer' and dict_key_cols='product_id,contract_number,customer_name' and enrich_cols='gu_name,savm_sales_level_4_name,coverage,covered_line_status,business_entity,business_sub_entity,bk_end_of_life_request_num,bk_eol_bulletin_product_typ_cd,hwEOL_endOfNewServiceAttachmentDate,hwEOL_endOfRoutineFailureAnalysisDate,hwEOL_endOfSoftwareMaintenanceReleasesDate,hwEOL_endOfServiceContractRenewalDate,hwEOL_endOfLifeAnnouncementDate,eol_product_name,item_type,hwEOL_endOfSaleDate,hwEOL_lastDayOfSupportDate,product_description,product_family,product_family_description,product_type,product_list_price,portfolio_desc,usage_code,combination_count,execution_status,total_product_list_price,unique_key,hw_status,hw_expiring_qtr,hw_expiring_year,last_updated_time,product_name' and how_type='inner' and replace_values='yes'
-
- ## --> @dm:save name='enriched-op-35-inv'
-
- --> @dm:recall name='temp-sweol'
- --> *dm:filter customer == 'ATT'
- --> @exec:run-pipeline name='edc_processing_sw_data'
- --> @dm:to-type columns='contract_number' and type='int'
- --> @dm:save name='processed-sw-op'
+ --> @dm:recall name="temp-collab-db-teamincident"
+ --> @dm:eval migration_status="'SUCCESS'"
+ --> @mysqlv2:update dbname="98e005500460423c886d8e30d8a9acf6_cfxdimensions_app_collaboratio" & table="teamincident" & update_columns="migration_status"
