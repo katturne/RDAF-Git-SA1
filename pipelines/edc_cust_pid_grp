@@ -1,26 +1,28 @@
-@dm:empty
+
+ ## =========================================
+
+ ## Write to status stream
+
+ ## Save form fields in historical stream
+
+ ## =========================================
+@c:new-block
+ ## Get submitted form fields
+
  --> @exec:get-input
- --> @dm:save name="file_upload0"
- --> @dm:selectcolumns include="fileUpload|Option"
- --> @dm:explode-json column="fileUpload"
- --> @dm:save name="temp-input-dataset"
- --> @dm:save name="file_upload"
- --> @c:new-block
- --> @c:data-loop dataset="temp-input-dataset" and columns="bucketName,objectName,Option"
- --> @dm:recall name="temp-input-dataset"
- --> @dm:skip-block-if-shape row_count=0
- --> @dm:get-from-location path="$bucketName/$objectName"
- --> @dm:save name="temp-uploaded-file-data"
- --> @c:new-block
- --> @c:data-loop dataset="file_upload0" and columns="customer_name,proj_name,Option"
- --> *exec:if-condition '$Option' == 'option_2'
- --> @dm:recall name="temp-uploaded-file-data"
- --> @dm:add-missing-columns columns = 'Customer' &
-value = '$customer_name'
- --> @dm:add-missing-columns columns = 'Project Name' &
-value = '$proj_name'
- --> @dm:save name="file_upload2"
- --> @rn:write-stream name = "input_data"
- --> @c:new-block
- --> @dm:recall name="temp-uploaded-file-data"
- --> @rn:write-stream name = "input_data"
+ --> @dm:selectcolumns exclude='.*_label'
+ --> @dm:selectcolumns include='customer_list|USER_ID'
+ ## Separate customer
+
+ --> @dm:explode-json column='customer_list'
+ --> @dm:save name='temp-cusomer_pid_form'
+ --> @dm:save name='edc-cusomer_pid_form'
+ --> @c:data-loop dataset="temp-cusomer_pid_form" and columns="customer,USER_ID"
+ --> @dm:empty
+ --> @dm:addrow name="edc_oi_inventory_grouped" and limit=0
+ --> #dm:query-persistent-stream customer_name='$customer' and item_type is 'CHASSIS' and product_type in ['ROUTER','SWITCH','FUNCSYSTM','MULTIPROD']
+ --> *dm:filter contract_number is not NULL
+ --> @dm:selectcolumns include='customer_name|contract_number|product_name|combination_count'
+ --> @dm:addrow user_id="$USER_ID"
+ --> @dm:groupby columns ="customer_name,contract_number,product_name"
+ --> @dm:save name='edc_cust_contract_pid'

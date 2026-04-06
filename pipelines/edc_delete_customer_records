@@ -1,50 +1,16 @@
-folder: Default
-name: cml_process_snmp_traps
-description: test pipeline
-data_path: pipelines/data/cml_process_snmp_traps/1.0.0/data.json
-usecase: ''
-category: ''
-sources:
-  rn:
-    name: rn
-    type: rn
-  restclient:
-    name: restclient
-    type: restclient
-artifacts:
-- artifact_type: rda-network-stream
-  artifact_name: snmp_trap_event_stream
-  access: read
-- artifact_type: dataset
-  artifact_name: cml-cdp-data
-  access: read
-- artifact_type: dataset
-  artifact_name: cml-interface-data
-  access: read
-- artifact_type: rda-network-stream
-  artifact_name: new_cml_snmp_trap_alerts_debug
-  access: write
-- artifact_type: formatting-template
-  artifact_name: snmp_trap_alert_template
-  access: read
-- artifact_type: rda-network-stream
-  artifact_name: cml_topo_edges
-  access: read
-- artifact_type: rda-network-stream
-  artifact_name: new_cml_snmp_trap_alerts_debug
-  access: write
-- artifact_type: formatting-template
-  artifact_name: snmp_trap_alert_template
-  access: read
-- artifact_type: rda-network-stream
-  artifact_name: cml_topo_edges
-  access: read
-- artifact_type: rda-network-stream
-  artifact_name: new_cml_snmp_trap_alerts_debug
-  access: write
-- artifact_type: formatting-template
-  artifact_name: snmp_trap_alert_template
-  access: read
-version: 1.0.0
-file_type: json
-checksum: be8b575e
+
+ ## Get row input
+@c:new-block
+ --> @dm:empty
+ --> @exec:get-input
+ ## --> @dm:selectcolumns include='device_hostname|device_identifier|device_controller_id'
+
+ --> @dm:save name='temp-form-data'
+ --> @c:data-loop columns="customer_name" and dataset="temp-form-data"
+ --> @dm:empty
+ --> @dm:addrow name = "edc_oi_inventory_grouped" & conflicts = "proceed" & timeout = 1200
+ --> #dm:pstream-delete-data-by-query customer_name=="$customer_name"
+ --> @c:data-loop columns="customer_name" and dataset="temp-form-data"
+ --> @dm:empty
+ --> @dm:addrow name = "edc_oi_inventory_enriched" & conflicts = "proceed" & timeout = 1200
+ --> #dm:pstream-delete-data-by-query customer_name=="$customer_name"
