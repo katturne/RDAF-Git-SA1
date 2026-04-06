@@ -1,31 +1,149 @@
-
- ## snow-to-oia-main
-
- ## 
-
- ## A work around is to mention all child and dependent pipelines here.
-@c:new-block
- --> @dm:empty
- --> @dm:skip-block-if-shape row_count = 0 & column_count = 0
- --> @exec:run-pipeline name="oia-incident-status-tracker-stream" & ignore_failures="no"
- --> @exec:run-pipeline name="snow-to-oia" & ignore_failures="no"
- --> @c:bookmark-loop bookmark = 'snow-to-oia-bkmrk' & initial_value = '-1 minute'
- --> @dm:empty
- --> @dm:addrow name="snow_ticket_notifications" & max_rows="1000"
- ## Query records from Stream
-
- --> #dm:query-persistent-stream timestamp is after '${bookmark}' and u_cfx_source is 'Alert Group'
- --> @dm:save name="temp-raw-input"
- --> @dm:skip-block-if-shape row_count = 0 & column_count = 0
- --> @rn:write-stream compression="auto" & name="debug-external-to-oia-main-1"
- ## Record The Step
-
- --> @dm:eval pipeline="'snow-to-oia-main'" & step="'snow_ticket_notifications'" & stage="'bookmark ${bookmark}'" & status_comments="'External:' + number" & status="'INFO'"
- --> @exec:run-pipeline name="oia-incident-status-tracker-stream" & ignore_failures="yes"
- ## Load the corresponding Handler
-
- --> @exec:run-pipeline name="snow-to-oia" & ignore_failures="no"
- --> @dm:recall name="temp-raw-input"
- --> @dm:save_bookmark name = 'snow-to-oia-bkmrk' & value_column = 'timestamp' & value_type = 'timestamp' & value_func = 'max'
- --> @dm:sleep seconds=5
- --> @dm:empty
+{
+  "name": "niki-preview-template",
+  "label": "Preview template",
+  "description": "Preview template",
+  "context_label_id": "deviceName",
+  "dashboard_folder": "Default",
+  "version": "2024-04-03_02",
+  "enabled": false,
+  "debug": true,
+  "live_edit": true,
+  "dashboard_type": "template",
+  "template_variables": {
+    "deviceName": {
+      "contextId": "deviceName"
+    }
+  },
+  "dashboard_filters": {
+    "columns_filter": [],
+    "group_filters": []
+  },
+  "dashboard_sections": [
+    {
+      "title": "Summary",
+      "show_filter": true,
+      "widgets": [
+        {
+          "title": "Product",
+          "widget_type": "summary",
+          "duration_hours": 1080,
+          "paginated": false,
+          "max_rows": 1,
+          "limit": 1,
+          "max_width": 12,
+          "height": 5,
+          "min_width": 12,
+          "stream": "sample_json",
+          "ts_column": "timestamp",
+          "extra_filter": "deviceName is {{ deviceName }} ",
+          "columns": {
+            "deviceName": {
+              "title": "Devicename",
+              "type": "TEXT",
+              "hidden": false,
+              "key": true
+            },
+            "info": {
+              "title": "Info",
+              "type": "TEXT",
+              "hidden": false,
+              "key": true
+            },
+            "detail": {
+              "title": "Detail",
+              "type": "TEXT",
+              "hidden": true,
+              "key": true
+            },
+            "timestamp": {
+              "title": "Timestamp",
+              "type": "DATETIME",
+              "visible": true
+            }
+          },
+          "widget_id": "a69be2eb"
+        },
+        {
+          "widget_type": "codeblock",
+          "title": "Code Block",
+          "stream": "sample_json",
+          "virtual_scrolling": true,
+          "extra_filter": "deviceName is {{ deviceName }} and detail is not None GET detail ",
+          "columns": {
+            "detail": {
+              "type": "TEXT",
+              "hidden": false,
+              "key": true
+            }
+          },
+          "lang": "json",
+          "widget_id": "72f885d9"
+        }
+      ]
+    }
+  ],
+  "pstream_dashboards": [
+    {
+      "title": "Summary",
+      "show_filter": true,
+      "widgets": [
+        {
+          "title": "Product",
+          "widget_type": "summary",
+          "duration_hours": 1080,
+          "paginated": false,
+          "max_rows": 1,
+          "limit": 1,
+          "max_width": 12,
+          "height": 5,
+          "min_width": 12,
+          "stream": "sample_json",
+          "ts_column": "timestamp",
+          "extra_filter": "deviceName is {{ deviceName }} ",
+          "columns": {
+            "deviceName": {
+              "title": "Devicename",
+              "type": "TEXT",
+              "hidden": false,
+              "key": true
+            },
+            "info": {
+              "title": "Info",
+              "type": "TEXT",
+              "hidden": false,
+              "key": true
+            },
+            "detail": {
+              "title": "Detail",
+              "type": "TEXT",
+              "hidden": true,
+              "key": true
+            },
+            "timestamp": {
+              "title": "Timestamp",
+              "type": "DATETIME",
+              "visible": true
+            }
+          },
+          "widget_id": "a69be2eb"
+        },
+        {
+          "widget_type": "codeblock",
+          "title": "Code Block",
+          "stream": "sample_json",
+          "virtual_scrolling": true,
+          "extra_filter": "deviceName is {{ deviceName }} and detail is not None GET detail ",
+          "columns": {
+            "detail": {
+              "type": "TEXT",
+              "hidden": false,
+              "key": true
+            }
+          },
+          "lang": "json",
+          "widget_id": "72f885d9"
+        }
+      ]
+    }
+  ]
+}
