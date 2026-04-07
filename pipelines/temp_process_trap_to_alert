@@ -1,26 +1,35 @@
 @dm:empty
- --> @exec:get-input
- --> @dm:save name="file_upload0"
- --> @dm:selectcolumns include="fileUpload|Option"
- --> @dm:explode-json column="fileUpload"
- --> @dm:save name="temp-input-dataset"
- --> @dm:save name="file_upload"
  --> @c:new-block
- --> @c:data-loop dataset="temp-input-dataset" and columns="bucketName,objectName,Option"
- --> @dm:recall name="temp-input-dataset"
- --> @dm:skip-block-if-shape row_count=0
- --> @dm:get-from-location path="$bucketName/$objectName"
- --> @dm:save name="temp-uploaded-file-data"
- --> @c:new-block
- --> @c:data-loop dataset="file_upload0" and columns="customer_name,proj_name,Option"
- --> *exec:if-condition '$Option' == 'option_2'
- --> @dm:recall name="temp-uploaded-file-data"
- --> @dm:add-missing-columns columns = 'Customer' &
-value = '$customer_name'
- --> @dm:add-missing-columns columns = 'Project Name' &
-value = '$proj_name'
- --> @dm:save name="file_upload2"
- --> @rn:write-stream name = "input_data"
- --> @c:new-block
- --> @dm:recall name="temp-uploaded-file-data"
- --> @rn:write-stream name = "input_data"
+ --> @rn:read-stream name = 'snmp_trap_event_stream' & group = '06_14_2023'
+ --> @dm:map-snmp-trap-to-alert template_folder="trap2alert2"
+ ## For now, process this only for cml devices
+
+ --> *dm:filter rda_gw_client_ip contains '9.3.252'
+ ## Handle OSPF NBR CHANGE traps
+
+ --> *exec:if-condition snmpTrapName is 'ospfNbrStateChange'
+ --> @dm:eval link_type="'OSPF'"
+ --> @dm:save name="temp-ospf-raw-trap"
+ --> #dm:query-persistent-stream left_id is '{{row.device}}' and neighbor_id="{{row.ospfNbrRtrId}}" and timestamp is after -1440 hours with-input name="cml_topo_edges" and limit="1" and max_rows="1"
+ --> @dm:selectcolumns include="^left_id$|^right_id$"
+ ## -->  @dm:eval left_id="left_id.strip()"
+
+ --> @dm:map attr="left_id" & func="strip"
+ --> @dm:eval dict_name = "'temp-topo-data'"
+ --> @rn:write-stream name = 'new_cml_snmp_trap_alerts_debug'
+ --> @dm:save name="temp-topo-data"
+ --> @dm:recall name="temp-ospf-raw-trap"
+ --> @dm:selectcolumns include="^device$"
+ ## -->  @dm:eval device="device.strip()"
+
+ --> @dm:map attr="device" & func="strip"
+ --> @dm:eval dict_name = "'current'"
+ --> @rn:write-stream name = 'new_cml_snmp_trap_alerts_debug'
+ --> @dm:enrich dict="temp-topo-data"
+and src_key_cols="device"
+and dict_key_cols="left_id"
+and enrich_cols="right_id"
+and enrich_cols_as="remote_ip_new"
+ --> @dm:eval dict_name = "'final'"
+ --> @rn:write-stream name = 'new_cml_snmp_trap_alerts_debug'
+ --> @exec:end-if

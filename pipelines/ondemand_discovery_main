@@ -1,242 +1,290 @@
+%%template_type="jinja"
 
- ## 2025-08-04 Added column end_of_security_vuln_support_dt, and procesing of Qtr for EOL Announcement
+##%% import_src_type = "asset-discovery"
+%%start_inline_object name="context_dynamic_form" and type="data" and format="json"
+{
+    "formFieldList": [
+        {
+            "fieldId": "customer_tag",
+            "label": "Tag of the customer",
+            "required": false,
+            "dataType": "string"
+        }
+    ]
+}
+%%end_inline_object
+
 @dm:empty
- --> @exec:get-input
- --> @dm:save name='temp-grouped-data'
- --> @c:new-block
- --> @dm:recall name='temp-grouped-data'
- --> @dm:groupby columns ='customer_name'
- --> @dm:save name='temp-unique-customer-name'
- --> @c:new-block
- --> @dm:empty
- --> @dm:save name='edc_status'
- --> @c:data-loop columns='customer_name' and dataset='temp-unique-customer-name'
- --> @dm:empty
- --> @dm:recall name='temp-grouped-data'
- --> *dm:filter customer_name in '$customer_name'
- ## --> #dm:query-persistent-stream gu_name in '$gu_name'
+    --> @dm:save name = "temp-customer-context"
 
- ## adding columns in case of missing
 
- --> @dm:add-missing-columns columns="bk_end_of_life_request_num,bk_eol_bulletin_product_typ_cd,end_of_new_svc_attachment_dt,end_of_routine_fail_anlysys_dt,end_of_security_vuln_support_dt,end_of_software_maintenance_dt,end_of_svc_contract_rnwl_dt,eol_external_announce_dt,eol_product_name,last_date_of_sale,last_date_of_support,product_description,product_family,product_family_description,product_type,item_type"
- ## adding not available to null values and creating a unique key
+   {% if customer_tag %} 
+      {% set customer_id = customer_id %}
+      {% set customer_tag = customer_tag %}
+      {% set customerTag = customer_tag %}
+   {% elif customerTag %} 
+      {% set customer_id = customer_id %}
+      {% set customer_tag = customerTag %}
+   {% else %}
+      {% set customer_id = '' %}
+      {% set customer_tag = '' %}
+   {% endif %}   
 
- --> @dm:fixnull columns='contract_number,product_name,coverage,covered_line_status,business_entity,business_sub_entity,bk_end_of_life_request_num,bk_eol_bulletin_product_typ_cd,end_of_new_svc_attachment_dt,end_of_routine_fail_anlysys_dt,end_of_security_vuln_support_dt,end_of_software_maintenance_dt,end_of_svc_contract_rnwl_dt,eol_external_announce_dt,eol_product_name,gu_name,item_type,last_date_of_sale,last_date_of_support,product_description,product_family,product_family_description,product_type,combination_count' and value="Not Available"  and apply_for_empty="yes"
- ## --> @dm:manipulate-string from="gu_name,__uuid" and func="concat_columns" and to="unique_gu_name" and value="_"
+-->@c:new-block
+    --> @dm:empty
+    --> @dm:save name = "temp-discovery"
+    --> @dm:save name = "temp-discovery-ondemand"
+    --> @dm:save name = "temp-main_discovery_result"
+    --> @dm:save name = "temp-discovery-ondemand-data"
+    --> @dm:save name = "temp-ondemand-discovery"
+    --> @dm:save name = "temp-discovery-data"
 
- --> @dm:save name='temp-hw-sw-eol-details'
- ## Procressing Data of HW Status and SW Status from Inventory Data
+--> @c:flex-block
+    --> @dm:empty
+    --> @exec:define-function name = 'test-func'
+       --> @exec:run-pipeline name="juniper_discovery_main_pipeline"
+       --> @exec:run-pipeline name="cisco_discovery_main_pipeline"
+       ## --> @exec:run-pipeline name="vyatta_discovery_main_pipeline"
+       --> @exec:run-pipeline name="fortinet_discovery_main_pipeline"
+       ## --> @exec:run-pipeline name="viptela_discovery_main_pipeline"
+       --> @exec:run-pipeline name="discovery_main_pipeline"
+       --> @exec:run-pipeline name = "other_vendors_discovery_main_pipeline"
+    --> @exec:end-function
 
- ## ldos dataset for creating hw_status and sw_status
 
- --> @dm:addrow key="dummy"
- --> @dm:eval-multi-proc today='int(time_now_as_ms())' and _max_procs=4
- --> @dm:copy-columns from="today,today,today" and to="t_date,t_month,t_year"
- --> @dm:change-time-format columns = 't_date' & from_format = 'ms' & to_format = '%d'
- --> @dm:change-time-format columns = 't_month' & from_format = 'ms' & to_format ='%m'
- --> @dm:change-time-format columns = 't_year' & from_format = 'ms' & to_format ='%y'
- --> @dm:to-type columns="t_month,t_year" and type="int"
- --> @dm:manipulate-string to="major_unit" and value="t_month -1 + 24" and func="eval"
- --> @dm:manipulate-string to="major_unit_year" and value="t_year + major_unit//12" and func="eval"
- --> @dm:manipulate-string to="major_unit_month" and value="major_unit % 12 + 1" and func="eval"
- --> @dm:to_type columns="major_unit_month,t_date,major_unit_year" and type="str"
- --> @dm:manipulate-string to="major_eol_date" and value="/" and func="concat_columns" and from="major_unit_month,t_date,major_unit_year"
- --> @dm:manipulate-string to="semi_critical" and value="t_month - 1 + 12" and func="eval"
- --> @dm:manipulate-string to="semi_critical_unit_year" and value="t_year + semi_critical//12" and func="eval"
- --> @dm:manipulate-string to="semi_critical_month" and value="semi_critical % 12 + 1" and func="eval"
- --> @dm:to_type columns="semi_critical_month,t_date,semi_critical_unit_year" and type="str"
- --> @dm:manipulate-string to="semi_critical_date" and value="/" and func="concat_columns" and from="semi_critical_month,t_date,semi_critical_unit_year"
- --> @dm:manipulate-string to="very_critical" and value="t_month - 1 + 3" and func="eval"
- --> @dm:manipulate-string to="very_critical_unit_year" and value="t_year + very_critical//12" and func="eval"
- --> @dm:manipulate-string to="very_critical_month" and value="very_critical % 12 + 1" and func="eval"
- --> @dm:to_type columns="very_critical_month,t_date,very_critical_unit_year" and type="str"
- --> @dm:manipulate-string to="very_critical_date" and value="/" and func="concat_columns" and from="very_critical_month,t_date,very_critical_unit_year"
- --> @dm:change-time-format columns="major_eol_date,semi_critical_date,very_critical_date" & from_format="datetimestr" and to_format="ms"
- ## --> @dm:selectcolumns include="$column|^today$|^very_critical_date$|^semi_critical_date$|^major_eol_date$"
+## -->  @c:new-block     
+##            -->  @dm:empty 
+##            {% if customer_tag %}   
+##            -->  #dm:query-persistent-stream     type in ['snmp-cred','device-snmp-v3','device-host-ssh','device-snmp-v1v2','ssh-cred'] and (customerTag contains '{{customer_tag}}') with-input name = ## 'rda_secrets_meta' and limit= 0
+##             {% else %}
+##            -->  #dm:query-persistent-stream     type in ['snmp-cred','device-snmp-v3','device-host-ssh','device-snmp-v1v2','ssh-cred'] and (customerTag is empty) with-input name = 'rda_secrets_meta' and ## limit= 0
+##             {% endif %}
+##            --> @dm:eval key ="'key'"            
+## -->  @dm:save     name = 'temp-creds'
+## -->  @dm:save     name = 'test-creds-ondemand' 
 
- --> @dm:gc
- --> @dm:save name="temp-ldos"
- ## calculating hw_status
+## ondemand execution
+--> @c:new-block
+    --> @exec:get-input
+    ##--> @dm:save name = "ondemand-inp-ui-data"
+    --> @dm:save name = "temp-discovery-ondemand-data"
+    ## explode others and enrich the discovery_scope
+    --> @dm:selectcolumns include = "Others|customer_tag|customer_id"
+    ## --> @dm:eval Others = 'Others.replace("\'", "\"")'
+    --> @dm:explode-json column="Others"
+    --> @dm:eval key ="'key'"
+     -->  @dm:add-missing-columns     columns = "customer_tag,customer_id" 
+    --> *dm:filter device_ip is not empty
+    --> @dm:map attr = "device_ip" & func = 'strip'
+    --> @dm:save name = "temp-discovery-ondemand"
 
- --> @dm:recall name="temp-hw-sw-eol-details"
- --> *dm:filter last_date_of_support is not null
- --> @dm:skip-block-if-shape row_count='0'
- --> @dm:recall name="temp-hw-sw-eol-details"
- --> @dm:dedup columns="last_date_of_support"
- --> @dm:manipulate-string to="key" and value="'dummy'" and func="eval"
- --> @dm:selectcolumns include="last_date_of_support|key"
- --> @dm:enrich dict="temp-ldos" and src_key_cols="key" and dict_key_cols="key" and enrich_cols="today,very_critical_date,semi_critical_date,major_eol_date"
- --> @dm:copy-columns from="last_date_of_support" and to="ldos"
- --> @dm:change-time-format columns='ldos' & from_format="datetimestr" and to_format="ms"
- --> @cfxaia:conditional-statement condition_column="ldos" and operator=">"  and check_value="yes" and value="0" and return_if="ldos"
- --> @dm:to-type columns="ldos" and type="int"
- --> @dm:gc
- --> @dm:selectcolumns exclude="^t_date$|^t_month$|^t_year$|^major_unit$|^major_unit_year$|^major_unit_month$|^semi_critical$|^semi_critical_unit_year$|^semi_critical_month$|^very_critical_unit_year$|^very_critical_month$|^very_critical$"
- ## hw_status column: is 'Expired' if ldos is < today(current time in ms)
+## ondemand discovery
+--> @c:new-block
+    --> @dm:recall name = "temp-discovery-ondemand-data"
+    --> @dm:skip-block-if-shape row_count = 0
+    --> @dm:recall name = "temp-discovery-ondemand"
+    --> @dm:eval current_time ='int(time_now_as_ms())'
+    
+    --> @dm:eval ondemand_discovery ="'yes'"
+    --> @dm:eval pipeline_name="'discovery_main_pipeline'"
+    --> @dm:rename-columns discovery_enabled = "discovery_scope"
+    --> @dm:save name="temp-ondemand-discovery"
 
- ## 'Expiring in a Quarter' if ldos > today(current time in ms) & <=very_critical_date
+    ##--> @c:data-loop dataset="temp-creds" and columns="name"
+    ##--> @dm:recall name="temp-ondemand-discovery"
+    ## --> @dm:skip-block-if-shape row_count = 0
+    ##-->@dm:eval name = "'$name'"
+    ## --> @dm:save name="temp-discovery-data" & append = "yes"
+    ##--> @dm:enrich dict = "temp-creds" & src_key_cols = "key" & dict_key_cols="key" & enrich_cols = "name"
 
- ## 'Expiring in 8 Quarters' if ldos > today(current time in ms) & <=semi_critical_date
+    ##--> @c:new-block
+    ##--> @dm:recall name="temp-discovery-data"
+    ##--> @dm:save name="main_discovery_result-ondemand1"
+    --> @exec:run-pipeline-multi-proc name="discovery_main_pipeline" 
+    --> @dm:save name="temp-run_discovery-result"
+   
+    
+## scheduled execution
+--> @c:new-block
+    --> @dm:recall name = "temp-discovery-ondemand-data"
+    --> @dm:skip-block-if-shape row_count > 0
+    --> @dm:empty
+     {% if customer_tag %}
+        --> #dm:query-persistent-stream auth_state = 'Success' and (customer_tag is '{{customer_tag}}')
+            with-input name = "network_access_verification" & limit = "0"
+       {% else %}
+        --> #dm:query-persistent-stream auth_state = 'Success' and (customer_tag is empty or customer_tag is 'None')
+            with-input name = "network_access_verification" & limit = "0"
+      {% endif %}  
+    --> @dm:selectcolumns exclude= "limit|index|name"
+    --> @dm:add-missing-columns columns = "customer_tag,customer_id"
+    --> @dm:selectcolumns include="discovery_scope|key|ip_address|collection_timestamp|customer_tag|customer_id|used_cred"
+    --> @dm:rename-columns device_ip  = "ip_address"
+    --> @dm:selectcolumns exclude= "limit|index|name|^discovery_scope1$|^discovery_scope2$"
+    --> *dm:filter discovery_scope == 'yes'
+    --> @dm:rename-columns discovery_enabled = "discovery_scope" & name = "used_cred"
+    --> @dm:eval pipeline_name="'discovery_main_pipeline'"
+    --> @dm:save name="temp-customer-details"
+    --> @dm:selectcolumns exclude= "count_|_RDA_Id|timestamp|key"
+      --> @dm:eval key ="'key'"
+       ## --> @dm:enrich dict = "temp-creds" & src_key_cols = "key" & dict_key_cols="key" & enrich_cols = "name"
 
- ## 'Expiring after 8 Quarters' if ldos > today(current time in ms) & <=major_eol_date
+    --> @dm:save name = "temp-discovery"
+    --> @dm:save name="main_discovery_mlt_sch"
+    ## --> @exec:run-pipeline-by-row-multi-proc pipeline_col="pipeline_name" and save_output="yes"
+    --> @exec:run-pipeline-multi-proc name="discovery_main_pipeline"
+    ##--> @dm:save name="main_discovery_result_mlt"
+    --> @dm:save name="temp-run_discovery-result"
 
- --> @dm:manipulate-string to="hw_status" and func="eval" and value="None"
- --> @cfxaia:conditional-statement condition_column="ldos,today" and operator="<" and return_if="Expired" and return_else="hw_status" and to_column="hw_status"
- --> @cfxaia:conditional-statement condition_column="ldos,today" and operator=">" and return_if="yes" and to_column="hw_status1" and return_else="no"
- --> @cfxaia:conditional-statement condition_column="ldos,very_critical_date" and operator="<=" and return_if="yes" and to_column="hw_status2" and  return_else="no"
- --> @cfxaia:conditional-statement condition_column="hw_status1,hw_status2" and operator="=" and check_value="yes" and value="yes,yes" and return_if="Expiring in a Quarter" and return_else="hw_status" and to_column="hw_status"
- --> @cfxaia:conditional-statement condition_column="ldos,semi_critical_date" and operator="<=" and return_if="yes" and to_column="hw_status2" and  return_else="no"
- --> @cfxaia:conditional-statement condition_column="hw_status1,hw_status2" and operator="=" and check_value="yes" and value="yes,yes" and return_if="Expiring in 4 Quarters" and return_else="hw_status" and to_column="hw_status" and replace_if_null=True
- --> @cfxaia:conditional-statement condition_column="ldos,major_eol_date" and operator="<=" and return_if="yes" and to_column="hw_status2" and return_else="no"
- --> @cfxaia:conditional-statement condition_column="hw_status1,hw_status2" and operator="=" and check_value="yes" and value="yes,yes" and return_if="Expiring in 8 Quarters" and return_else="hw_status" and to_column="hw_status" and replace_if_null=True
- --> @cfxaia:conditional-statement condition_column="ldos,major_eol_date" and operator=">" and return_if="yes" and to_column="hw_status2" and  return_else="no"
- --> @cfxaia:conditional-statement condition_column="hw_status1,hw_status2" and operator="=" and check_value="yes" and value="yes,yes" and return_if="Expiring after 8 Quarters" and return_else="hw_status" and to_column="hw_status" and replace_if_null=True
- --> @dm:selectcolumns exclude="hw_status1|hw_status2|^lods$"
- --> @dm:fixnull columns="hw_status" and value="No EOL"
- --> @dm:save name="temp-hwldos"
- ## compute hw_expiring_year,hw_expiring_qtr
 
- --> @dm:set-tracing-context __block__="compute-hw-ldos-additional-cols"
- --> @dm:recall name="temp-hw-sw-eol-details"
- --> *dm:filter last_date_of_support is not null
- --> @dm:skip-block-if-shape row_count='0'
- --> @dm:recall name="temp-hw-sw-eol-details"
- --> @dm:dedup columns="last_date_of_support"
- --> @dm:manipulate-string to="key" and value="'dummy'" and func="eval"
- --> @dm:selectcolumns include="last_date_of_support|key"
- --> @dm:enrich dict="temp-ldos" and src_key_cols="key" and dict_key_cols="key" and enrich_cols="today,very_critical_date,semi_critical_date,major_eol_date"
- --> @dm:copy-columns from="last_date_of_support,last_date_of_support" and to="ldos,YEAR"
- --> @dm:change-time-format columns='ldos' & from_format="datetimestr" and to_format="ms"
- --> @cfxaia:conditional-statement condition_column="ldos" and operator=">"  and check_value="yes" and value="0" and return_if="ldos"
- --> @dm:to-type columns="ldos" and type="int"
- --> @dm:gc
- --> @dm:selectcolumns exclude="^t_date$|^t_month$|^t_year$|^major_unit$|^major_unit_year$|^major_unit_month$|^semi_critical$|^semi_critical_unit_year$|^semi_critical_month$|^very_critical_unit_year$|^very_critical_month$|^very_critical$"
- ## hw_status column: is 'Expired' if ldos is < today(current time in ms)
+## topology_latest
+-->@c:new-block
+--> @dm:empty
+    --> @dm:save name = "temp-nodes_l1"
+    --> @dm:sleep seconds = "60"
+    --> @dm:empty
+    {% if customer_tag %}
+    --> #dm:query-persistent-stream device_hostname is not Empty and (customer_tag is '{{customer_tag}}') with-input name = "network_device_inventory" & limit = "0"
+     {% else %}  
+     --> #dm:query-persistent-stream device_hostname is not Empty and (customer_tag is empty) with-input name = "network_device_inventory" & limit = "0"          
+     {% endif %}
 
- ## 'Expiring in a Quarter' if ldos > today(current time in ms) & <=very_critical_date
+    --> @dm:eval country = "device_hostname[0:2]"
+    --> @dm:eval city = "device_hostname[6:9]"
+    --> @dm:eval state = "device_hostname[9:11]"
+    --> @dm:save name = "temp-geomap-data"
+    --> *dm:filter country in ["US"]
+    ##--> @dm:enrich dict = "geo_codes_dict" & src_key_cols = "country,city,state" & dict_key_cols = "country,city,state" & enrich_cols = "latitude,longitude" and replace_values = "yes"
+    --> @rn:write-stream name  = "network_device_inventory"
+    --> @dm:save name = "temp-geomap-us-data"
+    --> @dm:recall name = "temp-geomap-data"
+    --> *dm:filter country not in ["US"]
+    ##--> @dm:enrich dict = "geo_codes_dict" & src_key_cols = "country,city" & dict_key_cols = "country,city" & enrich_cols = "latitude,longitude" and replace_values = "yes"
+    --> @dm:save name = "temp-geomap-nonus-data"
+    --> @rn:write-stream name  = "network_device_inventory"
+    ## Getting inventory data and creating the nodes datasets
+    --> @dm:empty
+    {% if customer_tag %}
+    --> #dm:query-persistent-stream device_equip_type in ["CHASSIS","Chassis","chassis"] and (customer_tag is '{{customer_tag}}') with-input name = "network_device_inventory" & limit = "0"
+    
+    {% else %}
+    --> #dm:query-persistent-stream device_equip_type in ["CHASSIS","Chassis","chassis"] and (customer_tag is empty) with-input name = "network_device_inventory" & limit = "0"
+            
+    {% endif %}
 
- ## 'Expiring in 8 Quarters' if ldos > today(current time in ms) & <=semi_critical_date
+    --> @dm:selectcolumns exclude="_RDA_Id|count_|^timestamp$"
+    --> @dm:dedup columns ="parent_sn"
+    --> @dm:eval-multi-proc node_type="'CHASSIS'" and
+            device_status="'MANAGED'" and
+            source="'CHASSIS'" and
+            device_hostname_short = "device_hostname.split('.')[0]"
+    --> @dm:copy-columns from ="device_hostname_short" and to="node_label"
+    --> @dm:copy-columns from ="device_ip" and to="node_id"
+    --> @dm:eval layer = "'Network'"
+    --> @dm:eval node_id = "device_ip+'_CHASSIS'"
+    --> @dm:eval deviceFamily = "device_model"
+    --> @dm:eval serialNumber = "device_serial_number"
+    --> @dm:eval iconURL="'Router'"
+    --> @dm:save name="temp-chassis-nodes"
 
- ## 'Expiring after 8 Quarters' if ldos > today(current time in ms) & <=major_eol_date
+## Getting cdp data and creating the nodes datasets where remote device is unmanaged
+--> @c:new-block
+    --> @dm:empty
+    {% if customer_tag %}
+    --> #dm:query-persistent-stream device_object in ['LLDP','CDP'] and (customer_tag is '{{customer_tag}}') with-input name = "network_devices_cdp" & limit = "0"
 
- --> @dm:manipulate-string to="hw_status" and func="eval" and value="None"
- --> @cfxaia:conditional-statement condition_column="ldos,today" and operator="<" and return_if="Expired" and return_else="hw_status" and to_column="hw_status"
- --> @cfxaia:conditional-statement condition_column="ldos,today" and operator=">" and return_if="yes" and to_column="hw_status1" and return_else="no"
- --> @cfxaia:conditional-statement condition_column="ldos,very_critical_date" and operator="<=" and return_if="yes" and to_column="hw_status2" and  return_else="no"
- --> @cfxaia:conditional-statement condition_column="hw_status1,hw_status2" and operator="=" and check_value="yes" and value="yes,yes" and return_if="Expiring in a Quarter" and return_else="hw_status" and to_column="hw_status"
- --> @cfxaia:conditional-statement condition_column="ldos,semi_critical_date" and operator="<=" and return_if="yes" and to_column="hw_status2" and  return_else="no"
- --> @cfxaia:conditional-statement condition_column="hw_status1,hw_status2" and operator="=" and check_value="yes" and value="yes,yes" and return_if="Expiring in 4 Quarters" and return_else="hw_status" and to_column="hw_status" and replace_if_null=True
- --> @cfxaia:conditional-statement condition_column="ldos,major_eol_date" and operator="<=" and return_if="yes" and to_column="hw_status2" and return_else="no"
- --> @cfxaia:conditional-statement condition_column="hw_status1,hw_status2" and operator="=" and check_value="yes" and value="yes,yes" and return_if="Expiring in 8 Quarters" and return_else="hw_status" and to_column="hw_status" and replace_if_null=True
- --> @cfxaia:conditional-statement condition_column="ldos,major_eol_date" and operator=">" and return_if="yes" and to_column="hw_status2" and  return_else="no"
- --> @cfxaia:conditional-statement condition_column="hw_status1,hw_status2" and operator="=" and check_value="yes" and value="yes,yes" and return_if="Expiring after 8 Quarters" and return_else="hw_status" and to_column="hw_status" and replace_if_null=True
- --> @dm:selectcolumns exclude="hw_status1|hw_status2"
- --> @dm:fixnull columns="hw_status" and value="No EOL"
- --> @dm:rename-columns ldos_month="ldos"
- --> @dm:change-time-format columns = 'ldos_month' & from_format = 'ms' & to_format ='%m'
- --> @dm:manipulate-string from="YEAR" and value="[0-9]{4,7}" and func="match" and to="YEAR"
- --> @dm:manipulate-string from="ldos_month" and value="0" and func="lstrip" and to="ldos_month"
- --> @dm:fixnull columns="ldos_month" and value=0
- --> @dm:to-type columns="ldos_month" and type="int"
- --> @dm:manipulate-string to="qtr" and func="eval" and value="((ldos_month - 1) // 3 ) + 1"
- --> @cfxaia:conditional-statement condition_column="ldos_month" and operator="<=" and check_value="yes" and value="0" and return_if="" and return_else="qtr" and to_column="qtr"
- --> @dm:copy-columns from="qtr" and to="qtr" and prefix="Q" and func="append"
- ## --> @dm:fixnull columns="YEAR" and value="Not Available"
+     {% else %}       
+      --> #dm:query-persistent-stream device_object in ['LLDP','CDP'] and (customer_tag is empty) with-input name = "network_devices_cdp" & limit = "0"     
+    {% endif %}
+            
+    --> @dm:eval remote_hostname_short = "remote_device_id.split('.')[0]"
+    --> @dm:save name = "temp-cdp-nodes"
 
- --> @dm:manipulate-string to="hw_expiring_qtr" and func="concat_columns" and from="YEAR,qtr" and value=" "
- ## --> @dm:manipulate-string from="hw_expiring_qtr" and func="replace" and value="Not Available  Q,Not Available" and to="hw_expiring_qtr"
+--> @c:new-block
+    --> @dm:recall name = "temp-cdp-nodes"
+    --> @dm:enrich-conditional dict = "temp-chassis-nodes" and condition is "device_hostname_short is '$remote_hostname_short'" and return_status = "yes"
+    --> *dm:filter meta_enrich_status contains "Failed" and remote_device_id is not "Not Available"
+    --> @dm:dedup columns ="remote_device_id"
+    --> @dm:eval-multi-proc node_type="'CHASSIS'" and
+            device_status="'UNMANAGED'" and
+            source=device_object
+    --> @dm:copy-columns from ="remote_hostname_short" and to="node_label"
+    --> @dm:copy-columns from ="remote_hostname_short" and to="node_id"
+    --> @dm:eval layer = "'Network'"
+    --> @dm:eval node_id = "remote_hostname_short +'_CHASSIS'"
+    --> @dm:eval iconURL="'Router'"
+    --> @dm:save name="temp-cdp-unmanaged-nodes"
 
- --> @dm:copy-columns from="YEAR" and to="hw_expiring_year"
- ## --> @dm:selectcolumns include="$column|^today$|^very_critical_date$|^semi_critical_date$|^major_eol_date$"
+--> @c:new-block
+    --> @dm:concat names="^temp-chassis-nodes$|^temp-cdp-unmanaged-nodes$"
+    --> @dm:selectcolumns exclude = "target_x|target_y"
+    --> @dm:save name="temp-rdaf_topology_nodes"
+    --> @rn:write-stream name='cfx_rdaf_topology_nodes'
+    --> @graph:insert-nodes dbname = 'cfx_rdaf_topology' & collection = 'cfx_rdaf_topology_nodes' & key_column = 'node_id'
 
- --> @dm:gc
- --> @dm:save name="temp-hwldos-yr"
- ## compute hw_announced_year,hw_announced_qtr
+--> @c:new-block
+    --> @dm:empty
+    {% if customer_tag %}
+    --> #dm:query-persistent-stream device_object in ['LLDP','CDP'] and remote_device_id is not "Not Available" and (customer_tag is '{{customer_tag}}') with-input name = "network_devices_cdp" & limit = "0"
+    
+    {% else %} 
+    --> #dm:query-persistent-stream device_object in ['LLDP','CDP'] and remote_device_id is not "Not Available" and (customer_tag is empty) with-input name = "network_devices_cdp" & limit = "0"           
+    {% endif %}
+    
+    --> @dm:eval remote_hostname_short = "remote_device_id.split('.')[0]"
+    --> @dm:eval node_id = "str(remote_hostname_short)+'_CHASSIS' if remote_device_ip == 'Not Available' else str(remote_device_ip)+'_CHASSIS'"
+    --> @dm:eval link_type=device_object
+    --> @dm:eval showAttrs="'^link_type$'"
+    --> @dm:eval direction = "'NO_DIRECTION'"
+    --> @dm:eval relation_type = "'connected-to'"
+    --> @dm:save name = "temp-cdp-edges"
+    --> @dm:enrich dict="temp-chassis-nodes" and src_key_cols="remote_hostname_short" and dict_key_cols="device_hostname_short" and enrich_cols="node_id,node_label,node_type" and enrich_cols_as = "left_id,left_label,left_node_type"
+    --> @dm:enrich dict="temp-chassis-nodes" and src_key_cols="device_ip" and dict_key_cols="device_ip" and enrich_cols="node_id,node_label,node_type" and enrich_cols_as = "right_id,right_label,right_node_type"
+    --> @dm:selectcolumns exclude="node_id|node_label|device_status|device_hostname_short|left_node_id|left_node_label|right_node_id|right_node_label"
+    --> @dm:eval showAttrs="'^link_type$'"
+    --> @dm:eval direction = "'NO_DIRECTION'"
+    --> @dm:eval relation_type = "'connected-to'"
+    --> @dm:dedup columns="left_id,right_id"
+    --> @dm:fixnull columns ="left_id,right_id"
+    --> @dm:map to="edge_id" and func="evaluate" and expr="f'{left_id}#{right_id}' if left_id < right_id else f'{right_id}#{left_id}'"
+    --> *dm:filter left_id is not Empty
+    --> *dm:filter left_id != right_id
+    --> @dm:save name="temp-rdaf-topology-edges"
+    --> @rn:write-stream name='cfx_rdaf_topology_edges'
+    --> @graph:insert-edges dbname = 'cfx_rdaf_topology' & nodes_collection = 'cfx_rdaf_topology_nodes' & edges_collection = 'cfx_rdaf_topology_edges' & left_id = 'left_id' & right_id = 'right_id'
 
- --> @dm:set-tracing-context __block__="compute-hw-ldos-additional-cols"
- --> @dm:recall name="temp-hw-sw-eol-details"
- --> *dm:filter eol_external_announce_dt is not null
- --> @dm:skip-block-if-shape row_count='0'
- --> @dm:recall name="temp-hw-sw-eol-details"
- --> @dm:dedup columns="eol_external_announce_dt"
- --> @dm:manipulate-string to="key" and value="'dummy'" and func="eval"
- --> @dm:selectcolumns include="eol_external_announce_dt|key"
- --> @dm:enrich dict="temp-ldos" and src_key_cols="key" and dict_key_cols="key" and enrich_cols="today,very_critical_date,semi_critical_date,major_eol_date"
- --> @dm:copy-columns from="eol_external_announce_dt,eol_external_announce_dt" and to="ldos,YEAR"
- --> @dm:change-time-format columns='ldos' & from_format="datetimestr" and to_format="ms"
- --> @cfxaia:conditional-statement condition_column="ldos" and operator=">"  and check_value="yes" and value="0" and return_if="ldos"
- --> @dm:to-type columns="ldos" and type="int"
- --> @dm:gc
- --> @dm:selectcolumns exclude="^t_date$|^t_month$|^t_year$|^major_unit$|^major_unit_year$|^major_unit_month$|^semi_critical$|^semi_critical_unit_year$|^semi_critical_month$|^very_critical_unit_year$|^very_critical_month$|^very_critical$"
- --> @dm:rename-columns ldos_month="ldos"
- --> @dm:change-time-format columns = 'ldos_month' & from_format = 'ms' & to_format ='%m'
- --> @dm:manipulate-string from="YEAR" and value="[0-9]{4,7}" and func="match" and to="YEAR"
- --> @dm:manipulate-string from="ldos_month" and value="0" and func="lstrip" and to="ldos_month"
- --> @dm:fixnull columns="ldos_month" and value=0
- --> @dm:to-type columns="ldos_month" and type="int"
- --> @dm:manipulate-string to="qtr" and func="eval" and value="((ldos_month - 1) // 3 ) + 1"
- --> @cfxaia:conditional-statement condition_column="ldos_month" and operator="<=" and check_value="yes" and value="0" and return_if="" and return_else="qtr" and to_column="qtr"
- --> @dm:copy-columns from="qtr" and to="qtr" and prefix="Q" and func="append"
- --> @dm:manipulate-string to="hw_announced_qtr" and func="concat_columns" and from="YEAR,qtr" and value=" "
- --> @dm:copy-columns from="YEAR" and to="hw_announced_year"
- --> @dm:gc
- --> @dm:save name="temp-hwannounced-yr"
- ## Enrich the new columns with inventory data and write to the stream
+--> @c:new-block
+    --> @dm:empty
+    {% if customer_tag %}
+    --> #dm:query-persistent-stream device_object is "Chassis" and device_equip_type is "CHASSIS" and (customer_tag is '{{customer_tag}}') with-input name = "network_device_inventory" & limit = "0"
+   
+    {% else %}  
+   --> #dm:query-persistent-stream device_object is "Chassis" and device_equip_type is "CHASSIS" and (customer_tag is empty) with-input name = "network_device_inventory" & limit = "0"          
+    {% endif %}
+    --> @dm:eval-multi-proc device_hostname_short = "device_hostname.split('.')[0]" and device_status = "'MANAGED'"
+    --> @dm:save name = "chassis_inventory"
 
- --> @dm:recall name="temp-hw-sw-eol-details"
- --> @dm:enrich dict="temp-hwldos" and replace_values="yes" and src_key_cols="last_date_of_support" and dict_key_cols="last_date_of_support" and enrich_cols="hw_status"
- --> @dm:enrich dict="temp-hwldos-yr" and replace_values="yes" and src_key_cols="last_date_of_support" and dict_key_cols="last_date_of_support" and enrich_cols="hw_expiring_qtr,hw_expiring_year"
- --> @dm:enrich dict="temp-hwannounced-yr" and replace_values="yes" and src_key_cols="eol_external_announce_dt" and dict_key_cols="eol_external_announce_dt" and enrich_cols="hw_announced_qtr,hw_announced_year"
- --> @dm:fixnull columns="hw_status,hw_expiring_qtr,hw_expiring_year,hw_announced_qtr,hw_announced_year" and value="Not Available"  and apply_for_empty="yes"
- --> @dm:add-missing-columns columns='sw_status,sw_expiring_qtr,sw_expiring_year' and value="Not Available"
- --> @dm:rename-columns hwEOL_endOfLifeAnnouncementDate='eol_external_announce_dt' and  hwEOL_endOfNewServiceAttachmentDate= 'end_of_new_svc_attachment_dt' and
-hwEOL_endOfRoutineFailureAnalysisDate = 'end_of_routine_fail_anlysys_dt' and
-hwEOL_endOfSaleDate = 'last_date_of_sale' and
-hwEOL_endOfServiceContractRenewalDate = 'end_of_svc_contract_rnwl_dt' and
-hwEOL_endOfSoftwareMaintenanceReleasesDate = 'end_of_software_maintenance_dt' and
-hwEOL_lastDayOfSupportDate = 'last_date_of_support' and
-hwEOL_endOfSecurityVulnSupportDate = 'end_of_security_vuln_support_dt'
- ## --> @dm:save name='productAlerts-sw-eol-details'
+--> @c:new-block
+    --> @dm:empty
+    {% if customer_tag %}
+    --> #dm:query-persistent-stream  (customer_tag is '{{customer_tag}}') with-input name = "cfx_rdaf_topology_nodes" & limit = "0"
+      {% else %}   
+       --> #dm:query-persistent-stream  (customer_tag is empty) with-input name = "cfx_rdaf_topology_nodes" & limit = "0"         
+      {% endif %}
+    --> @dm:skip-pipeline-if-shape row_count= 0
+    --> @dm:save name = "temp-nodes_l1"
+    --> *dm:filter device_equip_type is "CHASSIS" and device_hostname is not empty
+    --> @dm:eval country = "device_hostname[0:2]"
+    --> @dm:eval city = "device_hostname[6:9]"
+    --> @dm:eval state = "device_hostname[9:11]"
+    ##--> @dm:enrich dict = "geo_codes_dict" and src_key_cols = "country,city" and dict_key_cols = "country,city" and enrich_cols = "latitude,longitude" and replace_values = "yes"
+    --> @rn:write-stream name = "cfx_rdaf_topology_nodes"
+    --> @dm:recall name = "temp-nodes_l1"
+    --> *dm:filter node_type is "Edge"
+    --> @dm:eval country = "edgeName[0:2]"
+    --> @dm:eval city = "edgeName[6:9]"
+    --> @dm:eval state = "edgeName[9:11]"
+    ##--> @dm:enrich dict = "geo_codes_dict" and src_key_cols = "country,city" and dict_key_cols = "country,city" and enrich_cols = "latitude,longitude" and replace_values = "yes"
+    --> @rn:write-stream name = "cfx_rdaf_topology_nodes"
+    --> @graph:insert-nodes dbname = 'cfx_rdaf_topology' & collection = 'cfx_rdaf_topology_nodes' & key_column = 'node_id'
 
- ## --> @dm:add-missing-columns columns='source' and value='inventory'
-
- --> @dm:copy-columns from='timestamp' and to='last_updated_time'
- --> @dm:to-type columns= "last_updated_time" & type="str"
- --> @dm:replace-data columns='last_updated_time' and expr='T' and replace=' '
- --> @dm:eval last_updated_time="last_updated_time.split('.')[0]"
- --> @dm:save name='temp-hw-sw-eol-details-$loop_index'
- --> @rn:write-stream name='edc_oi_inventory_enriched' and direct_to_opensearch="yes"
- --> @dm:recall name='edc_status' and return_empty = 'yes'
- --> @dm:addrow dummy='key'
- --> @dm:manipulate-string to="status" and func="eval" and value="'Fetched EOL data'"
- --> @dm:add-missing-columns columns='customer_name' and value="$customer_name"
- --> @rn:write-stream name ='edc_update_status'
- ## declaring child pipelines
-
- --> @c:new-block
- --> @dm:empty
- --> @exec:define-function name="define_child_pipelines"
- --> @exec:run-pipeline name ="edc_oi_get_product_alerts" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_oi_product_alerts_raw" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_oi_product_alerts_run_scan" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_oi_generate_token" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_oi_process_sw_data" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_oi_get_sweol_data" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_oi_get_security_advisories_data" & ignore_failures = "no"
- --> @exec:end-function
- ## adding the software and security advisories data to inventory. These will only trigger if the current SW data streams have data for this customer
-
- --> @c:data-loop columns='customer_name' and dataset='temp-unique-customer-name'
- --> @dm:empty
- --> @dm:addrow name='edc_sw_raw_data' and limit=0
- --> #dm:query-persistent-stream customer_name is '$customer_name'
- --> @dm:skip-block-if-shape row_count = 0
- --> @dm:save name='temp-edc-sw-raw-op-exploded'
- --> @exec:run-pipeline name='edc_oi_get_sweol_data' and ignore_failures = "no"
- --> @c:data-loop columns='customer_name' and dataset='temp-unique-customer-name'
- --> @dm:empty
- --> @dm:addrow name='edc_sec_adv_data_raw' and limit=0
- --> #dm:query-persistent-stream customer_name is '$customer_name'
- --> @dm:skip-block-if-shape row_count = 0
- --> @dm:save name='temp-edc-sa-raw-op-exploded'
- --> @exec:run-pipeline name='edc_oi_get_security_advisories_data' and ignore_failures = "no"
