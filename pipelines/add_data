@@ -1,26 +1,26 @@
-folder: Default
-name: run_dashboard_export_email
-description: test pipeline
-data_path: pipelines/data/run_dashboard_export_email/2024_08_05_1/data.json
-usecase: ''
-category: ''
-sources:
-  rn:
-    name: rn
-    type: rn
-  email:
-    name: email
-    type: email_sender
-artifacts:
-- artifact_type: rda-network-stream
-  artifact_name: rda_dashboard_schedule_logs
-  access: write
-- artifact_type: rda-network-stream
-  artifact_name: dashboard_export_email_status
-  access: write
-- artifact_type: rda-network-stream
-  artifact_name: rda_dashboard_schedule_logs
-  access: write
-version: '2024_08_05_1'
-file_type: json
-checksum: ba479e5e
+@dm:empty
+ --> @exec:get-input
+ --> @dm:save name="file_upload0"
+ --> @dm:selectcolumns include="fileUpload|Option"
+ --> @dm:explode-json column="fileUpload"
+ --> @dm:save name="temp-input-dataset"
+ --> @dm:save name="file_upload"
+ --> @c:new-block
+ --> @c:data-loop dataset="temp-input-dataset" and columns="bucketName,objectName,Option"
+ --> @dm:recall name="temp-input-dataset"
+ --> @dm:skip-block-if-shape row_count=0
+ --> @dm:get-from-location path="$bucketName/$objectName"
+ --> @dm:save name="temp-uploaded-file-data"
+ --> @c:new-block
+ --> @c:data-loop dataset="file_upload0" and columns="customer_name,proj_name,Option"
+ --> *exec:if-condition '$Option' == 'option_2'
+ --> @dm:recall name="temp-uploaded-file-data"
+ --> @dm:add-missing-columns columns = 'Customer' &
+value = '$customer_name'
+ --> @dm:add-missing-columns columns = 'Project Name' &
+value = '$proj_name'
+ --> @dm:save name="file_upload2"
+ --> @rn:write-stream name = "input_data"
+ --> @c:new-block
+ --> @dm:recall name="temp-uploaded-file-data"
+ --> @rn:write-stream name = "input_data"
