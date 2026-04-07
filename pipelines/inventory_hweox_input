@@ -1,47 +1,21 @@
-folder: OI-C
-name: get_project_oi_data
-description: test pipeline
-data_path: pipelines/data/get_project_oi_data/2025-09-22_2/data.json
-usecase: ''
-category: ''
-sources: {}
-artifacts:
-- artifact_type: pipeline
-  artifact_name: edc_customer_inventory
-  access: read
-- artifact_type: pipeline
-  artifact_name: edc_oi_get_product_alerts
-  access: read
-- artifact_type: pipeline
-  artifact_name: edc_oi_product_alerts_raw
-  access: read
-- artifact_type: pipeline
-  artifact_name: edc_oi_product_alerts_run_scan
-  access: read
-- artifact_type: pipeline
-  artifact_name: edc_oi_generate_token
-  access: read
-- artifact_type: pipeline
-  artifact_name: edc_oi_process_sw_data
-  access: read
-- artifact_type: pipeline
-  artifact_name: edc_oi_get_sweol_data
-  access: read
-- artifact_type: pipeline
-  artifact_name: edc_oi_get_security_advisories_data
-  access: read
-- artifact_type: dataset
-  artifact_name: uploaded-file-data
-  access: write
-- artifact_type: rda-network-stream
-  artifact_name: edc_customer_names
-  access: read
-- artifact_type: dataset
-  artifact_name: final_input_dataset
-  access: write
-- artifact_type: pipeline
-  artifact_name: edc_customer_inventory
-  access: read
-version: 2025-09-22_2
-file_type: json
-checksum: 1681d127
+@c:new-block
+ --> @dm:empty
+ ## Get submitted form fields
+
+ --> @exec:get-input
+ ## Exclude label as it contains unneeded info that should not be written to stream later
+
+ --> @dm:selectcolumns exclude='.*_label'
+ --> @dm:save name='temp-input_data'
+ --> @dm:save name='check-input_data'
+ --> @dm:selectcolumns include="hweox_csv"
+ --> @dm:explode-json column="hweox_csv"
+ --> @dm:save name="input11-dataset"
+ --> @dm:save name="temp-input-dataset"
+ --> @c:data-loop dataset="temp-input-dataset" and columns="bucketName,objectName"
+ --> @dm:recall name="temp-input-dataset"
+ --> @dm:skip-block-if-shape row_count=0
+ --> @dm:get-from-location path="$bucketName/$objectName"
+ --> @dm:save name="temp-uploaded-file-data"
+ --> @dm:save name="uploaded-hweox-data"
+ --> @rn:write-stream name="test0-stream-input"
