@@ -1,14 +1,26 @@
-@dm:empty
- --> @dm:recall name="10dataset"
- --> @dm:save name="test-status"
- --> @dm:sleep seconds = 20
- --> #dm:query-persistent-stream pipeline_name is "swdata-status-test" with-input name="rda_system_worker_traces"
- --> @dm:sort columns = 'timestamp' and order = "descending"
- --> @dm:head n = 1
- --> @dm:selectcolumns include = 'status_type|pipeline_name|jobid|timestamp'
- --> @dm:save name="temp-tempo"
- --> @dm:recall name="temp-tempo"
- --> @dm:enrich dict ="temp1-temp" & src_key_cols="pipeline_name" & dict_key_cols="pipeline_name" &
-enrich_cols="USER_ID,proj_name,customer_name"
- --> @dm:save name="temp1-temp" and append="no"
- --> @rn:write-stream name = "status-stream"
+
+ ## declaring thrid level child pipelines
+@c:new-block
+ --> @dm:empty
+ --> @exec:define-function name="define_child_pipelines"
+ --> @exec:run-pipeline name ="edc_generate_token" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_sw_get_data" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_sweol_enrich" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_processing_sw_data" & ignore_failures = "no"
+ --> @exec:end-function
+ --> @dm:empty
+ --> @dm:addrow name='edc_cust_pid_sw' and limit=0
+ --> #dm:query-persistent-stream
+ --> *dm:filter product_id is not null and sw_version is not null and sw_os_type is not null and contract_number is not null
+ --> @dm:add-missing-columns columns="source" and value='software'
+ --> @dm:save name='added-minio-file'
+ --> @exec:run-pipeline name ="edc_sw_run_scan" & ignore_failures = "no"
+ --> @dm:save name='temp-edc-sw-run-scan-op-exploded'
+ --> @c:new-block
+ --> @dm:recall name='temp-edc-sw-run-scan-op-exploded'
+ --> @rn:write-stream name='edc_sw_raw_data'
+ ## calling the enrich pipeline
+
+ --> @c:new-block
+ --> @dm:recall name='temp-edc-sw-run-scan-op-exploded'
+ --> @exec:run-pipeline name='edc_sweol_enrich' and ignore_failures = "no"
