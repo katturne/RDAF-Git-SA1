@@ -1,13 +1,33 @@
 {
-  "name": "oia-war-room",
-  "label": "War Room",
-  "description": "War Room",
+  "name": "oia-incidents-war-room-customer-view",
+  "label": "War Room - Customer View",
+  "description": "War Room - Customer View",
   "enabled": true,
-  "version": "2024.8.21",
-  "live_edit": true,
+  "version": "2024.6.17.2",
   "dashboard_type": "template",
+  "template_variables": {
+    "INCIDENT_OT": {
+      "contextId": "i_cfx_incident_occurred"
+    },
+    "INCIDENT_ID": {
+      "contextId": "incident_id"
+    },
+    "CUSTOMER_ID": {
+      "contextId": "customer_id"
+    },
+    "INCIDENT_OT_DATETIME": {
+      "contextId": "i_cfx_incident_occurred_datetime"
+    }
+  },
   "dashboard_filters": {
-    "time_filter": true
+    "time_filter": true,
+    "default_time_range": {
+      "from_time": "{{INCIDENT_OT}}",
+      "from_time_delta_hours": -12,
+      "to_time": "{{INCIDENT_OT}}",
+      "to_time_delta_hours": 4,
+      "label": "{{INCIDENT_ID}} Time Range"
+    }
   },
   "stream_query_mapping": {
     "syslog_udp_event_stream_all": {
@@ -25,18 +45,27 @@
   },
   "dashboard_sections": [
     {
-      "title": "Application",
+      "title": "Customer View",
       "show_filter": true,
       "widgets": [
         {
-          "title": "Transaction Failure Alerts",
+          "widget_type": "label",
+          "label": "<h3 style='text-align: center;'>Incident Occurred: {%raw%} {{' {{ '}} {%endraw%} toDateTimeString({{ INCIDENT_OT }}) {%raw%} {{ '}}' }} {%endraw%} </h3>",
+          "advanced": true,
+          "min_width": 12,
+          "max_width": 12,
+          "height": 1,
+          "widget_id": "5ae002f1"
+        },
+        {
+          "title": "Link Up/Down Alerts",
           "widget_type": "counter",
           "min_width": 2.4,
           "max_width": 2.4,
           "height": 4,
           "stream": "oia-alerts-stream",
           "ts_column": "a_created_ts",
-          "extra_filter": "a_message contains 'Transaction Failure'",
+          "extra_filter": "a_message contains 'link'",
           "sparkline": {
             "interval": "1h"
           },
@@ -46,38 +75,38 @@
           "widget_id": "42b0d069"
         },
         {
-          "title": "Slow Query Alerts",
+          "title": "BGP Alerts",
           "widget_type": "counter",
           "min_width": 2.4,
           "max_width": 2.4,
           "height": 4,
           "stream": "oia-alerts-stream",
           "ts_column": "a_created_ts",
-          "extra_filter": "a_message contains 'Slow'",
+          "extra_filter": "a_message contains 'BGP'",
           "sparkline": {
             "interval": "1h"
           },
           "column": "count_",
           "agg": "sum",
           "type": "int",
-          "widget_id": "a175fbc0"
+          "widget_id": "5ddd5221"
         },
         {
-          "title": "Slow Response Alerts",
+          "title": "OSPF Alerts",
           "widget_type": "counter",
           "min_width": 2.4,
           "max_width": 2.4,
           "height": 4,
           "stream": "oia-alerts-stream",
           "ts_column": "a_created_ts",
-          "extra_filter": "a_message contains 'Response'",
+          "extra_filter": "a_message contains 'OSPF'",
           "sparkline": {
             "interval": "1h"
           },
           "column": "count_",
           "agg": "sum",
           "type": "int",
-          "widget_id": "066e3d3e"
+          "widget_id": "42dd66a3"
         },
         {
           "title": "Patch Changes",
@@ -94,7 +123,7 @@
           "column": "count_",
           "agg": "sum",
           "type": "int",
-          "widget_id": "fa2467c7"
+          "widget_id": "0b902e7b"
         },
         {
           "title": "Change Requests",
@@ -111,7 +140,7 @@
           "column": "count_",
           "agg": "sum",
           "type": "int",
-          "widget_id": "651c0f51"
+          "widget_id": "bfdcedca"
         },
         {
           "title": "Events Timeline",
@@ -122,28 +151,32 @@
           "height": 8,
           "min_width": 12,
           "fixTimeWindow": true,
-          "synchronized-group": 0,
           "chartProperties": {
             "yAxisLabel": "Alert Count",
             "xAxisLabel": "Time",
             "legendLocation": "none"
           },
+          "static_markers": [
+            {
+              "timestamp": "{{INCIDENT_OT}}",
+              "message": "Incident Occurred",
+              "color": "#B71C1C"
+            }
+          ],
           "alert_markers": [
             {
               "stream": "change_requests_stream",
               "ts_column": "timestamp",
               "type": "circle",
               "message_column": "message",
-              "severity_column": "severity",
-              "annotation": "C"
+              "severity_column": "severity"
             },
             {
               "stream": "oia-alerts-stream",
               "ts_column": "a_created_ts",
               "type": "triangle",
               "message_column": "a_message",
-              "severity_column": "a_severity",
-              "annotation": "!"
+              "severity_column": "a_severity"
             },
             {
               "stream": "oia-ml-metrics-regression-output",
@@ -152,7 +185,6 @@
               "message_column": "marker_message",
               "extra_filter": "anomalies_severity is 'High' and anomalies_type is 'Upper'",
               "severity_column": "anomalies_severity",
-              "annotation": "M",
               "columns": [
                 "asset_id",
                 "metric_id",
@@ -181,7 +213,6 @@
               "message_column": "asset_id",
               "extra_filter": "anomalies_severity is 'High' and anomalies_type is 'Upper'",
               "severity_column": "anomalies_severity",
-              "annotation": "L",
               "columns": [
                 "asset_id",
                 "asset_name",
@@ -254,21 +285,6 @@
             "message": {
               "title": "Change Description",
               "type": "TEXT"
-            },
-            "severity": {
-              "title": "Severity",
-              "htmlTemplateForRow": "<span class='badge' style='background-color: {{'{{ row.severity_color }}'}}' > {{'{{ row.severity }}'}} </span>",
-              "defaultWidth": 150
-            },
-            "severity_color": {
-              "title": "Sev_2",
-              "type": "COLOR-MAP",
-              "source-column": "severity",
-              "color-map": {
-                "HIGH": "#E53935",
-                "MEDIUM": "#F57C00",
-                "LOW": "#FFA726"
-              }
             }
           },
           "widget_id": "31e2f2ed"
@@ -278,6 +294,7 @@
           "title": "Alerts by Severity",
           "stream": "oia-alerts-stream",
           "ts_column": "a_created_ts",
+          "extra_filter": "customer_id is '{{CUSTOMER_ID}}'",
           "min_width": 3,
           "height": 4,
           "max_width": 3,
@@ -329,17 +346,23 @@
           "max_width": 9,
           "height": 4,
           "min_width": 9,
-          "synchronized-group": 0,
           "fixTimeWindow": true,
+          "extra_filter": "customer_id is '{{CUSTOMER_ID}}'",
           "chartProperties": {
             "yAxisLabel": "Count",
             "xAxisLabel": "Time",
-            "legendLocation": "top",
-            "mode": "zoom"
+            "legendLocation": "top"
           },
           "interval": "1H",
           "group_by": [
             "a_severity"
+          ],
+          "static_markers": [
+            {
+              "timestamp": "{{INCIDENT_OT}}",
+              "message": "Incident Occurred",
+              "color": "#B71C1C"
+            }
           ],
           "series_spec": [
             {
@@ -387,6 +410,7 @@
           "title": "Incidents By Priority",
           "stream": "oia-incidents-stream",
           "ts_column": "i_created_ts",
+          "extra_filter": "customer_id is '{{CUSTOMER_ID}}'",
           "min_width": 3,
           "height": 4,
           "max_width": 3,
@@ -420,7 +444,7 @@
             }
           },
           "type": "str",
-          "widget_id": "18b584c9"
+          "widget_id": "ac07f7ed"
         },
         {
           "title": "Incident Trend",
@@ -430,17 +454,23 @@
           "max_width": 9,
           "height": 4,
           "min_width": 9,
-          "synchronized-group": 0,
           "fixTimeWindow": true,
+          "extra_filter": "customer_id is '{{CUSTOMER_ID}}'",
           "chartProperties": {
             "yAxisLabel": "Count",
             "xAxisLabel": "Time",
-            "legendLocation": "top",
-            "mode": "zoom"
+            "legendLocation": "top"
           },
           "interval": "1H",
           "group_by": [
             "i_priority_label"
+          ],
+          "static_markers": [
+            {
+              "timestamp": "{{INCIDENT_OT}}",
+              "message": "Incident Occurred",
+              "color": "#B71C1C"
+            }
           ],
           "series_spec": [
             {
@@ -473,7 +503,7 @@
               ]
             }
           },
-          "widget_id": "6b5b9615"
+          "widget_id": "cdc4f054"
         },
         {
           "widget_type": "pie_chart",
@@ -483,7 +513,7 @@
           "min_width": 3,
           "height": 4,
           "max_width": 3,
-          "duration_hours": 100000,
+          "duration_hours0": 10000,
           "column": "count_",
           "agg": "sum",
           "group_by": [
@@ -522,8 +552,6 @@
           "max_width": 9,
           "height": 4,
           "min_width": 9,
-          "synchronized-group": 0,
-          "duration_hours": 100000,
           "ts_column": "rda_gw_timestamp",
           "show-markers": true,
           "fixTimeWindow": true,
@@ -558,9 +586,8 @@
           "chartProperties": {
             "xAxisLabel": "Timestamp",
             "yAxisLabel": "Count",
-            "legendLocation": "top",
+            "legendLocation": "none",
             "xAxisTickOrientation": "STAGGERED",
-            "mode": "zoom",
             "options": {
               "elements": {
                 "line": {
@@ -574,6 +601,13 @@
               }
             }
           },
+          "static_markers": [
+            {
+              "timestamp": "{{INCIDENT_OT}}",
+              "message": "Incident Occurred",
+              "color": "#B71C1C"
+            }
+          ],
           "series_spec": [
             {
               "column": "count_",
@@ -605,7 +639,8 @@
             },
             "rda_gw_client_ip": "IP Address",
             "hostname": "Host",
-            "message": "Message"
+            "raw": "Message",
+            "syslog_severity": "Severity"
           },
           "actions": [
             {
@@ -625,18 +660,27 @@
   ],
   "pstream_dashboards": [
     {
-      "title": "Application",
+      "title": "Customer View",
       "show_filter": true,
       "widgets": [
         {
-          "title": "Transaction Failure Alerts",
+          "widget_type": "label",
+          "label": "<h3 style='text-align: center;'>Incident Occurred: {%raw%} {{' {{ '}} {%endraw%} toDateTimeString({{ INCIDENT_OT }}) {%raw%} {{ '}}' }} {%endraw%} </h3>",
+          "advanced": true,
+          "min_width": 12,
+          "max_width": 12,
+          "height": 1,
+          "widget_id": "5ae002f1"
+        },
+        {
+          "title": "Link Up/Down Alerts",
           "widget_type": "counter",
           "min_width": 2.4,
           "max_width": 2.4,
           "height": 4,
           "stream": "oia-alerts-stream",
           "ts_column": "a_created_ts",
-          "extra_filter": "a_message contains 'Transaction Failure'",
+          "extra_filter": "a_message contains 'link'",
           "sparkline": {
             "interval": "1h"
           },
@@ -646,38 +690,38 @@
           "widget_id": "42b0d069"
         },
         {
-          "title": "Slow Query Alerts",
+          "title": "BGP Alerts",
           "widget_type": "counter",
           "min_width": 2.4,
           "max_width": 2.4,
           "height": 4,
           "stream": "oia-alerts-stream",
           "ts_column": "a_created_ts",
-          "extra_filter": "a_message contains 'Slow'",
+          "extra_filter": "a_message contains 'BGP'",
           "sparkline": {
             "interval": "1h"
           },
           "column": "count_",
           "agg": "sum",
           "type": "int",
-          "widget_id": "a175fbc0"
+          "widget_id": "5ddd5221"
         },
         {
-          "title": "Slow Response Alerts",
+          "title": "OSPF Alerts",
           "widget_type": "counter",
           "min_width": 2.4,
           "max_width": 2.4,
           "height": 4,
           "stream": "oia-alerts-stream",
           "ts_column": "a_created_ts",
-          "extra_filter": "a_message contains 'Response'",
+          "extra_filter": "a_message contains 'OSPF'",
           "sparkline": {
             "interval": "1h"
           },
           "column": "count_",
           "agg": "sum",
           "type": "int",
-          "widget_id": "066e3d3e"
+          "widget_id": "42dd66a3"
         },
         {
           "title": "Patch Changes",
@@ -694,7 +738,7 @@
           "column": "count_",
           "agg": "sum",
           "type": "int",
-          "widget_id": "fa2467c7"
+          "widget_id": "0b902e7b"
         },
         {
           "title": "Change Requests",
@@ -711,7 +755,7 @@
           "column": "count_",
           "agg": "sum",
           "type": "int",
-          "widget_id": "651c0f51"
+          "widget_id": "bfdcedca"
         },
         {
           "title": "Events Timeline",
@@ -722,28 +766,32 @@
           "height": 8,
           "min_width": 12,
           "fixTimeWindow": true,
-          "synchronized-group": 0,
           "chartProperties": {
             "yAxisLabel": "Alert Count",
             "xAxisLabel": "Time",
             "legendLocation": "none"
           },
+          "static_markers": [
+            {
+              "timestamp": "{{INCIDENT_OT}}",
+              "message": "Incident Occurred",
+              "color": "#B71C1C"
+            }
+          ],
           "alert_markers": [
             {
               "stream": "change_requests_stream",
               "ts_column": "timestamp",
               "type": "circle",
               "message_column": "message",
-              "severity_column": "severity",
-              "annotation": "C"
+              "severity_column": "severity"
             },
             {
               "stream": "oia-alerts-stream",
               "ts_column": "a_created_ts",
               "type": "triangle",
               "message_column": "a_message",
-              "severity_column": "a_severity",
-              "annotation": "!"
+              "severity_column": "a_severity"
             },
             {
               "stream": "oia-ml-metrics-regression-output",
@@ -752,7 +800,6 @@
               "message_column": "marker_message",
               "extra_filter": "anomalies_severity is 'High' and anomalies_type is 'Upper'",
               "severity_column": "anomalies_severity",
-              "annotation": "M",
               "columns": [
                 "asset_id",
                 "metric_id",
@@ -781,7 +828,6 @@
               "message_column": "asset_id",
               "extra_filter": "anomalies_severity is 'High' and anomalies_type is 'Upper'",
               "severity_column": "anomalies_severity",
-              "annotation": "L",
               "columns": [
                 "asset_id",
                 "asset_name",
@@ -854,21 +900,6 @@
             "message": {
               "title": "Change Description",
               "type": "TEXT"
-            },
-            "severity": {
-              "title": "Severity",
-              "htmlTemplateForRow": "<span class='badge' style='background-color: {{'{{ row.severity_color }}'}}' > {{'{{ row.severity }}'}} </span>",
-              "defaultWidth": 150
-            },
-            "severity_color": {
-              "title": "Sev_2",
-              "type": "COLOR-MAP",
-              "source-column": "severity",
-              "color-map": {
-                "HIGH": "#E53935",
-                "MEDIUM": "#F57C00",
-                "LOW": "#FFA726"
-              }
             }
           },
           "widget_id": "31e2f2ed"
@@ -878,6 +909,7 @@
           "title": "Alerts by Severity",
           "stream": "oia-alerts-stream",
           "ts_column": "a_created_ts",
+          "extra_filter": "customer_id is '{{CUSTOMER_ID}}'",
           "min_width": 3,
           "height": 4,
           "max_width": 3,
@@ -929,17 +961,23 @@
           "max_width": 9,
           "height": 4,
           "min_width": 9,
-          "synchronized-group": 0,
           "fixTimeWindow": true,
+          "extra_filter": "customer_id is '{{CUSTOMER_ID}}'",
           "chartProperties": {
             "yAxisLabel": "Count",
             "xAxisLabel": "Time",
-            "legendLocation": "top",
-            "mode": "zoom"
+            "legendLocation": "top"
           },
           "interval": "1H",
           "group_by": [
             "a_severity"
+          ],
+          "static_markers": [
+            {
+              "timestamp": "{{INCIDENT_OT}}",
+              "message": "Incident Occurred",
+              "color": "#B71C1C"
+            }
           ],
           "series_spec": [
             {
@@ -987,6 +1025,7 @@
           "title": "Incidents By Priority",
           "stream": "oia-incidents-stream",
           "ts_column": "i_created_ts",
+          "extra_filter": "customer_id is '{{CUSTOMER_ID}}'",
           "min_width": 3,
           "height": 4,
           "max_width": 3,
@@ -1020,7 +1059,7 @@
             }
           },
           "type": "str",
-          "widget_id": "18b584c9"
+          "widget_id": "ac07f7ed"
         },
         {
           "title": "Incident Trend",
@@ -1030,17 +1069,23 @@
           "max_width": 9,
           "height": 4,
           "min_width": 9,
-          "synchronized-group": 0,
           "fixTimeWindow": true,
+          "extra_filter": "customer_id is '{{CUSTOMER_ID}}'",
           "chartProperties": {
             "yAxisLabel": "Count",
             "xAxisLabel": "Time",
-            "legendLocation": "top",
-            "mode": "zoom"
+            "legendLocation": "top"
           },
           "interval": "1H",
           "group_by": [
             "i_priority_label"
+          ],
+          "static_markers": [
+            {
+              "timestamp": "{{INCIDENT_OT}}",
+              "message": "Incident Occurred",
+              "color": "#B71C1C"
+            }
           ],
           "series_spec": [
             {
@@ -1073,7 +1118,7 @@
               ]
             }
           },
-          "widget_id": "6b5b9615"
+          "widget_id": "cdc4f054"
         },
         {
           "widget_type": "pie_chart",
@@ -1083,7 +1128,7 @@
           "min_width": 3,
           "height": 4,
           "max_width": 3,
-          "duration_hours": 100000,
+          "duration_hours0": 10000,
           "column": "count_",
           "agg": "sum",
           "group_by": [
@@ -1122,8 +1167,6 @@
           "max_width": 9,
           "height": 4,
           "min_width": 9,
-          "synchronized-group": 0,
-          "duration_hours": 100000,
           "ts_column": "rda_gw_timestamp",
           "show-markers": true,
           "fixTimeWindow": true,
@@ -1158,9 +1201,8 @@
           "chartProperties": {
             "xAxisLabel": "Timestamp",
             "yAxisLabel": "Count",
-            "legendLocation": "top",
+            "legendLocation": "none",
             "xAxisTickOrientation": "STAGGERED",
-            "mode": "zoom",
             "options": {
               "elements": {
                 "line": {
@@ -1174,6 +1216,13 @@
               }
             }
           },
+          "static_markers": [
+            {
+              "timestamp": "{{INCIDENT_OT}}",
+              "message": "Incident Occurred",
+              "color": "#B71C1C"
+            }
+          ],
           "series_spec": [
             {
               "column": "count_",
@@ -1205,7 +1254,8 @@
             },
             "rda_gw_client_ip": "IP Address",
             "hostname": "Host",
-            "message": "Message"
+            "raw": "Message",
+            "syslog_severity": "Severity"
           },
           "actions": [
             {
