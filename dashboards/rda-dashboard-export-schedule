@@ -1,51 +1,167 @@
 {
-  "name": "rda-mgmt-page-alert-rules",
-  "label": "Alert Rules",
-  "description": "Alert Rules Page",
+  "name": "rda-dashboard-export-schedule",
+  "label": "Dashboard Export Schedules",
+  "description": "Dashboard Export Schedules",
+  "version": "24.5.29.1",
   "enabled": true,
-  "dashboard_type": "dashboard",
-  "dashboard_folder": "System",
+  "dashboard_type": "template",
+  "template_variables": {
+    "USER_ID": {
+      "contextId": "USER_ID"
+    }
+  },
   "dashboard_filters": {
-    "time_filter": false
+    "time_filter": true,
+    "default_time_filter_labels": [
+      "Last 1 month"
+    ],
+    "extra_filter": "created_by is '{{USER_ID}}'",
+    "columns_filter": [
+      {
+        "id": "schedule_id",
+        "label": "Job ID",
+        "type": "TEXT"
+      },
+      {
+        "id": "dashboard_name",
+        "label": "Dashboard Name",
+        "type": "TEXT"
+      },
+      {
+        "id": "dashboard_title",
+        "label": "Dashboard Label",
+        "type": "TEXT"
+      },
+      {
+        "id": "filters",
+        "label": "Condition Filters",
+        "type": "TEXT"
+      },
+      {
+        "id": "name",
+        "label": "Export Filename",
+        "type": "TEXT"
+      },
+      {
+        "id": "include_csv_files",
+        "label": "Include CSV Files",
+        "type": "TEXT"
+      },
+      {
+        "id": "descr",
+        "label": "Description",
+        "type": "TEXT"
+      },
+      {
+        "id": "email_id",
+        "label": "Send To",
+        "type": "TEXT"
+      },
+      {
+        "id": "start_time",
+        "label": "Schedule Start Time",
+        "type": "DATETIME"
+      },
+      {
+        "id": "next_run_time",
+        "label": "Next Run Time",
+        "type": "DATETIME"
+      },
+      {
+        "id": "end_time",
+        "label": "Schedule End Time",
+        "type": "DATETIME"
+      },
+      {
+        "id": "frequency",
+        "label": "Schedule Frequency",
+        "type": "TEXT"
+      },
+      {
+        "id": "created_by",
+        "label": "Created By",
+        "type": "TEXT"
+      },
+      {
+        "id": "expired",
+        "label": "Job Expired",
+        "type": "TEXT"
+      }
+    ]
   },
   "dashboard_sections": [
     {
-      "title": "Alert Rules",
+      "title": "Dashboard Schedules",
       "show_filter": true,
       "widgets": [
         {
-          "title": "Alert Rules",
+          "title": "Schedule Details",
           "widget_type": "tabular",
-          "duration_hours": 87600,
-          "stream": "rda_alertrules_meta",
-          "remote_searchable": true,
-          "remote_searchable_cols": [
-            "name",
-            "type",
-            "description"
-          ],
-          "ts_column": "saved_time",
+          "stream": "rda_dashboard_export_schedules",
+          "height": 10,
+          "min_width": 12,
           "paginated": true,
-          "height": 5,
-          "min_wdith": 12,
           "columns": {
-            "name": {
-              "title": "Name",
-              "key": true
+            "job_id": {
+              "title": "RDA ID",
+              "key": true,
+              "hidden": true
             },
-            "type": "Type",
-            "description": "Description",
-            "saved_time": {
-              "title": "Saved Time",
-              "type": "DATETIME"
+            "schedule_id": {
+              "title": "Job ID"
+            },
+            "created_by": {
+              "title": "Created By"
+            },
+            "dashboard_name": {
+              "title": "Dashboard Name",
+              "visible": false
+            },
+            "dashboard_title": {
+              "title": "Dashboard Label"
+            },
+            "filters": {
+              "title": "Condition Filters"
+            },
+            "name": {
+              "title": "Export Filename"
+            },
+            "include_csv_files": {
+              "title": "Include CSV Files"
+            },
+            "descr": {
+              "title": "Description"
+            },
+            "email_id": {
+              "title": "Send To"
+            },
+            "start_time": {
+              "title": "Schedule Start Time",
+              "type": "DATETIME",
+              "hidden": false
+            },
+            "next_run_time": {
+              "title": "Next Run Time",
+              "type": "DATETIME",
+              "hidden": false
+            },
+            "end_time": {
+              "title": "Schedule End Time",
+              "type": "DATETIME",
+              "hidden": false
+            },
+            "frequency": {
+              "title": "Schedule Frequency"
+            },
+            "expired": {
+              "title": "Job Expired"
             }
           },
           "custom_columns": [
             {
               "id": "enabled",
               "label": "Enabled",
-              "expr": "'yes' if enabled else 'no'",
-              "htmlTemplateForRow": "<span class='badge' style='background-color: {{ row.enableColor }}' > {{ row.enabled }} </span>"
+              "htmlTemplateForRow": "{%raw%}<span class='badge' style='background-color: {{ row.enableColor }}' > {{ row.enabled }} </span>{%endraw%}"
             },
             {
               "id": "enableColor",
@@ -56,14 +172,38 @@
               "sortable": false
             }
           ],
+          "0custom_columns": [
+            {
+              "id": "id",
+              "label": "JOB",
+              "expr": "job_id if job_id else None",
+              "visible": false,
+              "key": true
+            }
+          ],
+          "refreshOptions": {
+            "refreshType": "Periodic",
+            "refreshInterval": 60000
+          },
           "actions": [
             {
-              "permission": "rda:user_dashboard:add",
-              "title": "Add",
-              "icon": "mdi mdi-plus",
+              "permission": "rda:schedules:view",
+              "title": "Delete",
               "type": "POPUP_FORM",
-              "selectionType": "NONE",
-              "identifier": "saas-service-action:alertrule-add",
+              "selectionType": "SINGLE",
+              "identifier": "saas-service-action:delete-schedule",
+              "contextParamList": {
+                "contextParams": [
+                  {
+                    "paramKey": "job_id",
+                    "paramId": "id"
+                  },
+                  {
+                    "paramKey": "dashboard_title",
+                    "paramId": "dashboard_title"
+                  }
+                ]
+              },
               "api-endpoint": {
                 "service-name": "saas-reports",
                 "methodName": "getForm",
@@ -71,17 +211,25 @@
                 "parse-output": false,
                 "params": [
                   {
-                    "formId": "rda.saas.alertrule.add"
+                    "formId": "rda.saas.dashboard.schedule.delete"
                   }
                 ]
               }
             },
             {
-              "permission": "rda:user_dashboard:view",
-              "title": "View JSON",
+              "permission": "rda:schedules:edit",
+              "title": "Update",
               "type": "POPUP_FORM",
               "selectionType": "SINGLE",
-              "identifier": "saas-service-action:alertrule-view-json",
+              "identifier": "saas-service-action:update-schedule",
+              "contextParamList": {
+                "contextParams": [
+                  {
+                    "paramKey": "job_id",
+                    "paramId": "id"
+                  }
+                ]
+              },
               "api-endpoint": {
                 "service-name": "saas-reports",
                 "methodName": "getForm",
@@ -89,36 +237,48 @@
                 "parse-output": false,
                 "params": [
                   {
-                    "formId": "rda.saas.alertrule.view"
+                    "formId": "rda.saas.dashboard.schedule.update"
+                  }
+                ]
+              },
+              "actionCondition": {
+                "actionControl": "SHOW_IF",
+                "conditionalField": [
+                  {
+                    "conditionType": "EQUAL",
+                    "conditionValue": "no",
+                    "fieldId": "expired"
                   }
                 ]
               }
             },
             {
-              "permission": "rda:user_dashboard:edit",
-              "title": "Edit JSON",
-              "icon": "mdi mdi-plus",
-              "type": "POPUP_FORM",
+              "appName": "user-dashboard/rda-dashboard-view-logs",
+              "permission": "rda:schedules:view",
+              "identifier": "view_logs",
               "selectionType": "SINGLE",
-              "identifier": "saas-service-action:alertrule-edit-json",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.alertrule.edit"
-                  }
-                ]
-              }
+              "stateName": "app.featureapp",
+              "title": "View Logs",
+              "type": "GO_TO_APP_STATE"
             },
             {
-              "permission": "rda:user_dashboard:run",
-              "title": "Run",
+              "permission": "rda:user_dashboard:enable",
+              "title": "Enable",
               "type": "POPUP_FORM",
               "selectionType": "SINGLE",
-              "identifier": "saas-service-action:alertrule-run",
+              "identifier": "saas-service-action:schedule-enable",
+              "contextParamList": {
+                "contextParams": [
+                  {
+                    "paramKey": "job_id",
+                    "paramId": "id"
+                  },
+                  {
+                    "paramKey": "dashboard_title",
+                    "paramId": "dashboard_title"
+                  }
+                ]
+              },
               "api-endpoint": {
                 "service-name": "saas-reports",
                 "methodName": "getForm",
@@ -126,7 +286,22 @@
                 "parse-output": false,
                 "params": [
                   {
-                    "formId": "rda.saas.alertrule.run"
+                    "formId": "rda.saas.dashboard.schedule.enable"
+                  }
+                ]
+              },
+              "actionCondition": {
+                "actionControl": "SHOW_IF",
+                "conditionalField": [
+                  {
+                    "conditionType": "EQUAL",
+                    "conditionValue": "no",
+                    "fieldId": "enabled"
+                  },
+                  {
+                    "conditionType": "EQUAL",
+                    "conditionValue": "no",
+                    "fieldId": "expired"
                   }
                 ]
               }
@@ -136,7 +311,19 @@
               "title": "Disable",
               "type": "POPUP_FORM",
               "selectionType": "SINGLE",
-              "identifier": "saas-service-action:alertrule-deactivate",
+              "identifier": "saas-service-action:schedule-disable",
+              "contextParamList": {
+                "contextParams": [
+                  {
+                    "paramKey": "job_id",
+                    "paramId": "id"
+                  },
+                  {
+                    "paramKey": "dashboard_title",
+                    "paramId": "dashboard_title"
+                  }
+                ]
+              },
               "api-endpoint": {
                 "service-name": "saas-reports",
                 "methodName": "getForm",
@@ -144,7 +331,7 @@
                 "parse-output": false,
                 "params": [
                   {
-                    "formId": "rda.saas.alertrule.deactivate"
+                    "formId": "rda.saas.dashboard.schedule.disable"
                   }
                 ]
               },
@@ -155,263 +342,94 @@
                     "conditionType": "EQUAL",
                     "conditionValue": "yes",
                     "fieldId": "enabled"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:user_dashboard:enable",
-              "title": "Enable",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:alertrule-activate",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.alertrule.activate"
-                  }
-                ]
-              },
-              "actionCondition": {
-                "actionControl": "SHOW_IF",
-                "conditionalField": [
+                  },
                   {
                     "conditionType": "EQUAL",
                     "conditionValue": "no",
-                    "fieldId": "enabled"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:user_dashboard:delete",
-              "title": "Delete",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:alertrule-delete",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.alertrule.delete"
+                    "fieldId": "expired"
                   }
                 ]
               }
             }
           ],
-          "widget_id": "d5b2edf9"
-        },
-        {
-          "title": "Alert Rules Schedules",
-          "widget_type": "tabular",
-          "duration_hours": 87600,
-          "stream": "rda_alert_apscheduler_jobs",
-          "paginated": true,
-          "height": 5,
-          "min_wdith": 12,
-          "columns": {
-            "id": "Name",
-            "next_run_time": {
-              "title": "Next Scheduled Run Time",
-              "type": "DATETIME"
-            }
-          },
-          "widget_id": "f2cd5289"
-        },
-        {
-          "title": "Alert Rules Notifications",
-          "widget_type": "tabular",
-          "duration_hours": 87600,
-          "stream": "rda_alert_state_management_notification_status",
-          "paginated": true,
-          "height": 5,
-          "min_wdith": 12,
-          "remote_searchable": true,
-          "remote_searchable_cols": [
-            "name",
-            "status",
-            "state",
-            "message"
-          ],
-          "columns": {
-            "name": "Name",
-            "status": "Notificaiton Status",
-            "state": "Alert State",
-            "message": "Status Message",
-            "retry": "Retry",
-            "timestamp": {
-              "title": "Timestamp",
-              "type": "DATETIME"
-            }
-          },
-          "widget_id": "6dbc41d9"
-        }
-      ]
-    },
-    {
-      "title": "Notification Channels",
-      "show_filter": true,
-      "widgets": [
-        {
-          "title": "Notification Channels",
-          "widget_type": "tabular",
-          "duration_hours": 87600,
-          "stream": "rda_notification_channels_meta",
-          "remote_searchable": true,
-          "remote_searchable_cols": [
-            "name",
-            "type",
-            "description"
-          ],
-          "ts_column": "saved_time",
-          "paginated": true,
-          "height": 10,
-          "min_wdith": 12,
-          "columns": {
-            "name": {
-              "title": "Name",
-              "key": true
-            },
-            "type": "Type",
-            "description": "Description",
-            "saved_time": "Saved Time"
-          },
-          "actions": [
-            {
-              "permission": "rda:user_dashboard:add",
-              "title": "Add",
-              "icon": "mdi mdi-plus",
-              "type": "POPUP_FORM",
-              "selectionType": "NONE",
-              "identifier": "saas-service-action:notification_channel-add",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.notification_channel.add"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:user_dashboard:view",
-              "title": "View JSON",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:notification_channel-view-json",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.notification_channel.view"
-                  }
-                ]
-              },
-              "actionCondition": {
-                "actionControl": "SHOW_IF",
-                "conditionalField": [
-                  {
-                    "conditionType": "EQUAL",
-                    "conditionValue": "no",
-                    "fieldId": "non_existing_field"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:user_dashboard:edit",
-              "title": "Edit",
-              "icon": "mdi mdi-plus",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:notification_channel-edit-json",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.notification_channel.edit"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:user_dashboard:delete",
-              "title": "Delete",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:notification_channel-delete",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.notification_channel.delete"
-                  }
-                ]
-              }
-            }
-          ],
-          "widget_id": "d5b2eda9"
+          "widget_id": "cdc398bc"
         }
       ]
     }
   ],
   "pstream_dashboards": [
     {
-      "title": "Alert Rules",
+      "title": "Dashboard Schedules",
       "show_filter": true,
       "widgets": [
         {
-          "title": "Alert Rules",
+          "title": "Schedule Details",
           "widget_type": "tabular",
-          "duration_hours": 87600,
-          "stream": "rda_alertrules_meta",
-          "remote_searchable": true,
-          "remote_searchable_cols": [
-            "name",
-            "type",
-            "description"
-          ],
-          "ts_column": "saved_time",
+          "stream": "rda_dashboard_export_schedules",
+          "height": 10,
+          "min_width": 12,
           "paginated": true,
-          "height": 5,
-          "min_wdith": 12,
           "columns": {
-            "name": {
-              "title": "Name",
-              "key": true
+            "job_id": {
+              "title": "RDA ID",
+              "key": true,
+              "hidden": true
             },
-            "type": "Type",
-            "description": "Description",
-            "saved_time": {
-              "title": "Saved Time",
-              "type": "DATETIME"
+            "schedule_id": {
+              "title": "Job ID"
+            },
+            "created_by": {
+              "title": "Created By"
+            },
+            "dashboard_name": {
+              "title": "Dashboard Name",
+              "visible": false
+            },
+            "dashboard_title": {
+              "title": "Dashboard Label"
+            },
+            "filters": {
+              "title": "Condition Filters"
+            },
+            "name": {
+              "title": "Export Filename"
+            },
+            "include_csv_files": {
+              "title": "Include CSV Files"
+            },
+            "descr": {
+              "title": "Description"
+            },
+            "email_id": {
+              "title": "Send To"
+            },
+            "start_time": {
+              "title": "Schedule Start Time",
+              "type": "DATETIME",
+              "hidden": false
+            },
+            "next_run_time": {
+              "title": "Next Run Time",
+              "type": "DATETIME",
+              "hidden": false
+            },
+            "end_time": {
+              "title": "Schedule End Time",
+              "type": "DATETIME",
+              "hidden": false
+            },
+            "frequency": {
+              "title": "Schedule Frequency"
+            },
+            "expired": {
+              "title": "Job Expired"
             }
           },
           "custom_columns": [
             {
               "id": "enabled",
               "label": "Enabled",
-              "expr": "'yes' if enabled else 'no'",
-              "htmlTemplateForRow": "<span class='badge' style='background-color: {{ row.enableColor }}' > {{ row.enabled }} </span>"
+              "htmlTemplateForRow": "{%raw%}<span class='badge' style='background-color: {{ row.enableColor }}' > {{ row.enabled }} </span>{%endraw%}"
             },
             {
               "id": "enableColor",
@@ -422,14 +440,38 @@
               "sortable": false
             }
           ],
+          "0custom_columns": [
+            {
+              "id": "id",
+              "label": "JOB",
+              "expr": "job_id if job_id else None",
+              "visible": false,
+              "key": true
+            }
+          ],
+          "refreshOptions": {
+            "refreshType": "Periodic",
+            "refreshInterval": 60000
+          },
           "actions": [
             {
-              "permission": "rda:user_dashboard:add",
-              "title": "Add",
-              "icon": "mdi mdi-plus",
+              "permission": "rda:schedules:view",
+              "title": "Delete",
               "type": "POPUP_FORM",
-              "selectionType": "NONE",
-              "identifier": "saas-service-action:alertrule-add",
+              "selectionType": "SINGLE",
+              "identifier": "saas-service-action:delete-schedule",
+              "contextParamList": {
+                "contextParams": [
+                  {
+                    "paramKey": "job_id",
+                    "paramId": "id"
+                  },
+                  {
+                    "paramKey": "dashboard_title",
+                    "paramId": "dashboard_title"
+                  }
+                ]
+              },
               "api-endpoint": {
                 "service-name": "saas-reports",
                 "methodName": "getForm",
@@ -437,17 +479,25 @@
                 "parse-output": false,
                 "params": [
                   {
-                    "formId": "rda.saas.alertrule.add"
+                    "formId": "rda.saas.dashboard.schedule.delete"
                   }
                 ]
               }
             },
             {
-              "permission": "rda:user_dashboard:view",
-              "title": "View JSON",
+              "permission": "rda:schedules:edit",
+              "title": "Update",
               "type": "POPUP_FORM",
               "selectionType": "SINGLE",
-              "identifier": "saas-service-action:alertrule-view-json",
+              "identifier": "saas-service-action:update-schedule",
+              "contextParamList": {
+                "contextParams": [
+                  {
+                    "paramKey": "job_id",
+                    "paramId": "id"
+                  }
+                ]
+              },
               "api-endpoint": {
                 "service-name": "saas-reports",
                 "methodName": "getForm",
@@ -455,36 +505,48 @@
                 "parse-output": false,
                 "params": [
                   {
-                    "formId": "rda.saas.alertrule.view"
+                    "formId": "rda.saas.dashboard.schedule.update"
+                  }
+                ]
+              },
+              "actionCondition": {
+                "actionControl": "SHOW_IF",
+                "conditionalField": [
+                  {
+                    "conditionType": "EQUAL",
+                    "conditionValue": "no",
+                    "fieldId": "expired"
                   }
                 ]
               }
             },
             {
-              "permission": "rda:user_dashboard:edit",
-              "title": "Edit JSON",
-              "icon": "mdi mdi-plus",
-              "type": "POPUP_FORM",
+              "appName": "user-dashboard/rda-dashboard-view-logs",
+              "permission": "rda:schedules:view",
+              "identifier": "view_logs",
               "selectionType": "SINGLE",
-              "identifier": "saas-service-action:alertrule-edit-json",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.alertrule.edit"
-                  }
-                ]
-              }
+              "stateName": "app.featureapp",
+              "title": "View Logs",
+              "type": "GO_TO_APP_STATE"
             },
             {
-              "permission": "rda:user_dashboard:run",
-              "title": "Run",
+              "permission": "rda:user_dashboard:enable",
+              "title": "Enable",
               "type": "POPUP_FORM",
               "selectionType": "SINGLE",
-              "identifier": "saas-service-action:alertrule-run",
+              "identifier": "saas-service-action:schedule-enable",
+              "contextParamList": {
+                "contextParams": [
+                  {
+                    "paramKey": "job_id",
+                    "paramId": "id"
+                  },
+                  {
+                    "paramKey": "dashboard_title",
+                    "paramId": "dashboard_title"
+                  }
+                ]
+              },
               "api-endpoint": {
                 "service-name": "saas-reports",
                 "methodName": "getForm",
@@ -492,7 +554,22 @@
                 "parse-output": false,
                 "params": [
                   {
-                    "formId": "rda.saas.alertrule.run"
+                    "formId": "rda.saas.dashboard.schedule.enable"
+                  }
+                ]
+              },
+              "actionCondition": {
+                "actionControl": "SHOW_IF",
+                "conditionalField": [
+                  {
+                    "conditionType": "EQUAL",
+                    "conditionValue": "no",
+                    "fieldId": "enabled"
+                  },
+                  {
+                    "conditionType": "EQUAL",
+                    "conditionValue": "no",
+                    "fieldId": "expired"
                   }
                 ]
               }
@@ -502,7 +579,19 @@
               "title": "Disable",
               "type": "POPUP_FORM",
               "selectionType": "SINGLE",
-              "identifier": "saas-service-action:alertrule-deactivate",
+              "identifier": "saas-service-action:schedule-disable",
+              "contextParamList": {
+                "contextParams": [
+                  {
+                    "paramKey": "job_id",
+                    "paramId": "id"
+                  },
+                  {
+                    "paramKey": "dashboard_title",
+                    "paramId": "dashboard_title"
+                  }
+                ]
+              },
               "api-endpoint": {
                 "service-name": "saas-reports",
                 "methodName": "getForm",
@@ -510,7 +599,7 @@
                 "parse-output": false,
                 "params": [
                   {
-                    "formId": "rda.saas.alertrule.deactivate"
+                    "formId": "rda.saas.dashboard.schedule.disable"
                   }
                 ]
               },
@@ -521,221 +610,17 @@
                     "conditionType": "EQUAL",
                     "conditionValue": "yes",
                     "fieldId": "enabled"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:user_dashboard:enable",
-              "title": "Enable",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:alertrule-activate",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.alertrule.activate"
-                  }
-                ]
-              },
-              "actionCondition": {
-                "actionControl": "SHOW_IF",
-                "conditionalField": [
+                  },
                   {
                     "conditionType": "EQUAL",
                     "conditionValue": "no",
-                    "fieldId": "enabled"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:user_dashboard:delete",
-              "title": "Delete",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:alertrule-delete",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.alertrule.delete"
+                    "fieldId": "expired"
                   }
                 ]
               }
             }
           ],
-          "widget_id": "d5b2edf9"
-        },
-        {
-          "title": "Alert Rules Schedules",
-          "widget_type": "tabular",
-          "duration_hours": 87600,
-          "stream": "rda_alert_apscheduler_jobs",
-          "paginated": true,
-          "height": 5,
-          "min_wdith": 12,
-          "columns": {
-            "id": "Name",
-            "next_run_time": {
-              "title": "Next Scheduled Run Time",
-              "type": "DATETIME"
-            }
-          },
-          "widget_id": "f2cd5289"
-        },
-        {
-          "title": "Alert Rules Notifications",
-          "widget_type": "tabular",
-          "duration_hours": 87600,
-          "stream": "rda_alert_state_management_notification_status",
-          "paginated": true,
-          "height": 5,
-          "min_wdith": 12,
-          "remote_searchable": true,
-          "remote_searchable_cols": [
-            "name",
-            "status",
-            "state",
-            "message"
-          ],
-          "columns": {
-            "name": "Name",
-            "status": "Notificaiton Status",
-            "state": "Alert State",
-            "message": "Status Message",
-            "retry": "Retry",
-            "timestamp": {
-              "title": "Timestamp",
-              "type": "DATETIME"
-            }
-          },
-          "widget_id": "6dbc41d9"
-        }
-      ]
-    },
-    {
-      "title": "Notification Channels",
-      "show_filter": true,
-      "widgets": [
-        {
-          "title": "Notification Channels",
-          "widget_type": "tabular",
-          "duration_hours": 87600,
-          "stream": "rda_notification_channels_meta",
-          "remote_searchable": true,
-          "remote_searchable_cols": [
-            "name",
-            "type",
-            "description"
-          ],
-          "ts_column": "saved_time",
-          "paginated": true,
-          "height": 10,
-          "min_wdith": 12,
-          "columns": {
-            "name": {
-              "title": "Name",
-              "key": true
-            },
-            "type": "Type",
-            "description": "Description",
-            "saved_time": "Saved Time"
-          },
-          "actions": [
-            {
-              "permission": "rda:user_dashboard:add",
-              "title": "Add",
-              "icon": "mdi mdi-plus",
-              "type": "POPUP_FORM",
-              "selectionType": "NONE",
-              "identifier": "saas-service-action:notification_channel-add",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.notification_channel.add"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:user_dashboard:view",
-              "title": "View JSON",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:notification_channel-view-json",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.notification_channel.view"
-                  }
-                ]
-              },
-              "actionCondition": {
-                "actionControl": "SHOW_IF",
-                "conditionalField": [
-                  {
-                    "conditionType": "EQUAL",
-                    "conditionValue": "no",
-                    "fieldId": "non_existing_field"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:user_dashboard:edit",
-              "title": "Edit",
-              "icon": "mdi mdi-plus",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:notification_channel-edit-json",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.notification_channel.edit"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:user_dashboard:delete",
-              "title": "Delete",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:notification_channel-delete",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.notification_channel.delete"
-                  }
-                ]
-              }
-            }
-          ],
-          "widget_id": "d5b2eda9"
+          "widget_id": "cdc398bc"
         }
       ]
     }
