@@ -1,18 +1,23 @@
-@dm:empty
- --> @dm:addrow name="edc_oi_inventory_grouped" and limit=0 and groupby="customer_name" and aggs="value_count:count_"
- --> #dm:query-persistent-stream
- --> @dm:save name='temp-unique-customer-name'
- ## delete enriched stream
-
- --> @c:data-loop columns='customer_name' and dataset='temp-unique-customer-name'
+@c:new-block
+ --> @exec:get-input
+ --> @dm:save name="temp-file_upload0"
+ --> @dm:save name="10dataset"
+ --> @dm:recall name="10dataset"
+ --> @dm:selectcolumns include = 'USER_ID|proj_name|customer_name'
+ --> @dm:add-missing-columns columns = 'pipeline_name' &
+value = 'swdata-status-test'
+ --> @dm:add-missing-columns columns = 'status_type' &
+value = 'Initiating'
+ --> @dm:add-missing-columns columns = 'jobid' &
+value = 'Initiating'
+ --> @dm:save name="temp1-temp"
+ --> @rn:write-stream name = "status-stream"
+ --> @exec:run-pipeline name ="swdata-status-test"
+ --> @dm:sleep seconds = 40
  --> @dm:empty
- --> @dm:addrow name = "edc_oi_inventory_grouped" & conflicts = "proceed" & timeout = 1200
- --> #dm:pstream-delete-data-by-query customer_name=="$customer_name"
- --> @dm:sleep seconds = 5
- ## delete raw stream
-
- --> @c:data-loop columns='customer_name' and dataset='temp-unique-customer-name'
- --> @dm:empty
- --> @dm:addrow name = "edc_oi_inventory_enriched" & conflicts = "proceed" & timeout = 1200
- --> #dm:pstream-delete-data-by-query customer_name=="$customer_name"
- --> @dm:sleep seconds = 5
+ --> @dm:recall name="temp1-temp"
+ --> @dm:replace-data columns = 'status_type' &
+expr = 'in-progress' &
+replace = 'Completed'
+ --> @dm:save name="temp1-temp"
+ --> @rn:write-stream name = "status-stream"
