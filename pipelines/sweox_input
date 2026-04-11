@@ -1,20 +1,29 @@
-@c:new-block
- --> @dm:empty
- ## Get submitted form fields
+@exec:get-input
+ --> @dm:save name='temp-sw-input'
+ --> @dm:save name='cmd_ip'
+ ## --> @dm:replace-data columns="fileUpload" and expr="'" and replace='"'
 
- --> @exec:get-input
- ## Exclude label as it contains unneeded info that should not be written to stream later
+ ## --> @dm:eval fileUpload = "fileUpload.strip() if fileUpload else fileUpload"
 
- --> @dm:selectcolumns exclude='.*_label'
- --> @dm:save name='temp-input_data'
- --> @dm:selectcolumns include="sweox_csv"
- --> @dm:explode-json column="sweox_csv"
+ ## --> @dm:eval orders="eval(fileUpload)"
+
+ --> @dm:eval fileUpload="json_dumps(fileUpload)"
+ --> @dm:explode-json column="fileUpload"
+ --> @dm:eval location="bucketName+'/'+objectName"
+ --> @dm:save name='objesct_path'
  --> @dm:save name="temp-input-dataset"
  --> @c:new-block
- --> @c:data-loop dataset="temp-input-dataset" and columns="bucketName,objectName"
- --> @dm:recall name="temp-input-dataset"
- --> @dm:skip-block-if-shape row_count=0
- --> @dm:get-from-location path="$bucketName/$objectName"
- --> @dm:save name="temp-uploaded-file-data"
- --> @dm:save name="uploaded-sweox-data"
- --> @rn:write-stream name="test1-stream-input"
+ --> @dm:empty
+ --> @exec:define-function name="define_child_pipelines"
+ --> @exec:run-pipeline name ="edc_generate_token" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="test_get_sw_xor" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_sweol_enrich" & ignore_failures = "no"
+ --> @exec:end-function
+ --> @c:data-loop dataset="temp-input-dataset" and columns="objectName,location"
+ --> @dm:empty
+ --> @dm:get-from-location path='$location'
+ --> @dm:rename-columns customer='Customer' and sw_version='SW_Version' and sw_os_type='SW_OS_Type' and product_id='Product_ID' and contract_number='Contract_Number'
+ --> @dm:map from = 'contarct_number,customer,product_id' & to = 'ingestion_id' & func = 'join' & sep = '_'
+ --> @rn:write-stream name='edc_cust_pid_sw'
+ --> @dm:save name='added-minio-file'
+ --> @exec:run-pipeline name ="edc_sw_run_scan" & ignore_failures = "no"
