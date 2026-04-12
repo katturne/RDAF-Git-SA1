@@ -1,28 +1,51 @@
-@c:new-block
- --> @exec:get-input
- --> @dm:save name="temp-file_upload11"
- --> @dm:save name="101dataset"
- --> @dm:recall name="101dataset"
- --> @dm:selectcolumns include = 'USER_ID|proj_name|customer_name'
- --> @dm:add-missing-columns columns = 'pipeline_name' &
-value = 'swdata-status-test-hardcode'
- --> @dm:add-missing-columns columns = 'status_type' &
-value = 'Initiating'
- --> @dm:eval timestamp ='utcnow().isoformat()'
- --> @dm:save name="temp1-temp1"
- --> @rn:write-stream name = "status-stream-hardcode"
- --> @exec:run-pipeline name ="swdata-status-test-hardcode"
- --> @dm:sleep seconds = 20
- --> @dm:recall name="temp1-temp1"
- --> @dm:replace-data columns = 'status_type' &
-expr = 'Initiating' &
-replace = 'In-progress'
- --> @dm:save name="temp1-temp1"
- --> @rn:write-stream name = "status-stream-hardcode"
- --> @dm:sleep seconds = 20
- --> @dm:recall name="temp1-temp1"
- --> @dm:replace-data columns = 'status_type' &
-expr = 'In-progress' &
-replace = 'Completed'
- --> @dm:save name="temp1-temp1"
- --> @rn:write-stream name = "status-stream-hardcode"
+
+ ## get the minio path for the uploaded file
+@exec:get-input
+ --> @dm:save name='temp-sw-input'
+ --> @dm:save name='cmd_ip'
+ ## --> @dm:replace-data columns="fileUpload" and expr="'" and replace='"'
+
+ ## --> @dm:eval fileUpload = "fileUpload.strip() if fileUpload else fileUpload"
+
+ ## --> @dm:eval orders="eval(fileUpload)"
+
+ --> @dm:eval fileUpload="json_dumps(fileUpload)"
+ --> @dm:explode-json column="fileUpload"
+ --> @dm:eval location="bucketName+'/'+objectName"
+ --> @dm:save name='objesct_path'
+ --> @dm:save name="temp-input-dataset"
+ ## declaring thrid level child pipelines
+
+ --> @c:new-block
+ --> @dm:empty
+ --> @exec:define-function name="define_child_pipelines"
+ --> @exec:run-pipeline name ="edc_generate_token" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_sw_get_data" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_sweol_enrich" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_processing_sw_data" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_get_sw_sa_details" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_sw_run_scan" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_sa_run_scan" & ignore_failures = "no"
+ --> @exec:end-function
+ ## collecting the file and storing it in edc_cust_pid_sw stream, collecting the API data and adding the processed data to edc_sw_raw_data
+
+ --> @c:data-loop dataset="temp-input-dataset" and columns="objectName,location"
+ --> @dm:empty
+ --> @dm:get-from-location path='$location'
+ ## --> @dm:save name='uploaded_file'
+
+ --> @dm:rename-columns customer='Customer' and sw_version='SW_Version' and sw_os_type='SW_OS_Type' and product_id='Product_ID' and contract_number='Contract_Number' and product_name='Product_Name'
+ --> @dm:to-type columns='contract_number,customer,product_id,sw_version,sw_os_type' and type='str'
+ --> @dm:map from = 'contract_number,customer,product_id,sw_version,sw_os_type' & to = 'unique_key' & func = 'join' & sep = '_'
+ --> @dm:save name='temp-sw-user-uploaded-input'
+ --> @c:new-block
+ --> @dm:recall name='temp-sw-user-uploaded-input'
+ --> @rn:write-stream name='edc_cust_pid_sw'
+ --> @c:new-block
+ --> @dm:recall name='temp-sw-user-uploaded-input'
+ --> @dm:eval source="'software'"
+ --> @exec:run-pipeline name='edc_add_sw_details' and ignore_failures = "no"
+ --> @c:new-block
+ --> @dm:recall name='temp-sw-user-uploaded-input'
+ --> @dm:eval source="'security_advisory'"
+ --> @exec:run-pipeline name='edc_add_sw_details' and ignore_failures = "no"
