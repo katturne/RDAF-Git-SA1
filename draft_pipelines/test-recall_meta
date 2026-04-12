@@ -1,17 +1,9 @@
-folder: Default
-name: test-recall
-description: test pipeline
-data_path: draft-pipelines/data/test-recall/2025_06_11_02/data.json
-usecase: ''
-category: ''
-sources: {}
-artifacts:
-- artifact_type: dataset
-  artifact_name: exploded-sa-output
-  access: read
-- artifact_type: dataset
-  artifact_name: explode-unique
-  access: write
-version: '2025_06_11_02'
-file_type: json
-checksum: bd223ae1
+@c:new-block
+ --> @dm:empty
+ --> @dm:addrow name="edc_customer_inventory" & limit = '0' and sort_by_col='timestamp' and sort_type='desc'
+ --> #dm:query-persistent-stream project_name is 'ATT-Mobility'
+ --> @dm:save name='temp-customer'
+ --> @c:new-block
+ --> @dm:recall-chunked name="temp-customer" and num_rows=2000
+ --> @Kafka_grafana:write-stream name="edc_customer_inventory_1"
+ --> @dm:sleep seconds = 3

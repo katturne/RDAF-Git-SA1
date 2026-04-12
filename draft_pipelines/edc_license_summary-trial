@@ -1,159 +1,167 @@
-@c:new-block
- --> @dm:recall name="edc_license_domains"
- --> *dm:filter customer is 'ATT'
- --> @dm:save name='temp-cust-domains-trial'
- ## Collect Consumption
+@dm:empty
+ --> @dm:addrow name="edc_oi_inventory_grouped" and limit=0 and groupby="customer_name" and aggs="value_count:count_"
+ --> #dm:query-persistent-stream
+ --> *dm:filter customer_name =="CSpire"
+ --> @dm:save name='temp-unique-gu-name'
+ --> @c:data-loop columns='customer_name' and dataset='temp-unique-gu-name'
+ --> @dm:empty
+ --> @dm:addrow name='edc_oi_inventory_grouped' and limit=0
+ --> #dm:query-persistent-stream customer_name in '$customer_name'
+ ## adding columns in case of missing
 
- --> @c:data-loop columns='top_level_domain,customer' and dataset='temp-cust-domains-trial'
- --> @snowflake:native-query dbname is "CX_DB" and warehouse is "CX_DMP_RPT_WH" and query is "SELECT * FROM CX_DB.CX_DMP_BR.PV_DMP_LICENSE_CONSUMPTION WHERE TOP_LEVEL_DOMAIN = '$top_level_domain';"
- --> @dm:add-missing-columns columns="execution_status"
- --> *dm:filter execution_status =="Success"
- --> @dm:skip-block-if-shape column_count = 3
- --> @dm:rename-columns billingType="billing_type" &
-license="feature_display_name"
- --> @dm:fixnull columns = 'license_class,licensed_feature_key,license_device_key,reservation_type,pak_item_id,billingType,license,feature_description,license_sku_id,domain_name,smart_account_name,virtual_account_name' and value='NA' and apply_for_empty="yes"
- --> @dm:to_type columns = 'consumed_quantity' & type  = 'int'
- --> @dm:change-time-format columns="consumption_date,consumption_update_date" and from_format="datetimestr" and to_format="%Y-%m-%d"
- ## create column for unique customer
+ --> @dm:add-missing-columns columns="bk_end_of_life_request_num,bk_eol_bulletin_product_typ_cd,end_of_new_svc_attachment_dt,end_of_routine_fail_anlysys_dt,end_of_software_maintenance_dt,end_of_svc_contract_rnwl_dt,eol_external_announce_dt,eol_product_name,last_date_of_sale,last_date_of_support,product_description,product_family,product_family_description,product_type,item_type"
+ ## adding not available to null values and creating a unique key
 
- --> @dm:manipulate-string to="customer_name" and func="eval" and value="'$customer'"
- --> @dm:selectcolumns exclude="attempt_count|execution_reason|execution_status"
- --> @dm:save name="temp-license_consumption-trial" and append = "yes"
- ## Collect entitlement
+ --> @dm:fixnull columns='contract_number,product_name,coverage,covered_line_status,business_entity,business_sub_entity,bk_end_of_life_request_num,bk_eol_bulletin_product_typ_cd,end_of_new_svc_attachment_dt,end_of_routine_fail_anlysys_dt,end_of_software_maintenance_dt,end_of_svc_contract_rnwl_dt,eol_external_announce_dt,eol_product_name,gu_name,item_type,last_date_of_sale,last_date_of_support,product_description,product_family,product_family_description,product_type,combination_count' and value="Not Available"  and apply_for_empty="yes"
+ ## --> @dm:manipulate-string from="gu_name,__uuid" and func="concat_columns" and to="unique_gu_name" and value="_"
 
- --> @c:data-loop columns='top_level_domain,customer' and dataset='temp-cust-domains-trial'
- --> @snowflake:native-query dbname is "CX_DB" and warehouse is "CX_DMP_RPT_WH" and query is "SELECT * FROM CX_DB.CX_DMP_BR.PV_DMP_LICENSE_ENTITLEMENT WHERE TOP_LEVEL_DOMAIN = '$top_level_domain';"
- --> @dm:add-missing-columns columns="execution_status"
- --> *dm:filter execution_status =="Success"
- --> @dm:skip-block-if-shape column_count = 3
- --> @dm:fixnull columns = 'license_start_date,license_end_date,transaction_date,transaction_update_date' and value = '1970-01-01T00:00:01' and apply_for_empty="yes"
- --> @dm:fixnull columns = 'license_type,billing_type,entitlement_type,feature_description,feature_display_name,product_family,license_sku,subscription_reference_id,business_entity,sub_business_entity,virtual_account_name' and value='NA' and apply_for_empty="yes"
- --> @dm:change-time-format columns="license_start_date,license_end_date,transaction_date,transaction_update_date" and from_format="datetimestr" and to_format="%Y-%m-%d"
- --> @dm:to_type columns = 'entitled_quantity' and type  = 'int'
- --> @dm:rename-columns billingType="billing_type" &
-licenseType="license_type" &
-startDate="license_start_date" &
-endDate="license_end_date" &
-subscriptionId="subscription_reference_id" &
-license="feature_display_name" &
-licenseSku="license_sku" &
-smart_account_key="smart_accounts_key" &
-license_sku_id="smart_license_sku_id" &
-sales_order_int="bk_so_number_int"
- ## create column for unique customer
+ --> @dm:save name='temp-hw-sw-eol-details'
+ ## Procressing Data of HW Status and SW Status from Inventory Data
 
- --> @dm:manipulate-string to="customer_name" and func="eval" and value="'$customer'"
- --> @dm:eval unique_key = "str(customer_name) + str(smart_account_key) +str(virtual_account_key)+  str(licensed_feature_key) +str(endDate) +str(startDate) +str(license_sku_id) + str(subscriptionId) + str(sales_order_line_key)+str(license_entitlement_key)"
- --> @dm:selectcolumns exclude="attempt_count|execution_reason|execution_status|transaction_date|transaction_update_date"
- --> @dm:save name="temp-license_entitlement-trial" and append = "yes"
- ## consolidate consumption into single record for smtAcct-virtualAcct-licensedFeature
+ ## ldos dataset for creating hw_status and sw_status
 
- --> @c:new-block
- --> @dm:recall name="temp-license_consumption-trial"
- --> @dm:selectcolumns include="customer_name|domain_name|smart_account_name|smart_account_key|virtual_account_key|virtual_account_name|licensed_feature_key|pak_item_id|^license$|reservation_type|billingType|license_class|license_sku_id|consumed_quantity"
- --> @dm:groupby columns="customer_name,domain_name,smart_account_name,smart_account_key,virtual_account_name,virtual_account_key,licensed_feature_key,pak_item_id,license,reservation_type,billingType,license_class,license_sku_id" and agg='sum'
- --> @dm:save name="temp-license_consumed_grp-trial"
- ## # Build dict for License to Business Entity
+ --> @dm:addrow key="dummy"
+ --> @dm:eval-multi-proc today='int(time_now_as_ms())' and _max_procs=4
+ --> @dm:copy-columns from="today,today,today" and to="t_date,t_month,t_year"
+ --> @dm:change-time-format columns = 't_date' & from_format = 'ms' & to_format = '%d'
+ --> @dm:change-time-format columns = 't_month' & from_format = 'ms' & to_format ='%m'
+ --> @dm:change-time-format columns = 't_year' & from_format = 'ms' & to_format ='%y'
+ --> @dm:to-type columns="t_month,t_year" and type="int"
+ --> @dm:manipulate-string to="major_unit" and value="t_month -1 + 24" and func="eval"
+ --> @dm:manipulate-string to="major_unit_year" and value="t_year + major_unit//12" and func="eval"
+ --> @dm:manipulate-string to="major_unit_month" and value="major_unit % 12 + 1" and func="eval"
+ --> @dm:to_type columns="major_unit_month,t_date,major_unit_year" and type="str"
+ --> @dm:manipulate-string to="major_eol_date" and value="/" and func="concat_columns" and from="major_unit_month,t_date,major_unit_year"
+ --> @dm:manipulate-string to="semi_critical" and value="t_month - 1 + 12" and func="eval"
+ --> @dm:manipulate-string to="semi_critical_unit_year" and value="t_year + semi_critical//12" and func="eval"
+ --> @dm:manipulate-string to="semi_critical_month" and value="semi_critical % 12 + 1" and func="eval"
+ --> @dm:to_type columns="semi_critical_month,t_date,semi_critical_unit_year" and type="str"
+ --> @dm:manipulate-string to="semi_critical_date" and value="/" and func="concat_columns" and from="semi_critical_month,t_date,semi_critical_unit_year"
+ --> @dm:manipulate-string to="very_critical" and value="t_month - 1 + 3" and func="eval"
+ --> @dm:manipulate-string to="very_critical_unit_year" and value="t_year + very_critical//12" and func="eval"
+ --> @dm:manipulate-string to="very_critical_month" and value="very_critical % 12 + 1" and func="eval"
+ --> @dm:to_type columns="very_critical_month,t_date,very_critical_unit_year" and type="str"
+ --> @dm:manipulate-string to="very_critical_date" and value="/" and func="concat_columns" and from="very_critical_month,t_date,very_critical_unit_year"
+ --> @dm:change-time-format columns="major_eol_date,semi_critical_date,very_critical_date" & from_format="datetimestr" and to_format="ms"
+ ## --> @dm:selectcolumns include="$column|^today$|^very_critical_date$|^semi_critical_date$|^major_eol_date$"
 
- --> @c:new-block
- --> @dm:recall name="temp-license_entitlement-trial"
- --> *dm:filter license_class is 'SMART'
- --> *dm:filter business_entity is not 'NA'
- --> @dm:selectcolumns include="license$|business_entity|sub_business_entity|product_family"
- --> @dm:groupby columns="license,business_entity,sub_business_entity"
- --> @dm:rename-columns tot_count="product_family" &
-common_BE="business_entity" &
-common_SBE="sub_business_entity"
- --> @dm:sort columns="license,tot_count" and order="asc"
- --> @dm:dedup columns = 'license' and keep="last"
- --> @dm:selectcolumns exclude="tot_count"
- --> @dm:save name="temp-business_dict-trial"
- ## # Create expiration column for entitlement
+ --> @dm:gc
+ --> @dm:save name="temp-ldos"
+ ## calculating hw_status
 
- --> @c:new-block
- --> @dm:recall name="temp-license_entitlement-trial"
- --> @dm:fixnull columns = 'endDate' and value = '1970-01-01'
- --> @dm:fixnull-regex value='NA'
- --> @dm:eval days_to_expire = " 20000 if licenseType=='PERPETUAL' else (to_datetime(endDate) - utcnow()).days"
- --> @dm:eval endTime = "utcnow()"
- --> @dm:change-time-format columns="endTime" and from_format="datetimestr" and to_format="%A, %m-%d-%Y %I:%M:%S %p %Z"
- --> @dm:eval endTime = "str(endTime)+str(    'UTC')"
- --> @dm:eval expiration_color = " '#79BAEC' if (licenseType =='PERPETUAL' or days_to_expire < -19000 ) else '#BB0000' if (days_to_expire < 90 or days_to_expire == 90) else  '#00BB00' if days_to_expire > 90 else '#b0bec5' "
- --> @dm:eval sort_number = " '3' if (licenseType =='PERPETUAL' or days_to_expire < -19000 ) else '1' if (days_to_expire < 90 or days_to_expire == 90) else  '2' if days_to_expire > 90 else '4' "
- --> @dm:eval expiration_status = " 'Valid Indefinitely' if (licenseType =='PERPETUAL' or days_to_expire < -19000 ) else  'Already Expired' if (days_to_expire< 0  and days_to_expire > -19000)  else  'Expiring within 90 days' if (days_to_expire < 90 or days_to_expire == 90) else 'Expiring after 90 days' if days_to_expire > 90  else '#b0bec5' "
- --> @dm:manipulate-string to="source" and func="eval" and value="'entitled'"
- ## Enrich with consumption
+ --> @dm:recall name="temp-hw-sw-eol-details"
+ --> *dm:filter last_date_of_support is not null
+ --> @dm:skip-block-if-shape row_count='0'
+ --> @dm:recall name="temp-hw-sw-eol-details"
+ --> @dm:dedup columns="last_date_of_support"
+ --> @dm:manipulate-string to="key" and value="'dummy'" and func="eval"
+ --> @dm:selectcolumns include="last_date_of_support|key"
+ --> @dm:enrich dict="temp-ldos" and src_key_cols="key" and dict_key_cols="key" and enrich_cols="today,very_critical_date,semi_critical_date,major_eol_date"
+ --> @dm:copy-columns from="last_date_of_support" and to="ldos"
+ --> @dm:change-time-format columns='ldos' & from_format="datetimestr" and to_format="ms"
+ --> @cfxaia:conditional-statement condition_column="ldos" and operator=">"  and check_value="yes" and value="0" and return_if="ldos"
+ --> @dm:to-type columns="ldos" and type="int"
+ --> @dm:gc
+ --> @dm:selectcolumns exclude="^t_date$|^t_month$|^t_year$|^major_unit$|^major_unit_year$|^major_unit_month$|^semi_critical$|^semi_critical_unit_year$|^semi_critical_month$|^very_critical_unit_year$|^very_critical_month$|^very_critical$"
+ ## hw_status column: is 'Expired' if ldos is < today(current time in ms)
 
- --> @dm:enrich dict="temp-license_consumed_grp" and src_key_cols="customer_name,smart_account_key,virtual_account_key,licensed_feature_key" and dict_key_cols="customer_name,smart_account_key,virtual_account_key,licensed_feature_key" and enrich_cols="consumed_quantity,reservation_type,pak_item_id"
- --> @dm:fixnull columns = 'reservation_type,pak_item_id' and value='NA' and apply_for_empty="yes"
- --> @dm:fixnull columns = 'consumed_quantity' and value=0 and apply_for_empty="yes"
- --> @dm:eval available_quantity= "(entitled_quantity - consumed_quantity)"
- --> @dm:save name="temp-license_entitlement-trial"
- ## Evaluate if all consumed records have an associated entitlement
+ ## 'Expiring in a Quarter' if ldos > today(current time in ms) & <=very_critical_date
 
- --> @c:new-block
- --> @dm:recall name="temp-license_consumed_grp-trial"
- --> @dm:enrich dict="temp-license_entitlement" and src_key_cols="customer_name,smart_account_key,virtual_account_key,licensed_feature_key" and dict_key_cols="customer_name,smart_account_key,virtual_account_key,licensed_feature_key" and enrich_cols="sales_order_line_key,sales_order_int"
- --> *dm:filter sales_order_line_key is null
- --> @dm:eval entitled_quantity= "0"
- --> @dm:eval available_quantity= "(entitled_quantity - consumed_quantity)"
- --> @dm:eval days_to_expire = "-1"
- --> @dm:add-missing-columns columns="subscriptionId,status,licenseType,licenseSku,business_entity,sub_business_entity,product_family"
- --> @dm:fixnull columns="subscriptionId,status,licenseType,licenseSku,business_entity,sub_business_entity,product_family" and value='NA' and apply_for_empty="yes"
- --> @dm:eval sort_number = "4"
- --> @dm:manipulate-string to="source" and func="eval" and value="'consumed'"
- --> @dm:eval unique_key = "str(customer_name) + str(smart_account_key) + str(virtual_account_key)+  str(licensed_feature_key) + str(pak_item_id) + str(reservation_type) + str(license_sku_id)+str(billingType)"
- --> @dm:save name="temp-license_consumption_missing-trial"
- ## Concatenate
+ ## 'Expiring in 8 Quarters' if ldos > today(current time in ms) & <=semi_critical_date
 
- --> @c:new-block
- --> @dm:concat names="temp-license_entitlement-trial|temp-license_consumption_missing-trial"
- --> @dm:fixnull columns = 'sales_order_line_key,sales_order_int' and value = '-1' and apply_for_empty="yes"
- --> @dm:save name = "temp-license_details-trial"
- --> @rn:write-stream name='edc_license_details-trial' and direct_to_opensearch="yes"
- --> @dm:sleep seconds = 5
- --> @c:new-block
- --> @dm:recall name="temp-license_details-trial"
- --> @dm:selectcolumns include="customer_name|smart_account_name|domain_name|smart_account_key|virtual_account_key|virtual_account_name|^license$|license_class|licensed_feature_key|entitled_quantity"
- --> @dm:groupby columns="customer_name,smart_account_name,domain_name,smart_account_key,virtual_account_key,virtual_account_name,license,license_class,licensed_feature_key" and agg='sum'
- ## Bring available and consumed
+ ## 'Expiring after 8 Quarters' if ldos > today(current time in ms) & <=major_eol_date
 
- --> @dm:enrich dict="temp-license_consumed_grp" and src_key_cols="customer_name,smart_account_key,virtual_account_key,licensed_feature_key" and dict_key_cols="customer_name,smart_account_key,virtual_account_key,licensed_feature_key" and enrich_cols="consumed_quantity"
- ## Bring most used business entity for license
+ --> @dm:manipulate-string to="hw_status" and func="eval" and value="None"
+ --> @cfxaia:conditional-statement condition_column="ldos,today" and operator="<" and return_if="Expired" and return_else="hw_status" and to_column="hw_status"
+ --> @cfxaia:conditional-statement condition_column="ldos,today" and operator=">" and return_if="yes" and to_column="hw_status1" and return_else="no"
+ --> @cfxaia:conditional-statement condition_column="ldos,very_critical_date" and operator="<=" and return_if="yes" and to_column="hw_status2" and  return_else="no"
+ --> @cfxaia:conditional-statement condition_column="hw_status1,hw_status2" and operator="=" and check_value="yes" and value="yes,yes" and return_if="Expiring in a Quarter" and return_else="hw_status" and to_column="hw_status"
+ --> @cfxaia:conditional-statement condition_column="ldos,semi_critical_date" and operator="<=" and return_if="yes" and to_column="hw_status2" and  return_else="no"
+ --> @cfxaia:conditional-statement condition_column="hw_status1,hw_status2" and operator="=" and check_value="yes" and value="yes,yes" and return_if="Expiring in 4 Quarters" and return_else="hw_status" and to_column="hw_status" and replace_if_null=True
+ --> @cfxaia:conditional-statement condition_column="ldos,major_eol_date" and operator="<=" and return_if="yes" and to_column="hw_status2" and return_else="no"
+ --> @cfxaia:conditional-statement condition_column="hw_status1,hw_status2" and operator="=" and check_value="yes" and value="yes,yes" and return_if="Expiring in 8 Quarters" and return_else="hw_status" and to_column="hw_status" and replace_if_null=True
+ --> @cfxaia:conditional-statement condition_column="ldos,major_eol_date" and operator=">" and return_if="yes" and to_column="hw_status2" and  return_else="no"
+ --> @cfxaia:conditional-statement condition_column="hw_status1,hw_status2" and operator="=" and check_value="yes" and value="yes,yes" and return_if="Expiring after 8 Quarters" and return_else="hw_status" and to_column="hw_status" and replace_if_null=True
+ --> @dm:selectcolumns exclude="hw_status1|hw_status2|^lods$"
+ --> @dm:fixnull columns="hw_status" and value="No EOL"
+ --> @dm:save name="temp-hwldos"
+ ## compute hw_expiring_year,hw_expiring_qtr
 
- --> @dm:enrich dict="temp-business_dict" and src_key_cols="license" and dict_key_cols="license" and enrich_cols="common_BE,common_SBE"
- --> @dm:fixnull columns = 'consumed_quantity' and value=0 and apply_for_empty="yes"
- --> @dm:eval available_quantity= "(entitled_quantity - consumed_quantity)"
- --> @dm:save name="temp-grouping-trial"
- --> @c:new-block
- --> @dm:recall name="temp-license_details-trial"
- --> @dm:selectcolumns include="customer_name|smart_account_key|virtual_account_key|days_to_expire|licenseType|^license$|licensed_feature_key|source"
- --> @dm:groupby columns="customer_name,smart_account_key,virtual_account_key,license,licensed_feature_key,source" and agg='min'
- --> @dm:eval exp_status = " 'Valid Indefinitely' if ((licenseType =='PERPETUAL' or days_to_expire < -19000) and source == 'entitled') else 'One or more Expired Licenses' if (days_to_expire< 0  and days_to_expire > -19000 and source == 'entitled')    else  'Expiring within 90 days' if ((days_to_expire < 90 or days_to_expire == 90) and source == 'entitled') else 'Expiring after 90 days' if (days_to_expire > 90 and source == 'entitled') else 'NA' "
- --> @dm:eval sort_number = " '3' if ((licenseType =='PERPETUAL' or days_to_expire < -19000) and source == 'entitled' ) else '1' if (days_to_expire< 0  and days_to_expire > -19000 and source == 'entitled')    else  '1' if ((days_to_expire < 90 or days_to_expire == 90) and source == 'entitled') else '2' if (days_to_expire > 90 and source == 'entitled') else '4' "
- --> @dm:eval expiration_color = " '#79BAEC' if ((licenseType =='PERPETUAL' or days_to_expire < -19000) and source == 'entitled' ) else '#BB0000' if ((days_to_expire < 90 or days_to_expire == 90) and source == 'entitled') else  '#00BB00' if (days_to_expire > 90 and source == 'entitled') else '#b0bec5'  "
- --> @dm:save name="temp-grouping2-trial"
- --> @c:new-block
- --> @dm:recall name="temp-grouping2-trial"
- --> @dm:enrich dict="license_tap_dict" and src_key_cols="license" and dict_key_cols="license" and enrich_cols="TAP"
- --> @dm:fixnull columns = 'license,common_BE,common_product_family' and value='Not Available' and apply_for_empty="yes"
- --> @dm:save name="edc_license_summary_test"
- ## Enrich grouping for summary with message for expiration
+ --> @dm:set-tracing-context __block__="compute-hw-ldos-additional-cols"
+ --> @dm:recall name="temp-hw-sw-eol-details"
+ --> *dm:filter last_date_of_support is not null
+ --> @dm:skip-block-if-shape row_count='0'
+ --> @dm:recall name="temp-hw-sw-eol-details"
+ --> @dm:dedup columns="last_date_of_support"
+ --> @dm:manipulate-string to="key" and value="'dummy'" and func="eval"
+ --> @dm:selectcolumns include="last_date_of_support|key"
+ --> @dm:enrich dict="temp-ldos" and src_key_cols="key" and dict_key_cols="key" and enrich_cols="today,very_critical_date,semi_critical_date,major_eol_date"
+ --> @dm:copy-columns from="last_date_of_support,last_date_of_support" and to="ldos,YEAR"
+ --> @dm:change-time-format columns='ldos' & from_format="datetimestr" and to_format="ms"
+ --> @cfxaia:conditional-statement condition_column="ldos" and operator=">"  and check_value="yes" and value="0" and return_if="ldos"
+ --> @dm:to-type columns="ldos" and type="int"
+ --> @dm:gc
+ --> @dm:selectcolumns exclude="^t_date$|^t_month$|^t_year$|^major_unit$|^major_unit_year$|^major_unit_month$|^semi_critical$|^semi_critical_unit_year$|^semi_critical_month$|^very_critical_unit_year$|^very_critical_month$|^very_critical$"
+ ## hw_status column: is 'Expired' if ldos is < today(current time in ms)
 
- --> @c:new-block
- --> @dm:recall name="edc_license_summary_test"
- --> @dm:enrich dict="edc_license_summary_test" and src_key_cols="customer_name,smart_account_key,virtual_account_key,licensed_feature_key" and dict_key_cols="customer_name,smart_account_key,virtual_account_key,licensed_feature_key" and enrich_cols="exp_status,expiration_color,sort_number"
- ## evaluate Alerts
+ ## 'Expiring in a Quarter' if ldos > today(current time in ms) & <=very_critical_date
 
- --> @dm:eval alert_status = " 'Licenses Expired' if (exp_status == 'One or more Expired Licenses') else 'Insufficient Licenses' if (available_quantity<0 ) else 'Licenses Expiring'  if (exp_status == 'Expiring within 90 days') else 'NA' "
- --> @dm:eval alert_color = " '#FF0000' if (exp_status == 'One or more Expired Licenses') else  '#FFA500' if (available_quantity<0 ) else '#F4C430' if (exp_status == 'Expiring within 90 days') else '#b0bec5'  "
- --> @dm:save name="temp-summary-details-trial"
- --> @c:new-block
- --> @dm:recall name="temp-summary-details-trial"
- --> @dm:eval unique_key = "str(customer_name) + str(smart_account_key) +str(virtual_account_key)+  str(license) +  str(license_class) + str(licensed_feature_key)"
- --> @dm:eval endTime = "utcnow()"
- --> @dm:change-time-format columns="endTime" and from_format="datetimestr" and to_format="%A, %m-%d-%Y %I:%M:%S %p %Z"
- --> @dm:eval endTime = "str(endTime)+str(    'UTC')"
- --> @dm:fixnull-regex value='NA'
- --> @rn:write-stream name='edc_license_summary-trial' and direct_to_opensearch="yes"
- --> @dm:sleep seconds = 5
+ ## 'Expiring in 8 Quarters' if ldos > today(current time in ms) & <=semi_critical_date
+
+ ## 'Expiring after 8 Quarters' if ldos > today(current time in ms) & <=major_eol_date
+
+ --> @dm:manipulate-string to="hw_status" and func="eval" and value="None"
+ --> @cfxaia:conditional-statement condition_column="ldos,today" and operator="<" and return_if="Expired" and return_else="hw_status" and to_column="hw_status"
+ --> @cfxaia:conditional-statement condition_column="ldos,today" and operator=">" and return_if="yes" and to_column="hw_status1" and return_else="no"
+ --> @cfxaia:conditional-statement condition_column="ldos,very_critical_date" and operator="<=" and return_if="yes" and to_column="hw_status2" and  return_else="no"
+ --> @cfxaia:conditional-statement condition_column="hw_status1,hw_status2" and operator="=" and check_value="yes" and value="yes,yes" and return_if="Expiring in a Quarter" and return_else="hw_status" and to_column="hw_status"
+ --> @cfxaia:conditional-statement condition_column="ldos,semi_critical_date" and operator="<=" and return_if="yes" and to_column="hw_status2" and  return_else="no"
+ --> @cfxaia:conditional-statement condition_column="hw_status1,hw_status2" and operator="=" and check_value="yes" and value="yes,yes" and return_if="Expiring in 4 Quarters" and return_else="hw_status" and to_column="hw_status" and replace_if_null=True
+ --> @cfxaia:conditional-statement condition_column="ldos,major_eol_date" and operator="<=" and return_if="yes" and to_column="hw_status2" and return_else="no"
+ --> @cfxaia:conditional-statement condition_column="hw_status1,hw_status2" and operator="=" and check_value="yes" and value="yes,yes" and return_if="Expiring in 8 Quarters" and return_else="hw_status" and to_column="hw_status" and replace_if_null=True
+ --> @cfxaia:conditional-statement condition_column="ldos,major_eol_date" and operator=">" and return_if="yes" and to_column="hw_status2" and  return_else="no"
+ --> @cfxaia:conditional-statement condition_column="hw_status1,hw_status2" and operator="=" and check_value="yes" and value="yes,yes" and return_if="Expiring after 8 Quarters" and return_else="hw_status" and to_column="hw_status" and replace_if_null=True
+ --> @dm:selectcolumns exclude="hw_status1|hw_status2"
+ --> @dm:fixnull columns="hw_status" and value="No EOL"
+ --> @dm:rename-columns ldos_month="ldos"
+ --> @dm:change-time-format columns = 'ldos_month' & from_format = 'ms' & to_format ='%m'
+ --> @dm:manipulate-string from="YEAR" and value="[0-9]{4,7}" and func="match" and to="YEAR"
+ --> @dm:manipulate-string from="ldos_month" and value="0" and func="lstrip" and to="ldos_month"
+ --> @dm:fixnull columns="ldos_month" and value=0
+ --> @dm:to-type columns="ldos_month" and type="int"
+ --> @dm:manipulate-string to="qtr" and func="eval" and value="((ldos_month - 1) // 3 ) + 1"
+ --> @cfxaia:conditional-statement condition_column="ldos_month" and operator="<=" and check_value="yes" and value="0" and return_if="" and return_else="qtr" and to_column="qtr"
+ --> @dm:copy-columns from="qtr" and to="qtr" and prefix="Q" and func="append"
+ ## --> @dm:fixnull columns="YEAR" and value="Not Available"
+
+ --> @dm:manipulate-string to="hw_expiring_qtr" and func="concat_columns" and from="YEAR,qtr" and value=" "
+ ## --> @dm:manipulate-string from="hw_expiring_qtr" and func="replace" and value="Not Available  Q,Not Available" and to="hw_expiring_qtr"
+
+ --> @dm:copy-columns from="YEAR" and to="hw_expiring_year"
+ ## --> @dm:selectcolumns include="$column|^today$|^very_critical_date$|^semi_critical_date$|^major_eol_date$"
+
+ --> @dm:gc
+ --> @dm:save name="temp-hwldos-yr"
+ ## Enrich the new columns with inventory data and write to the stream
+
+ --> @dm:recall name="temp-hw-sw-eol-details"
+ --> @dm:enrich dict="temp-hwldos" and replace_values="yes" and src_key_cols="last_date_of_support" and dict_key_cols="last_date_of_support" and enrich_cols="hw_status"
+ --> @dm:enrich dict="temp-hwldos-yr" and replace_values="yes" and src_key_cols="last_date_of_support" and dict_key_cols="last_date_of_support" and enrich_cols="hw_expiring_qtr,hw_expiring_year"
+ --> @dm:fixnull columns="hw_status,hw_expiring_qtr,hw_expiring_year" and value="Not Available"  and apply_for_empty="yes"
+ --> @dm:add-missing-columns columns='sw_status,sw_expiring_qtr,sw_expiring_year' and value="Not Available"
+ --> @dm:rename-columns hwEOL_endOfLifeAnnouncementDate='eol_external_announce_dt' and  hwEOL_endOfNewServiceAttachmentDate= 'end_of_new_svc_attachment_dt' and
+hwEOL_endOfRoutineFailureAnalysisDate = 'end_of_routine_fail_anlysys_dt' and
+hwEOL_endOfSaleDate = 'last_date_of_sale' and
+hwEOL_endOfServiceContractRenewalDate = 'end_of_svc_contract_rnwl_dt' and
+hwEOL_endOfSoftwareMaintenanceReleasesDate = 'end_of_software_maintenance_dt' and
+hwEOL_lastDayOfSupportDate = 'last_date_of_support'
+ ## --> @dm:save name='productAlerts-sw-eol-details'
+
+ ## --> @dm:add-missing-columns columns='source' and value='inventory'
+
+ --> @dm:copy-columns from='timestamp' and to='last_updated_time'
+ --> @dm:replace-data columns='last_updated_time' and expr='T' and replace=' '
+ --> @dm:to-type columns= "last_updated_time" & type="str"
+ --> @dm:eval last_updated_time="last_updated_time.split('.')[0]"
+ --> @dm:save name='temp-hw-sw-eol-details-$loop_index'
+ --> @rn:write-stream name='edc_oi_inventory_enriched' and direct_to_opensearch="yes"
