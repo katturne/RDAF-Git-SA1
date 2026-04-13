@@ -1,28 +1,21 @@
 @c:new-block
+ --> @dm:empty
+ ## Get submitted form fields
+
  --> @exec:get-input
- --> @dm:save name="temp-file_upload11"
- --> @dm:save name="101dataset"
- --> @dm:recall name="101dataset"
- --> @dm:selectcolumns include = 'USER_ID|proj_name|customer_name'
- --> @dm:add-missing-columns columns = 'pipeline_name' &
-value = 'swdata-status-test-hardcode'
- --> @dm:add-missing-columns columns = 'status_type' &
-value = 'Initiating'
- --> @dm:eval timestamp ='utcnow().isoformat()'
- --> @dm:save name="temp1-temp1"
- --> @rn:write-stream name = "status-stream-hardcode"
- --> @exec:run-pipeline name ="swdata-status-test-hardcode"
- --> @dm:sleep seconds = 20
- --> @dm:recall name="temp1-temp1"
- --> @dm:replace-data columns = 'status_type' &
-expr = 'Initiating' &
-replace = 'In-progress'
- --> @dm:save name="temp1-temp1"
- --> @rn:write-stream name = "status-stream-hardcode"
- --> @dm:sleep seconds = 20
- --> @dm:recall name="temp1-temp1"
- --> @dm:replace-data columns = 'status_type' &
-expr = 'In-progress' &
-replace = 'Completed'
- --> @dm:save name="temp1-temp1"
- --> @rn:write-stream name = "status-stream-hardcode"
+ ## Exclude label as it contains unneeded info that should not be written to stream later
+
+ --> @dm:selectcolumns exclude='.*_label'
+ --> @dm:save name='temp-input_data'
+ --> @dm:save name='check-input_data'
+ --> @dm:selectcolumns include="hweox_csv"
+ --> @dm:explode-json column="hweox_csv"
+ --> @dm:save name="input11-dataset"
+ --> @dm:save name="temp-input-dataset"
+ --> @c:data-loop dataset="temp-input-dataset" and columns="bucketName,objectName"
+ --> @dm:recall name="temp-input-dataset"
+ --> @dm:skip-block-if-shape row_count=0
+ --> @dm:get-from-location path="$bucketName/$objectName"
+ --> @dm:save name="temp-uploaded-file-data"
+ --> @dm:save name="uploaded-hweox-data"
+ --> @rn:write-stream name="test0-stream-input"
