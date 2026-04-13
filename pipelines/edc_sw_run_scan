@@ -1,144 +1,35 @@
-
- ## get the uploaded sw data
-@c:new-block
- --> @exec:get-input
- --> @dm:add-missing-columns columns="key" and value='key'
- --> @dm:add-missing-columns columns="source" and value='software'
- --> @dm:eval sw_os_type="('IOS XR' if sw_os_type=='IOS-XR' else sw_os_type)"
- --> @dm:save name='temp-sw-data'
- --> @dm:save name='added-sw-data'
- ## declaring thrid level child pipelines
-
- --> @c:new-block
- --> @dm:empty
- --> @exec:define-function name="define_child_pipelines"
- --> @exec:run-pipeline name ="edc_generate_token" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_sw_get_data" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_sweol_enrich" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_processing_sw_data" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_get_sw_sa_details" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_sw_run_scan" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_sa_run_scan" & ignore_failures = "no"
- --> @exec:end-function
- ## function to generate the access token
-
- --> @c:new-block
- --> @dm:empty
- --> @exec:define-function name="generate_access_token"
- --> @dm:recall name='generate_token_creds'
- ## --> @dm:empty
-
- --> @exec:run-pipeline name ="edc_generate_token" & ignore_failures = "no"
- --> @dm:addrow key='key'
- --> @dm:eval current_time_ms="int(time_now_as_ms())"
- --> @dm:eval token_expiry_time='current_time_ms+3000000'
- --> @dm:save name='temp-expiry-time'
- --> @exec:end-function
- ## get the dataset with unique sw_version,sw_os_type,product_id combinations to make the API call
-
- --> @c:new-block
- --> @dm:recall name='temp-sw-data'
- --> @dm:add-missing-columns columns="key" and value='key'
- --> @dm:manipulate-string from="sw_version,sw_os_type,product_id" and func="concat_columns" and to="unique_payload_inputs"
- --> @dm:dedup columns ='unique_payload_inputs'
- --> @dm:save name='temp-unique-sw-data'
- --> @dm:save name='unique-added-sw-data'
- ## gneerate the access token
-
- --> @c:new-block
- --> @dm:empty
- --> @exec:call-function name='generate_access_token'
- ## get the API output for the above created dataset
-
- --> @c:data-loop columns='sw_version,sw_os_type,product_id,source' and dataset='temp-unique-sw-data'
- ## --> @dm:recall name='temp-unique-sw-data'
-
- --> @dm:empty
- --> @dm:addrow key='key'
- --> @dm:eval current_time_ms_loop="int(time_now_as_ms())"
- --> @dm:save name='temp-loop-time'
- --> @dm:enrich dict='temp-expiry-time' and src_key_cols='key' and dict_key_cols='key' and enrich_cols='token_expiry_time,access_token,expires_in,token_type'
- --> *exec:if-condition token_expiry_time is null or current_time_ms_loop  is greater than or equal to token_expiry_time
- --> @exec:call-function name='generate_access_token'
- --> @exec:end-if
- --> @dm:dropnull columns='access_token'
- --> @dm:add-missing-columns columns='sw_version' and value='$sw_version'
- --> @dm:add-missing-columns columns='sw_os_type' and value='$sw_os_type'
- --> @dm:add-missing-columns columns='product_id' and value='$product_id'
- --> @dm:add-missing-columns columns='source' and value='$source'
- ## --> *dm:filter sw_os_type is not null and product_id is not null and sw_version is not null
-
- --> *exec:if-condition sw_version is not null and sw_os_type is not null and product_id is not null
- --> @exec:run-pipeline name ="edc_sw_get_data" & ignore_failures = "yes"
- --> @dm:save name='temp-sw-token'
- --> @dm:save name='temp-sweol-before-explode' and append='yes'
- ## --> @rn:write-stream name='dummy_sweol_enriched'
-
- --> @dm:save name='sweol-data-run-scan-op-1' and append='yes'
- --> @exec:end-if
- ## filter out the rows whose API output is not empty
-
- --> @c:new-block
- --> @dm:recall name='temp-sweol-before-explode'
- --> @dm:dedup columns='product_id,sw_os_type,sw_version'
- --> @dm:copy-columns from='issues' and to='issues_str'
- --> @dm:to-type columns='issues_str' and type='str'
- --> *dm:filter issues_str is not '[]'
- --> @dm:selectcolumns exclude='^issues_str$'
- --> @dm:save name='temp-sweol-before-explode-dedup'
- --> @dm:save name='sweol-data-run-scan-op-dedup'
- ## enrich to add API output to rows with same sw_version,sw_os_type,product_id combination but different contract_number
-
- --> @c:new-block
- --> @dm:recall name='temp-sw-data'
- --> @dm:enrich dict='temp-sweol-before-explode-dedup' and src_key_cols='product_id,sw_os_type,sw_version' and dict_key_cols='product_id,sw_os_type,sw_version' and enrich_cols='issues,transaction_id,id' and how_type='inner' and dedup_dict='no'
- ## --> @dm:save name='test-sweol_cn_enriched'
-
- --> @dm:save name='temp-edc-sw-run-scan-op-not-exploded'
- --> @c:new-block
- --> @dm:recall name='temp-edc-sw-run-scan-op-not-exploded'
- --> *exec:if-condition source=='software'
- --> @dm:recall name='temp-edc-sw-run-scan-op-not-exploded'
- ## --> @dm:eval issues='eval(issues)'
-
- --> @dm:eval issues='json_dumps(issues)'
- --> @dm:explode-json column="issues"
- --> @dm:eval eoXAlert='json_dumps(eoXAlert)'
- --> @dm:explode-json column="eoXAlert"
- --> @dm:save name='temp-sweol-exploded'
- --> @dm:save name='exploded-sweol'
- --> @exec:end-if
- ## Logging the repeated counts of the data from run scan api
-
- --> @c:new-block
- --> @dm:recall name='temp-edc-sw-run-scan-op-not-exploded'
- --> *exec:if-condition source=='software'
- --> @dm:recall name="temp-sweol-exploded"
- --> @dm:to-type columns="BulletinNumber" and type="str"
- --> @dm:implode key_columns='product_id,sw_version,sw_os_type' and merge_columns='BulletinNumber' and dedup_merge_values='no' and keep_columns='id,transaction_id'
- --> @dm:eval BulletinNumber="str(BulletinNumber).split(',')"
- --> @dm:eval total_records = "len(BulletinNumber)"
- --> *dm:filter total_records > 1
- --> @dm:skip-block-if-shape row_count=0
- --> @dm:eval duplicate_record_count="total_records-1"
- --> @dm:eval unique_key="str(product_id)+'_'+str(sw_version)+'_'+str(sw_os_type)"
- --> @rn:write-stream name="edc_run_scan_duplicate_records"
- --> @exec:end-if
- --> @c:new-block
- --> @dm:recall name='temp-edc-sw-run-scan-op-not-exploded'
- --> *exec:if-condition source=='security_advisory'
- --> @dm:recall name='temp-edc-sw-run-scan-op-not-exploded'
- --> @dm:dedup columns='product_id'
- --> @dm:eval issues='json_dumps(issues)'
- --> @dm:explode-json column="issues"
- --> @dm:eval psirtAlert='json_dumps(psirtAlert)'
- --> @dm:explode-json column="psirtAlert"
- ## --> @dm:to-type columns='contract_number,customer,product_id,advisoryId,PsirtID' and type='str'
-
- ## --> @dm:map from = 'contract_number,customer,product_id,advisoryId,PsirtID' & to = 'unique_key' & func = 'join' & sep = '_'
-
- --> @dm:save name='temp-sweol-exploded'
- --> @dm:save name='exploded-sa-output'
- --> @exec:end-if
- --> @c:new-block
- --> @dm:recall name="temp-sweol-exploded"
+folder: NetworkDevicePack
+name: fortinet_discovery_main_pipeline
+description: test pipeline
+data_path: pipelines/data/fortinet_discovery_main_pipeline/2024.03.19.2/data.json
+usecase: ''
+category: ''
+sources:
+  asset-discovery:
+    name: asset-discovery
+    type: asset-discovery
+  files:
+    name: files
+    type: file
+  rn:
+    name: rn
+    type: rn
+artifacts:
+- artifact_type: dataset
+  artifact_name: ifTypeLabel_dict
+  access: read
+- artifact_type: rda-network-stream
+  artifact_name: network_devices_cdp
+  access: write
+- artifact_type: rda-network-stream
+  artifact_name: network_device_inventory
+  access: write
+- artifact_type: rda-network-stream
+  artifact_name: network_device_inventory
+  access: write
+- artifact_type: rda-network-stream
+  artifact_name: network_device_interfaces
+  access: write
+version: 2024.03.19.2
+file_type: json
+checksum: c060d365
