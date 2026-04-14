@@ -1,81 +1,215 @@
+
+ ## ## NetApp ONTAP 7 Mode Storage Inventory Collection
+
+ ## NetApp ONTAP 7 Mode IP Range Feed
 @c:new-block
  --> @dm:empty
- --> @dm:addrow name='edc_sec_adv_data_raw' and limit=0
- --> #dm:query-persistent-stream
- --> @dm:save name='temp-sa-exploded-data'
- --> @dm:save name='test-sa-exploded-data'
- --> @c:new-block
- --> @dm:recall name="temp-sa-exploded-data"
- --> @dm:selectcolumns exclude='^unique_key$'
- ## --> @dm:enrich dict="temp-sa-data" and src_key_cols='product_id,sw_version,sw_os_type' and dict_key_cols='product_id,sw_version,sw_os_type' and enrich_cols="contract_number,customer"
+ --> @dm:addrow ntap_ip = '10.95.158.15,10.95.158.17,10.95.131.51,10.95.131.52'
+ --> @dm:save name = 'temp-ntap-ip-feed'
+ ## NetApp ONTAP 7 Mode Controller Info
 
- --> @dm:add-missing-columns columns="PsirtID,MatchConfidence,MatchReason,MatchDefinition,HeadlineName,AdvisoryId,BulletinURL,Summary,Details,RevisedDate,RevisionNumber,PublishedDate,SeverityLevelName,CvssScore,CveId,_id,advisoryId,created,customerVisible,external_text,external_title,firstIcAlertId,groups,icIssueId,icProblemId,ignored,lastIcAlertId,matchDefinition,matchInfo,matchConfidence,missingInfo,moreInfo,name,openedOn,resultType,resultSubType,severity,severityText,state,updated,deviceSN,source,runType,filename,icType,atticaStatus,cdetsList,retry,associatedGroups,key,current_time_ms_loop,token_expiry_time,access_token,expires_in,token_type,sw_version,sw_os_type,product_id,transaction_id,eoXAlert,eoXAlertType,DocumentId"
- --> @dm:eval matchConfidence = "'Potentially Vulnerable' if matchConfidence == 'POTVUL' else 'Vulnerable' if matchConfidence == 'VUL' else matchConfidence"
- --> @dm:eval secAdv_confidence_score = "100 if matchConfidence == 'Vulnerable' else 99 if matchConfidence == 'Potentially Vulnerable' else 98 if matchConfidence == 'Not Vulnerable' else 0"
- --> @dm:fixnull columns="PsirtID,MatchConfidence,MatchReason,MatchDefinition,HeadlineName,AdvisoryId,BulletinURL,Summary,Details,RevisedDate,RevisionNumber,PublishedDate,SeverityLevelName,CvssScore,CveId,_id,advisoryId,created,customerVisible,external_text,external_title,firstIcAlertId,groups,icIssueId,icProblemId,ignored,lastIcAlertId,matchDefinition,matchInfo,matchConfidence,missingInfo,moreInfo,name,openedOn,resultType,resultSubType,severity,severityText,state,updated,deviceSN,source,runType,filename,icType,atticaStatus,cdetsList,retry,associatedGroups,key,current_time_ms_loop,token_expiry_time,expires_in,token_type,sw_version,sw_os_type,product_id,transaction_id,eoXAlert,eoXAlertType,DocumentId,secAdv_confidence_score" and value="Not Available" and apply_for_empty="yes"
- --> @dm:fixnull-regex columns="Timestamp$|timestamp$"
- --> @dm:rename-columns secAdv_matchConfidence ='matchConfidence' and secAdv_securityImpactRating='SeverityLevelName' and bulletinTitle='external_title' and securityAdvisoryId='advisoryId' and ID = '_id'
- ## --> *dm:filter product_id=='CRS-FP140-E' and contract_number=='3610020'
-
- --> @dm:save name="temp-sec-adv-details"
- --> @dm:save name="test-sec-adv-details"
  --> @c:new-block
+ --> @dm:recall name = 'temp-ntap-ip-feed'
+ --> @ntap:controller-info column_name='ntap_ip' & concurrent_discovery = '100'
+ --> @dm:save name = 'netapp_ontap7_controller_info'
+ ## NetApp ONTAP 7 Mode Network Configuration
+
+ --> @c:new-block
+ --> @dm:recall name = 'temp-ntap-ip-feed'
+ --> @ntap:network-config column_name='ntap_ip' & concurrent_discovery = '100'
+ --> @dm:save name = 'netapp_ontap7_network_config'
+ ## NetApp ONTAP 7 Mode FC Adapter Configuration
+
+ --> @c:new-block
+ --> @dm:recall name = 'temp-ntap-ip-feed'
+ --> @ntap:fc-adapters column_name='ntap_ip' & concurrent_discovery = '100'
+ --> @dm:save name = 'netapp_ontap7_fc_adapters'
+ ## NetApp ONTAP 7 Mode Volumes
+
+ --> @c:new-block
+ --> @dm:recall name = 'temp-ntap-ip-feed'
+ --> @ntap:volumes column_name='ntap_ip' & concurrent_discovery = '100'
+ --> @dm:save name = 'netapp_ontap7_volumes'
+ ## NetApp ONTAP 7 Mode Aggregates
+
+ --> @c:new-block
+ --> @dm:recall name = 'temp-ntap-ip-feed'
+ --> @ntap:aggregates column_name='ntap_ip' & concurrent_discovery = '100'
+ --> @dm:save name = 'netapp_ontap7_aggregates'
+ ## NetApp ONTAP 7 Mode LUNs
+
+ --> @c:new-block
+ --> @dm:recall name = 'temp-ntap-ip-feed'
+ --> @ntap:luns column_name='ntap_ip' & concurrent_discovery = '100'
+ --> @dm:save name = 'netapp_ontap7_luns'
+ ## NetApp ONTAP 7 Mode NFS Exports
+
+ --> @c:new-block
+ --> @dm:recall name = 'temp-ntap-ip-feed'
+ --> @ntap:nfs-exports column_name='ntap_ip' & concurrent_discovery = '100'
+ --> @dm:save name = 'netapp_ontap7_nfs_exports'
+ ## ### NetApp ONTAP 7 - Nodes ######
+
+ ## NetApp ONTAP 7 Controllers
+
+ --> @c:new-block
+ --> @dm:recall name = 'netapp_ontap7_controller_info' & empty_as_null = 'no'
+ --> @dm:fixcolumns
+ --> *dm:filter * get system_name as 'ntap_array_name',system_model as 'ntap_array_model',system_serial_number as 'ntap_array_serial_number',vendor_id as 'ntap_array_vendor',version as 'ntap_array_version',controller_ip as 'ntap_array_ip'
+ --> @dm:map to = 'layer' & func = 'fixed' & value = 'Storage'
+ --> @dm:map to = 'node_type' & func = 'fixed' & value = 'Controller'
+ --> @dm:map from = 'ntap_array_name' & to = 'node_label'
+ --> @dm:map from = 'ntap_array_serial_number' & to = 'node_id'
+ --> @dm:save name = 'netapp_ontap7_controller_nodes'
+ ## NetApp ONTAP 7 - Network Configuration
+
+ --> @c:new-block
+ --> @dm:recall name = 'netapp_ontap7_network_config' & empty_as_null = 'no'
+ --> @dm:fixcolumns
+ --> *dm:filter object_type='IFGRP' get controller_ip,interface_name as 'ifgrp_name',links_link_0,links_link_1
+ --> @dm:save name = 'temp-ntap-ifgroup-to-phy-interface'
+ --> @c:new-block
+ --> @dm:recall name = 'netapp_ontap7_network_config' & empty_as_null = 'no'
+ --> @dm:fixcolumns
+ --> *dm:filter object_type='INTERFACE' and v4_primary_address_ip_address_info_address is not empty and interface_name does not contain 'c0*|^e0P$' get controller_ip,interface_name as 'vlan_interface_name',mac_address,v4_primary_address_ip_address_info_address as 'interface_ip_address'
+ --> @dm:save name = 'temp-ntap-interface-mac-ip'
+ --> @c:new-block
+ --> @dm:recall name = 'netapp_ontap7_network_config' & empty_as_null = 'no'
+ --> @dm:fixcolumns
+ --> *dm:filter object_type='VLAN' get controller_ip,interface_name as 'vlan_interface_name',parent_interface
+ --> @dm:enrich dict='temp-ntap-interface-mac-ip' & src_key_cols = 'controller_ip,vlan_interface_name' & dict_key_cols='controller_ip,vlan_interface_name' & enrich_cols = 'interface_ip_address,mac_address'
+ --> @dm:fixnull-regex columns = '.*'
+ --> @dm:enrich dict='temp-ntap-ifgroup-to-phy-interface' & src_key_cols='controller_ip,parent_interface' & dict_key_cols='controller_ip,ifgrp_name' & enrich_cols='links_link_0,links_link_1'
+ --> *dm:filter * get controller_ip as 'ntap_array_ip',vlan_interface_name as 'ntap_array_vlan_interface',parent_interface as 'ntap_array_parent_interface',interface_ip_address as 'ntap_array_interface_ip',mac_address as 'ntap_array_interface_mac',links_link_0 as 'ntap_array_nic0',links_link_1 as 'ntap_array_nic1'
+ --> @dm:enrich dict = 'netapp_ontap7_controller_nodes' & src_key_cols = 'ntap_array_ip' & dict_key_cols = 'ntap_array_ip' & enrich_cols = 'ntap_array_serial_number'
+ --> @dm:map to = 'layer' & func = 'fixed' & value = 'Storage'
+ --> @dm:map to = 'node_type' & func = 'fixed' & value = 'NIC'
+ --> @dm:map from = 'ntap_array_vlan_interface' & to = 'node_label'
+ --> @dm:map from = 'ntap_array_ip,ntap_array_vlan_interface' & to = 'ntap_array_vlan_interface_id' & func = 'join' & sep = '_'
+ --> @dm:map from = 'ntap_array_vlan_interface_id' & to = 'node_id'
+ --> @dm:save name = 'netapp_ontap7_network_nodes'
+ ## NetApp ONTAP 7 - Aggregate Configuration
+
+ --> @c:new-block
+ --> @dm:recall name = 'netapp_ontap7_aggregates' & empty_as_null = 'no'
+ --> @dm:fixcolumns
+ --> *dm:filter * get name as 'ntap_array_aggr_name',controller_ip as 'ntap_array_ip',controller as 'ntap_array_ip_2',has_local_root as 'ntap_array_aggr_root',is_hybrid as 'ntap_array_aggr_hybrid',is_mirrored as 'ntap_array_aggr_mirrored',mount_state as 'ntap_array_aggr_status',disk_count as 'ntap_array_aggr_disks',raid_size as 'ntap_array_aggr_raid_size',raid_status as 'ntap_array_aggr_raid_type'
+ --> @dm:map to = 'ntap_array_ip' & func = 'evaluate' & expr = "ntap_array_ip_2 if ntap_array_ip == '' else ntap_array_ip"
+ --> @dm:selectcolumns exclude = 'ntap_array_ip_2'
+ --> @dm:enrich dict = 'netapp_ontap7_controller_nodes' & src_key_cols = 'ntap_array_ip' & dict_key_cols = 'ntap_array_ip' & enrich_cols = 'ntap_array_serial_number'
+ --> @dm:map to = 'layer' & func = 'fixed' & value = 'Storage'
+ --> @dm:map to = 'node_type' & func = 'fixed' & value = 'Storagepool'
+ --> @dm:map from = 'ntap_array_aggr_name' & to = 'node_label'
+ --> @dm:map from = 'ntap_array_ip,ntap_array_aggr_name' & to = 'ntap_array_aggr_id' & func = 'join' & sep = '_'
+ --> @dm:map from = 'ntap_array_aggr_id' & to = 'node_id'
+ --> @dm:save name = 'netapp_ontap7_aggr_nodes'
+ ## NetApp ONTAP 7 - Volume Configuration
+
+ --> @c:new-block
+ --> @dm:recall name = 'netapp_ontap7_volumes' & empty_as_null = 'no'
+ --> @dm:fixcolumns
+ --> *dm:filter * get controller_ip as 'ntap_array_ip',name as 'ntap_array_vol_name',containing_aggregate as 'ntap_array_parent_aggr',sis_sis_info_state as 'ntap_array_vol_dedup_status'
+ --> @dm:map to = 'layer' & func = 'fixed' & value = 'Storage'
+ --> @dm:map to = 'node_type' & func = 'fixed' & value = 'Volume'
+ --> @dm:map from = 'ntap_array_vol_name' & to = 'node_label'
+ --> @dm:map from = 'ntap_array_ip,ntap_array_vol_name' & to = 'ntap_array_vol_id' & func = 'join' & sep = '_'
+ --> @dm:map from = 'ntap_array_ip,ntap_array_parent_aggr' & to = 'ntap_array_aggr_id' & func = 'join' & sep = '_'
+ --> @dm:map from = 'ntap_array_vol_id' & to = 'node_id'
+ --> @dm:save name = 'netapp_ontap7_volume_nodes'
+ ## NetApp ONTAP 7 - NFS Exports Configuration
+
+ --> @c:new-block
+ --> @dm:recall name = 'netapp_ontap7_nfs_exports' & empty_as_null = 'no'
+ --> @dm:fixcolumns
+ --> @dm:map from = 'pathname' & to = 'parent_vol'
+ --> @dm:map attr = 'parent_vol' & func = 'split' & sep = '/'
+ --> @dm:map attr = 'parent_vol' & func = 'slice' & fromIdx = 2
+ --> @dm:map attr = 'parent_vol' & func = 'join'
+ --> *dm:filter * get controller_ip as 'ntap_array_ip',pathname as 'ntap_array_nfs_export_path',parent_vol as 'ntap_array_parent_vol'
+ --> @dm:save name = 'temp-netapp_ontap7_nfs_exports'
+ --> @c:new-block
+ --> @dm:recall name = 'netapp_ontap7_volume_nodes' & empty_as_null = 'no'
+ --> @dm:enrich dict = 'temp-netapp_ontap7_nfs_exports' & src_key_cols = 'ntap_array_ip,ntap_array_vol_name' & dict_key_cols = 'ntap_array_ip,ntap_array_parent_vol' & enrich_cols = 'ntap_array_nfs_export_path'
+ --> @dm:selectcolumns exclude = '^ntap_array_parent_vol$'
+ --> @dm:save name = 'netapp_ontap7_volume_nodes'
+ ## ### Consolidated Nodes output
+
+ --> @c:new-block
+ --> @dm:concat names = '^netapp_ontap7_controller_nodes$|^netapp_ontap7_network_nodes$|^netapp_ontap7_aggr_nodes$|^netapp_ontap7_volume_nodes$'
+ --> @dm:save name = 'netapp_ontap7_inventory_nodes'
+ ## # NetApp ONTAP 7 Mode - Relationships
+
+ ## NetApp Array Controllers to Network interfaces
+
+ --> @c:new-block
+ --> @dm:recall name = 'netapp_ontap7_inventory_nodes' & empty_as_null = 'no'
+ --> *dm:filter node_type='NIC' get node_label,node_id,ntap_array_serial_number
+ --> @dm:map to = 'relation_type' & func = 'fixed' & value = 'contains'
+ --> *dm:filter * get ntap_array_serial_number as 'left',relation_type,node_id as 'right'
+ --> @dm:save name = 'netapp_ontap7_array_to_network_edges'
+ ## NetApp Array Controllers to Aggregates
+
+ --> @c:new-block
+ --> @dm:recall name = 'netapp_ontap7_inventory_nodes' & empty_as_null = 'no'
+ --> *dm:filter node_type='Storagepool' get node_label,node_id,ntap_array_serial_number
+ --> @dm:map to = 'relation_type' & func = 'fixed' & value = 'contains'
+ --> *dm:filter * get ntap_array_serial_number as 'left',relation_type,node_id as 'right'
+ --> @dm:save name = 'netapp_ontap7_array_to_aggregate_edges'
+ ## NetApp Array Aggregates to Volumes
+
+ --> @c:new-block
+ --> @dm:recall name = 'netapp_ontap7_inventory_nodes' & empty_as_null = 'no'
+ --> *dm:filter node_type='Volume' get node_label,node_id,ntap_array_aggr_id
+ --> @dm:map to = 'relation_type' & func = 'fixed' & value = 'contains'
+ --> *dm:filter * get ntap_array_aggr_id as 'left',relation_type,node_id as 'right'
+ --> @dm:save name = 'netapp_ontap7_aggregate_to_volume_edges'
+ ## ## NetApp Array - Relationships
+
+ --> @c:new-block
+ --> @dm:concat names = '^netapp_ontap7_array_to_network_edges$|^netapp_ontap7_array_to_aggregate_edges$|^netapp_ontap7_aggregate_to_volume_edges$'
+ --> @dm:dropnull columns = 'left,right'
+ --> @dm:dedup
+ --> @dm:map from = 'left' & to = 'left_id'
+ --> @dm:map from = 'right' & to = 'right_id'
+ --> @dm:save name = 'netapp_ontap7_inventory_edges'
+ ## #########################################
+
+ ## # NetApp Storage Arrat Stacks - Topology Pipeline
+
+ ## #########################################
+
+ --> @c:new-block
+ --> @dm:stack-create topology_nodes='netapp_ontap7_inventory_nodes' and topology_edges='netapp_ontap7_inventory_edges' and name = 'netapp_array_7mode_topology_stack'
+ --> @dm:stack-save name='netapp_array_7mode_topology_stackv2'
+ ## #########################################
+
+ ## # Create pstreams if not existing already
+
+ ## #########################################
+
+ --> @dm:create-persistent-stream name = 'ntap_topology_nodes' and retention_days=0 and unique_cols= "node_id"
+ --> @exec:retry-loop retries is 30 and retry_delay_millis is 5000
  --> @dm:empty
- --> @dm:addrow name='edc_cust_pid_sw' and limit=0
+ --> @dm:addrow name is "ntap_topology_nodes" and limit is 1
  --> #dm:query-persistent-stream
- --> @dm:groupby columns='customer'
- ## --> @dm:to_type columns = 'contract_number' and type  = 'int'
+ --> @exec:end-loop
+ --> @dm:create-persistent-stream name = 'ntap_topology_edges' and retention_days=0 and unique_cols= "left_id,right_id"
+ --> @exec:retry-loop retries is 30 and retry_delay_millis is 5000
+ --> @dm:empty
+ --> @dm:addrow name is "ntap_topology_edges" and limit is 1
+ --> #dm:query-persistent-stream
+ --> @exec:end-loop
+ ## #####################
 
- --> @dm:save name='temp-unique-cust-name'
- ## Queries data for the customer from edc_oi_enriched_stream
+ ## Save nodes and edges data to dynamic pstreams
 
- ## --> @c:data-loop dataset='temp-unique-cust-name' and columns='customer'
-
- ## --> @dm:empty
-
- ## --> @dm:addrow name='edc_oi_inventory_enriched' and limit=0
-
- ## --> #dm:query-persistent-stream customer_name=='$customer'
-
- ## --> @dm:save name='temp-hw-eol-details' and append='yes'
+ ## #####################
 
  --> @c:new-block
- --> @dm:recall name='hweol-att'
- --> @dm:to_type columns = 'contract_number' and type  = 'int'
- --> @dm:save name='temp-hw-eol-details'
- --> @c:new-block
- --> @dm:recall name="temp-sec-adv-details"
- --> @dm:to-type columns='contract_number' and type='int'
- ## ## --> *dm:filter product_id=='CRS-FP140-E' and contract_number=='3610020'
-
- --> @dm:enrich dict='temp-hw-eol-details' and dict_key_cols='product_id,contract_number,customer_name' and  src_key_cols='product_id,contract_number,customer' and enrich_cols='business_sub_entity,swEOL_bulletinTitle,bk_eol_bulletin_product_typ_cd,product_family_description,hw_expiring_year,product_description,portfolio_desc,sw_status_score,swEOL_softwareEOXId,_RDA_Id,hwEOL_endOfSoftwareMaintenanceReleasesDate,hw_expiring_qtr,PostDate,coverage,covered_line_status,swEOL_lastDayOfSupportDate,execution_reason,sw_expiring_qtr,hwEOL_lastDayOfSupportDate,swEOL_endOfLifeAnnouncementDate,hw_status,bk_end_of_life_request_num,usage_code,sw_version,transaction_id,item_type,swEOL_endOfSoftwareMaintenanceReleasesDate,savm_sales_level_4_name,product_list_price,swEOL_endOfSaleDate,hwEOL_endOfServiceContractRenewalDate,swEOL_endOfVulnerabilitySecuritySupportDate,unique_key,hwEOL_endOfRoutineFailureAnalysisDate,sw_expiring_year,eol_product_name,product_name,hwEOL_endOfLifeAnnouncementDate,swEOL_bulletinUrl,hwEOL_endOfSaleDate,sw_status,attempt_count,sw_os_type,key,gu_name,combination_count,swEOL_bulletinNumber,contract_number_str,execution_status,count_,source,hwEOL_endOfNewServiceAttachmentDate,product_family,last_updated_time,product_type,business_entity,timestamp,total_product_list_price'  and how_type='inner' and  replace_values='yes'
- --> @dm:rename-columns unique_key_inventory='unique_key'
- --> @dm:eval unique_key="str(unique_key_inventory) + str(securityAdvisoryId) +str(PsirtID)+ str(sw_version)+str(sw_os_type)"
- --> @dm:to-type columns='combination_count' and type='int'
- --> @dm:save name='final-sa-hw-enrich-left'
- --> @dm:selectcolumns exclude='^(Unique_id|ingestion_id|_RDA_Id|count_|timestamp|contract_number_str|__uuid)$'
- --> @dm:to-type columns='combination_count' and type='int'
- --> @dm:save name='final-enrich'
- --> @rn:write-stream name='edc_sec_adv_data_enriched'
- --> @c:new-block
- --> @dm:recall name='temp-sec-adv-details'
- ## --> @dm:groupby columns='firstIcAlertId'
-
- --> @dm:skip-block-if-shape row_count="0"
- --> @dm:sort columns='secAdv_confidence_score' and order='descending'
- --> @dm:dedup columns='sw_version,sw_os_type,product_id'
- --> @dm:to_type columns = 'contract_number' and type  = 'int'
- --> @dm:save name="temp-pa-sec-adv-dedups"
- --> @dm:save name="test-pa-sec-adv-dedups"
- --> @c:new-block
- --> @dm:recall name='temp-pa-sec-adv-dedups'
- --> @dm:enrich dict='temp-hw-eol-details' and dict_key_cols='product_id,contract_number,customer_name' and  src_key_cols='product_id,contract_number,customer' and  enrich_cols='business_sub_entity,swEOL_bulletinTitle,bk_eol_bulletin_product_typ_cd,product_family_description,hw_expiring_year,product_description,portfolio_desc,sw_status_score,swEOL_softwareEOXId,_RDA_Id,hwEOL_endOfSoftwareMaintenanceReleasesDate,hw_expiring_qtr,PostDate,coverage,covered_line_status,swEOL_lastDayOfSupportDate,execution_reason,sw_expiring_qtr,hwEOL_lastDayOfSupportDate,swEOL_endOfLifeAnnouncementDate,hw_status,bk_end_of_life_request_num,usage_code,sw_version,transaction_id,item_type,swEOL_endOfSoftwareMaintenanceReleasesDate,savm_sales_level_4_name,product_list_price,swEOL_endOfSaleDate,hwEOL_endOfServiceContractRenewalDate,swEOL_endOfVulnerabilitySecuritySupportDate,unique_key,hwEOL_endOfRoutineFailureAnalysisDate,sw_expiring_year,eol_product_name,product_name,hwEOL_endOfLifeAnnouncementDate,swEOL_bulletinUrl,hwEOL_endOfSaleDate,sw_status,attempt_count,sw_os_type,key,gu_name,combination_count,swEOL_bulletinNumber,contract_number_str,execution_status,count_,source,hwEOL_endOfNewServiceAttachmentDate,product_family,last_updated_time,product_type,business_entity,timestamp,total_product_list_price' and replace_values='yes' and how_type='inner'
- --> @dm:save name='enriched-sa-hw-enrich-left'
- ## --> @dm:selectcolumns include='^(gu_name|savm_sales_level_4_name|coverage|covered_line_status|business_entity|business_sub_entity|bk_end_of_life_request_num|bk_eol_bulletin_product_typ_cd|hwEOL_endOfNewServiceAttachmentDate|hwEOL_endOfRoutineFailureAnalysisDate|hwEOL_endOfSoftwareMaintenanceReleasesDate|hwEOL_endOfServiceContractRenewalDate|hwEOL_endOfLifeAnnouncementDate|eol_product_name|item_type|hwEOL_endOfSaleDate|hwEOL_lastDayOfSupportDate|product_description|product_family|product_family_description|product_type|product_list_price|portfolio_desc|usage_code|combination_count|execution_status|total_product_list_price|unique_key|hw_status|hw_expiring_qtr|hw_expiring_year|last_updated_time|product_name|execution_reason|attempt_count|customer_name|sw_status|sw_expiring_qtr|sw_expiring_year|secAdv_confidence_score|ID|securityAdvisoryId|bulletinTitle|secAdv_securityImpactRating|secAdv_matchConfidence|swEOL_endOfLifeAnnouncementDate|swEOL_endOfVulnerabilitySecuritySupportDate|swEOL_lastDayOfSupportDate|swEOL_endOfSoftwareMaintenanceReleasesDate|swEOL_endOfSaleDate|swEOL_bulletinUrl|swEOL_bulletinNumber|swEOL_bulletinTitle|swEOL_softwareEOXId|PostDate|groups_0|source|icType_source|icType_bug|icType_fieldNotice|icType_psirt|icType_ciscoBestPractice|icType_compliance|icType_engineeringFailureAnalysis|icType_eoXAlert|icType_susceptibility|icType_thirdPartyBestPractice|icType_detectionType|icType_remediation_additionalTroubleshootingNeeded|icType_remediation_informOnly|icType_remediation_problemFix|icType_remediation_returnMaterialAuthorization|icType_remediation_workaround|icType_cliCommand|atticaStatus_result|atticaStatus_message|atticaStatus_timestamp|atticaStatus_environment|atticaStatus_alertId|retry_0|associatedGroups_0__id|associatedGroups_0_name|key|sw_version|sw_os_type|transaction_id|sw_status_score|timestamp|count_|_RDA_Id|icType_rmaAvoidance)$'
-
- ## --> @rn:write-stream name='edc_oi_inventory_enriched' and direct_to_opensearch='yes'
-
- --> @dm:selectcolumns exclude='^(PsirtID|MatchConfidence|MatchReason|MatchDefinition|HeadlineName|AdvisoryId|BulletinURL|Summary|Details|RevisedDate|RevisionNumber|PublishedDate|CvssScore|CveId|created|customerVisible|external_text|firstIcAlertId|groups|icIssueId|icProblemId|ignored|lastIcAlertId|matchDefinition|matchInfo|missingInfo|moreInfo|name|openedOn|resultType|resultSubType|severity|severityText|state|updated|runType|filename|icType|atticaStatus|cdetsList|retry|associatedGroups|key|current_time_ms_loop|token_expiry_time|expires_in|token_type|eoXAlert|eoXAlertType|DocumentId|source|deviceSN)$'
- --> @dm:save name='temp-enriched-sa'
- --> @dm:save name='test-enriched-sa'
- --> @rn:write-stream name='edc_oi_inventory_enriched' and direct_to_opensearch='yes'
+ --> @dm:recall name="netapp_ontap7_inventory_nodes"
+ --> @dm:map to = 'stack_type' & func = 'fixed' & value = 'NetApp'
+ --> @dm:add-missing-columns columns = 'iconURL' & value = 'Not Available'
+ --> @rn:write-stream name="ntap_topology_nodes"
+ --> @dm:recall name="netapp_ontap7_inventory_edges"
+ --> @dm:map to = 'stack_type' & func = 'fixed' & value = 'NetApp'
+ --> @rn:write-stream name="ntap_topology_edges"
