@@ -1,6 +1,7 @@
-@c:new-block
- --> @dm:query-persistent-stream-from-bookmark name="fsm-oia-snow-ticket-inputs" and bookmark="fsm-att-oia-to-snow-create-bkmrk" and query="timestamp is after -24 hours and fsmFirableEventName is 'create-ticket'"
- --> @dm:save name="temp-create-input"
- --> @dm:map to="step" & func="fixed" & value="c0"
- --> @rn:write-stream compression="auto" & name="debug-fsm-att"
- --> @exec:run-pipeline name="create_snow_ticket_processor" & ignore_failures="no"
+@dm:empty
+ --> @dm:addrow name="edc_customer_names" and limit=0
+ --> #dm:query-persistent-stream *
+ --> *dm:filter customer=="ATT"
+ --> @snowflake:native-query dbname is "CX_DB" and warehouse is "CX_DMP_RPT_WH" and query is "SELECT * FROM CX_DB.CX_DMP_EBV.BV_ASSET WHERE PRODUCT_NAME = 'CRS-16-LCC-B' AND SAVM_SALES_LEVEL_4_NAME = 'STR_ASP ATT';"
+ --> @dm:eval timestamp = "utc_time_now_as_isoformat()"
+ --> @dm:add-missing-columns columns="execution_status"
