@@ -1,345 +1,293 @@
 {
-  "name": "rda-mgmt-page-store-objects",
-  "label": "Object Store",
-  "description": "Objects Management Page",
+  "name": "rca_regression_dashboard",
+  "label": "RCA Regression",
+  "description": "Template dashboard for RCA Regression",
   "enabled": true,
-  "dashboard_type": "dashboard",
-  "dashboard_style": "auto",
-  "stream": "rda_objects_meta",
-  "dashboard_folder": "System",
+  "debug": true,
+  "live_edit": true,
+  "dashboard_type": "template",
+  "template_variables": {
+    "METRIC_ID": {
+      "contextId": [
+        "marker",
+        "metric_id"
+      ]
+    },
+    "METRIC_NAME": {
+      "contextId": [
+        "marker",
+        "metric_label"
+      ]
+    },
+    "ASSET": {
+      "contextId": [
+        "marker",
+        "asset_id"
+      ]
+    },
+    "MODEL_NAME": {
+      "contextId": [
+        "marker",
+        "job_name"
+      ]
+    },
+    "METRIC_UNIT": {
+      "contextId": [
+        "marker",
+        "unit"
+      ]
+    },
+    "STREAM": {
+      "contextId": [
+        "marker",
+        "stream_name"
+      ],
+      "default": "oia-ml-metrics-regression-output"
+    },
+    "INCIDENT_OT": {
+      "contextId": "i_cfx_incident_occurred"
+    }
+  },
   "dashboard_filters": {
     "time_filter": true,
-    "additional_datetime_column_filters": [
-      {
-        "id": "saved_time",
-        "label": "Saved Time"
-      }
-    ],
-    "columns_filter": [
-      {
-        "id": "saved_time",
-        "label": "Dataset Saved",
-        "type": "DATETIME"
-      },
-      {
-        "id": "folder",
-        "label": "Folder",
-        "type": "TEXT"
-      },
-      {
-        "id": "name",
-        "label": "Name",
-        "type": "TEXT"
-      },
-      {
-        "id": "file_type",
-        "label": "File Type",
-        "type": "TEXT"
-      },
-      {
-        "id": "file_size",
-        "label": "Raw Size",
-        "type": "DOUBLE"
-      },
-      {
-        "id": "humansized_file_size",
-        "label": "Size",
-        "type": "TEXT"
-      },
-      {
-        "id": "description",
-        "label": "Description",
-        "type": "TEXT"
-      },
-      {
-        "id": "retention_days",
-        "label": "Retention Days",
-        "type": "DOUBLE"
-      }
-    ]
+    "default_time_range": {
+      "from_time": "{{INCIDENT_OT}}",
+      "from_time_delta_hours": -12,
+      "to_time": "{{INCIDENT_OT}}",
+      "to_time_delta_hours": 4,
+      "label": "Incident Time"
+    }
   },
   "dashboard_sections": [
     {
-      "title": "Object Store",
+      "title": "Summary",
       "show_filter": true,
       "widgets": [
         {
-          "title": "Object store",
-          "extra_filter": "folder is not null",
-          "widget_type": "tabular",
-          "stream": "rda_objects_meta",
-          "height": 10,
-          "min_wdith": 12,
-          "paginated": true,
-          "remote_searchable": true,
-          "remote_searchable_cols": [
-            "name",
-            "folder",
-            "file_type",
-            "humansized_file_size",
-            "description"
+          "widget_type": "pie_chart",
+          "title": "Anomalies by Severity",
+          "stream": "{{STREAM}}",
+          "extra_filter": "anomalies is not None and job_name is '{{MODEL_NAME}}'",
+          "min_width": 6,
+          "height": 6,
+          "max_width": 6,
+          "ts_column": "timestamp",
+          "column": "_id",
+          "agg": "value_count",
+          "group_by": [
+            "anomalies_severity"
           ],
-          "duration_hours": 87600,
-          "columns": {
-            "name": {
-              "title": "Name",
-              "key": true
-            },
-            "folder": {
-              "title": "Folder",
-              "key": true
-            },
-            "description": {
-              "title": "Description"
-            },
-            "saved_time": {
-              "title": "Saved Time",
-              "type": "DATETIME"
-            },
-            "file_type": {
-              "title": "File Type",
-              "key": true
-            },
-            "file_size": {
-              "title": "Raw Size"
-            },
-            "humansized_file_size": {
-              "title": "Size"
-            },
-            "data_path": {
-              "title": "File Path",
-              "key": true,
-              "visible": false
-            },
-            "retention_days": {
-              "title": "Retention Days",
-              "key": true
+          "style": {
+            "color-map": {
+              "High": [
+                "#ef5350",
+                "#ffffff"
+              ],
+              "Medium": [
+                "#FFA726",
+                "#ffffff"
+              ],
+              "Low": [
+                "#388e3c",
+                "#ffffff"
+              ]
             }
           },
+          "type": "str",
+          "widget_id": "7eba4b7b"
+        },
+        {
+          "title": "Anomalies",
+          "widget_type": "tabular",
+          "stream": "{{STREAM}}",
+          "extra_filter": "anomalies is not None and job_name is '{{MODEL_NAME}}'",
+          "min_width": 6,
+          "height": 6,
+          "max_width": 6,
+          "paginated": true,
+          "remote_searchable": true,
+          "max_rows": 50,
           "sorting": [
             {
-              "saved_time": "desc"
+              "timestamp": "desc"
             }
           ],
-          "actions": [
-            {
-              "permission": "rda:object:upload",
-              "title": "Upload",
-              "icon": "mdi mdi-plus",
-              "type": "POPUP_FORM",
-              "selectionType": "NONE",
-              "identifier": "saas-service-action:add-object",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.object.add"
-                  }
-                ]
+          "columns": {
+            "timestamp": "Timestamp",
+            "asset_id": "Asset ID",
+            "asset_name": "Asset Name",
+            "metric_name": "Metric Name",
+            "severity_color": {
+              "title": "Sev_2",
+              "type": "COLOR-MAP",
+              "source-column": "anomalies_severity",
+              "color-map": {
+                "High": "#ef5350",
+                "Medium": "#FFA726",
+                "Low": "#388e3c"
               }
             },
+            "anomalies_severity": {
+              "title": "Severity",
+              "htmlTemplateForRow": "<span class='badge' style='background-color: {{'{{ row.severity_color }}'}}' > {{'{{ row.anomalies_severity }}'}} </span>",
+              "defaultWidth": 150
+            }
+          },
+          "custom_columns": [
             {
-              "permission": "rda:object:download",
-              "title": "Download",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:download-object",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.object.download"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:object:delete",
-              "title": "Delete",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:delete-object",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.object.delete"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:object:update_retention",
-              "title": "Update",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:update-retention-days",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.object.update_retention"
-                  }
-                ]
-              }
+              "id": "value1",
+              "label": "Value",
+              "expr": "round(value,2)"
             }
           ],
-          "widget_id": "01dc3a55"
+          "widget_id": "94a3fc11"
+        },
+        {
+          "widget_type": "shaded_chart_multisource",
+          "title": "Forecasting and Anomaly Detection ({{METRIC_NAME}} - {{ASSET}})",
+          "show-markers": true,
+          "max_width": 12,
+          "min_width": 12,
+          "height": 8,
+          "chartProperties": {
+            "yAxisLabel": "{{METRIC_NAME}} ({{METRIC_UNIT}})",
+            "xAxisLabel": "Time"
+          },
+          "sources": [
+            {
+              "type": "train",
+              "downsample": false,
+              "stream": "{{STREAM}}",
+              "extra_filter": "job_name is '{{MODEL_NAME}}' and status is 'Success'",
+              "ts_column": "timestamp",
+              "baseline_column": "baseline",
+              "anomalies_column": "anomalies",
+              "predicted_column": "predicted",
+              "predicted_anomalies": "predicted_anomalies",
+              "upperBound_column": "upperBound",
+              "lowerBound_column": "lowerBound",
+              "duration_hours": 1000000,
+              "synchronized-group": 0
+            }
+          ],
+          "widget_id": "7a134625"
         }
       ]
     }
   ],
   "pstream_dashboards": [
     {
-      "title": "Object Store",
+      "title": "Summary",
       "show_filter": true,
       "widgets": [
         {
-          "title": "Object store",
-          "extra_filter": "folder is not null",
-          "widget_type": "tabular",
-          "stream": "rda_objects_meta",
-          "height": 10,
-          "min_wdith": 12,
-          "paginated": true,
-          "remote_searchable": true,
-          "remote_searchable_cols": [
-            "name",
-            "folder",
-            "file_type",
-            "humansized_file_size",
-            "description"
+          "widget_type": "pie_chart",
+          "title": "Anomalies by Severity",
+          "stream": "{{STREAM}}",
+          "extra_filter": "anomalies is not None and job_name is '{{MODEL_NAME}}'",
+          "min_width": 6,
+          "height": 6,
+          "max_width": 6,
+          "ts_column": "timestamp",
+          "column": "_id",
+          "agg": "value_count",
+          "group_by": [
+            "anomalies_severity"
           ],
-          "duration_hours": 87600,
-          "columns": {
-            "name": {
-              "title": "Name",
-              "key": true
-            },
-            "folder": {
-              "title": "Folder",
-              "key": true
-            },
-            "description": {
-              "title": "Description"
-            },
-            "saved_time": {
-              "title": "Saved Time",
-              "type": "DATETIME"
-            },
-            "file_type": {
-              "title": "File Type",
-              "key": true
-            },
-            "file_size": {
-              "title": "Raw Size"
-            },
-            "humansized_file_size": {
-              "title": "Size"
-            },
-            "data_path": {
-              "title": "File Path",
-              "key": true,
-              "visible": false
-            },
-            "retention_days": {
-              "title": "Retention Days",
-              "key": true
+          "style": {
+            "color-map": {
+              "High": [
+                "#ef5350",
+                "#ffffff"
+              ],
+              "Medium": [
+                "#FFA726",
+                "#ffffff"
+              ],
+              "Low": [
+                "#388e3c",
+                "#ffffff"
+              ]
             }
           },
+          "type": "str",
+          "widget_id": "7eba4b7b"
+        },
+        {
+          "title": "Anomalies",
+          "widget_type": "tabular",
+          "stream": "{{STREAM}}",
+          "extra_filter": "anomalies is not None and job_name is '{{MODEL_NAME}}'",
+          "min_width": 6,
+          "height": 6,
+          "max_width": 6,
+          "paginated": true,
+          "remote_searchable": true,
+          "max_rows": 50,
           "sorting": [
             {
-              "saved_time": "desc"
+              "timestamp": "desc"
             }
           ],
-          "actions": [
-            {
-              "permission": "rda:object:upload",
-              "title": "Upload",
-              "icon": "mdi mdi-plus",
-              "type": "POPUP_FORM",
-              "selectionType": "NONE",
-              "identifier": "saas-service-action:add-object",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.object.add"
-                  }
-                ]
+          "columns": {
+            "timestamp": "Timestamp",
+            "asset_id": "Asset ID",
+            "asset_name": "Asset Name",
+            "metric_name": "Metric Name",
+            "severity_color": {
+              "title": "Sev_2",
+              "type": "COLOR-MAP",
+              "source-column": "anomalies_severity",
+              "color-map": {
+                "High": "#ef5350",
+                "Medium": "#FFA726",
+                "Low": "#388e3c"
               }
             },
+            "anomalies_severity": {
+              "title": "Severity",
+              "htmlTemplateForRow": "<span class='badge' style='background-color: {{'{{ row.severity_color }}'}}' > {{'{{ row.anomalies_severity }}'}} </span>",
+              "defaultWidth": 150
+            }
+          },
+          "custom_columns": [
             {
-              "permission": "rda:object:download",
-              "title": "Download",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:download-object",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.object.download"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:object:delete",
-              "title": "Delete",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:delete-object",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.object.delete"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:object:update_retention",
-              "title": "Update",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:update-retention-days",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.object.update_retention"
-                  }
-                ]
-              }
+              "id": "value1",
+              "label": "Value",
+              "expr": "round(value,2)"
             }
           ],
-          "widget_id": "01dc3a55"
+          "widget_id": "94a3fc11"
+        },
+        {
+          "widget_type": "shaded_chart_multisource",
+          "title": "Forecasting and Anomaly Detection ({{METRIC_NAME}} - {{ASSET}})",
+          "show-markers": true,
+          "max_width": 12,
+          "min_width": 12,
+          "height": 8,
+          "chartProperties": {
+            "yAxisLabel": "{{METRIC_NAME}} ({{METRIC_UNIT}})",
+            "xAxisLabel": "Time"
+          },
+          "sources": [
+            {
+              "type": "train",
+              "downsample": false,
+              "stream": "{{STREAM}}",
+              "extra_filter": "job_name is '{{MODEL_NAME}}' and status is 'Success'",
+              "ts_column": "timestamp",
+              "baseline_column": "baseline",
+              "anomalies_column": "anomalies",
+              "predicted_column": "predicted",
+              "predicted_anomalies": "predicted_anomalies",
+              "upperBound_column": "upperBound",
+              "lowerBound_column": "lowerBound",
+              "duration_hours": 1000000,
+              "synchronized-group": 0
+            }
+          ],
+          "widget_id": "7a134625"
         }
       ]
     }
