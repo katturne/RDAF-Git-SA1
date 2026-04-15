@@ -1,293 +1,339 @@
 {
-  "name": "rca_regression_dashboard",
-  "label": "RCA Regression",
-  "description": "Template dashboard for RCA Regression",
+  "name": "incident-collaboration",
+  "description": "Incident Collaboration",
+  "label": "Incident Collaboration",
   "enabled": true,
-  "debug": true,
-  "live_edit": true,
+  "exportable": false,
   "dashboard_type": "template",
+  "dashboard_style": "auto",
+  "version": "22.10.7.1",
   "template_variables": {
-    "METRIC_ID": {
-      "contextId": [
-        "marker",
-        "metric_id"
-      ]
+    "STACK_NAME": {
+      "contextId": "stack_name"
     },
-    "METRIC_NAME": {
-      "contextId": [
-        "marker",
-        "metric_label"
-      ]
-    },
-    "ASSET": {
-      "contextId": [
-        "marker",
-        "asset_id"
-      ]
-    },
-    "MODEL_NAME": {
-      "contextId": [
-        "marker",
-        "job_name"
-      ]
-    },
-    "METRIC_UNIT": {
-      "contextId": [
-        "marker",
-        "unit"
-      ]
-    },
-    "STREAM": {
-      "contextId": [
-        "marker",
-        "stream_name"
-      ],
-      "default": "oia-ml-metrics-regression-output"
-    },
-    "INCIDENT_OT": {
-      "contextId": "i_cfx_incident_occurred"
+    "PROJECT_ID": {
+      "contextId": "projectId"
     }
+  },
+  "custom_context": {
+    "alert-context": true
   },
   "dashboard_filters": {
     "time_filter": true,
-    "default_time_range": {
-      "from_time": "{{INCIDENT_OT}}",
-      "from_time_delta_hours": -12,
-      "to_time": "{{INCIDENT_OT}}",
-      "to_time_delta_hours": 4,
-      "label": "Incident Time"
-    }
+    "extra_filter": "projectid in {{PROJECT_ID}}",
+    "columns_filter": [
+      {
+        "id": "incidentid",
+        "label": "Incident ID",
+        "type": "TEXT"
+      },
+      {
+        "id": "activity",
+        "label": "Activity",
+        "type": "TEXT"
+      },
+      {
+        "id": "sourcesystemname",
+        "label": "Source System",
+        "type": "TEXT"
+      },
+      {
+        "id": "target",
+        "label": "Target System",
+        "type": "TEXT"
+      },
+      {
+        "id": "content",
+        "label": "Message",
+        "type": "TEXT"
+      },
+      {
+        "id": "senderid",
+        "label": "User",
+        "type": "TEXT"
+      },
+      {
+        "id": "createdat",
+        "label": "Created",
+        "type": "DATETIME"
+      },
+      {
+        "id": "subject",
+        "label": "Subject",
+        "type": "TEXT"
+      },
+      {
+        "id": "activity",
+        "label": "Activity",
+        "type": "TEXT"
+      }
+    ],
+    "default_time_filter_labels": [
+      "Last 24 hours"
+    ]
   },
   "dashboard_sections": [
     {
-      "title": "Summary",
+      "title": "Activity",
       "show_filter": true,
       "widgets": [
         {
-          "widget_type": "pie_chart",
-          "title": "Anomalies by Severity",
-          "stream": "{{STREAM}}",
-          "extra_filter": "anomalies is not None and job_name is '{{MODEL_NAME}}'",
-          "min_width": 6,
-          "height": 6,
-          "max_width": 6,
+          "widget_type": "bar_chart",
+          "title": "Collaboration Messages By Activity",
+          "stream": "oia-incidents-collaboration-stream",
           "ts_column": "timestamp",
-          "column": "_id",
-          "agg": "value_count",
+          "duration_hours": 24,
+          "min_width": 6,
+          "height": 4,
+          "max_width": 6,
+          "extra_filter": "activity is not 'Endpoint Response' and activity is not 'Update Incident' and subject is not 'Incident Updated'",
           "group_by": [
-            "anomalies_severity"
+            "activity"
           ],
-          "style": {
-            "color-map": {
-              "High": [
-                "#ef5350",
-                "#ffffff"
-              ],
-              "Medium": [
-                "#FFA726",
-                "#ffffff"
-              ],
-              "Low": [
-                "#388e3c",
-                "#ffffff"
-              ]
-            }
+          "agg": "sum",
+          "column": "count_",
+          "type": "int",
+          "chartProperties": {
+            "legendLocation": "none",
+            "xAxisLabel": null,
+            "yAxisLabel": null
           },
-          "type": "str",
-          "widget_id": "7eba4b7b"
+          "widget_id": "6dc8340e"
         },
         {
-          "title": "Anomalies",
-          "widget_type": "tabular",
-          "stream": "{{STREAM}}",
-          "extra_filter": "anomalies is not None and job_name is '{{MODEL_NAME}}'",
+          "widget_type": "bar_chart",
+          "title": "Collaboration Messages By Target",
+          "stream": "oia-incidents-collaboration-stream",
+          "ts_column": "timestamp",
+          "duration_hours": 24,
           "min_width": 6,
-          "height": 6,
+          "extra_filter": "activity is not 'Endpoint Response' and activity is not 'Update Incident' and subject is not 'Incident Updated'",
+          "height": 4,
           "max_width": 6,
+          "group_by": [
+            "target"
+          ],
+          "agg": "sum",
+          "column": "count_",
+          "type": "int",
+          "chartProperties": {
+            "legendLocation": "none",
+            "xAxisLabel": null,
+            "yAxisLabel": null
+          },
+          "widget_id": "e36576b7"
+        },
+        {
+          "title": "Collaboration Messages",
+          "widget_type": "tabular",
+          "max_width": 12,
+          "height": 12,
+          "min_width": 6,
+          "stream": "oia-incidents-collaboration-stream",
+          "ts_column": "timestamp",
           "paginated": true,
+          "resizableColumns": false,
           "remote_searchable": true,
-          "max_rows": 50,
+          "remote_searchable_cols": [
+            "subject",
+            "content",
+            "sendername",
+            "sourcesystemname",
+            "target",
+            "incidentid"
+          ],
+          "extra_filter": "activity is not 'Endpoint Response' and activity is not 'Update Incident' and subject is not 'Incident Updated'",
+          "duration_hours": 24,
           "sorting": [
             {
               "timestamp": "desc"
             }
           ],
           "columns": {
-            "timestamp": "Timestamp",
-            "asset_id": "Asset ID",
-            "asset_name": "Asset Name",
-            "metric_name": "Metric Name",
-            "severity_color": {
-              "title": "Sev_2",
-              "type": "COLOR-MAP",
-              "source-column": "anomalies_severity",
-              "color-map": {
-                "High": "#ef5350",
-                "Medium": "#FFA726",
-                "Low": "#388e3c"
-              }
+            "subject": "Subject",
+            "content": "Message",
+            "sendername": "User",
+            "timestamp": {
+              "title": "Timestamp",
+              "type": "DATETIME"
             },
-            "anomalies_severity": {
-              "title": "Severity",
-              "htmlTemplateForRow": "<span class='badge' style='background-color: {{'{{ row.severity_color }}'}}' > {{'{{ row.anomalies_severity }}'}} </span>",
-              "defaultWidth": 150
+            "sourcesystemname": "Source",
+            "target": "Target",
+            "incidentid": {
+              "title": "Incident ID",
+              "key": true
             }
           },
-          "custom_columns": [
+          "severity_columns": [
+            "severity"
+          ],
+          "actions": [
             {
-              "id": "value1",
-              "label": "Value",
-              "expr": "round(value,2)"
+              "title": "View Incident",
+              "type": "GO_TO_APP_STATE",
+              "stateName": "app.featureapp",
+              "appName": "user-dashboard/incident-details-app",
+              "selectionType": "SINGLE",
+              "drillDownLinkField": "incidentid",
+              "drillDownContext": "incidentid",
+              "destinationContext": "incidentid",
+              "displayLabelColumnId": "Incident ID",
+              "contextParamList": {
+                "contextParams": [
+                  {
+                    "paramKey": "projectid",
+                    "paramId": "id"
+                  },
+                  {
+                    "paramKey": "incidentid",
+                    "paramId": "incidentid"
+                  },
+                  {
+                    "paramKey": "projectid",
+                    "paramId": "roomid"
+                  },
+                  {
+                    "paramKey": "projectid",
+                    "paramId": "projectId"
+                  }
+                ]
+              }
             }
           ],
-          "widget_id": "94a3fc11"
-        },
-        {
-          "widget_type": "shaded_chart_multisource",
-          "title": "Forecasting and Anomaly Detection ({{METRIC_NAME}} - {{ASSET}})",
-          "show-markers": true,
-          "max_width": 12,
-          "min_width": 12,
-          "height": 8,
-          "chartProperties": {
-            "yAxisLabel": "{{METRIC_NAME}} ({{METRIC_UNIT}})",
-            "xAxisLabel": "Time"
-          },
-          "sources": [
-            {
-              "type": "train",
-              "downsample": false,
-              "stream": "{{STREAM}}",
-              "extra_filter": "job_name is '{{MODEL_NAME}}' and status is 'Success'",
-              "ts_column": "timestamp",
-              "baseline_column": "baseline",
-              "anomalies_column": "anomalies",
-              "predicted_column": "predicted",
-              "predicted_anomalies": "predicted_anomalies",
-              "upperBound_column": "upperBound",
-              "lowerBound_column": "lowerBound",
-              "duration_hours": 1000000,
-              "synchronized-group": 0
-            }
-          ],
-          "widget_id": "7a134625"
+          "widget_id": "a7f6e486"
         }
       ]
     }
   ],
   "pstream_dashboards": [
     {
-      "title": "Summary",
+      "title": "Activity",
       "show_filter": true,
       "widgets": [
         {
-          "widget_type": "pie_chart",
-          "title": "Anomalies by Severity",
-          "stream": "{{STREAM}}",
-          "extra_filter": "anomalies is not None and job_name is '{{MODEL_NAME}}'",
-          "min_width": 6,
-          "height": 6,
-          "max_width": 6,
+          "widget_type": "bar_chart",
+          "title": "Collaboration Messages By Activity",
+          "stream": "oia-incidents-collaboration-stream",
           "ts_column": "timestamp",
-          "column": "_id",
-          "agg": "value_count",
+          "duration_hours": 24,
+          "min_width": 6,
+          "height": 4,
+          "max_width": 6,
+          "extra_filter": "activity is not 'Endpoint Response' and activity is not 'Update Incident' and subject is not 'Incident Updated'",
           "group_by": [
-            "anomalies_severity"
+            "activity"
           ],
-          "style": {
-            "color-map": {
-              "High": [
-                "#ef5350",
-                "#ffffff"
-              ],
-              "Medium": [
-                "#FFA726",
-                "#ffffff"
-              ],
-              "Low": [
-                "#388e3c",
-                "#ffffff"
-              ]
-            }
+          "agg": "sum",
+          "column": "count_",
+          "type": "int",
+          "chartProperties": {
+            "legendLocation": "none",
+            "xAxisLabel": null,
+            "yAxisLabel": null
           },
-          "type": "str",
-          "widget_id": "7eba4b7b"
+          "widget_id": "6dc8340e"
         },
         {
-          "title": "Anomalies",
-          "widget_type": "tabular",
-          "stream": "{{STREAM}}",
-          "extra_filter": "anomalies is not None and job_name is '{{MODEL_NAME}}'",
+          "widget_type": "bar_chart",
+          "title": "Collaboration Messages By Target",
+          "stream": "oia-incidents-collaboration-stream",
+          "ts_column": "timestamp",
+          "duration_hours": 24,
           "min_width": 6,
-          "height": 6,
+          "extra_filter": "activity is not 'Endpoint Response' and activity is not 'Update Incident' and subject is not 'Incident Updated'",
+          "height": 4,
           "max_width": 6,
+          "group_by": [
+            "target"
+          ],
+          "agg": "sum",
+          "column": "count_",
+          "type": "int",
+          "chartProperties": {
+            "legendLocation": "none",
+            "xAxisLabel": null,
+            "yAxisLabel": null
+          },
+          "widget_id": "e36576b7"
+        },
+        {
+          "title": "Collaboration Messages",
+          "widget_type": "tabular",
+          "max_width": 12,
+          "height": 12,
+          "min_width": 6,
+          "stream": "oia-incidents-collaboration-stream",
+          "ts_column": "timestamp",
           "paginated": true,
+          "resizableColumns": false,
           "remote_searchable": true,
-          "max_rows": 50,
+          "remote_searchable_cols": [
+            "subject",
+            "content",
+            "sendername",
+            "sourcesystemname",
+            "target",
+            "incidentid"
+          ],
+          "extra_filter": "activity is not 'Endpoint Response' and activity is not 'Update Incident' and subject is not 'Incident Updated'",
+          "duration_hours": 24,
           "sorting": [
             {
               "timestamp": "desc"
             }
           ],
           "columns": {
-            "timestamp": "Timestamp",
-            "asset_id": "Asset ID",
-            "asset_name": "Asset Name",
-            "metric_name": "Metric Name",
-            "severity_color": {
-              "title": "Sev_2",
-              "type": "COLOR-MAP",
-              "source-column": "anomalies_severity",
-              "color-map": {
-                "High": "#ef5350",
-                "Medium": "#FFA726",
-                "Low": "#388e3c"
-              }
+            "subject": "Subject",
+            "content": "Message",
+            "sendername": "User",
+            "timestamp": {
+              "title": "Timestamp",
+              "type": "DATETIME"
             },
-            "anomalies_severity": {
-              "title": "Severity",
-              "htmlTemplateForRow": "<span class='badge' style='background-color: {{'{{ row.severity_color }}'}}' > {{'{{ row.anomalies_severity }}'}} </span>",
-              "defaultWidth": 150
+            "sourcesystemname": "Source",
+            "target": "Target",
+            "incidentid": {
+              "title": "Incident ID",
+              "key": true
             }
           },
-          "custom_columns": [
+          "severity_columns": [
+            "severity"
+          ],
+          "actions": [
             {
-              "id": "value1",
-              "label": "Value",
-              "expr": "round(value,2)"
+              "title": "View Incident",
+              "type": "GO_TO_APP_STATE",
+              "stateName": "app.featureapp",
+              "appName": "user-dashboard/incident-details-app",
+              "selectionType": "SINGLE",
+              "drillDownLinkField": "incidentid",
+              "drillDownContext": "incidentid",
+              "destinationContext": "incidentid",
+              "displayLabelColumnId": "Incident ID",
+              "contextParamList": {
+                "contextParams": [
+                  {
+                    "paramKey": "projectid",
+                    "paramId": "id"
+                  },
+                  {
+                    "paramKey": "incidentid",
+                    "paramId": "incidentid"
+                  },
+                  {
+                    "paramKey": "projectid",
+                    "paramId": "roomid"
+                  },
+                  {
+                    "paramKey": "projectid",
+                    "paramId": "projectId"
+                  }
+                ]
+              }
             }
           ],
-          "widget_id": "94a3fc11"
-        },
-        {
-          "widget_type": "shaded_chart_multisource",
-          "title": "Forecasting and Anomaly Detection ({{METRIC_NAME}} - {{ASSET}})",
-          "show-markers": true,
-          "max_width": 12,
-          "min_width": 12,
-          "height": 8,
-          "chartProperties": {
-            "yAxisLabel": "{{METRIC_NAME}} ({{METRIC_UNIT}})",
-            "xAxisLabel": "Time"
-          },
-          "sources": [
-            {
-              "type": "train",
-              "downsample": false,
-              "stream": "{{STREAM}}",
-              "extra_filter": "job_name is '{{MODEL_NAME}}' and status is 'Success'",
-              "ts_column": "timestamp",
-              "baseline_column": "baseline",
-              "anomalies_column": "anomalies",
-              "predicted_column": "predicted",
-              "predicted_anomalies": "predicted_anomalies",
-              "upperBound_column": "upperBound",
-              "lowerBound_column": "lowerBound",
-              "duration_hours": 1000000,
-              "synchronized-group": 0
-            }
-          ],
-          "widget_id": "7a134625"
+          "widget_id": "a7f6e486"
         }
       ]
     }
