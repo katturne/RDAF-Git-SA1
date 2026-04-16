@@ -1,12 +1,19 @@
-folder: Default
-name: irm-stream-missing-columns-update
-description: Pipeline for updating missing feilds in oia-incidents-stream for existing
-  data
-data_path: pipelines/data/irm-stream-missing-columns-update/2023_02_13_1/data.json
-usecase: ''
-category: irm incidents stream
-sources: {}
-artifacts: []
-version: '2023_02_13_1'
-file_type: json
-checksum: 9ab7f086
+@dm:empty
+ --> @exec:get-input
+ ## Save text input
+
+ --> @dm:save name="test_data_add"
+ --> @rn:write-stream name="test_data"
+ ## Uploaded file processing
+
+ --> @dm:save name="test_upload1"
+ --> @dm:selectcolumns include="fileUpload"
+ --> @dm:explode-json column="fileUpload"
+ --> @dm:save name="temp-test-upload2"
+ --> @dm:save name="test_upload2"
+ ## Loop over uploaded file info
+
+ --> @c:data-loop dataset="temp-test-upload2" and columns="bucketName,objectName,displayName"
+ --> @dm:get-from-location path="$bucketName/$objectName"
+ --> @dm:save name="test_upload3"
+ --> @rn:write-stream name="test_data"
