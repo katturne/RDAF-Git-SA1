@@ -1,20 +1,16 @@
-folder: Default
-name: ed_license_summary_test
-description: test pipeline
-data_path: draft-pipelines/data/ed_license_summary_test/1.1/data.json
-usecase: ''
-category: ''
-sources: {}
-artifacts:
-- artifact_type: dataset
-  artifact_name: license_tap_dict
-  access: read
-- artifact_type: dataset
-  artifact_name: license_tap_dict
-  access: read
-- artifact_type: dataset
-  artifact_name: edc_license_summary_trial_1
-  access: write
-version: '1.1'
-file_type: json
-checksum: 0de47735
+@dm:empty
+ --> @dm:addrow name='edc_cust_pid_sw' and limit=0
+ --> #dm:query-persistent-stream
+ --> @dm:dedup columns='product_id,sw_os_type,sw_version'
+ --> @dm:save name='temp-pid'
+ --> @c:new-block
+ --> @dm:empty
+ --> @dm:addrow name='edc_oi_inventory_enriched' and limit=0
+ --> #dm:query-persistent-stream customer_name equals 'ATT'
+ --> @dm:save name='temp-source'
+ --> @c:new-block
+ --> @dm:recall name='temp-source'
+ --> @dm:enrich dict='temp-pid' and src_key_cols='product_name,contract_number,customer_name' and dict_key_cols='product_id,contract_number,customer' and enrich_cols='_id'
+ --> @dm:save name='before-output'
+ --> @dm:dedup columns='product_name,contract_number,customer_name'
+ --> @dm:save name='after-output'
