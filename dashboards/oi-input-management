@@ -1,18 +1,18 @@
 {
-  "name": "oi-input-management",
-  "label": "OI Configure and Manage",
-  "description": "OI configure and management dashboard",
-  "version": "25.09.08.1",
+  "name": "customer_discovery",
+  "label": "On Demand Discovery",
+  "description": "onboarded_devices: Insights",
+  "dashboard_folder": "NetworkDevicePack",
+  "version": "1.0.4",
   "enabled": false,
+  "stream0": "onboarded_devices",
   "dashboard_type": "template",
-  "dashboard_folder": "OI",
-  "dashboard_style": "auto",
   "template_variables": {
     "CUST_ID": {
       "contextId": "customerId"
     },
     "PROJ_ID": {
-      "contextId": "projectId"
+      "contextId": "project_id"
     },
     "CUST_TAG": {
       "contextId": "customerTag"
@@ -22,87 +22,82 @@
     "time_filter": true,
     "default_time_filter_labels": [
       "Last 1 month"
-    ]
+    ],
+    "columns_filter": [],
+    "group_filters": []
   },
-  "live_edit": true,
   "dashboard_sections": [
     {
-      "title": "ONLINE Data Input",
+      "title": "Onboarded Devices",
+      "show_filters": true,
       "widgets": [
         {
-          "title": "Snowflake Credential Management",
+          "title": "Discovery",
           "widget_type": "tabular",
-          "stream": "rda_secrets_meta",
-          "extra_filter": "(type in ['snowflake'])",
-          "timebased": false,
+          "stream": "discovery",
+          "stream0": "devices_to_discover",
+          "filter0": "customer_id = '{{CUST_ID}}' and project_id = '{{PROJ_ID}}'",
+          "extra_filter": "customer_tag is '{{CUST_TAG}}' or customer_tag is empty",
+          "refreshOptions": {
+            "refreshType": "Periodic",
+            "refreshInterval": 30000
+          },
+          "remote_searchable": true,
           "remote_searchable_cols": [
-            "name",
-            "type",
-            "typeDescription"
+            "device_ip",
+            "discovery_scope"
           ],
-          "ts_column": "saved_time",
+          "ts_column": "timestamp",
           "paginated": true,
-          "height": 4,
+          "height": 10,
           "min_wdith": 12,
           "columns": {
-            "name": {
-              "title": "Name",
+            "device_ip": {
+              "title": "IP Address",
               "key": true
             },
-            "type": {
-              "title": "Type",
-              "key": true
+            "discovery_scope": {
+              "title": "Discovery Scope",
+              "visible": true,
+              "key": true,
+              "htmlTemplateForRow": "{%raw%}<span class='badge' style='background-color: {{ row.discovery_status_color }}' > {{ row.discovery_scope }} </span>{%endraw%}"
             },
-            "typeDescription": {
-              "title": "description"
-            },
-            "has_credential_check": {
-              "title": "Credential Check",
+            "customer_tag": {
+              "title": "customer_tag",
+              "key": true,
               "visible": false
             },
-            "saved_time": {
-              "title": "Saved Time",
-              "type": "DATETIME"
+            "customer_id": {
+              "title": "customer_id",
+              "key": true,
+              "visible": false
             },
             "timestamp": {
-              "title": "When",
-              "type": "HUMANIZE_TIME_DELTA",
-              "source-column": "saved_time",
-              "sortable": false
+              "title": "Timestamp",
+              "type": "DATETIME"
+            },
+            "_RDA_Id": {
+              "title": "RDA ID",
+              "key": true,
+              "visible": false
             }
           },
           "custom_columns": [
             {
-              "id": "rowStyleClass",
-              "hidden": true,
-              "visiblle": false,
-              "expr": "'bg-fading-blue' if time_now_as_ms() - isoformat_to_ms(saved_time) <= 120000 else None"
-            },
-            {
-              "id": "artifact_name",
-              "label": "Artifact Name",
-              "expr": "name",
-              "key": true,
+              "id": "discovery_status_color",
+              "label": "Discovery Scope Color",
+              "key": false,
               "visible": false,
-              "sortable": false
-            },
-            {
-              "id": "artifact_type",
-              "label": "Artifact Type",
-              "expr": "'source'",
-              "key": true,
-              "visible": false,
-              "sortable": false
+              "expr": "'#008000' if str(discovery_scope) in [ 'yes', 'True'] else '#FF0000'"
             }
           ],
           "actions": [
             {
-              "permission": "rda:credential:add",
-              "title": "Add",
-              "icon": "mdi mdi-plus",
+              "permission": "rda:github:view",
+              "title": "Add Devices",
               "type": "POPUP_FORM",
               "selectionType": "NONE",
-              "identifier": "saas-service-action:vault-add",
+              "identifier": "saas-service-action:userdashboard-add-yaml",
               "api-endpoint": {
                 "service-name": "saas-reports",
                 "methodName": "getForm",
@@ -110,143 +105,91 @@
                 "parse-output": false,
                 "params": [
                   {
-                    "formId": "rda.saas.vault.add",
-                    "extension_types": [
-                      "snowflake"
+                    "formId": "rda.saas.dynamic.form",
+                    "formActionList": {
+                      "formActions": [
+                        {
+                          "actionLabel": "Add",
+                          "identifier": "Submit"
+                        },
+                        {
+                          "actionLabel": "Cancel",
+                          "identifier": "Cancel"
+                        }
+                      ]
+                    },
+                    "formDefinition": {
+                      "id": "rda.saas.dynamic.form",
+                      "refreshRequired": true,
+                      "formFieldList": [
+                        {
+                          "help": "IP Address of network device",
+                          "dataType": "string",
+                          "controlType": "TEXT_FIELD",
+                          "required": true,
+                          "editable": true,
+                          "label": "IP Address",
+                          "hidden": false,
+                          "fieldId": "device_ip"
+                        },
+                        {
+                          "fieldId": "discovery_scope",
+                          "label": "Add it to discovery?",
+                          "help": "Should this network device be part of discovery?",
+                          "dataType": "string",
+                          "hidden": false,
+                          "editable": true,
+                          "required": true,
+                          "lovValues": [
+                            {
+                              "identifier": "yes",
+                              "displayName": "Yes"
+                            },
+                            {
+                              "identifier": "no",
+                              "displayName": "No"
+                            }
+                          ],
+                          "controlType": "RADIO_BUTTON"
+                        },
+                        {
+                          "help": "customer_tag",
+                          "dataType": "string",
+                          "controlType": "TEXT_FIELD",
+                          "required": true,
+                          "editable": true,
+                          "label": "customer_tag",
+                          "hidden": true,
+                          "defaultValue": "{{CUST_TAG}}",
+                          "fieldId": "customer_tag"
+                        },
+                        {
+                          "help": "customer_id",
+                          "dataType": "string",
+                          "controlType": "TEXT_FIELD",
+                          "required": true,
+                          "editable": true,
+                          "label": "customer_id",
+                          "hidden": true,
+                          "defaultValue": "{{CUST_ID}}",
+                          "fieldId": "customer_id"
+                        }
+                      ]
+                    },
+                    "actions": [
+                      {
+                        "type": "UPDATE_PSTREAM",
+                        "operation": "ADD",
+                        "pstreamName": "discovery"
+                      }
                     ]
                   }
                 ]
               }
             },
             {
-              "permission": "rda:credential:edit",
-              "title": "Edit",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:vault-edit",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.vault.edit"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:credential:view",
-              "title": "View",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "displayLabelColumnId": "name",
-              "drillDownLinkField": "name",
-              "identifier": "saas-service-action:vault-view",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.vault.view"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:credential:verify",
-              "title": "Verify Credentials",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:vault-edit",
-              "actionCondition": {
-                "actionControl": "HIDE_IF",
-                "conditionalField": [
-                  {
-                    "conditionType": "EQUAL",
-                    "conditionValue": "false",
-                    "fieldId": "has_credential_check"
-                  }
-                ]
-              },
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.vault.validateConenctivity"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:credential:verify",
-              "title": "Delete",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:vault-delete",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.vault.delete"
-                  }
-                ]
-              }
-            }
-          ],
-          "widget_id": "01dc3a55"
-        }
-      ]
-    },
-    {
-      "title": "OFFLINE Data Input",
-      "widgets": [
-        {
-          "title": "Upload HW EoX Data",
-          "widget_type": "tabular",
-          "duration_hours": 1080,
-          "stream": "edc_oi_inventory_enriched",
-          "remote_searchable": true,
-          "ts_column": "timestamp",
-          "paginated": true,
-          "height": 4,
-          "min_wdith": 12,
-          "columns": {
-            "customer_name": {
-              "title": "Customer Name",
-              "type": "TEXT",
-              "visible": true,
-              "key": true
-            }
-          },
-          "pivot": {
-            "pivot_type": "advanced",
-            "group_by": [
-              "customer_name",
-              "count_"
-            ],
-            "series": [
-              {
-                "column": "_RDA_Id",
-                "agg": "value_count",
-                "type": "int",
-                "label": "Number of Records"
-              }
-            ]
-          },
-          "actions": [
-            {
               "permission": "rda:github:view",
-              "title": "Add Inventory and HW EOX Data",
+              "title": "Import Devices",
               "type": "POPUP_FORM",
               "selectionType": "NONE",
               "identifier": "saas-service-action:userdashboard-add-yaml",
@@ -263,79 +206,87 @@
                       "refreshRequired": true,
                       "formFieldList": [
                         {
-                          "label": "Upload a CSV or Excel file that contains the data for Inventory and HW EoX (for stream edc_oi_inventory_enriched)",
+                          "help": "CSV file format.The file should contain ip_address,  discovery_scope columns.",
                           "dataType": "string",
+                          "required": true,
+                          "editable": true,
+                          "label": "NOTE: Required headers in CSV file: ip_address, discovery_scope",
                           "controlType": "LABEL",
+                          "hidden": false,
+                          "fieldId": "csv_format"
+                        },
+                        {
+                          "help": "Choose csv file to upload",
+                          "dataType": "string",
+                          "required": true,
+                          "editable": true,
+                          "label": "Choose file to upload",
+                          "controlType": "FILE_UPLOAD",
+                          "hidden": false,
+                          "fieldId": "fileUpload"
+                        },
+                        {
+                          "help": "Overwrite existing onboarded data",
                           "required": false,
                           "editable": true,
+                          "label": "Replace Data",
                           "hidden": false,
-                          "fieldId": "devices_to_supp_csv"
+                          "fieldId": "replace",
+                          "dataType": "boolean",
+                          "controlType": "BOOLEAN_FIELD",
+                          "defaultValue": false,
+                          "controlPropertyList": [
+                            {
+                              "attribute": "layout-group-id",
+                              "value": "Features"
+                            },
+                            {
+                              "attribute": "layout-percent",
+                              "value": "25"
+                            }
+                          ]
                         },
                         {
-                          "help": "Choose csv file to upload",
+                          "help": "customer_tag",
                           "dataType": "string",
+                          "controlType": "TEXT_FIELD",
                           "required": true,
                           "editable": true,
-                          "label": "CSV Upload",
-                          "controlType": "FILE_UPLOAD",
-                          "hidden": false,
-                          "fieldId": "hweox_csv"
+                          "label": "customer_tag",
+                          "hidden": true,
+                          "defaultValue": "{{CUST_TAG}}",
+                          "fieldId": "customer_tag"
+                        },
+                        {
+                          "help": "customer_id",
+                          "dataType": "string",
+                          "controlType": "TEXT_FIELD",
+                          "required": true,
+                          "editable": true,
+                          "label": "customer_id",
+                          "hidden": true,
+                          "defaultValue": "{{CUST_ID}}",
+                          "fieldId": "customer_id"
                         }
                       ]
                     },
                     "actions": [
                       {
                         "type": "RUN_PIPELINE",
-                        "pipelineName": "edc_get_oi_input",
-                        "isSync": false
+                        "pipelineName": "import-customer-devices",
+                        "isSync": false,
+                        "workerGroup": "{{CUST_TAG}}.*"
                       }
                     ]
                   }
                 ]
               }
-            }
-          ],
-          "widget_id": "1424a28e"
-        },
-        {
-          "title": "Upload SW EoX Data",
-          "widget_type": "tabular",
-          "duration_hours": 1080,
-          "stream": "edc_sweol_data",
-          "remote_searchable": true,
-          "ts_column": "timestamp",
-          "paginated": true,
-          "height": 4,
-          "min_wdith": 12,
-          "columns": {
-            "customer_name": {
-              "title": "Customer Name",
-              "type": "TEXT",
-              "visible": true,
-              "key": true
-            }
-          },
-          "pivot": {
-            "pivot_type": "advanced",
-            "group_by": [
-              "customer_name",
-              "count_"
-            ],
-            "series": [
-              {
-                "column": "_RDA_Id",
-                "agg": "value_count",
-                "type": "int",
-                "label": "Number of Records"
-              }
-            ]
-          },
-          "actions": [
+            },
             {
               "permission": "rda:github:view",
-              "title": "Add SW EOX Data",
+              "title": "Edit Device",
               "type": "POPUP_FORM",
-              "selectionType": "NONE",
+              "selectionType": "SINGLE",
               "identifier": "saas-service-action:userdashboard-add-yaml",
               "api-endpoint": {
                 "service-name": "saas-reports",
@@ -345,244 +296,69 @@
                 "params": [
                   {
                     "formId": "rda.saas.dynamic.form",
-                    "formDefinition": {
-                      "id": "rda.saas.dynamic.form",
-                      "refreshRequired": true,
-                      "formFieldList": [
+                    "formActionList": {
+                      "formActions": [
                         {
-                          "label": "Upload a CSV or Excel file that contains the data for SW EoX (for stream: edc_sweol_data) ",
-                          "dataType": "string",
-                          "controlType": "LABEL",
-                          "required": true,
-                          "editable": true,
-                          "hidden": false,
-                          "fieldId": "devices_to_supp_csv"
+                          "actionLabel": "Update",
+                          "identifier": "Submit"
                         },
                         {
-                          "help": "Choose csv file to upload",
-                          "dataType": "string",
-                          "required": true,
-                          "editable": true,
-                          "label": "CSV Upload",
-                          "controlType": "FILE_UPLOAD",
-                          "hidden": false,
-                          "fieldId": "sweox_csv"
+                          "actionLabel": "Cancel",
+                          "identifier": "Cancel"
                         }
                       ]
                     },
-                    "actions": [
-                      {
-                        "type": "RUN_PIPELINE",
-                        "pipelineName": "edc_get_oi_input",
-                        "isSync": false
-                      }
-                    ]
-                  }
-                ]
-              }
-            }
-          ],
-          "widget_id": "6aa3e346"
-        },
-        {
-          "title": "Upload Security Advisory Data",
-          "widget_type": "tabular",
-          "duration_hours": 1080,
-          "stream": "edc_sec_adv_data_enriched",
-          "remote_searchable": true,
-          "ts_column": "timestamp",
-          "paginated": true,
-          "height": 5,
-          "min_wdith": 12,
-          "columns": {
-            "customer_name": {
-              "title": "Customer Name",
-              "type": "TEXT",
-              "visible": true,
-              "key": true
-            }
-          },
-          "pivot": {
-            "pivot_type": "advanced",
-            "group_by": [
-              "customer_name",
-              "count_"
-            ],
-            "series": [
-              {
-                "column": "_RDA_Id",
-                "agg": "value_count",
-                "type": "int",
-                "label": "Number of Records"
-              }
-            ]
-          },
-          "actions": [
-            {
-              "permission": "rda:github:view",
-              "title": "Add Security Advisory Data",
-              "type": "POPUP_FORM",
-              "selectionType": "NONE",
-              "identifier": "saas-service-action:userdashboard-add-yaml",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.dynamic.form",
                     "formDefinition": {
                       "id": "rda.saas.dynamic.form",
                       "refreshRequired": true,
                       "formFieldList": [
                         {
-                          "label": "Upload a CSV or Excel file that contains the data for Security Advisories (for stream: edc_sec_adv_data_enriched) ",
+                          "help": "Name of Device",
                           "dataType": "string",
-                          "controlType": "LABEL",
+                          "controlType": "TEXT_FIELD",
                           "required": false,
-                          "editable": true,
+                          "editable": false,
+                          "label": "Device Name",
                           "hidden": false,
-                          "fieldId": "devices_to_supp_csv"
+                          "fieldId": "device_ip"
                         },
                         {
-                          "help": "Choose csv file to upload",
+                          "fieldId": "discovery_scope",
+                          "label": "Discovery Scope",
+                          "help": "Should this be part of device?",
                           "dataType": "string",
-                          "required": true,
-                          "editable": true,
-                          "label": "CSV Upload",
-                          "controlType": "FILE_UPLOAD",
                           "hidden": false,
-                          "fieldId": "secadv_csv"
+                          "editable": true,
+                          "required": true,
+                          "lovValues": [
+                            {
+                              "identifier": "yes",
+                              "displayName": "Yes"
+                            },
+                            {
+                              "identifier": "no",
+                              "displayName": "No"
+                            }
+                          ],
+                          "controlType": "RADIO_BUTTON"
                         }
                       ]
                     },
                     "actions": [
                       {
-                        "type": "RUN_PIPELINE",
-                        "pipelineName": "edc_get_oi_input",
-                        "isSync": false
+                        "type": "UPDATE_PSTREAM",
+                        "pstreamName": "discovery",
+                        "operation": "UPDATE",
+                        "cfxql_query": "device_ip is '{%raw%}{{device_ip}}{%endraw%}'"
                       }
                     ]
                   }
                 ]
               }
-            }
-          ],
-          "widget_id": "cff852c6"
-        },
-        {
-          "title": "Upload Licenses Details Data",
-          "widget_type": "tabular",
-          "duration_hours": 1080,
-          "stream": "edc_license_details",
-          "remote_searchable": true,
-          "ts_column": "timestamp",
-          "paginated": true,
-          "height": 5,
-          "min_wdith": 12,
-          "columns": {
-            "customer_name": {
-              "title": "Customer Name",
-              "type": "TEXT",
-              "visible": true,
-              "key": true
-            }
-          },
-          "pivot": {
-            "pivot_type": "advanced",
-            "group_by": [
-              "customer_name",
-              "count_"
-            ],
-            "series": [
-              {
-                "column": "_RDA_Id",
-                "agg": "value_count",
-                "type": "int",
-                "label": "Number of Records"
-              }
-            ]
-          },
-          "actions": [
+            },
             {
               "permission": "rda:github:view",
-              "title": "Add SW License Details Data",
-              "type": "POPUP_FORM",
-              "selectionType": "NONE",
-              "identifier": "saas-service-action:userdashboard-add-yaml",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.dynamic.form",
-                    "formDefinition": {
-                      "id": "rda.saas.dynamic.form",
-                      "refreshRequired": true,
-                      "formFieldList": [
-                        {
-                          "label": "Upload a CSV that contains the data for SW Licenes Details (for stream: edc_license_details) ",
-                          "dataType": "string",
-                          "controlType": "LABEL",
-                          "required": true,
-                          "editable": true,
-                          "hidden": false,
-                          "fieldId": "devices_to_supp_csv"
-                        },
-                        {
-                          "help": "Choose csv file to upload",
-                          "dataType": "string",
-                          "required": true,
-                          "editable": true,
-                          "label": "CSV Upload1",
-                          "controlType": "FILE_UPLOAD",
-                          "hidden": false,
-                          "fieldId": "swlicenses_details_csv1"
-                        },
-                        {
-                          "help": "Choose csv file to upload",
-                          "dataType": "string",
-                          "required": true,
-                          "editable": true,
-                          "label": "CSV Upload2",
-                          "controlType": "FILE_UPLOAD",
-                          "hidden": false,
-                          "fieldId": "swlicenses_details_csv2"
-                        }
-                      ]
-                    },
-                    "actions": [
-                      {
-                        "type": "RUN_PIPELINE",
-                        "pipelineName": "edc_get_oi_input",
-                        "isSync": false
-                      }
-                    ]
-                  }
-                ]
-              }
-            }
-          ],
-          "widget_id": "c7c809be"
-        },
-        {
-          "title": "Run OI Pipeline",
-          "widget_type": "tabular",
-          "duration_hours": 1080,
-          "stream": "oi_stream",
-          "ts_column": "timestamp",
-          "remote_searchable": true,
-          "paginated": true,
-          "height": 5,
-          "min_wdith": 12,
-          "time_agnostic": true,
-          "actions": [
-            {
-              "permission": "rda:github:view",
-              "title": "Run pipeline",
+              "title": "Delete Device",
               "type": "POPUP_FORM",
               "selectionType": "SINGLE",
               "identifier": "saas-service-action:userdashboard-add-yaml",
@@ -598,7 +374,7 @@
                       "formActions": [
                         {
                           "identifier": "Submit",
-                          "actionLabel": "Run"
+                          "actionLabel": "Delete"
                         }
                       ]
                     },
@@ -607,22 +383,33 @@
                       "refreshRequired": true,
                       "formFieldList": [
                         {
-                          "help": "Do you want to run the pipeline?",
+                          "help": "Readonly field. Name of device to be deleted.",
                           "dataType": "string",
-                          "controlType": "LABEL",
+                          "controlType": "TEXT_FIELD",
                           "required": false,
                           "editable": false,
-                          "label": "Do you want to run the pipeline?",
+                          "label": "Device Name",
                           "hidden": false,
-                          "fieldId": "runcollection"
+                          "fieldId": "device_ip"
+                        },
+                        {
+                          "help": "Readonly field. Discovery Scope to be deleted.",
+                          "dataType": "string",
+                          "controlType": "TEXT_FIELD",
+                          "required": false,
+                          "editable": false,
+                          "label": "Discovery Scope",
+                          "hidden": false,
+                          "fieldId": "discovery_scope"
                         }
                       ]
                     },
                     "actions": [
                       {
-                        "type": "RUN_PIPELINE",
-                        "pipelineName": "edc_get_customer_data",
-                        "isSync": false
+                        "type": "UPDATE_PSTREAM",
+                        "pstreamName": "discovery",
+                        "operation": "DELETE",
+                        "cfxql_query": "device_ip is '{%raw%}{{device_ip}}{%endraw%}'"
                       }
                     ]
                   }
@@ -630,89 +417,83 @@
               }
             }
           ],
-          "widget_id": "957a565d"
+          "widget_id": "4ed05ae9"
         }
       ]
     }
   ],
   "pstream_dashboards": [
     {
-      "title": "ONLINE Data Input",
+      "title": "Onboarded Devices",
+      "show_filters": true,
       "widgets": [
         {
-          "title": "Snowflake Credential Management",
+          "title": "Discovery",
           "widget_type": "tabular",
-          "stream": "rda_secrets_meta",
-          "extra_filter": "(type in ['snowflake'])",
-          "timebased": false,
+          "stream": "discovery",
+          "stream0": "devices_to_discover",
+          "filter0": "customer_id = '{{CUST_ID}}' and project_id = '{{PROJ_ID}}'",
+          "extra_filter": "customer_tag is '{{CUST_TAG}}' or customer_tag is empty",
+          "refreshOptions": {
+            "refreshType": "Periodic",
+            "refreshInterval": 30000
+          },
+          "remote_searchable": true,
           "remote_searchable_cols": [
-            "name",
-            "type",
-            "typeDescription"
+            "device_ip",
+            "discovery_scope"
           ],
-          "ts_column": "saved_time",
+          "ts_column": "timestamp",
           "paginated": true,
-          "height": 4,
+          "height": 10,
           "min_wdith": 12,
           "columns": {
-            "name": {
-              "title": "Name",
+            "device_ip": {
+              "title": "IP Address",
               "key": true
             },
-            "type": {
-              "title": "Type",
-              "key": true
+            "discovery_scope": {
+              "title": "Discovery Scope",
+              "visible": true,
+              "key": true,
+              "htmlTemplateForRow": "{%raw%}<span class='badge' style='background-color: {{ row.discovery_status_color }}' > {{ row.discovery_scope }} </span>{%endraw%}"
             },
-            "typeDescription": {
-              "title": "description"
-            },
-            "has_credential_check": {
-              "title": "Credential Check",
+            "customer_tag": {
+              "title": "customer_tag",
+              "key": true,
               "visible": false
             },
-            "saved_time": {
-              "title": "Saved Time",
-              "type": "DATETIME"
+            "customer_id": {
+              "title": "customer_id",
+              "key": true,
+              "visible": false
             },
             "timestamp": {
-              "title": "When",
-              "type": "HUMANIZE_TIME_DELTA",
-              "source-column": "saved_time",
-              "sortable": false
+              "title": "Timestamp",
+              "type": "DATETIME"
+            },
+            "_RDA_Id": {
+              "title": "RDA ID",
+              "key": true,
+              "visible": false
             }
           },
           "custom_columns": [
             {
-              "id": "rowStyleClass",
-              "hidden": true,
-              "visiblle": false,
-              "expr": "'bg-fading-blue' if time_now_as_ms() - isoformat_to_ms(saved_time) <= 120000 else None"
-            },
-            {
-              "id": "artifact_name",
-              "label": "Artifact Name",
-              "expr": "name",
-              "key": true,
+              "id": "discovery_status_color",
+              "label": "Discovery Scope Color",
+              "key": false,
               "visible": false,
-              "sortable": false
-            },
-            {
-              "id": "artifact_type",
-              "label": "Artifact Type",
-              "expr": "'source'",
-              "key": true,
-              "visible": false,
-              "sortable": false
+              "expr": "'#008000' if str(discovery_scope) in [ 'yes', 'True'] else '#FF0000'"
             }
           ],
           "actions": [
             {
-              "permission": "rda:credential:add",
-              "title": "Add",
-              "icon": "mdi mdi-plus",
+              "permission": "rda:github:view",
+              "title": "Add Devices",
               "type": "POPUP_FORM",
               "selectionType": "NONE",
-              "identifier": "saas-service-action:vault-add",
+              "identifier": "saas-service-action:userdashboard-add-yaml",
               "api-endpoint": {
                 "service-name": "saas-reports",
                 "methodName": "getForm",
@@ -720,143 +501,91 @@
                 "parse-output": false,
                 "params": [
                   {
-                    "formId": "rda.saas.vault.add",
-                    "extension_types": [
-                      "snowflake"
+                    "formId": "rda.saas.dynamic.form",
+                    "formActionList": {
+                      "formActions": [
+                        {
+                          "actionLabel": "Add",
+                          "identifier": "Submit"
+                        },
+                        {
+                          "actionLabel": "Cancel",
+                          "identifier": "Cancel"
+                        }
+                      ]
+                    },
+                    "formDefinition": {
+                      "id": "rda.saas.dynamic.form",
+                      "refreshRequired": true,
+                      "formFieldList": [
+                        {
+                          "help": "IP Address of network device",
+                          "dataType": "string",
+                          "controlType": "TEXT_FIELD",
+                          "required": true,
+                          "editable": true,
+                          "label": "IP Address",
+                          "hidden": false,
+                          "fieldId": "device_ip"
+                        },
+                        {
+                          "fieldId": "discovery_scope",
+                          "label": "Add it to discovery?",
+                          "help": "Should this network device be part of discovery?",
+                          "dataType": "string",
+                          "hidden": false,
+                          "editable": true,
+                          "required": true,
+                          "lovValues": [
+                            {
+                              "identifier": "yes",
+                              "displayName": "Yes"
+                            },
+                            {
+                              "identifier": "no",
+                              "displayName": "No"
+                            }
+                          ],
+                          "controlType": "RADIO_BUTTON"
+                        },
+                        {
+                          "help": "customer_tag",
+                          "dataType": "string",
+                          "controlType": "TEXT_FIELD",
+                          "required": true,
+                          "editable": true,
+                          "label": "customer_tag",
+                          "hidden": true,
+                          "defaultValue": "{{CUST_TAG}}",
+                          "fieldId": "customer_tag"
+                        },
+                        {
+                          "help": "customer_id",
+                          "dataType": "string",
+                          "controlType": "TEXT_FIELD",
+                          "required": true,
+                          "editable": true,
+                          "label": "customer_id",
+                          "hidden": true,
+                          "defaultValue": "{{CUST_ID}}",
+                          "fieldId": "customer_id"
+                        }
+                      ]
+                    },
+                    "actions": [
+                      {
+                        "type": "UPDATE_PSTREAM",
+                        "operation": "ADD",
+                        "pstreamName": "discovery"
+                      }
                     ]
                   }
                 ]
               }
             },
             {
-              "permission": "rda:credential:edit",
-              "title": "Edit",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:vault-edit",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.vault.edit"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:credential:view",
-              "title": "View",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "displayLabelColumnId": "name",
-              "drillDownLinkField": "name",
-              "identifier": "saas-service-action:vault-view",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.vault.view"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:credential:verify",
-              "title": "Verify Credentials",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:vault-edit",
-              "actionCondition": {
-                "actionControl": "HIDE_IF",
-                "conditionalField": [
-                  {
-                    "conditionType": "EQUAL",
-                    "conditionValue": "false",
-                    "fieldId": "has_credential_check"
-                  }
-                ]
-              },
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.vault.validateConenctivity"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:credential:verify",
-              "title": "Delete",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:vault-delete",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.vault.delete"
-                  }
-                ]
-              }
-            }
-          ],
-          "widget_id": "01dc3a55"
-        }
-      ]
-    },
-    {
-      "title": "OFFLINE Data Input",
-      "widgets": [
-        {
-          "title": "Upload HW EoX Data",
-          "widget_type": "tabular",
-          "duration_hours": 1080,
-          "stream": "edc_oi_inventory_enriched",
-          "remote_searchable": true,
-          "ts_column": "timestamp",
-          "paginated": true,
-          "height": 4,
-          "min_wdith": 12,
-          "columns": {
-            "customer_name": {
-              "title": "Customer Name",
-              "type": "TEXT",
-              "visible": true,
-              "key": true
-            }
-          },
-          "pivot": {
-            "pivot_type": "advanced",
-            "group_by": [
-              "customer_name",
-              "count_"
-            ],
-            "series": [
-              {
-                "column": "_RDA_Id",
-                "agg": "value_count",
-                "type": "int",
-                "label": "Number of Records"
-              }
-            ]
-          },
-          "actions": [
-            {
               "permission": "rda:github:view",
-              "title": "Add Inventory and HW EOX Data",
+              "title": "Import Devices",
               "type": "POPUP_FORM",
               "selectionType": "NONE",
               "identifier": "saas-service-action:userdashboard-add-yaml",
@@ -873,79 +602,87 @@
                       "refreshRequired": true,
                       "formFieldList": [
                         {
-                          "label": "Upload a CSV or Excel file that contains the data for Inventory and HW EoX (for stream edc_oi_inventory_enriched)",
+                          "help": "CSV file format.The file should contain ip_address,  discovery_scope columns.",
                           "dataType": "string",
+                          "required": true,
+                          "editable": true,
+                          "label": "NOTE: Required headers in CSV file: ip_address, discovery_scope",
                           "controlType": "LABEL",
+                          "hidden": false,
+                          "fieldId": "csv_format"
+                        },
+                        {
+                          "help": "Choose csv file to upload",
+                          "dataType": "string",
+                          "required": true,
+                          "editable": true,
+                          "label": "Choose file to upload",
+                          "controlType": "FILE_UPLOAD",
+                          "hidden": false,
+                          "fieldId": "fileUpload"
+                        },
+                        {
+                          "help": "Overwrite existing onboarded data",
                           "required": false,
                           "editable": true,
+                          "label": "Replace Data",
                           "hidden": false,
-                          "fieldId": "devices_to_supp_csv"
+                          "fieldId": "replace",
+                          "dataType": "boolean",
+                          "controlType": "BOOLEAN_FIELD",
+                          "defaultValue": false,
+                          "controlPropertyList": [
+                            {
+                              "attribute": "layout-group-id",
+                              "value": "Features"
+                            },
+                            {
+                              "attribute": "layout-percent",
+                              "value": "25"
+                            }
+                          ]
                         },
                         {
-                          "help": "Choose csv file to upload",
+                          "help": "customer_tag",
                           "dataType": "string",
+                          "controlType": "TEXT_FIELD",
                           "required": true,
                           "editable": true,
-                          "label": "CSV Upload",
-                          "controlType": "FILE_UPLOAD",
-                          "hidden": false,
-                          "fieldId": "hweox_csv"
+                          "label": "customer_tag",
+                          "hidden": true,
+                          "defaultValue": "{{CUST_TAG}}",
+                          "fieldId": "customer_tag"
+                        },
+                        {
+                          "help": "customer_id",
+                          "dataType": "string",
+                          "controlType": "TEXT_FIELD",
+                          "required": true,
+                          "editable": true,
+                          "label": "customer_id",
+                          "hidden": true,
+                          "defaultValue": "{{CUST_ID}}",
+                          "fieldId": "customer_id"
                         }
                       ]
                     },
                     "actions": [
                       {
                         "type": "RUN_PIPELINE",
-                        "pipelineName": "edc_get_oi_input",
-                        "isSync": false
+                        "pipelineName": "import-customer-devices",
+                        "isSync": false,
+                        "workerGroup": "{{CUST_TAG}}.*"
                       }
                     ]
                   }
                 ]
               }
-            }
-          ],
-          "widget_id": "1424a28e"
-        },
-        {
-          "title": "Upload SW EoX Data",
-          "widget_type": "tabular",
-          "duration_hours": 1080,
-          "stream": "edc_sweol_data",
-          "remote_searchable": true,
-          "ts_column": "timestamp",
-          "paginated": true,
-          "height": 4,
-          "min_wdith": 12,
-          "columns": {
-            "customer_name": {
-              "title": "Customer Name",
-              "type": "TEXT",
-              "visible": true,
-              "key": true
-            }
-          },
-          "pivot": {
-            "pivot_type": "advanced",
-            "group_by": [
-              "customer_name",
-              "count_"
-            ],
-            "series": [
-              {
-                "column": "_RDA_Id",
-                "agg": "value_count",
-                "type": "int",
-                "label": "Number of Records"
-              }
-            ]
-          },
-          "actions": [
+            },
             {
               "permission": "rda:github:view",
-              "title": "Add SW EOX Data",
+              "title": "Edit Device",
               "type": "POPUP_FORM",
-              "selectionType": "NONE",
+              "selectionType": "SINGLE",
               "identifier": "saas-service-action:userdashboard-add-yaml",
               "api-endpoint": {
                 "service-name": "saas-reports",
@@ -955,244 +692,69 @@
                 "params": [
                   {
                     "formId": "rda.saas.dynamic.form",
-                    "formDefinition": {
-                      "id": "rda.saas.dynamic.form",
-                      "refreshRequired": true,
-                      "formFieldList": [
+                    "formActionList": {
+                      "formActions": [
                         {
-                          "label": "Upload a CSV or Excel file that contains the data for SW EoX (for stream: edc_sweol_data) ",
-                          "dataType": "string",
-                          "controlType": "LABEL",
-                          "required": true,
-                          "editable": true,
-                          "hidden": false,
-                          "fieldId": "devices_to_supp_csv"
+                          "actionLabel": "Update",
+                          "identifier": "Submit"
                         },
                         {
-                          "help": "Choose csv file to upload",
-                          "dataType": "string",
-                          "required": true,
-                          "editable": true,
-                          "label": "CSV Upload",
-                          "controlType": "FILE_UPLOAD",
-                          "hidden": false,
-                          "fieldId": "sweox_csv"
+                          "actionLabel": "Cancel",
+                          "identifier": "Cancel"
                         }
                       ]
                     },
-                    "actions": [
-                      {
-                        "type": "RUN_PIPELINE",
-                        "pipelineName": "edc_get_oi_input",
-                        "isSync": false
-                      }
-                    ]
-                  }
-                ]
-              }
-            }
-          ],
-          "widget_id": "6aa3e346"
-        },
-        {
-          "title": "Upload Security Advisory Data",
-          "widget_type": "tabular",
-          "duration_hours": 1080,
-          "stream": "edc_sec_adv_data_enriched",
-          "remote_searchable": true,
-          "ts_column": "timestamp",
-          "paginated": true,
-          "height": 5,
-          "min_wdith": 12,
-          "columns": {
-            "customer_name": {
-              "title": "Customer Name",
-              "type": "TEXT",
-              "visible": true,
-              "key": true
-            }
-          },
-          "pivot": {
-            "pivot_type": "advanced",
-            "group_by": [
-              "customer_name",
-              "count_"
-            ],
-            "series": [
-              {
-                "column": "_RDA_Id",
-                "agg": "value_count",
-                "type": "int",
-                "label": "Number of Records"
-              }
-            ]
-          },
-          "actions": [
-            {
-              "permission": "rda:github:view",
-              "title": "Add Security Advisory Data",
-              "type": "POPUP_FORM",
-              "selectionType": "NONE",
-              "identifier": "saas-service-action:userdashboard-add-yaml",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.dynamic.form",
                     "formDefinition": {
                       "id": "rda.saas.dynamic.form",
                       "refreshRequired": true,
                       "formFieldList": [
                         {
-                          "label": "Upload a CSV or Excel file that contains the data for Security Advisories (for stream: edc_sec_adv_data_enriched) ",
+                          "help": "Name of Device",
                           "dataType": "string",
-                          "controlType": "LABEL",
+                          "controlType": "TEXT_FIELD",
                           "required": false,
-                          "editable": true,
+                          "editable": false,
+                          "label": "Device Name",
                           "hidden": false,
-                          "fieldId": "devices_to_supp_csv"
+                          "fieldId": "device_ip"
                         },
                         {
-                          "help": "Choose csv file to upload",
+                          "fieldId": "discovery_scope",
+                          "label": "Discovery Scope",
+                          "help": "Should this be part of device?",
                           "dataType": "string",
-                          "required": true,
-                          "editable": true,
-                          "label": "CSV Upload",
-                          "controlType": "FILE_UPLOAD",
                           "hidden": false,
-                          "fieldId": "secadv_csv"
+                          "editable": true,
+                          "required": true,
+                          "lovValues": [
+                            {
+                              "identifier": "yes",
+                              "displayName": "Yes"
+                            },
+                            {
+                              "identifier": "no",
+                              "displayName": "No"
+                            }
+                          ],
+                          "controlType": "RADIO_BUTTON"
                         }
                       ]
                     },
                     "actions": [
                       {
-                        "type": "RUN_PIPELINE",
-                        "pipelineName": "edc_get_oi_input",
-                        "isSync": false
+                        "type": "UPDATE_PSTREAM",
+                        "pstreamName": "discovery",
+                        "operation": "UPDATE",
+                        "cfxql_query": "device_ip is '{%raw%}{{device_ip}}{%endraw%}'"
                       }
                     ]
                   }
                 ]
               }
-            }
-          ],
-          "widget_id": "cff852c6"
-        },
-        {
-          "title": "Upload Licenses Details Data",
-          "widget_type": "tabular",
-          "duration_hours": 1080,
-          "stream": "edc_license_details",
-          "remote_searchable": true,
-          "ts_column": "timestamp",
-          "paginated": true,
-          "height": 5,
-          "min_wdith": 12,
-          "columns": {
-            "customer_name": {
-              "title": "Customer Name",
-              "type": "TEXT",
-              "visible": true,
-              "key": true
-            }
-          },
-          "pivot": {
-            "pivot_type": "advanced",
-            "group_by": [
-              "customer_name",
-              "count_"
-            ],
-            "series": [
-              {
-                "column": "_RDA_Id",
-                "agg": "value_count",
-                "type": "int",
-                "label": "Number of Records"
-              }
-            ]
-          },
-          "actions": [
+            },
             {
               "permission": "rda:github:view",
-              "title": "Add SW License Details Data",
-              "type": "POPUP_FORM",
-              "selectionType": "NONE",
-              "identifier": "saas-service-action:userdashboard-add-yaml",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.dynamic.form",
-                    "formDefinition": {
-                      "id": "rda.saas.dynamic.form",
-                      "refreshRequired": true,
-                      "formFieldList": [
-                        {
-                          "label": "Upload a CSV that contains the data for SW Licenes Details (for stream: edc_license_details) ",
-                          "dataType": "string",
-                          "controlType": "LABEL",
-                          "required": true,
-                          "editable": true,
-                          "hidden": false,
-                          "fieldId": "devices_to_supp_csv"
-                        },
-                        {
-                          "help": "Choose csv file to upload",
-                          "dataType": "string",
-                          "required": true,
-                          "editable": true,
-                          "label": "CSV Upload1",
-                          "controlType": "FILE_UPLOAD",
-                          "hidden": false,
-                          "fieldId": "swlicenses_details_csv1"
-                        },
-                        {
-                          "help": "Choose csv file to upload",
-                          "dataType": "string",
-                          "required": true,
-                          "editable": true,
-                          "label": "CSV Upload2",
-                          "controlType": "FILE_UPLOAD",
-                          "hidden": false,
-                          "fieldId": "swlicenses_details_csv2"
-                        }
-                      ]
-                    },
-                    "actions": [
-                      {
-                        "type": "RUN_PIPELINE",
-                        "pipelineName": "edc_get_oi_input",
-                        "isSync": false
-                      }
-                    ]
-                  }
-                ]
-              }
-            }
-          ],
-          "widget_id": "c7c809be"
-        },
-        {
-          "title": "Run OI Pipeline",
-          "widget_type": "tabular",
-          "duration_hours": 1080,
-          "stream": "oi_stream",
-          "ts_column": "timestamp",
-          "remote_searchable": true,
-          "paginated": true,
-          "height": 5,
-          "min_wdith": 12,
-          "time_agnostic": true,
-          "actions": [
-            {
-              "permission": "rda:github:view",
-              "title": "Run pipeline",
+              "title": "Delete Device",
               "type": "POPUP_FORM",
               "selectionType": "SINGLE",
               "identifier": "saas-service-action:userdashboard-add-yaml",
@@ -1208,7 +770,7 @@
                       "formActions": [
                         {
                           "identifier": "Submit",
-                          "actionLabel": "Run"
+                          "actionLabel": "Delete"
                         }
                       ]
                     },
@@ -1217,22 +779,33 @@
                       "refreshRequired": true,
                       "formFieldList": [
                         {
-                          "help": "Do you want to run the pipeline?",
+                          "help": "Readonly field. Name of device to be deleted.",
                           "dataType": "string",
-                          "controlType": "LABEL",
+                          "controlType": "TEXT_FIELD",
                           "required": false,
                           "editable": false,
-                          "label": "Do you want to run the pipeline?",
+                          "label": "Device Name",
                           "hidden": false,
-                          "fieldId": "runcollection"
+                          "fieldId": "device_ip"
+                        },
+                        {
+                          "help": "Readonly field. Discovery Scope to be deleted.",
+                          "dataType": "string",
+                          "controlType": "TEXT_FIELD",
+                          "required": false,
+                          "editable": false,
+                          "label": "Discovery Scope",
+                          "hidden": false,
+                          "fieldId": "discovery_scope"
                         }
                       ]
                     },
                     "actions": [
                       {
-                        "type": "RUN_PIPELINE",
-                        "pipelineName": "edc_get_customer_data",
-                        "isSync": false
+                        "type": "UPDATE_PSTREAM",
+                        "pstreamName": "discovery",
+                        "operation": "DELETE",
+                        "cfxql_query": "device_ip is '{%raw%}{{device_ip}}{%endraw%}'"
                       }
                     ]
                   }
@@ -1240,7 +813,7 @@
               }
             }
           ],
-          "widget_id": "957a565d"
+          "widget_id": "4ed05ae9"
         }
       ]
     }
