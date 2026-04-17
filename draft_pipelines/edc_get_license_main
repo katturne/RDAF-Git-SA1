@@ -1,7 +1,11 @@
-@dm:empty
- --> @dm:addrow name='edc_cust_contract_pid' and limit=0
- --> #dm:query-persistent-stream
- --> @dm:save name='edc_cust_contract_pid1'
- --> *dm:filter ingestion_id is null
- --> @dm:drop-null-columns empty_is_null='yes'
- --> @dm:save name='edc_cust_contract_pid'
+@c:new-block
+ --> @dm:recall name="edc_license_domains"
+ --> *dm:filter customer is 'ATT'
+ --> @dm:save name='temp-cust-domains'
+ --> @c:data-loop columns='top_level_domain,customer' and dataset='temp-cust-domains'
+ --> @dm:check_columns must_contain = 'top_level_domain' &action ='skip-block'
+ --> @exec:run-pipeline name='edc_update_data'
+ --> @dm:empty
+ --> @exec:define-function name="define_child_pipelines"
+ --> @exec:run-pipeline name ="edc_license_grp" & ignore_failures = "no"
+ --> @exec:end-function
