@@ -1,410 +1,293 @@
 {
-  "name": "device_syslog_from_alert_fault",
-  "description": "Device Syslog",
-  "label": "Syslogs",
-  "enabled": false,
+  "name": "rca_regression_dashboard",
+  "label": "RCA Regression",
+  "description": "Template dashboard for RCA Regression",
+  "enabled": true,
+  "debug": true,
+  "live_edit": true,
   "dashboard_type": "template",
-  "dashboard_folder": "NetworkDevicePack",
   "template_variables": {
-    "CUST_ID": {
-      "contextId": "customer_id"
+    "METRIC_ID": {
+      "contextId": [
+        "marker",
+        "metric_id"
+      ]
     },
-    "PROJ_ID": {
-      "contextId": "project_id"
+    "METRIC_NAME": {
+      "contextId": [
+        "marker",
+        "metric_label"
+      ]
     },
-    "CUST_TAG": {
-      "contextId": "customer_tag"
+    "ASSET": {
+      "contextId": [
+        "marker",
+        "asset_id"
+      ]
     },
-    "DEVICE": {
-      "contextId": "device_ip"
+    "MODEL_NAME": {
+      "contextId": [
+        "marker",
+        "job_name"
+      ]
+    },
+    "METRIC_UNIT": {
+      "contextId": [
+        "marker",
+        "unit"
+      ]
+    },
+    "STREAM": {
+      "contextId": [
+        "marker",
+        "stream_name"
+      ],
+      "default": "oia-ml-metrics-regression-output"
+    },
+    "INCIDENT_OT": {
+      "contextId": "i_cfx_incident_occurred"
     }
   },
-  "stream": "syslog_udp_event_stream_all",
-  "version": "23.9.6.2",
   "dashboard_filters": {
     "time_filter": true,
-    "extra_filter1": "(customer_tag is '{{CUST_TAG}}')",
-    "default_time_filter_labels": [
-      "Last 1 month"
-    ],
-    "group_filters": [
-      {
-        "stream": "syslog_udp_event_stream_all",
-        "title": "Severity",
-        "duration_hours": 1080,
-        "group_by": [
-          "syslog_severity"
-        ],
-        "ts_column": "timestamp",
-        "agg": "value_count",
-        "column": "count_"
-      },
-      {
-        "stream": "syslog_udp_event_stream_all",
-        "title": "Urgency",
-        "duration_hours": 1080,
-        "group_by": [
-          "urgency"
-        ],
-        "ts_column": "timestamp",
-        "agg": "value_count",
-        "column": "count_"
-      },
-      {
-        "stream": "syslog_udp_event_stream_all",
-        "title": "Impact",
-        "duration_hours": 1080,
-        "group_by": [
-          "impact"
-        ],
-        "ts_column": "timestamp",
-        "agg": "value_count",
-        "column": "count_"
-      }
-    ],
-    "columns_filter": [
-      {
-        "id": "cisco_code",
-        "label": "Cisco Code",
-        "type": "TEXT"
-      },
-      {
-        "id": "log_message",
-        "label": "Message",
-        "type": "TEXT"
-      },
-      {
-        "id": "short_description",
-        "label": "Description",
-        "type": "TEXT"
-      },
-      {
-        "id": "syslog_severity",
-        "label": "Severity",
-        "type": "TEXT"
-      },
-      {
-        "id": "impact",
-        "label": "Impact",
-        "type": "TEXT"
-      },
-      {
-        "id": "urgency",
-        "label": "Urgency",
-        "type": "TEXT"
-      },
-      {
-        "id": "rda_gw_client_ip",
-        "label": "IP Address",
-        "type": "TEXT"
-      },
-      {
-        "id": "raw",
-        "label": "Raw Event",
-        "type": "TEXT"
-      },
-      {
-        "id": "log_message",
-        "label": "Message",
-        "type": "TEXT"
-      },
-      {
-        "id": "short_description",
-        "label": "Description",
-        "type": "TEXT"
-      },
-      {
-        "id": "syslog_severity_num",
-        "label": "Severity Number",
-        "type": "DOUBLE"
-      },
-      {
-        "id": "rda_stream",
-        "label": "RDA Stream",
-        "type": "TEXT"
-      }
-    ]
+    "default_time_range": {
+      "from_time": "{{INCIDENT_OT}}",
+      "from_time_delta_hours": -12,
+      "to_time": "{{INCIDENT_OT}}",
+      "to_time_delta_hours": 4,
+      "label": "Incident Time"
+    }
   },
   "dashboard_sections": [
     {
-      "title": "Syslog",
+      "title": "Summary",
       "show_filter": true,
       "widgets": [
         {
-          "widget_type": "label",
-          "max_width": 12,
-          "height": 0.5,
-          "min_width": 12,
-          "label": "<div style='text-align:center;width:100%;'><h1><a style='text-decoration:none;color:#0066ff;' target='_blank'> Device Syslogs</a></h1></div>",
-          "widget_id": "33317e49"
-        },
-        {
           "widget_type": "pie_chart",
-          "title": "Syslogs by Severity",
-          "stream": "syslog_udp_event_stream_all",
+          "title": "Anomalies by Severity",
+          "stream": "{{STREAM}}",
+          "extra_filter": "anomalies is not None and job_name is '{{MODEL_NAME}}'",
+          "min_width": 6,
+          "height": 6,
+          "max_width": 6,
           "ts_column": "timestamp",
-          "duration_hours": 1080,
-          "column": "count_",
+          "column": "_id",
           "agg": "value_count",
           "group_by": [
-            "syslog_severity"
+            "anomalies_severity"
           ],
           "style": {
             "color-map": {
-              "ERROR": "#EF5350",
-              "NOTICE": "#4DD0E1",
-              "EMERGENCY": "#B71C1C",
-              "INFORMATIONAL": "#03A9F4",
-              "WARNING": "#FFD54F",
-              "ALERT": "#FFA726",
-              "CRITICAL": "#E53935",
-              "DEBUG": "#BCAAA4"
+              "High": [
+                "#ef5350",
+                "#ffffff"
+              ],
+              "Medium": [
+                "#FFA726",
+                "#ffffff"
+              ],
+              "Low": [
+                "#388e3c",
+                "#ffffff"
+              ]
             }
           },
-          "min_width": 6,
-          "height": 4,
-          "max_width": 6,
-          "widget_id": "71405983"
+          "type": "str",
+          "widget_id": "7eba4b7b"
         },
         {
-          "widget_type": "pie_chart",
-          "title": "Syslogs by Hosts",
-          "stream": "syslog_udp_event_stream_all",
-          "ts_column": "timestamp",
-          "duration_hours": 1080,
-          "column": "count_",
-          "agg": "value_count",
-          "group_by": [
-            "rda_gw_client_ip"
-          ],
-          "min_width": 6,
-          "height": 4,
-          "max_width": 6,
-          "widget_id": "e18b64f1"
-        },
-        {
-          "title": "Syslog Details",
+          "title": "Anomalies",
           "widget_type": "tabular",
-          "stream": "syslog_udp_event_stream_all",
-          "duration_hours": 1080,
-          "resizableColumns": false,
-          "showRowSummary": false,
-          "query": "*",
-          "min_width": 12,
-          "height": 8,
-          "max_width": 12,
+          "stream": "{{STREAM}}",
+          "extra_filter": "anomalies is not None and job_name is '{{MODEL_NAME}}'",
+          "min_width": 6,
+          "height": 6,
+          "max_width": 6,
           "paginated": true,
-          "max_rows": 50,
-          "truncateColumns": [
-            "raw"
-          ],
           "remote_searchable": true,
-          "remote_searchable_cols": [
-            "rda_gw_client_ip",
-            "syslog_severity",
-            "rda_gw_ep_type",
-            "site_code"
+          "max_rows": 50,
+          "sorting": [
+            {
+              "timestamp": "desc"
+            }
           ],
           "columns": {
-            "rda_gw_client_ip": {
-              "title": "IP Address",
-              "type": "TEXT",
-              "key": true
-            },
-            "raw": {
-              "title": "Raw Event",
-              "type": "TEXT",
-              "key": true
-            },
-            "a_severity_color": {
+            "timestamp": "Timestamp",
+            "asset_id": "Asset ID",
+            "asset_name": "Asset Name",
+            "metric_name": "Metric Name",
+            "severity_color": {
               "title": "Sev_2",
               "type": "COLOR-MAP",
-              "source-column": "syslog_severity",
+              "source-column": "anomalies_severity",
               "color-map": {
-                "ERROR": "#EF5350",
-                "NOTICE": "#4DD0E1",
-                "EMERGENCY": "#B71C1C",
-                "INFORMATIONAL": "#03A9F4",
-                "WARNING": "#FFD54F",
-                "ALERT": "#FFA726",
-                "CRITICAL": "#E53935",
-                "DEBUG": "#BCAAA4"
+                "High": "#ef5350",
+                "Medium": "#FFA726",
+                "Low": "#388e3c"
               }
             },
-            "syslog_severity": {
+            "anomalies_severity": {
               "title": "Severity",
-              "htmlTemplateForRow": "{%raw%}<span class='badge' style='background-color: {{ row.a_severity_color}}' > {{row.syslog_severity}} </span>{%endraw%}",
+              "htmlTemplateForRow": "<span class='badge' style='background-color: {{'{{ row.severity_color }}'}}' > {{'{{ row.anomalies_severity }}'}} </span>",
               "defaultWidth": 150
-            },
-            "rda_gw_ep_name": {
-              "title": "Endpoint Name",
-              "type": "TEXT",
-              "visible": false
-            },
-            "rda_gw_ep_type": "Endpoint Type",
-            "rda_stream": {
-              "title": "RDA Stream",
-              "type": "TEXT",
-              "visible": false
-            },
-            "site_code": "Site Code",
-            "stream": {
-              "title": "Stream",
-              "type": "TEXT",
-              "visible": false
-            },
-            "syslog_severity_num": {
-              "title": "Severity Number",
-              "type": "DOUBLE"
-            },
-            "timestamp": {
-              "title": "Timestamp",
-              "type": "DATETIME"
             }
           },
-          "widget_id": "d211804e"
+          "custom_columns": [
+            {
+              "id": "value1",
+              "label": "Value",
+              "expr": "round(value,2)"
+            }
+          ],
+          "widget_id": "94a3fc11"
+        },
+        {
+          "widget_type": "shaded_chart_multisource",
+          "title": "Forecasting and Anomaly Detection ({{METRIC_NAME}} - {{ASSET}})",
+          "show-markers": true,
+          "max_width": 12,
+          "min_width": 12,
+          "height": 8,
+          "chartProperties": {
+            "yAxisLabel": "{{METRIC_NAME}} ({{METRIC_UNIT}})",
+            "xAxisLabel": "Time"
+          },
+          "sources": [
+            {
+              "type": "train",
+              "downsample": false,
+              "stream": "{{STREAM}}",
+              "extra_filter": "job_name is '{{MODEL_NAME}}' and status is 'Success'",
+              "ts_column": "timestamp",
+              "baseline_column": "baseline",
+              "anomalies_column": "anomalies",
+              "predicted_column": "predicted",
+              "predicted_anomalies": "predicted_anomalies",
+              "upperBound_column": "upperBound",
+              "lowerBound_column": "lowerBound",
+              "duration_hours": 1000000,
+              "synchronized-group": 0
+            }
+          ],
+          "widget_id": "7a134625"
         }
       ]
     }
   ],
   "pstream_dashboards": [
     {
-      "title": "Syslog",
+      "title": "Summary",
       "show_filter": true,
       "widgets": [
         {
-          "widget_type": "label",
-          "max_width": 12,
-          "height": 0.5,
-          "min_width": 12,
-          "label": "<div style='text-align:center;width:100%;'><h1><a style='text-decoration:none;color:#0066ff;' target='_blank'> Device Syslogs</a></h1></div>",
-          "widget_id": "33317e49"
-        },
-        {
           "widget_type": "pie_chart",
-          "title": "Syslogs by Severity",
-          "stream": "syslog_udp_event_stream_all",
+          "title": "Anomalies by Severity",
+          "stream": "{{STREAM}}",
+          "extra_filter": "anomalies is not None and job_name is '{{MODEL_NAME}}'",
+          "min_width": 6,
+          "height": 6,
+          "max_width": 6,
           "ts_column": "timestamp",
-          "duration_hours": 1080,
-          "column": "count_",
+          "column": "_id",
           "agg": "value_count",
           "group_by": [
-            "syslog_severity"
+            "anomalies_severity"
           ],
           "style": {
             "color-map": {
-              "ERROR": "#EF5350",
-              "NOTICE": "#4DD0E1",
-              "EMERGENCY": "#B71C1C",
-              "INFORMATIONAL": "#03A9F4",
-              "WARNING": "#FFD54F",
-              "ALERT": "#FFA726",
-              "CRITICAL": "#E53935",
-              "DEBUG": "#BCAAA4"
+              "High": [
+                "#ef5350",
+                "#ffffff"
+              ],
+              "Medium": [
+                "#FFA726",
+                "#ffffff"
+              ],
+              "Low": [
+                "#388e3c",
+                "#ffffff"
+              ]
             }
           },
-          "min_width": 6,
-          "height": 4,
-          "max_width": 6,
-          "widget_id": "71405983"
+          "type": "str",
+          "widget_id": "7eba4b7b"
         },
         {
-          "widget_type": "pie_chart",
-          "title": "Syslogs by Hosts",
-          "stream": "syslog_udp_event_stream_all",
-          "ts_column": "timestamp",
-          "duration_hours": 1080,
-          "column": "count_",
-          "agg": "value_count",
-          "group_by": [
-            "rda_gw_client_ip"
-          ],
-          "min_width": 6,
-          "height": 4,
-          "max_width": 6,
-          "widget_id": "e18b64f1"
-        },
-        {
-          "title": "Syslog Details",
+          "title": "Anomalies",
           "widget_type": "tabular",
-          "stream": "syslog_udp_event_stream_all",
-          "duration_hours": 1080,
-          "resizableColumns": false,
-          "showRowSummary": false,
-          "query": "*",
-          "min_width": 12,
-          "height": 8,
-          "max_width": 12,
+          "stream": "{{STREAM}}",
+          "extra_filter": "anomalies is not None and job_name is '{{MODEL_NAME}}'",
+          "min_width": 6,
+          "height": 6,
+          "max_width": 6,
           "paginated": true,
-          "max_rows": 50,
-          "truncateColumns": [
-            "raw"
-          ],
           "remote_searchable": true,
-          "remote_searchable_cols": [
-            "rda_gw_client_ip",
-            "syslog_severity",
-            "rda_gw_ep_type",
-            "site_code"
+          "max_rows": 50,
+          "sorting": [
+            {
+              "timestamp": "desc"
+            }
           ],
           "columns": {
-            "rda_gw_client_ip": {
-              "title": "IP Address",
-              "type": "TEXT",
-              "key": true
-            },
-            "raw": {
-              "title": "Raw Event",
-              "type": "TEXT",
-              "key": true
-            },
-            "a_severity_color": {
+            "timestamp": "Timestamp",
+            "asset_id": "Asset ID",
+            "asset_name": "Asset Name",
+            "metric_name": "Metric Name",
+            "severity_color": {
               "title": "Sev_2",
               "type": "COLOR-MAP",
-              "source-column": "syslog_severity",
+              "source-column": "anomalies_severity",
               "color-map": {
-                "ERROR": "#EF5350",
-                "NOTICE": "#4DD0E1",
-                "EMERGENCY": "#B71C1C",
-                "INFORMATIONAL": "#03A9F4",
-                "WARNING": "#FFD54F",
-                "ALERT": "#FFA726",
-                "CRITICAL": "#E53935",
-                "DEBUG": "#BCAAA4"
+                "High": "#ef5350",
+                "Medium": "#FFA726",
+                "Low": "#388e3c"
               }
             },
-            "syslog_severity": {
+            "anomalies_severity": {
               "title": "Severity",
-              "htmlTemplateForRow": "{%raw%}<span class='badge' style='background-color: {{ row.a_severity_color}}' > {{row.syslog_severity}} </span>{%endraw%}",
+              "htmlTemplateForRow": "<span class='badge' style='background-color: {{'{{ row.severity_color }}'}}' > {{'{{ row.anomalies_severity }}'}} </span>",
               "defaultWidth": 150
-            },
-            "rda_gw_ep_name": {
-              "title": "Endpoint Name",
-              "type": "TEXT",
-              "visible": false
-            },
-            "rda_gw_ep_type": "Endpoint Type",
-            "rda_stream": {
-              "title": "RDA Stream",
-              "type": "TEXT",
-              "visible": false
-            },
-            "site_code": "Site Code",
-            "stream": {
-              "title": "Stream",
-              "type": "TEXT",
-              "visible": false
-            },
-            "syslog_severity_num": {
-              "title": "Severity Number",
-              "type": "DOUBLE"
-            },
-            "timestamp": {
-              "title": "Timestamp",
-              "type": "DATETIME"
             }
           },
-          "widget_id": "d211804e"
+          "custom_columns": [
+            {
+              "id": "value1",
+              "label": "Value",
+              "expr": "round(value,2)"
+            }
+          ],
+          "widget_id": "94a3fc11"
+        },
+        {
+          "widget_type": "shaded_chart_multisource",
+          "title": "Forecasting and Anomaly Detection ({{METRIC_NAME}} - {{ASSET}})",
+          "show-markers": true,
+          "max_width": 12,
+          "min_width": 12,
+          "height": 8,
+          "chartProperties": {
+            "yAxisLabel": "{{METRIC_NAME}} ({{METRIC_UNIT}})",
+            "xAxisLabel": "Time"
+          },
+          "sources": [
+            {
+              "type": "train",
+              "downsample": false,
+              "stream": "{{STREAM}}",
+              "extra_filter": "job_name is '{{MODEL_NAME}}' and status is 'Success'",
+              "ts_column": "timestamp",
+              "baseline_column": "baseline",
+              "anomalies_column": "anomalies",
+              "predicted_column": "predicted",
+              "predicted_anomalies": "predicted_anomalies",
+              "upperBound_column": "upperBound",
+              "lowerBound_column": "lowerBound",
+              "duration_hours": 1000000,
+              "synchronized-group": 0
+            }
+          ],
+          "widget_id": "7a134625"
         }
       ]
     }
