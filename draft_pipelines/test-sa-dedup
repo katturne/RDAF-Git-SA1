@@ -1,16 +1,5 @@
-@dm:empty
- --> @dm:addrow name='edc_cust_pid_sw' and limit=0
- --> #dm:query-persistent-stream
- --> @dm:dedup columns='product_id,sw_os_type,sw_version'
- --> @dm:save name='temp-pid'
- --> @c:new-block
- --> @dm:empty
- --> @dm:addrow name='edc_oi_inventory_enriched' and limit=0
- --> #dm:query-persistent-stream customer_name equals 'ATT'
- --> @dm:save name='temp-source'
- --> @c:new-block
- --> @dm:recall name='temp-source'
- --> @dm:enrich dict='temp-pid' and src_key_cols='product_name,contract_number,customer_name' and dict_key_cols='product_id,contract_number,customer' and enrich_cols='_id'
- --> @dm:save name='before-output'
- --> @dm:dedup columns='product_name,contract_number,customer_name'
- --> @dm:save name='after-output'
+@dm:query-persistent-stream-from-bookmark name='oia-incidents-stream' and query="i_recommendation_ts is empty" and bookmark='incidents-genai' and offset='latest'
+ --> @dm:dedup columns='incident_id'
+ --> @dm:eval fromTime="i_cfx_incident_occurred-(12*60*60*1000)" and toTime="i_cfx_incident_occurred+(4*60*60*1000)"
+ --> @dm:change-time-format from_format='ms' and to_format='datetimestr' and columns='fromTime,toTime'
+ --> @exec:run-pipeline name='genai-incident-recommendation-child'
