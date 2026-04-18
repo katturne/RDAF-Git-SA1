@@ -1,9 +1,8 @@
-@dm:recall name='sa-raw-data'
- --> @dm:eval unique_key="unique_key"
- ## --> @dm:to-type columns='customer,product_name,product_id,sw_version,sw_os_type,advisoryId,PsirtID' and type='str'
-
- --> @dm:implode key_columns='unique_key' and merge_columns='AdvisoryId,PsirtID,product_name,product_id' and dedup_merge_values='no' and keep_columns='AdvisoryId,PsirtID'
- --> @dm:eval transaction_id_list="str(product_id).split(',')"
- --> @dm:eval record_count = "len(transaction_id_list)"
- --> *dm:filter record_count > 1
- --> @dm:save name="test-implode-sw"
+@c:new-block
+ --> @dm:empty
+ --> @dm:addrow name="test_bpa_kafka" & limit = '0' and sort_by_col='timestamp' and sort_type='desc'
+ --> #dm:query-persistent-stream
+ --> @dm:explode-json column="directives"
+ --> @c:flex-block
+ --> @dn:read-stream name="bpa_kafka_events" and group="bpa_kafka_events"
+ --> @dm:save name='test-kafka-events'
