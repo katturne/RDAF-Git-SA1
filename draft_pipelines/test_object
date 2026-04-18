@@ -1,9 +1,42 @@
-@dm:object-add name = "upload_test_file" & folder = "TEST" & input_file = "'nikijosh@cisco.com/e30a7c2249004035a6ad4719b7db65a6/Stream2A.csv.zip'"
- ## --> @dm:object-list
 
- ## --> @dm:save name="path"
+ ## .
 
- ## --> @dm:object-get name="Stream2A.csv.zip" and folder="'nikijosh@cisco.com/e30a7c2249004035a6ad4719b7db65a6/'" and save_to_dir="/root/notebooks"
+ ## collab-db-to-pstream-bydate
 
- --> @dm:object-get name="Stream2A.csv.zip" and folder="TEST" and save_to_file="kt.zip"
- --> @dm:sleep seconds = 1
+ ## .
+@c:new-block
+ ## .
+
+ --> @dm:empty
+ --> @mysqlv2:native-query dbname="0bde1fc06a7542c3a6a4c47d85f64d9d_cfxdimensions_app_collaboratio" & query="select customerid,projectid,incidentid,messagetype,messageid,sourcemessageid,sourcesystemid,sourcesystemname,sourcepayload,senderid,sendername,subject,sourcedetails,senderdetails,recipients,attributes,createdby,updatedby,createdat,updatedat,content from message where createdat >= TIMESTAMP('2024-08-07 00:00:00')"
+ --> @dm:skip-block-if-shape row_count=0
+ --> @dm:check-columns must_contain="incidentid" & action="skip-block"
+ --> @dm:selectcolumns exclude="execution_status|execution_reason|attempt_count"
+ --> @dm:change-time-format columns="createdat,updatedat" & from_format="datetimestr" & to_format="datetimestr"
+ --> @dm:copy-columns to="timestamp" & from="updatedat"
+ --> @dm:fixnull-regex
+ --> @rn:write-stream name="oia-incidents-collaboration-stream"
+@c:new-block
+ ## .
+
+ --> @dm:empty
+ --> @mysqlv2:native-query dbname="0bde1fc06a7542c3a6a4c47d85f64d9d_cfxdimensions_app_collaboratio" & query="select ms.message_id,ms.shared_to_team,ms.type,ms.shared_to,ms.shared_by,ms.shared_time,ms.medium,ms.attachment_name,m.customerid,m.projectid,m.incidentid from irmessagesharing ms inner join message m on m.messageid=ms.message_id where m.createdat >= TIMESTAMP('2024-08-07 00:00:00')"
+ --> @dm:skip-block-if-shape row_count=0
+ --> @dm:check-columns must_contain="incidentid" & action="skip-block"
+ --> @dm:selectcolumns exclude="execution_status|execution_reason|attempt_count"
+ --> @dm:change-time-format columns="shared_time" & from_format="datetimestr" & to_format="datetimestr"
+ --> @dm:copy-columns to="timestamp" & from="shared_time"
+ --> @dm:fixnull-regex
+ --> @rn:write-stream name="oia-collab-messagesharing-stream"
+@c:new-block
+ ## .
+
+ --> @dm:empty
+ --> @mysqlv2:native-query dbname="0bde1fc06a7542c3a6a4c47d85f64d9d_cfxdimensions_app_collaboratio" & query="select team_id,customer_id,project_id,incident_id,collab_type,ticket_number,shared_time,ticket_id,link from teamincident where shared_time >= TIMESTAMP('2024-08-07 00:00:00')"
+ --> @dm:skip-block-if-shape row_count=0
+ --> @dm:check-columns must_contain="incident_id" & action="skip-block"
+ --> @dm:selectcolumns exclude="execution_status|execution_reason|attempt_count"
+ --> @dm:change-time-format columns="shared_time" & from_format="datetimestr" & to_format="datetimestr"
+ --> @dm:copy-columns to="timestamp" & from="shared_time"
+ --> @dm:fixnull-regex
+ --> @rn:write-stream name="oia-incidents-external-tickets-stream"
