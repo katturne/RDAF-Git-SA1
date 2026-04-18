@@ -1,579 +1,339 @@
 {
-  "name": "customer_discovery_runs",
-  "label": "On Demand Discovery",
-  "description": "onboarded_devices: Insights",
-  "dashboard_folder": "NetworkDevicePack",
-  "version": "1.0.3",
-  "enabled": false,
+  "name": "incident-collaboration",
+  "description": "Incident Collaboration",
+  "label": "Incident Collaboration",
+  "enabled": true,
+  "exportable": false,
   "dashboard_type": "template",
-  "live_edit": true,
+  "dashboard_style": "auto",
+  "version": "22.10.7.1",
   "template_variables": {
-    "CUST_ID": {
-      "contextId": "customerId"
+    "STACK_NAME": {
+      "contextId": "stack_name"
     },
-    "PROJ_ID": {
-      "contextId": "project_id"
-    },
-    "PROJ_ID_SINGLE": {
-      "contextId": "project_id"
-    },
-    "CUST_TAG": {
-      "contextId": "customerTag"
+    "PROJECT_ID": {
+      "contextId": "projectId"
     }
+  },
+  "custom_context": {
+    "alert-context": true
   },
   "dashboard_filters": {
     "time_filter": true,
-    "extra_filter0": "(target_type contains 'DEVICE')",
-    "default_time_filter_labels": [
-      "Last 1 month"
-    ],
+    "extra_filter": "projectid in {{PROJECT_ID}}",
     "columns_filter": [
       {
-        "id": "timestamp",
-        "label": "Timestamp",
+        "id": "incidentid",
+        "label": "Incident ID",
+        "type": "TEXT"
+      },
+      {
+        "id": "activity",
+        "label": "Activity",
+        "type": "TEXT"
+      },
+      {
+        "id": "sourcesystemname",
+        "label": "Source System",
+        "type": "TEXT"
+      },
+      {
+        "id": "target",
+        "label": "Target System",
+        "type": "TEXT"
+      },
+      {
+        "id": "content",
+        "label": "Message",
+        "type": "TEXT"
+      },
+      {
+        "id": "senderid",
+        "label": "User",
+        "type": "TEXT"
+      },
+      {
+        "id": "createdat",
+        "label": "Created",
         "type": "DATETIME"
+      },
+      {
+        "id": "subject",
+        "label": "Subject",
+        "type": "TEXT"
+      },
+      {
+        "id": "activity",
+        "label": "Activity",
+        "type": "TEXT"
       }
     ],
-    "group_filters": []
+    "default_time_filter_labels": [
+      "Last 24 hours"
+    ]
   },
   "dashboard_sections": [
     {
-      "title": "Onboarded Devices",
+      "title": "Activity",
       "show_filter": true,
       "widgets": [
         {
-          "title": "Discovery Runs",
-          "widget_type": "tabular",
-          "stream": "asset_inventory_collection_status_stream",
-          "extra_filter0": "customer_tag contains '{{CUST_TAG}}' or customer_tag is empty",
-          "extra_filter1": "(jobname contains '{{CUST_TAG}}' or jobname is empty) and type_ is 'overall_status' and total is not empty and pending is 0",
-          "extra_filter": "(jobname contains '{{CUST_TAG}}' or jobname contains 'job') and type_ is 'overall_status' and total is not empty and pending is 0",
+          "widget_type": "bar_chart",
+          "title": "Collaboration Messages By Activity",
+          "stream": "oia-incidents-collaboration-stream",
+          "ts_column": "timestamp",
+          "duration_hours": 24,
+          "min_width": 6,
           "height": 4,
+          "max_width": 6,
+          "extra_filter": "activity is not 'Endpoint Response' and activity is not 'Update Incident' and subject is not 'Incident Updated'",
+          "group_by": [
+            "activity"
+          ],
+          "agg": "sum",
+          "column": "count_",
+          "type": "int",
+          "chartProperties": {
+            "legendLocation": "none",
+            "xAxisLabel": null,
+            "yAxisLabel": null
+          },
+          "widget_id": "6dc8340e"
+        },
+        {
+          "widget_type": "bar_chart",
+          "title": "Collaboration Messages By Target",
+          "stream": "oia-incidents-collaboration-stream",
+          "ts_column": "timestamp",
+          "duration_hours": 24,
+          "min_width": 6,
+          "extra_filter": "activity is not 'Endpoint Response' and activity is not 'Update Incident' and subject is not 'Incident Updated'",
+          "height": 4,
+          "max_width": 6,
+          "group_by": [
+            "target"
+          ],
+          "agg": "sum",
+          "column": "count_",
+          "type": "int",
+          "chartProperties": {
+            "legendLocation": "none",
+            "xAxisLabel": null,
+            "yAxisLabel": null
+          },
+          "widget_id": "e36576b7"
+        },
+        {
+          "title": "Collaboration Messages",
+          "widget_type": "tabular",
           "max_width": 12,
-          "min_width": 12,
+          "height": 12,
+          "min_width": 6,
+          "stream": "oia-incidents-collaboration-stream",
+          "ts_column": "timestamp",
+          "paginated": true,
+          "resizableColumns": false,
+          "remote_searchable": true,
+          "remote_searchable_cols": [
+            "subject",
+            "content",
+            "sendername",
+            "sourcesystemname",
+            "target",
+            "incidentid"
+          ],
+          "extra_filter": "activity is not 'Endpoint Response' and activity is not 'Update Incident' and subject is not 'Incident Updated'",
+          "duration_hours": 24,
+          "sorting": [
+            {
+              "timestamp": "desc"
+            }
+          ],
           "columns": {
-            "collection_timestamp": {
-              "title": "Discovery End time",
+            "subject": "Subject",
+            "content": "Message",
+            "sendername": "User",
+            "timestamp": {
+              "title": "Timestamp",
               "type": "DATETIME"
             },
-            "total": "Total Devices",
-            "success": {
-              "title": "Total Successful",
-              "htmlTemplateForRow0": "<{%raw%}span class='badge' style='background-color: {{ row.response_colors}}' > {{ row.success}} </span>{%endraw%}"
-            },
-            "failed": {
-              "title": "Total Failed",
-              "htmlTemplateForRow0": "{%raw%}<span class='badge' style='background-color: {{ row.response_colorf}}' > {{ row.failed}} </span>{%endraw%}"
-            },
-            "jobname": {
-              "title": "Jobname",
-              "type": "TEXT",
-              "hidden": true
-            },
-            "jobid": {
-              "title": "job id",
-              "type": "TEXT",
-              "hidden": true
-            },
-            "duplicates": {
-              "title": "Duplicates(Serial Number)",
-              "type": "TEXT",
-              "hidden": false
+            "sourcesystemname": "Source",
+            "target": "Target",
+            "incidentid": {
+              "title": "Incident ID",
+              "key": true
             }
           },
-          "custom_columns": [
-            {
-              "id": "response_colors",
-              "label": "Enable Color",
-              "expr": "['#b3b3b3'] if success == 0 else ['#4CAF50']",
-              "hidden": true,
-              "visible": false,
-              "sortable": false
-            },
-            {
-              "id": "response_colorf",
-              "label": "Enable Color",
-              "expr": "['#b3b3b3'] if failed == 0 else ['#BB0000']",
-              "hidden": true,
-              "visible": false,
-              "sortable": false
-            },
-            {
-              "id": "status",
-              "label": "Status",
-              "expr": "'Success' if failed == 0 else 'Failed'",
-              "hidden": false,
-              "visible": true,
-              "sortable": false
-            }
+          "severity_columns": [
+            "severity"
           ],
           "actions": [
             {
-              "permission": "rda:github:view",
-              "title": "Run Discovery",
-              "type": "POPUP_FORM",
-              "selectionType": "NONE",
-              "identifier": "saas-service-action:userdashboard-add-yaml",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.dynamic.form",
-                    "formActionList": {
-                      "formActions": [
-                        {
-                          "identifier": "Submit",
-                          "actionLabel": "Run"
-                        }
-                      ]
-                    },
-                    "formDefinition": {
-                      "id": "rda.saas.dynamic.form",
-                      "refreshRequired": true,
-                      "formFieldList": [
-                        {
-                          "help": "Make sure access Verification is run for the devices you want to run discovery on",
-                          "dataType": "string",
-                          "required": true,
-                          "editable": true,
-                          "label": "NOTE: Make sure that access verification is completed for  devices for which discovery needs to be run.",
-                          "controlType": "LABEL",
-                          "hidden": false,
-                          "fieldId": "note_field"
-                        },
-                        {
-                          "help": "Select network devices for which you want to run discovery",
-                          "dataType": "string",
-                          "required": true,
-                          "editable": true,
-                          "label": "Network Devices",
-                          "hidden": false,
-                          "fieldId": "Others",
-                          "controlType": "SELECTOR_TABLE",
-                          "controlPropertyList": [
-                            {
-                              "attribute": "column-key",
-                              "value": "device_ip"
-                            },
-                            {
-                              "attribute": "selection",
-                              "value": "MULTIPLE"
-                            }
-                          ],
-                          "widget": {
-                            "title": "Device Details",
-                            "timebased": false,
-                            "max_width": 12,
-                            "height": 8,
-                            "min_width": 12,
-                            "extra_filter0": "type contains 'windows'",
-                            "stream": "discovery",
-                            "extra_filter": "customer_tag contains '{{CUST_TAG}}' or customer_tag is empty",
-                            "ts_column": "timestamp",
-                            "sorting": [],
-                            "columns": {
-                              "device_ip": {
-                                "title": "IP Address",
-                                "key": true
-                              },
-                              "discovery_scope": {
-                                "title": "discovery Scope",
-                                "key": true,
-                                "visible": false
-                              }
-                            }
-                          }
-                        }
-                      ]
-                    },
-                    "actions": [
-                      {
-                        "type": "RUN_PIPELINE",
-                        "pipelineName": "ondemand_discovery_main",
-                        "isSync": false,
-                        "workerGroup": "{{CUST_TAG}}.*"
-                      }
-                    ]
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "aia:page:view",
-              "drillDownLinkField": "success",
-              "identifier": "success",
-              "selectionType": "SINGLE",
-              "stateName": "app.featureapp",
-              "title": "View Success",
-              "contextParamList": {
-                "contextParams": [
-                  {
-                    "paramKey": "jobid",
-                    "paramId": "jobid"
-                  }
-                ]
-              },
-              "actionCondition": {
-                "actionControl": "SHOW_IF",
-                "conditionalField": [
-                  {
-                    "conditionType": "IS_NOT_NULL",
-                    "fieldId": "success"
-                  }
-                ]
-              },
+              "title": "View Incident",
               "type": "GO_TO_APP_STATE",
-              "appName": "user-dashboard/customer_discovery_runs_details_success"
-            },
-            {
-              "permission": "aia:page:view",
-              "drillDownLinkField": "duplicates",
-              "identifier": "duplicates",
-              "selectionType": "SINGLE",
               "stateName": "app.featureapp",
-              "title": "View Duplicates",
+              "appName": "user-dashboard/incident-details-app",
+              "selectionType": "SINGLE",
+              "drillDownLinkField": "incidentid",
+              "drillDownContext": "incidentid",
+              "destinationContext": "incidentid",
+              "displayLabelColumnId": "Incident ID",
               "contextParamList": {
                 "contextParams": [
                   {
-                    "paramKey": "jobid",
-                    "paramId": "jobid"
-                  }
-                ]
-              },
-              "actionCondition": {
-                "actionControl": "SHOW_IF",
-                "conditionalField": [
+                    "paramKey": "projectid",
+                    "paramId": "id"
+                  },
                   {
-                    "conditionType": "IS_NOT_NULL",
-                    "fieldId": "duplicates"
-                  }
-                ]
-              },
-              "type": "GO_TO_APP_STATE",
-              "appName": "user-dashboard/customer_discovery_runs_details_duplicates"
-            },
-            {
-              "appName": "user-dashboard/customer_discovery_runs_details_failed",
-              "permission": "aia:page:view",
-              "drillDownContext": "failed",
-              "drillDownLinkField": "failed",
-              "identifier": "failed",
-              "selectionType": "SINGLE",
-              "stateName": "app.featureapp",
-              "title": "View Failed",
-              "contextParamList": {
-                "contextParams": [
+                    "paramKey": "incidentid",
+                    "paramId": "incidentid"
+                  },
                   {
-                    "paramKey": "jobid",
-                    "paramId": "jobid"
-                  }
-                ]
-              },
-              "actionCondition": {
-                "actionControl": "SHOW_IF",
-                "conditionalField": [
+                    "paramKey": "projectid",
+                    "paramId": "roomid"
+                  },
                   {
-                    "conditionType": "IS_NOT_NULL",
-                    "fieldId": "failed"
-                  }
-                ]
-              },
-              "type": "GO_TO_APP_STATE"
-            },
-            {
-              "appName": "user-dashboard/logs",
-              "permission": "aia:page:view",
-              "identifier": "failed",
-              "drillDownLinkField": "total",
-              "selectionType": "SINGLE",
-              "stateName": "app.featureapp",
-              "title": "View Logs",
-              "type": "GO_TO_APP_STATE",
-              "contextParamList": {
-                "contextParams": [
-                  {
-                    "paramKey": "jobid",
-                    "paramId": "jobid"
+                    "paramKey": "projectid",
+                    "paramId": "projectId"
                   }
                 ]
               }
             }
           ],
-          "widget_id": "b2c8d81c"
+          "widget_id": "a7f6e486"
         }
       ]
     }
   ],
   "pstream_dashboards": [
     {
-      "title": "Onboarded Devices",
+      "title": "Activity",
       "show_filter": true,
       "widgets": [
         {
-          "title": "Discovery Runs",
-          "widget_type": "tabular",
-          "stream": "asset_inventory_collection_status_stream",
-          "extra_filter0": "customer_tag contains '{{CUST_TAG}}' or customer_tag is empty",
-          "extra_filter1": "(jobname contains '{{CUST_TAG}}' or jobname is empty) and type_ is 'overall_status' and total is not empty and pending is 0",
-          "extra_filter": "(jobname contains '{{CUST_TAG}}' or jobname contains 'job') and type_ is 'overall_status' and total is not empty and pending is 0",
+          "widget_type": "bar_chart",
+          "title": "Collaboration Messages By Activity",
+          "stream": "oia-incidents-collaboration-stream",
+          "ts_column": "timestamp",
+          "duration_hours": 24,
+          "min_width": 6,
           "height": 4,
+          "max_width": 6,
+          "extra_filter": "activity is not 'Endpoint Response' and activity is not 'Update Incident' and subject is not 'Incident Updated'",
+          "group_by": [
+            "activity"
+          ],
+          "agg": "sum",
+          "column": "count_",
+          "type": "int",
+          "chartProperties": {
+            "legendLocation": "none",
+            "xAxisLabel": null,
+            "yAxisLabel": null
+          },
+          "widget_id": "6dc8340e"
+        },
+        {
+          "widget_type": "bar_chart",
+          "title": "Collaboration Messages By Target",
+          "stream": "oia-incidents-collaboration-stream",
+          "ts_column": "timestamp",
+          "duration_hours": 24,
+          "min_width": 6,
+          "extra_filter": "activity is not 'Endpoint Response' and activity is not 'Update Incident' and subject is not 'Incident Updated'",
+          "height": 4,
+          "max_width": 6,
+          "group_by": [
+            "target"
+          ],
+          "agg": "sum",
+          "column": "count_",
+          "type": "int",
+          "chartProperties": {
+            "legendLocation": "none",
+            "xAxisLabel": null,
+            "yAxisLabel": null
+          },
+          "widget_id": "e36576b7"
+        },
+        {
+          "title": "Collaboration Messages",
+          "widget_type": "tabular",
           "max_width": 12,
-          "min_width": 12,
+          "height": 12,
+          "min_width": 6,
+          "stream": "oia-incidents-collaboration-stream",
+          "ts_column": "timestamp",
+          "paginated": true,
+          "resizableColumns": false,
+          "remote_searchable": true,
+          "remote_searchable_cols": [
+            "subject",
+            "content",
+            "sendername",
+            "sourcesystemname",
+            "target",
+            "incidentid"
+          ],
+          "extra_filter": "activity is not 'Endpoint Response' and activity is not 'Update Incident' and subject is not 'Incident Updated'",
+          "duration_hours": 24,
+          "sorting": [
+            {
+              "timestamp": "desc"
+            }
+          ],
           "columns": {
-            "collection_timestamp": {
-              "title": "Discovery End time",
+            "subject": "Subject",
+            "content": "Message",
+            "sendername": "User",
+            "timestamp": {
+              "title": "Timestamp",
               "type": "DATETIME"
             },
-            "total": "Total Devices",
-            "success": {
-              "title": "Total Successful",
-              "htmlTemplateForRow0": "<{%raw%}span class='badge' style='background-color: {{ row.response_colors}}' > {{ row.success}} </span>{%endraw%}"
-            },
-            "failed": {
-              "title": "Total Failed",
-              "htmlTemplateForRow0": "{%raw%}<span class='badge' style='background-color: {{ row.response_colorf}}' > {{ row.failed}} </span>{%endraw%}"
-            },
-            "jobname": {
-              "title": "Jobname",
-              "type": "TEXT",
-              "hidden": true
-            },
-            "jobid": {
-              "title": "job id",
-              "type": "TEXT",
-              "hidden": true
-            },
-            "duplicates": {
-              "title": "Duplicates(Serial Number)",
-              "type": "TEXT",
-              "hidden": false
+            "sourcesystemname": "Source",
+            "target": "Target",
+            "incidentid": {
+              "title": "Incident ID",
+              "key": true
             }
           },
-          "custom_columns": [
-            {
-              "id": "response_colors",
-              "label": "Enable Color",
-              "expr": "['#b3b3b3'] if success == 0 else ['#4CAF50']",
-              "hidden": true,
-              "visible": false,
-              "sortable": false
-            },
-            {
-              "id": "response_colorf",
-              "label": "Enable Color",
-              "expr": "['#b3b3b3'] if failed == 0 else ['#BB0000']",
-              "hidden": true,
-              "visible": false,
-              "sortable": false
-            },
-            {
-              "id": "status",
-              "label": "Status",
-              "expr": "'Success' if failed == 0 else 'Failed'",
-              "hidden": false,
-              "visible": true,
-              "sortable": false
-            }
+          "severity_columns": [
+            "severity"
           ],
           "actions": [
             {
-              "permission": "rda:github:view",
-              "title": "Run Discovery",
-              "type": "POPUP_FORM",
-              "selectionType": "NONE",
-              "identifier": "saas-service-action:userdashboard-add-yaml",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.dynamic.form",
-                    "formActionList": {
-                      "formActions": [
-                        {
-                          "identifier": "Submit",
-                          "actionLabel": "Run"
-                        }
-                      ]
-                    },
-                    "formDefinition": {
-                      "id": "rda.saas.dynamic.form",
-                      "refreshRequired": true,
-                      "formFieldList": [
-                        {
-                          "help": "Make sure access Verification is run for the devices you want to run discovery on",
-                          "dataType": "string",
-                          "required": true,
-                          "editable": true,
-                          "label": "NOTE: Make sure that access verification is completed for  devices for which discovery needs to be run.",
-                          "controlType": "LABEL",
-                          "hidden": false,
-                          "fieldId": "note_field"
-                        },
-                        {
-                          "help": "Select network devices for which you want to run discovery",
-                          "dataType": "string",
-                          "required": true,
-                          "editable": true,
-                          "label": "Network Devices",
-                          "hidden": false,
-                          "fieldId": "Others",
-                          "controlType": "SELECTOR_TABLE",
-                          "controlPropertyList": [
-                            {
-                              "attribute": "column-key",
-                              "value": "device_ip"
-                            },
-                            {
-                              "attribute": "selection",
-                              "value": "MULTIPLE"
-                            }
-                          ],
-                          "widget": {
-                            "title": "Device Details",
-                            "timebased": false,
-                            "max_width": 12,
-                            "height": 8,
-                            "min_width": 12,
-                            "extra_filter0": "type contains 'windows'",
-                            "stream": "discovery",
-                            "extra_filter": "customer_tag contains '{{CUST_TAG}}' or customer_tag is empty",
-                            "ts_column": "timestamp",
-                            "sorting": [],
-                            "columns": {
-                              "device_ip": {
-                                "title": "IP Address",
-                                "key": true
-                              },
-                              "discovery_scope": {
-                                "title": "discovery Scope",
-                                "key": true,
-                                "visible": false
-                              }
-                            }
-                          }
-                        }
-                      ]
-                    },
-                    "actions": [
-                      {
-                        "type": "RUN_PIPELINE",
-                        "pipelineName": "ondemand_discovery_main",
-                        "isSync": false,
-                        "workerGroup": "{{CUST_TAG}}.*"
-                      }
-                    ]
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "aia:page:view",
-              "drillDownLinkField": "success",
-              "identifier": "success",
-              "selectionType": "SINGLE",
-              "stateName": "app.featureapp",
-              "title": "View Success",
-              "contextParamList": {
-                "contextParams": [
-                  {
-                    "paramKey": "jobid",
-                    "paramId": "jobid"
-                  }
-                ]
-              },
-              "actionCondition": {
-                "actionControl": "SHOW_IF",
-                "conditionalField": [
-                  {
-                    "conditionType": "IS_NOT_NULL",
-                    "fieldId": "success"
-                  }
-                ]
-              },
+              "title": "View Incident",
               "type": "GO_TO_APP_STATE",
-              "appName": "user-dashboard/customer_discovery_runs_details_success"
-            },
-            {
-              "permission": "aia:page:view",
-              "drillDownLinkField": "duplicates",
-              "identifier": "duplicates",
-              "selectionType": "SINGLE",
               "stateName": "app.featureapp",
-              "title": "View Duplicates",
+              "appName": "user-dashboard/incident-details-app",
+              "selectionType": "SINGLE",
+              "drillDownLinkField": "incidentid",
+              "drillDownContext": "incidentid",
+              "destinationContext": "incidentid",
+              "displayLabelColumnId": "Incident ID",
               "contextParamList": {
                 "contextParams": [
                   {
-                    "paramKey": "jobid",
-                    "paramId": "jobid"
-                  }
-                ]
-              },
-              "actionCondition": {
-                "actionControl": "SHOW_IF",
-                "conditionalField": [
+                    "paramKey": "projectid",
+                    "paramId": "id"
+                  },
                   {
-                    "conditionType": "IS_NOT_NULL",
-                    "fieldId": "duplicates"
-                  }
-                ]
-              },
-              "type": "GO_TO_APP_STATE",
-              "appName": "user-dashboard/customer_discovery_runs_details_duplicates"
-            },
-            {
-              "appName": "user-dashboard/customer_discovery_runs_details_failed",
-              "permission": "aia:page:view",
-              "drillDownContext": "failed",
-              "drillDownLinkField": "failed",
-              "identifier": "failed",
-              "selectionType": "SINGLE",
-              "stateName": "app.featureapp",
-              "title": "View Failed",
-              "contextParamList": {
-                "contextParams": [
+                    "paramKey": "incidentid",
+                    "paramId": "incidentid"
+                  },
                   {
-                    "paramKey": "jobid",
-                    "paramId": "jobid"
-                  }
-                ]
-              },
-              "actionCondition": {
-                "actionControl": "SHOW_IF",
-                "conditionalField": [
+                    "paramKey": "projectid",
+                    "paramId": "roomid"
+                  },
                   {
-                    "conditionType": "IS_NOT_NULL",
-                    "fieldId": "failed"
-                  }
-                ]
-              },
-              "type": "GO_TO_APP_STATE"
-            },
-            {
-              "appName": "user-dashboard/logs",
-              "permission": "aia:page:view",
-              "identifier": "failed",
-              "drillDownLinkField": "total",
-              "selectionType": "SINGLE",
-              "stateName": "app.featureapp",
-              "title": "View Logs",
-              "type": "GO_TO_APP_STATE",
-              "contextParamList": {
-                "contextParams": [
-                  {
-                    "paramKey": "jobid",
-                    "paramId": "jobid"
+                    "paramKey": "projectid",
+                    "paramId": "projectId"
                   }
                 ]
               }
             }
           ],
-          "widget_id": "b2c8d81c"
+          "widget_id": "a7f6e486"
         }
       ]
     }

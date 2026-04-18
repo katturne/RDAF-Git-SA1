@@ -1,579 +1,318 @@
 {
-  "name": "customer_discovery_runs",
-  "label": "On Demand Discovery",
-  "description": "onboarded_devices: Insights",
-  "dashboard_folder": "NetworkDevicePack",
-  "version": "1.0.3",
-  "enabled": false,
+  "name": "topology-details-with-second-col-pivot-report",
+  "label": "X-Leaf Workflow Results",
+  "description": "X-Leaf EVT Workflow Results",
+  "enabled": true,
+  "dashboard_style": "auto",
   "dashboard_type": "template",
-  "live_edit": true,
+  "dashboard_folder": "X-Leaf",
+  "version": "23.8.21.1",
+  "short_label": "X-Leaf EVT Workflow",
+  "dashboard_filters": {},
   "template_variables": {
-    "CUST_ID": {
-      "contextId": "customerId"
+    "NODE_ID": {
+      "contextId": [
+        "navigatorSelectionContexts",
+        "secondaryListSelection",
+        "device_ip"
+      ]
     },
-    "PROJ_ID": {
-      "contextId": "project_id"
+    "PRECHECK_NAME": {
+      "contextId": [
+        "navigatorSelectionContexts",
+        "secondaryListSelection",
+        "evt_check_name"
+      ]
     },
-    "PROJ_ID_SINGLE": {
-      "contextId": "project_id"
-    },
-    "CUST_TAG": {
-      "contextId": "customerTag"
+    "COMMAND": {
+      "contextId": [
+        "navigatorSelectionContexts",
+        "secondaryListSelection",
+        "command"
+      ]
     }
   },
-  "dashboard_filters": {
-    "time_filter": true,
-    "extra_filter0": "(target_type contains 'DEVICE')",
-    "default_time_filter_labels": [
-      "Last 1 month"
-    ],
-    "columns_filter": [
-      {
-        "id": "timestamp",
-        "label": "Timestamp",
-        "type": "DATETIME"
+  "navigation_dashboards": {
+    "tree_data": {
+      "column_name": "device_ip",
+      "pstream_name": "xleaf_evt_results_summary",
+      "cfxql_query": "timestamp is after -30d",
+      "show_counts": false
+    },
+    "tree_detail": {
+      "display_column": "evt_check_name",
+      "pstream_name": "xleaf_evt_results_summary",
+      "cfxql_query": "timestamp is after -30d",
+      "htmlTemplate": "<div style='overflow:hidden;'><div class='d-flex'><div style='flex-grow: 1' class='label1 text-truncate'><b>{{data.label1}}</b></div><div class='label2 text-truncate badge' :style='{backgroundColor: data.color}'>{{data.label2}}</div></div><div class='cfx-list-item-end-label'>{{data.label3}}</div></div>",
+      "report_definition": {
+        "title": "Validation Checks",
+        "widget_type": "tabular",
+        "stream": "xleaf_evt_results_summary",
+        "ts_column": "timestamp",
+        "timebased": false,
+        "columns": {
+          "evt_check_name": "evt_check_name",
+          "device_ip": "device_ip",
+          "status": "status",
+          "command": "command"
+        },
+        "sorting": [
+          {
+            "result_int_max": "desc"
+          }
+        ],
+        "cfxql_query": "device_ip is '{{NODE_ID}}' and timestamp is after -30d",
+        "pivot": {
+          "pivot_type": "advanced",
+          "series": [
+            {
+              "column": "evt_check_name",
+              "agg": "cardinality"
+            },
+            {
+              "column": "result_int",
+              "agg": "max"
+            }
+          ],
+          "group_by": [
+            "evt_check_name",
+            "device_ip",
+            "status",
+            "command"
+          ]
+        },
+        "paginated": true,
+        "enableVirtualScrolling": false,
+        "custom_columns": [
+          {
+            "id": "label1",
+            "expr": "str(evt_check_name)"
+          },
+          {
+            "id": "label2",
+            "expr": "'Pass' if int(result_int_max) == 0 else 'Fail' if int(result_int_max) == 1 else 'Run'"
+          },
+          {
+            "id": "label3",
+            "expr": "str(status)"
+          },
+          {
+            "id": "color",
+            "expr": "'#4caf50' if int(result_int_max) == 0 else '#E53935' if int(result_int_max) == 1 else '#FFD54F'"
+          }
+        ],
+        "widget_id": "5afc2391"
       }
-    ],
-    "group_filters": []
+    },
+    "showNodeIcon": false,
+    "showSearchBox": true
   },
   "dashboard_sections": [
     {
-      "title": "Onboarded Devices",
-      "show_filter": true,
+      "title": "Passed",
       "widgets": [
         {
-          "title": "Discovery Runs",
+          "title": "Summary",
           "widget_type": "tabular",
-          "stream": "asset_inventory_collection_status_stream",
-          "extra_filter0": "customer_tag contains '{{CUST_TAG}}' or customer_tag is empty",
-          "extra_filter1": "(jobname contains '{{CUST_TAG}}' or jobname is empty) and type_ is 'overall_status' and total is not empty and pending is 0",
-          "extra_filter": "(jobname contains '{{CUST_TAG}}' or jobname contains 'job') and type_ is 'overall_status' and total is not empty and pending is 0",
-          "height": 4,
-          "max_width": 12,
-          "min_width": 12,
-          "columns": {
-            "collection_timestamp": {
-              "title": "Discovery End time",
-              "type": "DATETIME"
-            },
-            "total": "Total Devices",
-            "success": {
-              "title": "Total Successful",
-              "htmlTemplateForRow0": "<{%raw%}span class='badge' style='background-color: {{ row.response_colors}}' > {{ row.success}} </span>{%endraw%}"
-            },
-            "failed": {
-              "title": "Total Failed",
-              "htmlTemplateForRow0": "{%raw%}<span class='badge' style='background-color: {{ row.response_colorf}}' > {{ row.failed}} </span>{%endraw%}"
-            },
-            "jobname": {
-              "title": "Jobname",
-              "type": "TEXT",
-              "hidden": true
-            },
-            "jobid": {
-              "title": "job id",
-              "type": "TEXT",
-              "hidden": true
-            },
-            "duplicates": {
-              "title": "Duplicates(Serial Number)",
-              "type": "TEXT",
-              "hidden": false
-            }
-          },
+          "stream": "xleaf_evt_results",
+          "ts_column": "timestamp",
+          "timebased": false,
+          "paginated": true,
+          "hide_columns": [
+            "collection_status",
+            "device_ip",
+            "evt_check_name",
+            "key",
+            "iconURL",
+            "timestamp",
+            "count_",
+            "_RDA_Id",
+            "jobid",
+            "result_int"
+          ],
           "custom_columns": [
             {
-              "id": "response_colors",
-              "label": "Enable Color",
-              "expr": "['#b3b3b3'] if success == 0 else ['#4CAF50']",
-              "hidden": true,
-              "visible": false,
-              "sortable": false
-            },
-            {
-              "id": "response_colorf",
-              "label": "Enable Color",
-              "expr": "['#b3b3b3'] if failed == 0 else ['#BB0000']",
-              "hidden": true,
-              "visible": false,
-              "sortable": false
-            },
-            {
-              "id": "status",
-              "label": "Status",
-              "expr": "'Success' if failed == 0 else 'Failed'",
-              "hidden": false,
-              "visible": true,
-              "sortable": false
+              "id": "label1",
+              "expr": "str(evt_check_name)",
+              "hidden": true
             }
           ],
-          "actions": [
+          "ui_widget_type": "TABULAR",
+          "max_width": 4,
+          "height": 5,
+          "min_width": 4,
+          "widget_id": "182229d8",
+          "query": "device_ip is '{{NODE_ID}}' and evt_check_name is '{{PRECHECK_NAME}}' and result is 'Passed'"
+        }
+      ]
+    },
+    {
+      "title": "Failed",
+      "widgets": [
+        {
+          "title": "Summary",
+          "widget_type": "tabular",
+          "stream": "xleaf_evt_results",
+          "ts_column": "timestamp",
+          "timebased": false,
+          "paginated": true,
+          "hide_columns": [
+            "collection_status",
+            "device_ip",
+            "evt_check_name",
+            "key",
+            "iconURL",
+            "timestamp",
+            "count_",
+            "_RDA_Id",
+            "jobid",
+            "result_int"
+          ],
+          "custom_columns": [
             {
-              "permission": "rda:github:view",
-              "title": "Run Discovery",
-              "type": "POPUP_FORM",
-              "selectionType": "NONE",
-              "identifier": "saas-service-action:userdashboard-add-yaml",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.dynamic.form",
-                    "formActionList": {
-                      "formActions": [
-                        {
-                          "identifier": "Submit",
-                          "actionLabel": "Run"
-                        }
-                      ]
-                    },
-                    "formDefinition": {
-                      "id": "rda.saas.dynamic.form",
-                      "refreshRequired": true,
-                      "formFieldList": [
-                        {
-                          "help": "Make sure access Verification is run for the devices you want to run discovery on",
-                          "dataType": "string",
-                          "required": true,
-                          "editable": true,
-                          "label": "NOTE: Make sure that access verification is completed for  devices for which discovery needs to be run.",
-                          "controlType": "LABEL",
-                          "hidden": false,
-                          "fieldId": "note_field"
-                        },
-                        {
-                          "help": "Select network devices for which you want to run discovery",
-                          "dataType": "string",
-                          "required": true,
-                          "editable": true,
-                          "label": "Network Devices",
-                          "hidden": false,
-                          "fieldId": "Others",
-                          "controlType": "SELECTOR_TABLE",
-                          "controlPropertyList": [
-                            {
-                              "attribute": "column-key",
-                              "value": "device_ip"
-                            },
-                            {
-                              "attribute": "selection",
-                              "value": "MULTIPLE"
-                            }
-                          ],
-                          "widget": {
-                            "title": "Device Details",
-                            "timebased": false,
-                            "max_width": 12,
-                            "height": 8,
-                            "min_width": 12,
-                            "extra_filter0": "type contains 'windows'",
-                            "stream": "discovery",
-                            "extra_filter": "customer_tag contains '{{CUST_TAG}}' or customer_tag is empty",
-                            "ts_column": "timestamp",
-                            "sorting": [],
-                            "columns": {
-                              "device_ip": {
-                                "title": "IP Address",
-                                "key": true
-                              },
-                              "discovery_scope": {
-                                "title": "discovery Scope",
-                                "key": true,
-                                "visible": false
-                              }
-                            }
-                          }
-                        }
-                      ]
-                    },
-                    "actions": [
-                      {
-                        "type": "RUN_PIPELINE",
-                        "pipelineName": "ondemand_discovery_main",
-                        "isSync": false,
-                        "workerGroup": "{{CUST_TAG}}.*"
-                      }
-                    ]
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "aia:page:view",
-              "drillDownLinkField": "success",
-              "identifier": "success",
-              "selectionType": "SINGLE",
-              "stateName": "app.featureapp",
-              "title": "View Success",
-              "contextParamList": {
-                "contextParams": [
-                  {
-                    "paramKey": "jobid",
-                    "paramId": "jobid"
-                  }
-                ]
-              },
-              "actionCondition": {
-                "actionControl": "SHOW_IF",
-                "conditionalField": [
-                  {
-                    "conditionType": "IS_NOT_NULL",
-                    "fieldId": "success"
-                  }
-                ]
-              },
-              "type": "GO_TO_APP_STATE",
-              "appName": "user-dashboard/customer_discovery_runs_details_success"
-            },
-            {
-              "permission": "aia:page:view",
-              "drillDownLinkField": "duplicates",
-              "identifier": "duplicates",
-              "selectionType": "SINGLE",
-              "stateName": "app.featureapp",
-              "title": "View Duplicates",
-              "contextParamList": {
-                "contextParams": [
-                  {
-                    "paramKey": "jobid",
-                    "paramId": "jobid"
-                  }
-                ]
-              },
-              "actionCondition": {
-                "actionControl": "SHOW_IF",
-                "conditionalField": [
-                  {
-                    "conditionType": "IS_NOT_NULL",
-                    "fieldId": "duplicates"
-                  }
-                ]
-              },
-              "type": "GO_TO_APP_STATE",
-              "appName": "user-dashboard/customer_discovery_runs_details_duplicates"
-            },
-            {
-              "appName": "user-dashboard/customer_discovery_runs_details_failed",
-              "permission": "aia:page:view",
-              "drillDownContext": "failed",
-              "drillDownLinkField": "failed",
-              "identifier": "failed",
-              "selectionType": "SINGLE",
-              "stateName": "app.featureapp",
-              "title": "View Failed",
-              "contextParamList": {
-                "contextParams": [
-                  {
-                    "paramKey": "jobid",
-                    "paramId": "jobid"
-                  }
-                ]
-              },
-              "actionCondition": {
-                "actionControl": "SHOW_IF",
-                "conditionalField": [
-                  {
-                    "conditionType": "IS_NOT_NULL",
-                    "fieldId": "failed"
-                  }
-                ]
-              },
-              "type": "GO_TO_APP_STATE"
-            },
-            {
-              "appName": "user-dashboard/logs",
-              "permission": "aia:page:view",
-              "identifier": "failed",
-              "drillDownLinkField": "total",
-              "selectionType": "SINGLE",
-              "stateName": "app.featureapp",
-              "title": "View Logs",
-              "type": "GO_TO_APP_STATE",
-              "contextParamList": {
-                "contextParams": [
-                  {
-                    "paramKey": "jobid",
-                    "paramId": "jobid"
-                  }
-                ]
-              }
+              "id": "label1",
+              "expr": "str(evt_check_name)",
+              "hidden": true
             }
           ],
-          "widget_id": "b2c8d81c"
+          "ui_widget_type": "TABULAR",
+          "max_width": 4,
+          "height": 5,
+          "min_width": 4,
+          "widget_id": "79890b84",
+          "query": "device_ip is '{{NODE_ID}}'and evt_check_name is '{{PRECHECK_NAME}}' and result is 'Failed'"
+        }
+      ]
+    },
+    {
+      "title": "Command output",
+      "widgets": [
+        {
+          "title": "Raw Output",
+          "widget_type": "tabular",
+          "stream": "xleaf_raw_outputs",
+          "ts_column": "timestamp",
+          "timebased": false,
+          "paginated": true,
+          "columns": {
+            "command": "command",
+            "raw_output": {
+              "title": "Output",
+              "htmlTemplateForRow": "{{'{%raw%}<pre>{{row.raw_output}}</pre>{%endraw%}'}}"
+            }
+          },
+          "ui_widget_type": "TABULAR",
+          "max_width": 4,
+          "height": 5,
+          "min_width": 4,
+          "widget_id": "182229d9",
+          "max_rows": 1,
+          "query": "device_ip is '{{NODE_ID}}' and command is '{{COMMAND}}'"
         }
       ]
     }
   ],
   "pstream_dashboards": [
     {
-      "title": "Onboarded Devices",
-      "show_filter": true,
+      "title": "Passed",
       "widgets": [
         {
-          "title": "Discovery Runs",
+          "title": "Summary",
           "widget_type": "tabular",
-          "stream": "asset_inventory_collection_status_stream",
-          "extra_filter0": "customer_tag contains '{{CUST_TAG}}' or customer_tag is empty",
-          "extra_filter1": "(jobname contains '{{CUST_TAG}}' or jobname is empty) and type_ is 'overall_status' and total is not empty and pending is 0",
-          "extra_filter": "(jobname contains '{{CUST_TAG}}' or jobname contains 'job') and type_ is 'overall_status' and total is not empty and pending is 0",
-          "height": 4,
-          "max_width": 12,
-          "min_width": 12,
-          "columns": {
-            "collection_timestamp": {
-              "title": "Discovery End time",
-              "type": "DATETIME"
-            },
-            "total": "Total Devices",
-            "success": {
-              "title": "Total Successful",
-              "htmlTemplateForRow0": "<{%raw%}span class='badge' style='background-color: {{ row.response_colors}}' > {{ row.success}} </span>{%endraw%}"
-            },
-            "failed": {
-              "title": "Total Failed",
-              "htmlTemplateForRow0": "{%raw%}<span class='badge' style='background-color: {{ row.response_colorf}}' > {{ row.failed}} </span>{%endraw%}"
-            },
-            "jobname": {
-              "title": "Jobname",
-              "type": "TEXT",
-              "hidden": true
-            },
-            "jobid": {
-              "title": "job id",
-              "type": "TEXT",
-              "hidden": true
-            },
-            "duplicates": {
-              "title": "Duplicates(Serial Number)",
-              "type": "TEXT",
-              "hidden": false
-            }
-          },
+          "stream": "xleaf_evt_results",
+          "ts_column": "timestamp",
+          "timebased": false,
+          "paginated": true,
+          "hide_columns": [
+            "collection_status",
+            "device_ip",
+            "evt_check_name",
+            "key",
+            "iconURL",
+            "timestamp",
+            "count_",
+            "_RDA_Id",
+            "jobid",
+            "result_int"
+          ],
           "custom_columns": [
             {
-              "id": "response_colors",
-              "label": "Enable Color",
-              "expr": "['#b3b3b3'] if success == 0 else ['#4CAF50']",
-              "hidden": true,
-              "visible": false,
-              "sortable": false
-            },
-            {
-              "id": "response_colorf",
-              "label": "Enable Color",
-              "expr": "['#b3b3b3'] if failed == 0 else ['#BB0000']",
-              "hidden": true,
-              "visible": false,
-              "sortable": false
-            },
-            {
-              "id": "status",
-              "label": "Status",
-              "expr": "'Success' if failed == 0 else 'Failed'",
-              "hidden": false,
-              "visible": true,
-              "sortable": false
+              "id": "label1",
+              "expr": "str(evt_check_name)",
+              "hidden": true
             }
           ],
-          "actions": [
+          "ui_widget_type": "TABULAR",
+          "max_width": 4,
+          "height": 5,
+          "min_width": 4,
+          "widget_id": "182229d8",
+          "query": "device_ip is '{{NODE_ID}}' and evt_check_name is '{{PRECHECK_NAME}}' and result is 'Passed'"
+        }
+      ]
+    },
+    {
+      "title": "Failed",
+      "widgets": [
+        {
+          "title": "Summary",
+          "widget_type": "tabular",
+          "stream": "xleaf_evt_results",
+          "ts_column": "timestamp",
+          "timebased": false,
+          "paginated": true,
+          "hide_columns": [
+            "collection_status",
+            "device_ip",
+            "evt_check_name",
+            "key",
+            "iconURL",
+            "timestamp",
+            "count_",
+            "_RDA_Id",
+            "jobid",
+            "result_int"
+          ],
+          "custom_columns": [
             {
-              "permission": "rda:github:view",
-              "title": "Run Discovery",
-              "type": "POPUP_FORM",
-              "selectionType": "NONE",
-              "identifier": "saas-service-action:userdashboard-add-yaml",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.dynamic.form",
-                    "formActionList": {
-                      "formActions": [
-                        {
-                          "identifier": "Submit",
-                          "actionLabel": "Run"
-                        }
-                      ]
-                    },
-                    "formDefinition": {
-                      "id": "rda.saas.dynamic.form",
-                      "refreshRequired": true,
-                      "formFieldList": [
-                        {
-                          "help": "Make sure access Verification is run for the devices you want to run discovery on",
-                          "dataType": "string",
-                          "required": true,
-                          "editable": true,
-                          "label": "NOTE: Make sure that access verification is completed for  devices for which discovery needs to be run.",
-                          "controlType": "LABEL",
-                          "hidden": false,
-                          "fieldId": "note_field"
-                        },
-                        {
-                          "help": "Select network devices for which you want to run discovery",
-                          "dataType": "string",
-                          "required": true,
-                          "editable": true,
-                          "label": "Network Devices",
-                          "hidden": false,
-                          "fieldId": "Others",
-                          "controlType": "SELECTOR_TABLE",
-                          "controlPropertyList": [
-                            {
-                              "attribute": "column-key",
-                              "value": "device_ip"
-                            },
-                            {
-                              "attribute": "selection",
-                              "value": "MULTIPLE"
-                            }
-                          ],
-                          "widget": {
-                            "title": "Device Details",
-                            "timebased": false,
-                            "max_width": 12,
-                            "height": 8,
-                            "min_width": 12,
-                            "extra_filter0": "type contains 'windows'",
-                            "stream": "discovery",
-                            "extra_filter": "customer_tag contains '{{CUST_TAG}}' or customer_tag is empty",
-                            "ts_column": "timestamp",
-                            "sorting": [],
-                            "columns": {
-                              "device_ip": {
-                                "title": "IP Address",
-                                "key": true
-                              },
-                              "discovery_scope": {
-                                "title": "discovery Scope",
-                                "key": true,
-                                "visible": false
-                              }
-                            }
-                          }
-                        }
-                      ]
-                    },
-                    "actions": [
-                      {
-                        "type": "RUN_PIPELINE",
-                        "pipelineName": "ondemand_discovery_main",
-                        "isSync": false,
-                        "workerGroup": "{{CUST_TAG}}.*"
-                      }
-                    ]
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "aia:page:view",
-              "drillDownLinkField": "success",
-              "identifier": "success",
-              "selectionType": "SINGLE",
-              "stateName": "app.featureapp",
-              "title": "View Success",
-              "contextParamList": {
-                "contextParams": [
-                  {
-                    "paramKey": "jobid",
-                    "paramId": "jobid"
-                  }
-                ]
-              },
-              "actionCondition": {
-                "actionControl": "SHOW_IF",
-                "conditionalField": [
-                  {
-                    "conditionType": "IS_NOT_NULL",
-                    "fieldId": "success"
-                  }
-                ]
-              },
-              "type": "GO_TO_APP_STATE",
-              "appName": "user-dashboard/customer_discovery_runs_details_success"
-            },
-            {
-              "permission": "aia:page:view",
-              "drillDownLinkField": "duplicates",
-              "identifier": "duplicates",
-              "selectionType": "SINGLE",
-              "stateName": "app.featureapp",
-              "title": "View Duplicates",
-              "contextParamList": {
-                "contextParams": [
-                  {
-                    "paramKey": "jobid",
-                    "paramId": "jobid"
-                  }
-                ]
-              },
-              "actionCondition": {
-                "actionControl": "SHOW_IF",
-                "conditionalField": [
-                  {
-                    "conditionType": "IS_NOT_NULL",
-                    "fieldId": "duplicates"
-                  }
-                ]
-              },
-              "type": "GO_TO_APP_STATE",
-              "appName": "user-dashboard/customer_discovery_runs_details_duplicates"
-            },
-            {
-              "appName": "user-dashboard/customer_discovery_runs_details_failed",
-              "permission": "aia:page:view",
-              "drillDownContext": "failed",
-              "drillDownLinkField": "failed",
-              "identifier": "failed",
-              "selectionType": "SINGLE",
-              "stateName": "app.featureapp",
-              "title": "View Failed",
-              "contextParamList": {
-                "contextParams": [
-                  {
-                    "paramKey": "jobid",
-                    "paramId": "jobid"
-                  }
-                ]
-              },
-              "actionCondition": {
-                "actionControl": "SHOW_IF",
-                "conditionalField": [
-                  {
-                    "conditionType": "IS_NOT_NULL",
-                    "fieldId": "failed"
-                  }
-                ]
-              },
-              "type": "GO_TO_APP_STATE"
-            },
-            {
-              "appName": "user-dashboard/logs",
-              "permission": "aia:page:view",
-              "identifier": "failed",
-              "drillDownLinkField": "total",
-              "selectionType": "SINGLE",
-              "stateName": "app.featureapp",
-              "title": "View Logs",
-              "type": "GO_TO_APP_STATE",
-              "contextParamList": {
-                "contextParams": [
-                  {
-                    "paramKey": "jobid",
-                    "paramId": "jobid"
-                  }
-                ]
-              }
+              "id": "label1",
+              "expr": "str(evt_check_name)",
+              "hidden": true
             }
           ],
-          "widget_id": "b2c8d81c"
+          "ui_widget_type": "TABULAR",
+          "max_width": 4,
+          "height": 5,
+          "min_width": 4,
+          "widget_id": "79890b84",
+          "query": "device_ip is '{{NODE_ID}}'and evt_check_name is '{{PRECHECK_NAME}}' and result is 'Failed'"
+        }
+      ]
+    },
+    {
+      "title": "Command output",
+      "widgets": [
+        {
+          "title": "Raw Output",
+          "widget_type": "tabular",
+          "stream": "xleaf_raw_outputs",
+          "ts_column": "timestamp",
+          "timebased": false,
+          "paginated": true,
+          "columns": {
+            "command": "command",
+            "raw_output": {
+              "title": "Output",
+              "htmlTemplateForRow": "{{'{%raw%}<pre>{{row.raw_output}}</pre>{%endraw%}'}}"
+            }
+          },
+          "ui_widget_type": "TABULAR",
+          "max_width": 4,
+          "height": 5,
+          "min_width": 4,
+          "widget_id": "182229d9",
+          "max_rows": 1,
+          "query": "device_ip is '{{NODE_ID}}' and command is '{{COMMAND}}'"
         }
       ]
     }
