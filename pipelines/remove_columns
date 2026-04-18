@@ -1,8 +1,23 @@
-@dm:empty
- --> @dm:addrow name='edc_oi_inventory_enriched' and limit=0
- --> #dm:query-persistent-stream
- --> @dm:save name='temp-edc-oi-inv-enriched'
- --> @c:new-block
- --> @dm:recall name='temp-edc-oi-inv-enriched'
- --> @dm:selectcolumns exclude='^(EndOfLifeInternalAnnouncementDate|EndOfLastHardwareShipDate|EndOfHardwareNewServiceAttachmentDate|EndOfHardwareRoutineFailureAnalysisDate|EndOfBUEngineeringSupportTACDate|EndOfHardwareServiceContractRenewalDate|EndOfSignatureReleasesDate|EndOfSoftwareAvailabilityDate|EndOfSoftwareLicenseAvailabilityDate|created|customerVisible|external_text|external_title|firstIcAlertId|groups|icIssueId|icProblemId|ignored|lastIcAlertId|eoXAlertType|name|openedOn|resultType|severity|severityText|state|updated|deviceSN|runType|filename|icType|atticaStatus|cdetsList|retry|associatedGroups)$'
- --> @rn:write-stream name='edc_oi_inventory_enriched'
+@c:new-block
+ --> @exec:get-input
+ --> @dm:save name="temp-file_upload0"
+ --> @dm:save name="10dataset"
+ --> @dm:recall name="10dataset"
+ --> @dm:selectcolumns include = 'USER_ID|proj_name|customer_name'
+ --> @dm:add-missing-columns columns = 'pipeline_name' &
+value = 'swdata-status-test'
+ --> @dm:add-missing-columns columns = 'status_type' &
+value = 'Initiating'
+ --> @dm:add-missing-columns columns = 'jobid' &
+value = 'Initiating'
+ --> @dm:save name="temp1-temp"
+ --> @rn:write-stream name = "status-stream"
+ --> @exec:run-pipeline name ="swdata-status-test"
+ --> @dm:sleep seconds = 40
+ --> @dm:empty
+ --> @dm:recall name="temp1-temp"
+ --> @dm:replace-data columns = 'status_type' &
+expr = 'in-progress' &
+replace = 'Completed'
+ --> @dm:save name="temp1-temp"
+ --> @rn:write-stream name = "status-stream"
