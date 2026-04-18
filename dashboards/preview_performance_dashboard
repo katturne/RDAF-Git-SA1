@@ -1,261 +1,293 @@
 {
-  "name": "preview_performance_dashboard",
-  "label": "Performance Workbench",
-  "description": "Performance Workbench",
-  "dashboard_folder": "Default",
+  "name": "rca_regression_dashboard",
+  "label": "RCA Regression",
+  "description": "Template dashboard for RCA Regression",
   "enabled": true,
-  "dashboard_type": "dashboard",
+  "debug": true,
+  "live_edit": true,
+  "dashboard_type": "template",
+  "template_variables": {
+    "METRIC_ID": {
+      "contextId": [
+        "marker",
+        "metric_id"
+      ]
+    },
+    "METRIC_NAME": {
+      "contextId": [
+        "marker",
+        "metric_label"
+      ]
+    },
+    "ASSET": {
+      "contextId": [
+        "marker",
+        "asset_id"
+      ]
+    },
+    "MODEL_NAME": {
+      "contextId": [
+        "marker",
+        "job_name"
+      ]
+    },
+    "METRIC_UNIT": {
+      "contextId": [
+        "marker",
+        "unit"
+      ]
+    },
+    "STREAM": {
+      "contextId": [
+        "marker",
+        "stream_name"
+      ],
+      "default": "oia-ml-metrics-regression-output"
+    },
+    "INCIDENT_OT": {
+      "contextId": "i_cfx_incident_occurred"
+    }
+  },
   "dashboard_filters": {
     "time_filter": true,
-    "default_time_filter_non_removable": true,
-    "show_default_time_filter": true
+    "default_time_range": {
+      "from_time": "{{INCIDENT_OT}}",
+      "from_time_delta_hours": -12,
+      "to_time": "{{INCIDENT_OT}}",
+      "to_time_delta_hours": 4,
+      "label": "Incident Time"
+    }
   },
   "dashboard_sections": [
     {
-      "title": "Ops Insights",
+      "title": "Summary",
       "show_filter": true,
       "widgets": [
         {
-          "title": "Time Series",
-          "widget_type": "timeseries",
-          "stream": "psl_kafka_data",
-          "ts_column": "timestamp",
-          "duration_hours": 720,
-          "max_width": 6,
+          "widget_type": "pie_chart",
+          "title": "Anomalies by Severity",
+          "stream": "{{STREAM}}",
+          "extra_filter": "anomalies is not None and job_name is '{{MODEL_NAME}}'",
+          "min_width": 6,
           "height": 6,
-          "min_width": 12,
-          "chartProperties": {
-            "yAxisLabel": "Count",
-            "xAxisLabel": "Date",
-            "legendLocation": "top"
-          },
-          "interval": "1H",
+          "max_width": 6,
+          "ts_column": "timestamp",
+          "column": "_id",
+          "agg": "value_count",
           "group_by": [
-            "instance"
+            "anomalies_severity"
           ],
-          "series_spec": [
+          "style": {
+            "color-map": {
+              "High": [
+                "#ef5350",
+                "#ffffff"
+              ],
+              "Medium": [
+                "#FFA726",
+                "#ffffff"
+              ],
+              "Low": [
+                "#388e3c",
+                "#ffffff"
+              ]
+            }
+          },
+          "type": "str",
+          "widget_id": "7eba4b7b"
+        },
+        {
+          "title": "Anomalies",
+          "widget_type": "tabular",
+          "stream": "{{STREAM}}",
+          "extra_filter": "anomalies is not None and job_name is '{{MODEL_NAME}}'",
+          "min_width": 6,
+          "height": 6,
+          "max_width": 6,
+          "paginated": true,
+          "remote_searchable": true,
+          "max_rows": 50,
+          "sorting": [
             {
-              "column": "System_Calls_Active",
-              "agg": "max",
-              "type": "int",
-              "label": "System_Calls_Active"
+              "timestamp": "desc"
             }
           ],
-          "widget_id": "ee43c826",
-          "extra_filter": "device in [\"'AKRNOHNF11G'\"] and `timestamp` is after -168 hours"
+          "columns": {
+            "timestamp": "Timestamp",
+            "asset_id": "Asset ID",
+            "asset_name": "Asset Name",
+            "metric_name": "Metric Name",
+            "severity_color": {
+              "title": "Sev_2",
+              "type": "COLOR-MAP",
+              "source-column": "anomalies_severity",
+              "color-map": {
+                "High": "#ef5350",
+                "Medium": "#FFA726",
+                "Low": "#388e3c"
+              }
+            },
+            "anomalies_severity": {
+              "title": "Severity",
+              "htmlTemplateForRow": "<span class='badge' style='background-color: {{'{{ row.severity_color }}'}}' > {{'{{ row.anomalies_severity }}'}} </span>",
+              "defaultWidth": 150
+            }
+          },
+          "custom_columns": [
+            {
+              "id": "value1",
+              "label": "Value",
+              "expr": "round(value,2)"
+            }
+          ],
+          "widget_id": "94a3fc11"
+        },
+        {
+          "widget_type": "shaded_chart_multisource",
+          "title": "Forecasting and Anomaly Detection ({{METRIC_NAME}} - {{ASSET}})",
+          "show-markers": true,
+          "max_width": 12,
+          "min_width": 12,
+          "height": 8,
+          "chartProperties": {
+            "yAxisLabel": "{{METRIC_NAME}} ({{METRIC_UNIT}})",
+            "xAxisLabel": "Time"
+          },
+          "sources": [
+            {
+              "type": "train",
+              "downsample": false,
+              "stream": "{{STREAM}}",
+              "extra_filter": "job_name is '{{MODEL_NAME}}' and status is 'Success'",
+              "ts_column": "timestamp",
+              "baseline_column": "baseline",
+              "anomalies_column": "anomalies",
+              "predicted_column": "predicted",
+              "predicted_anomalies": "predicted_anomalies",
+              "upperBound_column": "upperBound",
+              "lowerBound_column": "lowerBound",
+              "duration_hours": 1000000,
+              "synchronized-group": 0
+            }
+          ],
+          "widget_id": "7a134625"
         }
       ]
     }
   ],
-  "dynamic_form": {
-    "formData": {},
-    "formDefinition": {
-      "id": "performance.benchmark.json",
-      "refreshRequired": true,
-      "formFieldList": [
-        {
-          "fieldId": "instance",
-          "label": "Device",
-          "help": "Devices",
-          "controlType": "SELECTOR_DIALOG",
-          "selectionType": "MULTIPLE",
-          "pstream": "psl_kafka_data_kpi",
-          "query_attributes": [
-            "instance"
-          ],
-          "server-validation": {
-            "clear_attributes": [
-              "ifName",
-              "name"
-            ],
-            "read_attributes": [
-              "ifName",
-              "name"
-            ]
-          }
-        },
-        {
-          "fieldId": "ifName",
-          "label": "Interface",
-          "help": "Device Interface",
-          "controlType": "SELECTOR_DIALOG",
-          "selectionType": "MULTIPLE",
-          "pstream": "psl_kafka_data_kpi",
-          "query_attributes": [
-            "instance",
-            "ifName"
-          ],
-          "server-validation": {
-            "clear_attributes": [
-              "name"
-            ],
-            "read_attributes": [
-              "name"
-            ]
-          }
-        },
-        {
-          "fieldId": "name",
-          "label": "Metrics",
-          "help": "Performance Metrics",
-          "isList": true,
-          "required": true,
-          "controlType": "SELECTOR_DIALOG",
-          "selectionType": "MULTIPLE",
-          "pstream": "psl_kafka_data_kpi",
-          "query_attributes": [
-            "instance",
-            "ifName",
-            "name"
-          ]
-        },
-        {
-          "dataType": "string",
-          "required": false,
-          "editable": true,
-          "label": "Combine All",
-          "controlType": "BOOLEAN_FIELD",
-          "hidden": false,
-          "fieldId": "combine"
-        },
-        {
-          "fieldId": "precision",
-          "label": "Rollup Precision",
-          "help": "Rollup Precision",
-          "dataType": "string",
-          "hidden": false,
-          "editable": true,
-          "required": true,
-          "controlType": "COMBO_BOX",
-          "lovValues": [
-            {
-              "identifier": "instance",
-              "displayName": "Device"
-            },
-            {
-              "identifier": "ifName",
-              "displayName": "Interface"
-            },
-            {
-              "identifier": "name",
-              "displayName": "Metric"
-            }
-          ]
-        },
-        {
-          "fieldId": "function",
-          "label": "Function",
-          "help": "Function",
-          "dataType": "string",
-          "hidden": false,
-          "editable": true,
-          "required": true,
-          "controlType": "COMBO_BOX",
-          "lovValues": [
-            {
-              "identifier": "max",
-              "displayName": "Maximum"
-            },
-            {
-              "identifier": "min",
-              "displayName": "Minimum"
-            },
-            {
-              "identifier": "mean",
-              "displayName": "Mean"
-            }
-          ]
-        },
-        {
-          "fieldId": "duration",
-          "label": "Duration",
-          "help": "Duration",
-          "dataType": "string",
-          "hidden": false,
-          "editable": true,
-          "required": true,
-          "controlType": "COMBO_BOX",
-          "lovValues": [
-            {
-              "identifier": "`timestamp` is after -24 hours",
-              "displayName": "1 Day"
-            },
-            {
-              "identifier": "`timestamp` is after -48 hours",
-              "displayName": "2 Days"
-            },
-            {
-              "identifier": "`timestamp` is after -168 hours",
-              "displayName": "7 Days"
-            },
-            {
-              "identifier": "`timestamp` is after -720 hours",
-              "displayName": "30 Days"
-            }
-          ]
-        }
-      ],
-      "formActionList": {
-        "formActions": [
-          {
-            "api-endpoint": {
-              "methodName": "submitForm",
-              "parse-output": false,
-              "params": [
-                {
-                  "formData": {},
-                  "formId": "kpi.benchmark.json"
-                }
-              ],
-              "service-name": "saas-reports",
-              "stringified-params": true
-            },
-            "actionLabel": "Save",
-            "type": "SUBMIT",
-            "identifier": "Submit"
-          },
-          {
-            "actionLabel": "Cancel",
-            "type": "CANCEL",
-            "identifier": "Cancel"
-          }
-        ]
-      }
-    }
-  },
   "pstream_dashboards": [
     {
-      "title": "Ops Insights",
+      "title": "Summary",
       "show_filter": true,
       "widgets": [
         {
-          "title": "Time Series",
-          "widget_type": "timeseries",
-          "stream": "psl_kafka_data",
-          "ts_column": "timestamp",
-          "duration_hours": 720,
-          "max_width": 6,
+          "widget_type": "pie_chart",
+          "title": "Anomalies by Severity",
+          "stream": "{{STREAM}}",
+          "extra_filter": "anomalies is not None and job_name is '{{MODEL_NAME}}'",
+          "min_width": 6,
           "height": 6,
-          "min_width": 12,
-          "chartProperties": {
-            "yAxisLabel": "Count",
-            "xAxisLabel": "Date",
-            "legendLocation": "top"
-          },
-          "interval": "1H",
+          "max_width": 6,
+          "ts_column": "timestamp",
+          "column": "_id",
+          "agg": "value_count",
           "group_by": [
-            "instance"
+            "anomalies_severity"
           ],
-          "series_spec": [
+          "style": {
+            "color-map": {
+              "High": [
+                "#ef5350",
+                "#ffffff"
+              ],
+              "Medium": [
+                "#FFA726",
+                "#ffffff"
+              ],
+              "Low": [
+                "#388e3c",
+                "#ffffff"
+              ]
+            }
+          },
+          "type": "str",
+          "widget_id": "7eba4b7b"
+        },
+        {
+          "title": "Anomalies",
+          "widget_type": "tabular",
+          "stream": "{{STREAM}}",
+          "extra_filter": "anomalies is not None and job_name is '{{MODEL_NAME}}'",
+          "min_width": 6,
+          "height": 6,
+          "max_width": 6,
+          "paginated": true,
+          "remote_searchable": true,
+          "max_rows": 50,
+          "sorting": [
             {
-              "column": "System_Calls_Active",
-              "agg": "max",
-              "type": "int",
-              "label": "System_Calls_Active"
+              "timestamp": "desc"
             }
           ],
-          "widget_id": "ee43c826",
-          "extra_filter": "device in [\"'AKRNOHNF11G'\"] and `timestamp` is after -168 hours"
+          "columns": {
+            "timestamp": "Timestamp",
+            "asset_id": "Asset ID",
+            "asset_name": "Asset Name",
+            "metric_name": "Metric Name",
+            "severity_color": {
+              "title": "Sev_2",
+              "type": "COLOR-MAP",
+              "source-column": "anomalies_severity",
+              "color-map": {
+                "High": "#ef5350",
+                "Medium": "#FFA726",
+                "Low": "#388e3c"
+              }
+            },
+            "anomalies_severity": {
+              "title": "Severity",
+              "htmlTemplateForRow": "<span class='badge' style='background-color: {{'{{ row.severity_color }}'}}' > {{'{{ row.anomalies_severity }}'}} </span>",
+              "defaultWidth": 150
+            }
+          },
+          "custom_columns": [
+            {
+              "id": "value1",
+              "label": "Value",
+              "expr": "round(value,2)"
+            }
+          ],
+          "widget_id": "94a3fc11"
+        },
+        {
+          "widget_type": "shaded_chart_multisource",
+          "title": "Forecasting and Anomaly Detection ({{METRIC_NAME}} - {{ASSET}})",
+          "show-markers": true,
+          "max_width": 12,
+          "min_width": 12,
+          "height": 8,
+          "chartProperties": {
+            "yAxisLabel": "{{METRIC_NAME}} ({{METRIC_UNIT}})",
+            "xAxisLabel": "Time"
+          },
+          "sources": [
+            {
+              "type": "train",
+              "downsample": false,
+              "stream": "{{STREAM}}",
+              "extra_filter": "job_name is '{{MODEL_NAME}}' and status is 'Success'",
+              "ts_column": "timestamp",
+              "baseline_column": "baseline",
+              "anomalies_column": "anomalies",
+              "predicted_column": "predicted",
+              "predicted_anomalies": "predicted_anomalies",
+              "upperBound_column": "upperBound",
+              "lowerBound_column": "lowerBound",
+              "duration_hours": 1000000,
+              "synchronized-group": 0
+            }
+          ],
+          "widget_id": "7a134625"
         }
       ]
     }

@@ -1,121 +1,90 @@
 {
-  "name": "ai-admin-page-personas",
-  "label": "AI Personas",
-  "description": "AI Personas",
+  "name": "rda-pstream-archives-app",
+  "label": "{{PSTREAM_NAME}}",
+  "description": "{{PSTREAM_NAME}}",
   "enabled": true,
-  "dashboard_type": "dashboard",
-  "dashboard_folder": "AI",
-  "live_edit": true,
+  "dashboard_type": "template",
   "dashboard_style": "auto",
-  "stream": "rda_secret_meta",
+  "template_variables": {
+    "PSTREAM_NAME": {
+      "contextId": "stream"
+    }
+  },
   "dashboard_filters": {
-    "time_filter": false
+    "time_filter": true,
+    "default_time_filter_labels": [
+      "Last 12 months"
+    ],
+    "app_filter": "stream is '{{PSTREAM_NAME}}'",
+    "columns_filter": [
+      {
+        "id": "archive_date",
+        "label": "Archive Date",
+        "type": "TEXT"
+      },
+      {
+        "id": "row_count",
+        "label": "Row Count",
+        "type": "DOUBLE"
+      }
+    ]
   },
   "dashboard_sections": [
     {
-      "title": "Personas",
+      "title": "Test time range",
       "show_filter": true,
       "widgets": [
         {
-          "title": "Personas",
+          "title": "{{PSTREAM_NAME}}  Archives",
           "widget_type": "tabular",
-          "stream": "rda_ai_admin_meta",
-          "duration_hours": 87600,
-          "remote_searchable": true,
-          "remote_searchable_cols": [
-            "name"
-          ],
-          "ts_column": "saved_time",
+          "stream": "rda_system_pstream_archival_metadata",
+          "query": "stream is '{{PSTREAM_NAME}}'",
+          "columns": {
+            "stream": {
+              "title": "Name",
+              "key": true,
+              "visible": false
+            },
+            "archive_date": {
+              "title": "Archive Date",
+              "key": true
+            },
+            "row_count": {
+              "title": "Row Count",
+              "key": true
+            },
+            "timestamp": {
+              "title": "Saved Time"
+            },
+            "chunk_objects": {
+              "title": "File Path",
+              "key": true
+            }
+          },
           "paginated": true,
           "height": 10,
           "min_wdith": 12,
-          "columns": {
-            "name": {
-              "title": "Name",
-              "key": true
-            },
-            "description": {
-              "title": "Description",
-              "key": false
-            },
-            "llms": {
-              "title": "LLMs",
-              "htmlTemplateForRow": "<span class='badge' style='background-color: {{ row.static_color }}' > {{ row.llms }} </span>"
-            },
-            "guardrails": {
-              "title": "Guardrails",
-              "htmlTemplateForRow": "<span class='badge' style='background-color: {{ row.static_color }}' > {{ row.guardrails }} </span>"
-            },
-            "color": {
-              "title": "Color",
-              "key": true,
-              "type": "DYNAMIC_HTML",
-              "htmlTemplate": "<div class='d-flex'><div style='width:18px;height:18px;margin-right:8px;' :style='{backgroundColor:rowData.color}'></div></div>"
-            },
-            "saved_time": {
-              "title": "Saved Time",
-              "type": "DATETIME"
-            },
-            "timestamp": {
-              "title": "When",
-              "type": "HUMANIZE_TIME_DELTA",
-              "source-column": "saved_time",
-              "sortable": false
-            }
-          },
-          "custom_columns": [
+          "sorting": [
             {
-              "id": "static_color",
-              "expr": "['#3F51B5']",
-              "visible": false,
-              "hidden": true,
-              "label": "Static Color"
+              "archive_date": "desc"
             }
           ],
           "actions": [
             {
-              "permission": "rda:credential:add",
-              "title": "Add",
-              "icon": "mdi mdi-plus",
-              "type": "POPUP_FORM",
-              "selectionType": "NONE",
-              "identifier": "saas-service-action:personas-add",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.aipersona.add"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:credential:edit",
-              "title": "Edit",
+              "permission": "rda:pstream:download-archive",
+              "title": "Download",
               "type": "POPUP_FORM",
               "selectionType": "SINGLE",
-              "identifier": "saas-service-action:personas-edit",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
+              "identifier": "saas-service-action:pstream-download-archive",
+              "actionCondition": {
+                "actionControl": "SHOW_IF",
+                "conditionalField": [
                   {
-                    "formId": "rda.saas.aipersona.edit"
+                    "conditionType": "IS_NOT_NULL",
+                    "fieldId": "chunk_objects"
                   }
                 ]
-              }
-            },
-            {
-              "permission": "rda:credential:verify",
-              "title": "View",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:vault-persona-view",
+              },
               "api-endpoint": {
                 "service-name": "saas-reports",
                 "methodName": "getForm",
@@ -123,140 +92,73 @@
                 "parse-output": false,
                 "params": [
                   {
-                    "formId": "rda.saas.aipersona.view.json"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:credential:verify",
-              "title": "Delete",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:vault-delete",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.aipersona.delete"
+                    "formId": "rda:pstream:download-archive"
                   }
                 ]
               }
             }
           ],
-          "widget_id": "c9d555e3"
+          "widget_id": "748d9f49"
         }
       ]
     }
   ],
   "pstream_dashboards": [
     {
-      "title": "Personas",
+      "title": "Test time range",
       "show_filter": true,
       "widgets": [
         {
-          "title": "Personas",
+          "title": "{{PSTREAM_NAME}}  Archives",
           "widget_type": "tabular",
-          "stream": "rda_ai_admin_meta",
-          "duration_hours": 87600,
-          "remote_searchable": true,
-          "remote_searchable_cols": [
-            "name"
-          ],
-          "ts_column": "saved_time",
+          "stream": "rda_system_pstream_archival_metadata",
+          "query": "stream is '{{PSTREAM_NAME}}'",
+          "columns": {
+            "stream": {
+              "title": "Name",
+              "key": true,
+              "visible": false
+            },
+            "archive_date": {
+              "title": "Archive Date",
+              "key": true
+            },
+            "row_count": {
+              "title": "Row Count",
+              "key": true
+            },
+            "timestamp": {
+              "title": "Saved Time"
+            },
+            "chunk_objects": {
+              "title": "File Path",
+              "key": true
+            }
+          },
           "paginated": true,
           "height": 10,
           "min_wdith": 12,
-          "columns": {
-            "name": {
-              "title": "Name",
-              "key": true
-            },
-            "description": {
-              "title": "Description",
-              "key": false
-            },
-            "llms": {
-              "title": "LLMs",
-              "htmlTemplateForRow": "<span class='badge' style='background-color: {{ row.static_color }}' > {{ row.llms }} </span>"
-            },
-            "guardrails": {
-              "title": "Guardrails",
-              "htmlTemplateForRow": "<span class='badge' style='background-color: {{ row.static_color }}' > {{ row.guardrails }} </span>"
-            },
-            "color": {
-              "title": "Color",
-              "key": true,
-              "type": "DYNAMIC_HTML",
-              "htmlTemplate": "<div class='d-flex'><div style='width:18px;height:18px;margin-right:8px;' :style='{backgroundColor:rowData.color}'></div></div>"
-            },
-            "saved_time": {
-              "title": "Saved Time",
-              "type": "DATETIME"
-            },
-            "timestamp": {
-              "title": "When",
-              "type": "HUMANIZE_TIME_DELTA",
-              "source-column": "saved_time",
-              "sortable": false
-            }
-          },
-          "custom_columns": [
+          "sorting": [
             {
-              "id": "static_color",
-              "expr": "['#3F51B5']",
-              "visible": false,
-              "hidden": true,
-              "label": "Static Color"
+              "archive_date": "desc"
             }
           ],
           "actions": [
             {
-              "permission": "rda:credential:add",
-              "title": "Add",
-              "icon": "mdi mdi-plus",
-              "type": "POPUP_FORM",
-              "selectionType": "NONE",
-              "identifier": "saas-service-action:personas-add",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.aipersona.add"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:credential:edit",
-              "title": "Edit",
+              "permission": "rda:pstream:download-archive",
+              "title": "Download",
               "type": "POPUP_FORM",
               "selectionType": "SINGLE",
-              "identifier": "saas-service-action:personas-edit",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
+              "identifier": "saas-service-action:pstream-download-archive",
+              "actionCondition": {
+                "actionControl": "SHOW_IF",
+                "conditionalField": [
                   {
-                    "formId": "rda.saas.aipersona.edit"
+                    "conditionType": "IS_NOT_NULL",
+                    "fieldId": "chunk_objects"
                   }
                 ]
-              }
-            },
-            {
-              "permission": "rda:credential:verify",
-              "title": "View",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:vault-persona-view",
+              },
               "api-endpoint": {
                 "service-name": "saas-reports",
                 "methodName": "getForm",
@@ -264,31 +166,13 @@
                 "parse-output": false,
                 "params": [
                   {
-                    "formId": "rda.saas.aipersona.view.json"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:credential:verify",
-              "title": "Delete",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:vault-delete",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.aipersona.delete"
+                    "formId": "rda:pstream:download-archive"
                   }
                 ]
               }
             }
           ],
-          "widget_id": "c9d555e3"
+          "widget_id": "748d9f49"
         }
       ]
     }
