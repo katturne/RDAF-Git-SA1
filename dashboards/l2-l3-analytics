@@ -1,68 +1,102 @@
 {
-  "name": "customer_ops_application",
-  "label": "Customer Ops App",
-  "description": "Customer Operations App",
-  "version": "24.12.22",
-  "dashboard_folder": "Onboarding",
-  "enabled": true,
-  "custom_context": {
-    "rda-dashboard-live-edit": true
-  },
+  "name": "l2-l3-analytics",
+  "description": "L2-L3 Analytics",
+  "label": "Analytics - L2/L3 Users",
+  "enabled": false,
+  "dashboard_type": "dashboard",
+  "version": "22.10.7.1",
+  "template_variables": null,
   "dashboard_filters": {
     "time_filter": true,
-    "columns_filter": []
+    "columns_filter": [
+      {
+        "id": "a_message",
+        "label": "Message",
+        "type": "TEXT"
+      },
+      {
+        "id": "a_asset_name",
+        "label": "Asset Name",
+        "type": "TEXT"
+      },
+      {
+        "id": "a_status",
+        "label": "Alert Status",
+        "type": "TEXT"
+      },
+      {
+        "id": "a_severity",
+        "label": "Severity",
+        "type": "TEXT"
+      },
+      {
+        "id": "a_source_mechanism",
+        "label": "Source",
+        "type": "TEXT"
+      },
+      {
+        "id": "a_alert_category",
+        "label": "Alert Category",
+        "type": "TEXT"
+      },
+      {
+        "id": "a_alert_type",
+        "label": "Alert Type",
+        "type": "TEXT"
+      }
+    ],
+    "default_time_filter_labels": [
+      "Last 24 hours"
+    ]
   },
-  "dashboard_generator": {
-    "attachment": "add_pages_for_activated_packs"
-  },
-  "dashboard_sections": [],
-  "dashboard_type": "app",
-  "dashboard_groups": {
-    "groupAlerts": {
-      "icon": "alert.svg",
-      "label": "Alerts and Incidents"
-    },
-    "groupPolicies": {
-      "icon": "alert.svg",
-      "label": "Policies"
-    },
-    "groupMetrics": {
-      "icon": "topology.svg",
-      "label": "Metrics"
-    },
-    "groupTopo": {
-      "icon": "topology.svg",
-      "label": "Topology"
-    },
-    "groupInventory": {
-      "icon": "hardware.svg",
-      "label": "Inventory"
-    },
-    "groupData": {
-      "icon": "overall.svg",
-      "label": "Events"
-    },
-    "groupDiscovery": {
-      "icon": "activities.svg",
-      "label": "Onboarding"
-    }
-  },
-  "dashboard_pages": [
+  "dashboard_sections": [
     {
-      "name": "rda-mgmt-page-credentials-test",
-      "label": "Credentials",
-      "icon": "credentials.svg"
-    },
-    {
-      "name": "rda-mgmt-page-blueprints-test",
-      "label": "Blueprints",
-      "icon": "blueprint.svg"
+      "title": "Analytics",
+      "show_filter": true,
+      "widgets": [
+        {
+          "widget_type": "alert_heatmap",
+          "title": "Alert HeatMap",
+          "stream": "oia-alerts-stream",
+          "raised_column": "a_raised_ts",
+          "state_column": "a_status",
+          "cleared_column": "a_cleared_ts",
+          "severity_column": "a_severity",
+          "window_hours": 24,
+          "num_cells": 24,
+          "height": 24,
+          "max_width": 12,
+          "group_by": [
+            "a_asset_ip_address"
+          ],
+          "widget_id": "bf67c687"
+        }
+      ]
     }
   ],
-  "attachments": [
+  "pstream_dashboards": [
     {
-      "name": "add_pages_for_activated_packs",
-      "value": "{%- set existing_groups = dashboard[\"dashboard_groups\"] -%}\n{%- set d_pages = [] -%}\n{%- set d_groups = [] -%}\n{%- set customer_tag = customerTag -%}\n\n{%- set dlist = engine.query_stream_data(stream=\"rda_packs_dynamic_groups_and_pages\", cfxql_query=\"customer_tag is '\" ~ customer_tag ~ \"'\") or [] -%}\n\n{%- if dlist -%}\n\n\n            {# Process the dlist to populate dashboard groups and pages #}\n            {%- for i in dlist -%}\n                {%- set dgroup_ = {\n                    \"g_name\": i[\"dashboard_group_name\"],\n                    \"g_label\": i[\"dashboard_group_label\"],\n                    \"g_icon\": i[\"dashboard_group_icon\"]\n                } -%}\n                {{ d_groups.append(dgroup_) }}\n\n                {%- set dpage_ = {\n                    \"name\": i[\"dashboard_page_name\"],\n                    \"label\": i[\"dashboard_page_label\"],\n                    \"icon\": i[\"dashboard_page_icon\"],\n                    \"group\": i[\"dashboard_page_group\"]\n                } -%}\n                {{ d_pages.append(dpage_) }}\n            {%- endfor -%}\n\n            {# Update dashboard groups #}\n            {%- for group in d_groups -%}\n                {%- if group.g_name not in existing_groups | map(attribute='g_name') | list -%}\n                    {%- set _ = dashboard[\"dashboard_groups\"].update({\n                        group.g_name: {\n                            \"icon\": group.g_icon,\n                            \"label\": group.g_label\n                        }\n                    }) -%}\n                {%- endif -%}\n\n            {%- endfor -%}\n\n            {# Update dashboard pages #}\n            {%- for page in d_pages -%}\n                {%- set _ = dashboard[\"dashboard_pages\"].append({\n                    \"name\": page.name,\n                    \"label\": page.label,\n                    \"icon\": page.icon,\n                    \"group\": page.group\n                }) -%}\n            {%- endfor -%}\n\n{%- endif -%}"
+      "title": "Analytics",
+      "show_filter": true,
+      "widgets": [
+        {
+          "widget_type": "alert_heatmap",
+          "title": "Alert HeatMap",
+          "stream": "oia-alerts-stream",
+          "raised_column": "a_raised_ts",
+          "state_column": "a_status",
+          "cleared_column": "a_cleared_ts",
+          "severity_column": "a_severity",
+          "window_hours": 24,
+          "num_cells": 24,
+          "height": 24,
+          "max_width": 12,
+          "group_by": [
+            "a_asset_ip_address"
+          ],
+          "widget_id": "bf67c687"
+        }
+      ]
     }
   ]
 }
