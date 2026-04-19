@@ -1,18 +1,8 @@
 @dm:empty
- --> @dm:addrow name="edc_oi_inventory_grouped" and limit=0 and groupby="customer_name" and aggs="value_count:count_"
+ --> @dm:addrow name='edc_oi_inventory_enriched' and limit=0
  --> #dm:query-persistent-stream
- --> @dm:save name='temp-unique-customer-name'
- ## delete enriched stream
-
- --> @c:data-loop columns='customer_name' and dataset='temp-unique-customer-name'
- --> @dm:empty
- --> @dm:addrow name = "edc_oi_inventory_grouped" & conflicts = "proceed" & timeout = 1200
- --> #dm:pstream-delete-data-by-query customer_name=="$customer_name"
- --> @dm:sleep seconds = 5
- ## delete raw stream
-
- --> @c:data-loop columns='customer_name' and dataset='temp-unique-customer-name'
- --> @dm:empty
- --> @dm:addrow name = "edc_oi_inventory_enriched" & conflicts = "proceed" & timeout = 1200
- --> #dm:pstream-delete-data-by-query customer_name=="$customer_name"
- --> @dm:sleep seconds = 5
+ --> @dm:save name='temp-edc-oi-inv-enriched'
+ --> @c:new-block
+ --> @dm:recall name='temp-edc-oi-inv-enriched'
+ --> @dm:selectcolumns exclude='^(EndOfLifeInternalAnnouncementDate|EndOfLastHardwareShipDate|EndOfHardwareNewServiceAttachmentDate|EndOfHardwareRoutineFailureAnalysisDate|EndOfBUEngineeringSupportTACDate|EndOfHardwareServiceContractRenewalDate|EndOfSignatureReleasesDate|EndOfSoftwareAvailabilityDate|EndOfSoftwareLicenseAvailabilityDate|created|customerVisible|external_text|external_title|firstIcAlertId|groups|icIssueId|icProblemId|ignored|lastIcAlertId|eoXAlertType|name|openedOn|resultType|severity|severityText|state|updated|deviceSN|runType|filename|icType|atticaStatus|cdetsList|retry|associatedGroups)$'
+ --> @rn:write-stream name='edc_oi_inventory_enriched'
