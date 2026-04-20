@@ -1,51 +1,117 @@
+%% stream = no and limit = 0
+%%template_type="jinja"
 
- ## get the minio path for the uploaded file
-@exec:get-input
- --> @dm:save name='temp-sw-input'
- --> @dm:save name='cmd_ip'
- ## --> @dm:replace-data columns="fileUpload" and expr="'" and replace='"'
+%%start_inline_object name="context_dynamic_form" and type="data" and format="json"
+{
+    "formFieldList": [
+        {
+            "fieldId": "customer_tag",
+            "label": "Tag of the customer",
+            "required": false,
+            "dataType": "string"
+        }
+    ]
+}
+%%end_inline_object
 
- ## --> @dm:eval fileUpload = "fileUpload.strip() if fileUpload else fileUpload"
+@dm:empty
+    --> @dm:save name = "temp-customer-context"
 
- ## --> @dm:eval orders="eval(fileUpload)"
 
- --> @dm:eval fileUpload="json_dumps(fileUpload)"
- --> @dm:explode-json column="fileUpload"
- --> @dm:eval location="bucketName+'/'+objectName"
- --> @dm:save name='objesct_path'
- --> @dm:save name="temp-input-dataset"
- ## declaring thrid level child pipelines
+## {% set row = "" %}
 
- --> @c:new-block
- --> @dm:empty
- --> @exec:define-function name="define_child_pipelines"
- --> @exec:run-pipeline name ="edc_generate_token" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_sw_get_data" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_sweol_enrich" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_processing_sw_data" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_get_sw_sa_details" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_sw_run_scan" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_sa_run_scan" & ignore_failures = "no"
- --> @exec:end-function
- ## collecting the file and storing it in edc_cust_pid_sw stream, collecting the API data and adding the processed data to edc_sw_raw_data
+      {% if customer_tag %} 
+      {% set customer_id = customer_id %}
+      {% set customer_tag = customer_tag %}
+      {% set customerTag = customer_tag %}
+      {% set customerId = customer_id %}
+   {% elif customerTag %} 
+      {% set customer_id = customerId %}
+      {% set customer_tag = customerTag %}
+   {% else %}
+      {% set customer_id = '' %}
+      {% set customer_tag = '' %}
+   {% endif %}   
 
- --> @c:data-loop dataset="temp-input-dataset" and columns="objectName,location"
- --> @dm:empty
- --> @dm:get-from-location path='$location'
- ## --> @dm:save name='uploaded_file'
 
- --> @dm:rename-columns customer='Customer' and sw_version='SW_Version' and sw_os_type='SW_OS_Type' and product_id='Product_ID' and contract_number='Contract_Number' and product_name='Product_Name'
- --> @dm:to-type columns='contract_number,customer,product_id,sw_version,sw_os_type' and type='str'
- --> @dm:map from = 'contract_number,customer,product_id,sw_version,sw_os_type' & to = 'unique_key' & func = 'join' & sep = '_'
- --> @dm:save name='temp-sw-user-uploaded-input'
- --> @c:new-block
- --> @dm:recall name='temp-sw-user-uploaded-input'
- --> @rn:write-stream name='edc_cust_pid_sw'
- --> @c:new-block
- --> @dm:recall name='temp-sw-user-uploaded-input'
- --> @dm:eval source="'software'"
- --> @exec:run-pipeline name='edc_add_sw_details' and ignore_failures = "no"
- --> @c:new-block
- --> @dm:recall name='temp-sw-user-uploaded-input'
- --> @dm:eval source="'security_advisory'"
- --> @exec:run-pipeline name='edc_add_sw_details' and ignore_failures = "no"
+--> @c:new-block
+    --> @dm:empty
+    --> @exec:get-input
+   ## --> @dm:save name="temp-input-devices"
+   --> @dm:eval key ="'key'" 
+   --> @dm:save name ="temp-input-data"
+    --> @dm:save name ="temp-input-dataset"
+     {% if customer_tag %} 
+         --> @dm:save name="{{customer_tag}}-network-import-devices"
+    {% else %}
+        --> @dm:save name="network-import-devices"
+    {% endif %}
+
+
+--> @c:new-block
+    {% if customer_tag %} 
+         --> @dm:recall name="{{customer_tag}}-network-import-devices"
+    {% else %}
+        --> @dm:recall name="network-import-devices"
+    {% endif %} 
+    --> @dm:replace-data columns="fileUpload" and expr="'" and replace='"'
+    --> @dm:to-type columns="replace" and type="str"
+    --> @dm:explode-json column="fileUpload"
+    --> @dm:save name ="temp-input-dataset"
+
+
+    --> @c:new-block
+    --> @dm:empty
+    {% if customer_tag %} 
+         --> #dm:query-persistent-stream customer_tag is '{{customer_tag}}' with-input name = "discovery" & limit = "0"
+    {% else %} 
+        --> #dm:query-persistent-stream customer_tag is empty with-input name = "discovery" & limit = "0"
+    {% endif %} 
+    
+    --> @dm:save name ="temp-customer-old-data"
+
+--> @c:new-block
+
+--> @c:data-loop dataset="temp-input-dataset" and columns="bucketName,objectName"
+    --> @dm:recall name="temp-input-dataset"
+    --> *dm:filter replace=="True"
+    --> @dm:skip-block-if-shape row_count="0"
+    --> @dm:get-from-location path="$bucketName/$objectName"
+    ## --> @dm:tail n = 1
+    --> @dm:check-columns must_contain="device_ip" and action="fail"
+    --> @dm:dedup columns="device_ip"
+    --> @dm:save name="temp-uploaded-file-data"
+    ##--> @dm:save name="$dataset_name"
+    ##--> @dm:save  name="test-discovery2"
+    --> @dm:eval key ="'key'" 
+  ## --> @dm:eval customer_tag ="'{{customer_tag}}'"
+  ##     --> @dm:eval customer_id ="'{{customer_id}}'"
+                --> @dm:enrich dict = "temp-input-data" & src_key_cols = "key" & dict_key_cols="key" & enrich_cols = "customer_tag,customer_id"
+
+      ##--> @dm:save  name="test-discovery"
+
+    --> @rn:write-stream name="discovery"
+    --> @dm:skip-pipeline-if-shape row_count > 0
+
+--> @c:new-block
+
+--> @c:data-loop dataset="temp-input-dataset" and columns="bucketName,objectName"
+    --> @dm:recall name="temp-input-dataset"
+    --> *dm:filter replace=="False"
+    --> @dm:skip-block-if-shape row_count="0"
+    --> @dm:get-from-location path="$bucketName/$objectName"
+    --> @dm:check-columns must_contain="device_ip" and action="fail"
+    ## --> @dm:head n = 1
+    --> @dm:save name="temp-uploaded-file-data"
+    --> @dm:recall name ="temp-customer-old-data"
+    --> @dm:save name="temp-uploaded-file-data" and append= "yes"
+    --> @dm:recall name="temp-uploaded-file-data"
+    --> @dm:dedup columns="device_ip"
+   ## --> @dm:save name="$dataset_name"
+    --> @dm:eval key ="'key'" 
+   ## --> @dm:eval customer_tag ="'{{customer_tag}}'"
+   ##    --> @dm:eval customer_id ="'{{customer_id}}'"
+          --> @dm:enrich dict = "temp-input-data" & src_key_cols = "key" & dict_key_cols="key" & enrich_cols = "customer_tag,customer_id"
+
+    --> @rn:write-stream name="discovery"
+
