@@ -1,143 +1,92 @@
 {
-  "name": "Multi_widget_support",
-  "label": "Multi Support Widget",
-  "description": "GH_2745",
-  "version": "24.01.03.1",
+  "name": "node_details_app",
+  "label": "Node Details App",
+  "description": "Node Details App",
+  "dashboard_folder": "NetworkDevicePack",
+  "context_label_id": "a_asset_name",
+  "version": "24.1.13.2",
+  "debug": true,
   "enabled": true,
-  "dashboard_type": "dashboard",
-  "live_edit": true,
-  "showTitle": true,
-  "dashboard_generator": {
-    "attachment": "widget_code_generator"
+  "custom_context": {
+    "rda-dashboard-live-edit": true
   },
-  "status_poller": {},
-  "dashboard_filters": {
-    "time_filter": true,
-    "default_time_filter_labels": [
-      "All Time"
-    ],
-    "columns_filter": [],
-    "group_filters": []
-  },
-  "dashboard_folder": "Default",
-  "dashboard_sections": [
+  "context_enrichment": [
     {
-      "title": "Student Details",
-      "show_filter": true,
-      "widgets": [
-        {
-          "widget_group": "group2",
-          "title": "Student city",
-          "widget_type": "pie_chart",
-          "stream": "main_enhanced",
-          "column": "count_",
-          "min_width": 6,
-          "duration_hours": 24000,
-          "group_by": [
-            "city"
-          ],
-          "type": "int",
-          "agg": "value_count",
-          "ts_column": "timestamp",
-          "widget_id": "d59e6d13"
-        },
-        {
-          "widget_group": "group2",
-          "title": "Student name",
-          "widget_type": "counter",
-          "duration_hours": 24000,
-          "stream": "main_enhanced",
-          "column": "count_",
-          "min_width": 6,
-          "group_by": [
-            "name"
-          ],
-          "type": "int",
-          "agg": "value_count",
-          "ts_column": "timestamp",
-          "widget_id": "335c0a35"
-        },
-        {
-          "title": "Student donation",
-          "label": "Donation",
-          "widget_group": "group2",
-          "widget_type": "bar_chart",
-          "min_width": 6,
-          "duration_hours": 24000,
-          "stream": "main_enhanced",
-          "column": "count_",
-          "group_by": [
-            "donation"
-          ],
-          "type": "int",
-          "agg": "value_count",
-          "ts_column": "timestamp",
-          "widget_id": "7d022fc8"
-        }
-      ]
+      "stream": "cfx_rdaf_topology_nodes",
+      "stream0": "mp_nodes",
+      "enrich_columns": [
+        "node_type",
+        "host_name",
+        "node_label",
+        "device_hostname_short"
+      ],
+      "query_template0": "project_id = '$project_id' and customer_tag = '$customer_tag' and (device_ip = '$device_ip' or edge_ip is '$edge_ip')",
+      "query_template": "(device_ip = '$device_ip' or edge_ip is '$edge_ip')",
+      "defaultValues": {}
+    },
+    {
+      "stream": "rda_packs_meta",
+      "enrich_columns": [
+        "name",
+        "publisher",
+        "id",
+        "customers",
+        "status"
+      ],
+      "query_template": "id contains 'Fault' & status contains 'ACTIVATED'"
     }
   ],
-  "attachments": [
+  "dashboard_sections": [
     {
-      "name": "widget_code_generator",
-      "value": "{%- set widgets =  dashboard[\"dashboard_sections\"][0][\"widgets\"] -%}\r\n{%- set new_widgets =  [] -%}\r\n{%- set ns =  namespace(count=0) -%}\r\n\r\n{%- for w in widgets -%}\r\n    {%- if w.get(\"widget_type\") -%}\r\n        {%-\r\n            set nw = {\r\n                \"title\": \"JSON\",\r\n                \"widget_group\": \"g\"+str(ns.count),\r\n                \"min_width\": w.get(\"min_width\", 6),\r\n                \"max_width\": w.get(\"max_width\", 6),\r\n                \"height\": w.get(\"height\", 4),\r\n                \"widget_type\": \"codeblock\",\r\n                \"content\": json_dumps_indent(w, 2),\r\n                \"lang\": \"json\",\r\n                \"widget_id\": w.get(\"widget_id\", str(ns.count)) + \"_code\"\r\n            }\r\n        -%}\r\n        {%- set _ = w.update({\"widget_group\":  \"g\"+str(ns.count) }) -%}\r\n        {%- set _ = new_widgets.append(nw) -%}\r\n        {%- set ns.count = ns.count + 1 -%}\r\n    {%- endif -%}\r\n{%- endfor -%}\r\n\r\n{%- set _ = widgets.extend(new_widgets) -%}"
+      "title": "Org Ops"
+    }
+  ],
+  "dashboard_type": "app",
+  "dashboard_groups": {
+    "from_to": {
+      "icon": "alert.svg",
+      "label": "Alerts"
+    },
+    "topo": {
+      "icon": "topology.svg",
+      "label": "Topology"
+    }
+  },
+  "dashboard_pages": [
+    {
+      "name": "device_inventory_from_alerts",
+      "label": "Inventory",
+      "icon": "alert.svg",
+      "context_filter": "node_type is 'CHASSIS'"
+    },
+    {
+      "name": "topology_geomap_dashboard",
+      "label": "Topology",
+      "icon": "stack.svg",
+      "context_filter": "node_type is 'CHASSIS'"
+    },
+    {
+      "name": "device_alerts_from_alert_fault",
+      "label": "Alerts",
+      "icon": "alert.svg",
+      "context_filter": "id contains 'Fault'"
+    },
+    {
+      "name": "device_syslog_from_alert_fault",
+      "label": "Syslogs",
+      "icon": "trace.svg",
+      "context_filter": "id contains 'Fault'"
+    },
+    {
+      "name": "device_SNMP_Traps_from_alerts_fault",
+      "label": "SNMP Traps",
+      "icon": "trace.svg",
+      "context_filter": "id contains 'Fault'"
     }
   ],
   "pstream_dashboards": [
     {
-      "title": "Student Details",
-      "show_filter": true,
-      "widgets": [
-        {
-          "widget_group": "group2",
-          "title": "Student city",
-          "widget_type": "pie_chart",
-          "stream": "main_enhanced",
-          "column": "count_",
-          "min_width": 6,
-          "duration_hours": 24000,
-          "group_by": [
-            "city"
-          ],
-          "type": "int",
-          "agg": "value_count",
-          "ts_column": "timestamp",
-          "widget_id": "d59e6d13"
-        },
-        {
-          "widget_group": "group2",
-          "title": "Student name",
-          "widget_type": "counter",
-          "duration_hours": 24000,
-          "stream": "main_enhanced",
-          "column": "count_",
-          "min_width": 6,
-          "group_by": [
-            "name"
-          ],
-          "type": "int",
-          "agg": "value_count",
-          "ts_column": "timestamp",
-          "widget_id": "335c0a35"
-        },
-        {
-          "title": "Student donation",
-          "label": "Donation",
-          "widget_group": "group2",
-          "widget_type": "bar_chart",
-          "min_width": 6,
-          "duration_hours": 24000,
-          "stream": "main_enhanced",
-          "column": "count_",
-          "group_by": [
-            "donation"
-          ],
-          "type": "int",
-          "agg": "value_count",
-          "ts_column": "timestamp",
-          "widget_id": "7d022fc8"
-        }
-      ]
+      "title": "Org Ops"
     }
   ]
 }
