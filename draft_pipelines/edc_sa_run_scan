@@ -1,109 +1,113 @@
-
- ## # Configure AppDynamics Extension Name in RDA as: AppDynamics
-
- ## AppDynamics Application and DB Discovery for Application Dependency and Relationships
-
- ## AppDynamics - Get Applications
 @c:new-block
- --> *AppDynamics:appdynamics_apps * get app_name,app_id
- --> @dm:map to = 'layer' & func = 'fixed' & value = 'Application'
- --> @dm:map to = 'node_type' & func = 'fixed' & value = 'Application'
- --> @dm:map from = 'app_name' & to = 'node_label'
- --> @dm:map from = 'app_id' & to = 'node_id'
- --> @dm:save name = 'temp_appd_applications_logical_nodes'
- --> *dm:filter * get node_label as 'right_label',node_id as 'right_id',layer as 'right_layer',node_type as 'right_type',app_name,app_id
- --> @dm:save name = 'temp_appd_applications'
- ## AppDynamics Process - Database nodes
+ --> @dm:recall name='uploaded_data'
+ ## --> @dm:addrow name='edc_cust_pid_sw' and limit=0
 
- --> @c:new-block
- --> @AppDynamics:appdynamics_apps_backends
- --> *dm:filter exitPointType contains 'DB|JDBC' get HOST,app_name
- --> @dm:dedup columns = 'HOST'
- --> @dm:save name = 'temp_appd_db_backends'
- --> @c:new-block
- --> *AppDynamics:appdynamics_db_servers
- --> *dm:filter * get host as 'db_dns_name',ipAddress as 'db_ip_address',name as 'db_hostname'
- --> @dm:dedup columns = 'db_ip_address'
- --> @dm:save name = 'temp_db_identity'
- --> @c:new-block
- --> @dm:recall name = 'temp_db_identity'
- --> @dm:enrich dict = 'temp_appd_db_backends' and src_key_cols = 'db_ip_address' and dict_key_cols = 'HOST' and enrich_cols = 'app_name'
- --> @dm:map to = 'layer' & func = 'fixed' & value = 'Application Component'
- --> @dm:map to = 'node_type' & func = 'fixed' & value = 'Database'
- --> @dm:map from = 'db_dns_name,node_type' & to = 'db_identity' & func = 'join' & sep = '_'
- --> @dm:map from = 'db_identity' & to = 'node_label'
- --> @dm:map from = 'db_identity' & to = 'node_id'
- --> @dm:selectcolumns exclude = '^db_identity$'
- ## --> @dm:enrich dict = 'cfx-vm-inventory-nodes-table' & src_key_cols = 'db_ip_address' & dict_key_cols = 'vm_ip_address' & enrich_cols = 'vm_name,vm_bios_id'
+ ## --> #dm:query-persistent-stream
 
- --> *dm:filter * get app_name,layer,node_label,node_id,node_type,db_ip_address as 'app_comp_ip_address',db_dns_name as 'app_comp_dns_name',db_hostname as 'app_comp_hostname'
- --> @dm:enrich dict = 'temp_appd_applications' & src_key_cols = 'app_name' & dict_key_cols = 'app_name' & enrich_cols = 'app_id'
- --> @dm:save name = 'cfx-appd-db-table'
- ## AppDynamics Process - Application nodes
+ --> @dm:eval sw_os_type="('IOS XR' if sw_os_type=='IOS-XR' else sw_os_type)"
+ --> @dm:add-missing-columns columns='source' and value='security_advisory'
+ --> @dm:eval contract_number='str(contract_number)'
+ ## --> @dm:head n=1
 
- --> @c:new-block
- --> @AppDynamics:appdynamics_apps_nodes
- --> *dm:filter * get name as 'app_hostname',tierName as 'app_tier',ipAddress as 'app_ipAddress',app_name
- --> *dm:filter app_ipAddress does not contain ':' and app_ipAddress does not contain '172.17.0.1'
- --> *dm:filter app_tier = 'Web'
- --> @dm:dns_ip_to_name from_cols = 'app_ipAddress' and to_cols = 'app_dns_name'
- --> @dm:map to = 'layer' & func = 'fixed' & value = 'Application Component'
- --> @dm:map to = 'node_type' & func = 'fixed' & value = 'Webserver'
- --> @dm:map from = 'app_dns_name,node_type' & to = 'app_identity' & func = 'join' & sep = '_'
- --> @dm:map from = 'app_identity' & to = 'node_label'
- --> @dm:map from = 'app_identity' & to = 'node_id'
- ## --> @dm:enrich dict = 'cfx-vm-inventory-nodes-table' & src_key_cols = 'app_ipAddress' & dict_key_cols = 'vm_ip_address' & enrich_cols = 'vm_name,vm_bios_id'
-
- --> *dm:filter * get app_name,layer,node_label,node_id,node_type,app_ipAddress as 'app_comp_ip_address',app_dns_name as 'app_comp_dns_name',app_hostname as 'app_comp_hostname'
- --> @dm:enrich dict = 'temp_appd_applications' & src_key_cols = 'app_name' & dict_key_cols = 'app_name' & enrich_cols = 'app_id'
- --> @dm:save name = 'cfx-appd-app-table'
- ## AppDynamics Application Inventory Consolidated Output
-
- --> @c:new-block
- --> @dm:concat names = 'cfx-appd-db-table|cfx-appd-app-table|temp_appd_applications_logical_nodes'
- --> @dm:save name = 'cfx-appd-app-db-table'
- ## #############################################################################################
-
- ## AppDynamics Application Dependency Relationship - Topology
-
- --> @c:new-block
- --> @dm:recall name = 'cfx-appd-app-db-table' & empty_as_null = 'no'
- --> *dm:filter node_type = 'Webserver'
- --> @dm:map to = 'relation_type' & func = 'fixed' & value = 'member-of'
- --> *dm:filter * get node_id as 'left',relation_type,app_id as 'right'
- --> @dm:save name = 'temp_webserver_to_app_relationship'
- --> @dm:recall name = 'cfx-appd-app-db-table' & empty_as_null = 'no'
- --> *dm:filter node_type = 'Database'
- --> @dm:map to = 'relation_type' & func = 'fixed' & value = 'member-of'
- --> *dm:filter * get node_id as 'left',relation_type,app_id as 'right'
- --> @dm:save name = 'temp_database_to_app_relationship'
- --> @c:new-block
- --> @dm:recall name = 'cfx-appd-app-table' & empty_as_null = 'no'
- --> @dm:enrich dict = 'cfx-appd-db-table' & src_key_cols = 'app_name' & dict_key_cols = 'app_name' & enrich_cols = 'node_id' & enrich_cols_as = 'db_comp_node_id'
- --> @dm:map to = 'relation_type' & func = 'fixed' & value = 'depended-by'
- --> *dm:filter * get db_comp_node_id as 'left',relation_type,node_id as 'right'
- --> @dm:save name = 'temp_web_to_db_relationship'
- --> @c:new-block
- --> @dm:concat names = 'temp_webserver_to_app_relationship|temp_database_to_app_relationship|temp_web_to_db_relationship'
- --> @dm:map from = 'left' & to = 'left_id'
- --> @dm:map from = 'right' & to = 'right_id'
- --> @dm:save name = 'cfx-appd-app-web-db-relationship-table'
- ## #########################################
-
- ## # AppDynamics Stacks - Topology Pipeline
-
- ## #########################################
-
- --> @c:new-block
- --> @dm:stack-create topology_nodes="cfx-appd-app-db-table" and topology_edges="cfx-appd-app-web-db-relationship-table" and name = "appdynamics_stack"
- --> @dm:stack-save name="appdynamics_topology_stacks"
- ## Enrichment Block
-
+ --> @dm:save name='temp-sa-data'
  --> @c:new-block
  --> @dm:empty
- --> @dm:addrow datasetname = 'cfx-appd-app-db-table' & condition = "(app_comp_ip_address == '$assetIpAddress' or app_comp_hostname == '$assetName')" &  enrichcolumns = ''
- --> @dm:save name = 'alert-enrichment-definition-appdynamics'
+ --> @exec:define-function name="generate_access_token"
+ --> @dm:recall name='generate_token_creds'
+ ## --> @dm:empty
+
+ --> @exec:run-pipeline name ="edc_generate_token" & ignore_failures = "no"
+ --> @dm:addrow key='key'
+ --> @dm:eval current_time_ms="int(time_now_as_ms())"
+ --> @dm:eval token_expiry_time='current_time_ms+3000000'
+ --> @dm:save name='temp-expiry-time'
+ --> @exec:end-function
+ --> @c:new-block
+ --> @dm:recall name='temp-sa-data'
+ --> @dm:add-missing-columns columns="key" and value='key'
+ --> @dm:manipulate-string from="sw_version,sw_os_type,product_id" and func="concat_columns" and to="unique_payload_inputs"
+ --> @dm:dedup columns ='unique_payload_inputs'
+ --> @dm:save name='temp-unique-sa-data'
+ --> @dm:save name='unique-sa-data'
  --> @c:new-block
  --> @dm:empty
- --> @dm:addrow datasetname = 'alert-enrichment-definition-appdynamics'
- --> @rn:write-stream name = "alert-enrichment-pipeline-changes"
+ --> @exec:call-function name='generate_access_token'
+ --> @c:data-loop columns='sw_version,sw_os_type,product_id,source,contract_number,customer' and dataset='temp-unique-sa-data'
+ ## --> @dm:recall name='temp-unique-sa-data'
+
+ --> @dm:empty
+ --> @dm:addrow key='key'
+ --> @dm:eval current_time_ms_loop="int(time_now_as_ms())"
+ --> @dm:save name='temp-loop-time'
+ --> @dm:enrich dict='temp-expiry-time' and src_key_cols='key' and dict_key_cols='key' and enrich_cols='token_expiry_time,access_token,expires_in,token_type'
+ --> *exec:if-condition token_expiry_time is null or current_time_ms_loop  is greater than or equal to token_expiry_time
+ --> @exec:call-function name='generate_access_token'
+ --> @exec:end-if
+ --> @dm:add-missing-columns columns='sw_version' and value='$sw_version'
+ --> @dm:add-missing-columns columns='sw_os_type' and value='$sw_os_type'
+ --> @dm:add-missing-columns columns='product_id' and value='$product_id'
+ --> @dm:add-missing-columns columns='source' and value='$source'
+ --> *exec:if-condition sw_version is not null and sw_os_type is not null and product_id is not null
+ --> @exec:run-pipeline name ="edc_sw_get_data" & ignore_failures = "no"
+ --> @dm:save name='temp-sa-token'
+ --> @dm:save name='temp-sa-run-scan' and append='yes'
+ --> @dm:save name='new-sa-scan-38-1' and append='yes'
+ --> @exec:end-if
+ ## --> @dm:add-missing-columns columns='contract_number' and value='$contract_number'
+
+ ## --> @dm:add-missing-columns columns='customer' and value='$customer'
+
+ --> @c:new-block
+ --> @dm:recall name='temp-sa-run-scan'
+ --> @c:new-block
+ --> @dm:recall name="temp-sa-run-scan"
+ --> @dm:enrich dict="temp-sa-data" and src_key_cols='product_id,sw_version,sw_os_type' and dict_key_cols='product_id,sw_version,sw_os_type' and enrich_cols="contract_number,customer" and dedup_dict='no' and how_type='outer'
+ --> @dm:save name='temp-enriched-run-scan'
+ --> @dm:save name='enrich-sa-output-no-explode'
+ --> @c:new-block
+ --> @dm:recall name='temp-enriched-run-scan'
+ --> @dm:dedup columns='product_id'
+ --> @dm:eval issues='json_dumps(issues)'
+ --> @dm:explode-json column="issues"
+ --> @dm:eval psirtAlert='json_dumps(psirtAlert)'
+ --> @dm:explode-json column="psirtAlert"
+ --> @dm:save name='temp-sa-run-scan-exploded'
+ --> @dm:save name='exploded-sa-output'
+ --> @c:new-block
+ --> @dm:recall name="temp-sa-run-scan-exploded"
+ ## --> @dm:enrich dict="temp-sa-data" and src_key_cols='product_id,sw_version,sw_os_type' and dict_key_cols='product_id,sw_version,sw_os_type' and enrich_cols="contract_number,customer"
+
+ --> @dm:add-missing-columns columns="PsirtID,MatchConfidence,MatchReason,MatchDefinition,HeadlineName,AdvisoryId,BulletinURL,Summary,Details,RevisedDate,RevisionNumber,PublishedDate,SeverityLevelName,CvssScore,CveId,_id,advisoryId,created,customerVisible,external_text,external_title,firstIcAlertId,groups,icIssueId,icProblemId,ignored,lastIcAlertId,matchDefinition,matchInfo,matchConfidence,missingInfo,moreInfo,name,openedOn,resultType,resultSubType,severity,severityText,state,updated,deviceSN,source,runType,filename,icType,atticaStatus,cdetsList,retry,associatedGroups,key,current_time_ms_loop,token_expiry_time,access_token,expires_in,token_type,sw_version,sw_os_type,product_id,id1,id2,transaction_id,serial_number,eoXAlert,eoXAlertType,DocumentId"
+ --> @dm:eval secAdv_confidence_score = "100 if matchConfidence == 'VUL' else 99 if matchConfidence == 'POTVUL' else 98 if matchConfidence == 'Not Vulnerable' else 0"
+ --> @dm:fixnull columns="product_name,PsirtID,MatchConfidence,MatchReason,MatchDefinition,HeadlineName,AdvisoryId,BulletinURL,Summary,Details,RevisedDate,RevisionNumber,PublishedDate,SeverityLevelName,CvssScore,CveId,_id,advisoryId,created,customerVisible,external_text,external_title,firstIcAlertId,groups,icIssueId,icProblemId,ignored,lastIcAlertId,matchDefinition,matchInfo,matchConfidence,missingInfo,moreInfo,name,openedOn,resultType,resultSubType,severity,severityText,state,updated,deviceSN,source,runType,filename,icType,atticaStatus,cdetsList,retry,associatedGroups,key,current_time_ms_loop,token_expiry_time,access_token,expires_in,token_type,sw_version,sw_os_type,product_id,id1,id2,transaction_id,serial_number,eoXAlert,eoXAlertType,DocumentId,secAdv_confidence_score" and value="Not Available" and apply_for_empty="yes"
+ --> @dm:fixnull-regex columns="Timestamp$|timestamp$"
+ --> @dm:rename-columns secAdv_matchConfidence ='matchConfidence' and secAdv_securityImpactRating='SeverityLevelName' and bulletinTitle='external_title' and securityAdvisoryId='advisoryId' and ID = '_id'
+ --> @dm:eval product_name="product_id if product_name is 'Not Available' else product_name"
+ --> @dm:save name="temp-sec-adv-details"
+ --> @dm:save name="test-sec-adv-details"
+ --> @rn:write-stream name='edc_sec_adv_data_raw'
+ ## creates a list of unique customers
+
+ --> @c:new-block
+ --> @dm:recall name='temp-sa-data'
+ --> @dm:groupby columns='customer'
+ ## --> @dm:to_type columns = 'contract_number' &
+
+ ## type  = 'int'
+
+ --> @dm:save name='temp-unique-cust-name'
+ ## Queries data for the customer from edc_oi_enriched_stream
+
+ --> @c:data-loop dataset='temp-unique-cust-name' and columns='customer'
+ --> @dm:empty
+ --> @dm:addrow name='edc_oi_inventory_enriched' and limit=0
+ --> #dm:query-persistent-stream customer_name=='$customer'
+ --> @dm:save name='temp-hw-eol-details' and append='yes'
+ ## --> @dm:save name='test1-hw-eol-details' and append='yes'
+
+ --> @c:new-block
+ --> @dm:recall name='temp-hw-eol-details'
+ --> @dm:enrich dict='temp-sec-adv-details' and src_key_cols='product_name,contract_number,customer_name' and dict_key_cols='product_name,contract_number,customer' and enrich_cols='secAdv_confidence_score,PsirtID,MatchReason,MatchDefinition,HeadlineName,AdvisoryId,BulletinURL,Summary,Details,RevisedDate,RevisionNumber,PublishedDate,CvssScore,CveId,ID,created,customerVisible,external_text,bulletinTitle,firstIcAlertId,groups,icIssueId,icProblemId,ignored,lastIcAlertId,matchDefinition,matchInfo,missingInfo,moreInfo,name,openedOn,resultType,resultSubType,severity,severityText,state,updated,deviceSN,source,runType,filename,icType,atticaStatus,cdetsList,retry,associatedGroups,key,current_time_ms_loop,token_expiry_time,access_token,expires_in,token_type,sw_version,sw_os_type,id1,id2,transaction_id,serial_number,eoXAlert,securityAdvisoryId,eoXAlertType,DocumentId,secAdv_matchConfidence,secAdv_securityImpactRating'  and how_type='outer' and dedup_dict='no' and replace_values='yes'
+ --> @dm:save name='final-sa-hw-enrich'
+ --> @dm:selectcolumns exclude='^(customer|product_id)$'
+ --> @rn:write-stream name='edc_sec_adv_data_enriched'
