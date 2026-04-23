@@ -1,132 +1,214 @@
 {
-  "name": "atoaserver-dashboard",
-  "label": "AtoA Server",
-  "description": "AtoA Server Insights",
-  "enabled": true,
+  "name": "rda_system_single_snapshot_details",
+  "label": "Snapshot Details",
+  "description": "Snapshot Details",
+  "dashboard_folder": "System",
+  "version": "1.0.2",
+  "live_edit": true,
+  "enabled": false,
+  "stream": "rda_system_snapshots_details",
   "dashboard_type": "template",
-  "dashboard_folder": "AI",
+  "template_variables": {
+    "SNAPSHOT_NAME": {
+      "contextId": "snapshot_name"
+    }
+  },
   "dashboard_filters": {
-    "time_filter": false
+    "time_filter": true,
+    "default_time_filter_labels": [
+      "All Time"
+    ],
+    "extra_filter": "snapshot_name is '{{SNAPSHOT_NAME}}'",
+    "columns_filter": [
+      {
+        "id": "artifact_name",
+        "label": "Artifact Name",
+        "type": "TEXT"
+      },
+      {
+        "id": "artifact_type",
+        "label": "Artifact Type",
+        "type": "TEXT"
+      },
+      {
+        "id": "artifact_version_visibility",
+        "label": "Artifact Checksum In Snapshot Repo",
+        "type": "TEXT"
+      },
+      {
+        "id": "checksum",
+        "label": "Checksum",
+        "type": "TEXT"
+      },
+      {
+        "id": "object_name",
+        "label": "Object Name",
+        "type": "TEXT"
+      },
+      {
+        "id": "snapshot_name",
+        "label": "Snapshot Name",
+        "type": "TEXT"
+      },
+      {
+        "id": "snapshot_type",
+        "label": "Snapshot Type",
+        "type": "TEXT"
+      },
+      {
+        "id": "size",
+        "label": "Size",
+        "type": "DOUBLE"
+      }
+    ],
+    "group_filters": [
+      {
+        "stream": "rda_system_snapshots_details",
+        "title": "Artifact Type",
+        "duration_hours": 87600,
+        "limit": 200,
+        "extra_filter": "snapshot_name is '{{SNAPSHOT_NAME}}'",
+        "group_by": [
+          "artifact_type"
+        ],
+        "ts_column": "timestamp",
+        "agg": "sum",
+        "column": "count_",
+        "type": "int"
+      },
+      {
+        "stream": "rda_system_snapshots_details",
+        "title": "Artifact Checksum In Snapshot Repo",
+        "duration_hours": 87600,
+        "limit": 200,
+        "extra_filter": "snapshot_name is '{{SNAPSHOT_NAME}}'",
+        "group_by": [
+          "artifact_version_visibility"
+        ],
+        "ts_column": "timestamp",
+        "agg": "sum",
+        "column": "count_",
+        "type": "int"
+      }
+    ]
   },
   "dashboard_sections": [
     {
-      "title": "AI",
-      "show_filter": false,
+      "title": "rda_system_snapshots_details",
+      "show_filter": true,
       "widgets": [
         {
-          "title": "Server",
+          "widget_type": "label",
+          "min_width": 3,
+          "height": 3,
+          "max_width": 6,
+          "label": "{% raw %}<div><div style='color: #00aa00; font-size: 20px;'>Changes Since Last Snapshot: {{new_count|int}}</div><div style='color: #888888; font-size: 20px;'>Unchanged: {{unchanged_count|int}}</div></div>{% endraw %}",
+          "segments": [
+            {
+              "stream": "rda_system_snapshots_details",
+              "variable": "new_count",
+              "ts_column": "timestamp",
+              "extra_filter": "artifact_version_visibility == 'new' AND snapshot_name is '{{SNAPSHOT_NAME}}'",
+              "agg": "sum",
+              "group_by0": "artifact_version_visibility",
+              "column": "count_"
+            },
+            {
+              "stream": "rda_system_snapshots_details",
+              "variable": "unchanged_count",
+              "ts_column": "timestamp",
+              "extra_filter": "artifact_version_visibility == 'unchanged' AND snapshot_name is '{{SNAPSHOT_NAME}}'",
+              "agg": "sum",
+              "group_by0": "artifact_version_visibility",
+              "column": "count_"
+            }
+          ],
+          "widget_id": "23af24fa"
+        },
+        {
+          "widget_type": "pie_chart",
+          "title": "Artifact Type",
+          "stream": "rda_system_snapshots_details",
+          "ts_column": "timestamp",
+          "extra_filter": "snapshot_name is '{{SNAPSHOT_NAME}}'",
+          "column": "count_",
+          "agg": "sum",
+          "group_by": [
+            "artifact_type"
+          ],
+          "type": "int",
+          "min_width": 3,
+          "height": 3,
+          "max_width": 6,
+          "widget_id": "cc2794c5"
+        },
+        {
+          "title": "Snapshot Manifest",
           "widget_type": "tabular",
-          "min_width": 12,
-          "height": 6,
+          "duration_hours": 87600,
           "max_width": 12,
-          "timebased": false,
-          "timestamp": "timestamp",
-          "stream": "atoaservers",
+          "height": 8,
+          "min_width": 12,
+          "paginated": true,
+          "stream": "rda_system_snapshots_details",
+          "ts_column": "timestamp",
+          "extra_filter": "snapshot_name is '{{SNAPSHOT_NAME}}'",
           "columns": {
-            "Name": {
-              "title": "Name",
+            "snapshot_type": {
+              "title": "Snapshot Type",
+              "type": "TEXT",
+              "hidden": false
+            },
+            "snapshot_name": {
+              "title": "Snapshot Name",
+              "type": "TEXT",
+              "hidden": false
+            },
+            "artifact_type": {
+              "title": "Artifact Type",
+              "type": "TEXT",
+              "hidden": false,
               "key": true
             },
-            "description": {
-              "title": "Description",
-              "key": false
+            "artifact_name": {
+              "title": "Artifact Name",
+              "type": "TEXT",
+              "hidden": false,
+              "key": true
             },
-            "enabled_color": {
-              "type": "COLOR-MAP",
-              "source-column": "enabled",
-              "color-map": {
-                "yes": "#4CAF50",
-                "no": "#B71C1C"
-              }
+            "artifact_version_visibility": {
+              "title": "Artifact Checksum In Snapshot Repo",
+              "type": "TEXT",
+              "hidden": false
             },
-            "enabled": {
-              "title": "Enabled",
-              "htmlTemplateForRow": "<span class='badge' style='background-color: {{'{{ row.enabled_color }}'}}' > {{'{{ row.enabled }}'}} </span>",
-              "key": false
+            "size": {
+              "title": "Size",
+              "type": "DOUBLE",
+              "hidden": false
             },
-            "provider": {
-              "title": "provider",
-              "key": false
+            "checksum": {
+              "title": "Checksum",
+              "type": "TEXT",
+              "hidden": false
+            },
+            "object_name": {
+              "title": "Object Name",
+              "type": "TEXT",
+              "visible": false,
+              "key": true
+            },
+            "timestamp": {
+              "title": "Timestamp",
+              "type": "DATETIME"
             }
           },
-          "widget_id": "2630645a",
           "actions": [
             {
-              "permission": "rda:github:view",
-              "title": "Add",
-              "type": "POPUP_FORM",
-              "selectionType": "NONE",
-              "identifier": "saas-service-action:aiadministration-add-mcpserver",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.dynamic.form",
-                    "formData": {
-                      "server_json": "{}"
-                    },
-                    "formDefinition": {
-                      "id": "rda.saas.dynamic.form",
-                      "formFieldList": [
-                        {
-                          "help": "Enter Server Name",
-                          "dataType": "string",
-                          "required": true,
-                          "editable": true,
-                          "label": "Server Name",
-                          "controlType": "TEXT_FIELD",
-                          "hidden": false,
-                          "fieldId": "name",
-                          "controlPropertyList": [
-                            {
-                              "attribute": "layout-group-id",
-                              "value": "pstream-details"
-                            }
-                          ]
-                        },
-                        {
-                          "fieldId": "contents",
-                          "label": "Server YAML",
-                          "description": "Server YAML",
-                          "required": true,
-                          "isSecret": false,
-                          "dataType": "string",
-                          "hidden": false,
-                          "editable": true,
-                          "controlType": "PYTHON_EDITOR",
-                          "controlPropertyList": [
-                            {
-                              "attribute": "lang",
-                              "value": "yaml"
-                            }
-                          ]
-                        }
-                      ]
-                    },
-                    "actions": [
-                      {
-                        "permission": "rda:github:view",
-                        "title": "Add",
-                        "type": "UPDATE_PSTREAM",
-                        "selectionType": "NONE",
-                        "identifier": "saas-service-action:aiadministration-add-mcpserver-addaction",
-                        "pstreamName": "atoaservers",
-                        "operation": "ADD"
-                      }
-                    ]
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:github:view",
-              "title": "Edit",
+              "title": "View",
               "type": "POPUP_FORM",
               "selectionType": "SINGLE",
-              "identifier": "saas-service-action:aiadministration-edit-mcpserver",
+              "permission": "rda:dataset:view",
+              "identifier": "rda.saas.snapshot.obj.view",
               "api-endpoint": {
                 "service-name": "saas-reports",
                 "methodName": "getForm",
@@ -134,227 +216,177 @@
                 "parse-output": false,
                 "params": [
                   {
-                    "formId": "rda.saas.dynamic.form",
-                    "form_data_field_mapping": {
-                      "contents": "contents"
-                    },
-                    "formData": {},
-                    "formDefinition": {
-                      "id": "rda.saas.dynamic.form",
-                      "formFieldList": [
-                        {
-                          "fieldId": "contents",
-                          "label": "Server YAML",
-                          "description": "Server YAML",
-                          "required": true,
-                          "isSecret": false,
-                          "dataType": "string",
-                          "hidden": false,
-                          "editable": true,
-                          "controlType": "PYTHON_EDITOR",
-                          "controlPropertyList": [
-                            {
-                              "attribute": "lang",
-                              "value": "yaml"
-                            }
-                          ]
-                        }
-                      ]
-                    },
-                    "actions": [
-                      {
-                        "permission": "rda:github:view",
-                        "title": "Edit",
-                        "type": "UPDATE_PSTREAM",
-                        "selectionType": "NONE",
-                        "identifier": "saas-service-action:aiadministration-edit-mcpserver-editaction",
-                        "pstreamName": "atoaservers",
-                        "operation": "UPDATE",
-                        "cfxql_query": "domain contains \"{{domain}}\""
-                      }
-                    ]
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:github:view",
-              "title": "Delete",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:aiadministration-delete-mcpserver",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.dynamic.form",
-                    "formData": {},
-                    "formDefinition": {
-                      "id": "rda.saas.dynamic.form",
-                      "formFieldList": [
-                        {
-                          "help": "Are you sure you want to delete this Server?",
-                          "dataType": "string",
-                          "controlType": "LABEL",
-                          "required": false,
-                          "editable": false,
-                          "label": "Are you sure you want to delete this Server?",
-                          "hidden": false,
-                          "fieldId": "delete_form_field"
-                        }
-                      ]
-                    },
-                    "actions": [
-                      {
-                        "permission": "rda:github:view",
-                        "title": "Delete",
-                        "type": "UPDATE_PSTREAM",
-                        "selectionType": "NONE",
-                        "identifier": "saas-service-action:aiadministration-add-mcpserver-deleteaction",
-                        "pstreamName": "atoaservers",
-                        "operation": "DELETE",
-                        "cfxql_query": "domain contains \"{{domain}}\""
-                      }
-                    ],
-                    "formActionList": {
-                      "formActions": [
-                        {
-                          "identifier": "Submit",
-                          "actionLabel": "Delete"
-                        }
-                      ]
-                    }
+                    "formId": "rda.saas.snapshot.obj.view"
                   }
                 ]
               }
             }
-          ]
+          ],
+          "widget_id": "7089a9ae"
+        },
+        {
+          "title": "Snapshot Errors",
+          "widget_type": "tabular",
+          "max_width": 12,
+          "height": 8,
+          "min_width": 12,
+          "paginated": true,
+          "stream": "rda_system_snapshots_errors",
+          "ts_column": "timestamp",
+          "extra_filter0": "snapshot_name is '{{SNAPSHOT_NAME}}'",
+          "columns": {
+            "snapshot_type": {
+              "title": "Snapshot Type",
+              "type": "TEXT",
+              "hidden": false
+            },
+            "snapshot_name": {
+              "title": "Snapshot Name",
+              "type": "TEXT",
+              "hidden": false
+            },
+            "artifact_type": {
+              "title": "Artifact Type",
+              "type": "TEXT",
+              "hidden": false
+            },
+            "artifact_name": {
+              "title": "Artifact Name",
+              "type": "TEXT",
+              "hidden": false
+            },
+            "message": {
+              "title": "Message",
+              "type": "TEXT",
+              "hidden": false
+            },
+            "timestamp": {
+              "title": "Timestamp",
+              "type": "DATETIME"
+            }
+          },
+          "widget_id": "53447b4f"
         }
       ]
     }
   ],
   "pstream_dashboards": [
     {
-      "title": "AI",
-      "show_filter": false,
+      "title": "rda_system_snapshots_details",
+      "show_filter": true,
       "widgets": [
         {
-          "title": "Server",
+          "widget_type": "label",
+          "min_width": 3,
+          "height": 3,
+          "max_width": 6,
+          "label": "{% raw %}<div><div style='color: #00aa00; font-size: 20px;'>Changes Since Last Snapshot: {{new_count|int}}</div><div style='color: #888888; font-size: 20px;'>Unchanged: {{unchanged_count|int}}</div></div>{% endraw %}",
+          "segments": [
+            {
+              "stream": "rda_system_snapshots_details",
+              "variable": "new_count",
+              "ts_column": "timestamp",
+              "extra_filter": "artifact_version_visibility == 'new' AND snapshot_name is '{{SNAPSHOT_NAME}}'",
+              "agg": "sum",
+              "group_by0": "artifact_version_visibility",
+              "column": "count_"
+            },
+            {
+              "stream": "rda_system_snapshots_details",
+              "variable": "unchanged_count",
+              "ts_column": "timestamp",
+              "extra_filter": "artifact_version_visibility == 'unchanged' AND snapshot_name is '{{SNAPSHOT_NAME}}'",
+              "agg": "sum",
+              "group_by0": "artifact_version_visibility",
+              "column": "count_"
+            }
+          ],
+          "widget_id": "23af24fa"
+        },
+        {
+          "widget_type": "pie_chart",
+          "title": "Artifact Type",
+          "stream": "rda_system_snapshots_details",
+          "ts_column": "timestamp",
+          "extra_filter": "snapshot_name is '{{SNAPSHOT_NAME}}'",
+          "column": "count_",
+          "agg": "sum",
+          "group_by": [
+            "artifact_type"
+          ],
+          "type": "int",
+          "min_width": 3,
+          "height": 3,
+          "max_width": 6,
+          "widget_id": "cc2794c5"
+        },
+        {
+          "title": "Snapshot Manifest",
           "widget_type": "tabular",
-          "min_width": 12,
-          "height": 6,
+          "duration_hours": 87600,
           "max_width": 12,
-          "timebased": false,
-          "timestamp": "timestamp",
-          "stream": "atoaservers",
+          "height": 8,
+          "min_width": 12,
+          "paginated": true,
+          "stream": "rda_system_snapshots_details",
+          "ts_column": "timestamp",
+          "extra_filter": "snapshot_name is '{{SNAPSHOT_NAME}}'",
           "columns": {
-            "Name": {
-              "title": "Name",
+            "snapshot_type": {
+              "title": "Snapshot Type",
+              "type": "TEXT",
+              "hidden": false
+            },
+            "snapshot_name": {
+              "title": "Snapshot Name",
+              "type": "TEXT",
+              "hidden": false
+            },
+            "artifact_type": {
+              "title": "Artifact Type",
+              "type": "TEXT",
+              "hidden": false,
               "key": true
             },
-            "description": {
-              "title": "Description",
-              "key": false
+            "artifact_name": {
+              "title": "Artifact Name",
+              "type": "TEXT",
+              "hidden": false,
+              "key": true
             },
-            "enabled_color": {
-              "type": "COLOR-MAP",
-              "source-column": "enabled",
-              "color-map": {
-                "yes": "#4CAF50",
-                "no": "#B71C1C"
-              }
+            "artifact_version_visibility": {
+              "title": "Artifact Checksum In Snapshot Repo",
+              "type": "TEXT",
+              "hidden": false
             },
-            "enabled": {
-              "title": "Enabled",
-              "htmlTemplateForRow": "<span class='badge' style='background-color: {{'{{ row.enabled_color }}'}}' > {{'{{ row.enabled }}'}} </span>",
-              "key": false
+            "size": {
+              "title": "Size",
+              "type": "DOUBLE",
+              "hidden": false
             },
-            "provider": {
-              "title": "provider",
-              "key": false
+            "checksum": {
+              "title": "Checksum",
+              "type": "TEXT",
+              "hidden": false
+            },
+            "object_name": {
+              "title": "Object Name",
+              "type": "TEXT",
+              "visible": false,
+              "key": true
+            },
+            "timestamp": {
+              "title": "Timestamp",
+              "type": "DATETIME"
             }
           },
-          "widget_id": "2630645a",
           "actions": [
             {
-              "permission": "rda:github:view",
-              "title": "Add",
-              "type": "POPUP_FORM",
-              "selectionType": "NONE",
-              "identifier": "saas-service-action:aiadministration-add-mcpserver",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.dynamic.form",
-                    "formData": {
-                      "server_json": "{}"
-                    },
-                    "formDefinition": {
-                      "id": "rda.saas.dynamic.form",
-                      "formFieldList": [
-                        {
-                          "help": "Enter Server Name",
-                          "dataType": "string",
-                          "required": true,
-                          "editable": true,
-                          "label": "Server Name",
-                          "controlType": "TEXT_FIELD",
-                          "hidden": false,
-                          "fieldId": "name",
-                          "controlPropertyList": [
-                            {
-                              "attribute": "layout-group-id",
-                              "value": "pstream-details"
-                            }
-                          ]
-                        },
-                        {
-                          "fieldId": "contents",
-                          "label": "Server YAML",
-                          "description": "Server YAML",
-                          "required": true,
-                          "isSecret": false,
-                          "dataType": "string",
-                          "hidden": false,
-                          "editable": true,
-                          "controlType": "PYTHON_EDITOR",
-                          "controlPropertyList": [
-                            {
-                              "attribute": "lang",
-                              "value": "yaml"
-                            }
-                          ]
-                        }
-                      ]
-                    },
-                    "actions": [
-                      {
-                        "permission": "rda:github:view",
-                        "title": "Add",
-                        "type": "UPDATE_PSTREAM",
-                        "selectionType": "NONE",
-                        "identifier": "saas-service-action:aiadministration-add-mcpserver-addaction",
-                        "pstreamName": "atoaservers",
-                        "operation": "ADD"
-                      }
-                    ]
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:github:view",
-              "title": "Edit",
+              "title": "View",
               "type": "POPUP_FORM",
               "selectionType": "SINGLE",
-              "identifier": "saas-service-action:aiadministration-edit-mcpserver",
+              "permission": "rda:dataset:view",
+              "identifier": "rda.saas.snapshot.obj.view",
               "api-endpoint": {
                 "service-name": "saas-reports",
                 "methodName": "getForm",
@@ -362,104 +394,56 @@
                 "parse-output": false,
                 "params": [
                   {
-                    "formId": "rda.saas.dynamic.form",
-                    "form_data_field_mapping": {
-                      "contents": "contents"
-                    },
-                    "formData": {},
-                    "formDefinition": {
-                      "id": "rda.saas.dynamic.form",
-                      "formFieldList": [
-                        {
-                          "fieldId": "contents",
-                          "label": "Server YAML",
-                          "description": "Server YAML",
-                          "required": true,
-                          "isSecret": false,
-                          "dataType": "string",
-                          "hidden": false,
-                          "editable": true,
-                          "controlType": "PYTHON_EDITOR",
-                          "controlPropertyList": [
-                            {
-                              "attribute": "lang",
-                              "value": "yaml"
-                            }
-                          ]
-                        }
-                      ]
-                    },
-                    "actions": [
-                      {
-                        "permission": "rda:github:view",
-                        "title": "Edit",
-                        "type": "UPDATE_PSTREAM",
-                        "selectionType": "NONE",
-                        "identifier": "saas-service-action:aiadministration-edit-mcpserver-editaction",
-                        "pstreamName": "atoaservers",
-                        "operation": "UPDATE",
-                        "cfxql_query": "domain contains \"{{domain}}\""
-                      }
-                    ]
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:github:view",
-              "title": "Delete",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:aiadministration-delete-mcpserver",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.dynamic.form",
-                    "formData": {},
-                    "formDefinition": {
-                      "id": "rda.saas.dynamic.form",
-                      "formFieldList": [
-                        {
-                          "help": "Are you sure you want to delete this Server?",
-                          "dataType": "string",
-                          "controlType": "LABEL",
-                          "required": false,
-                          "editable": false,
-                          "label": "Are you sure you want to delete this Server?",
-                          "hidden": false,
-                          "fieldId": "delete_form_field"
-                        }
-                      ]
-                    },
-                    "actions": [
-                      {
-                        "permission": "rda:github:view",
-                        "title": "Delete",
-                        "type": "UPDATE_PSTREAM",
-                        "selectionType": "NONE",
-                        "identifier": "saas-service-action:aiadministration-add-mcpserver-deleteaction",
-                        "pstreamName": "atoaservers",
-                        "operation": "DELETE",
-                        "cfxql_query": "domain contains \"{{domain}}\""
-                      }
-                    ],
-                    "formActionList": {
-                      "formActions": [
-                        {
-                          "identifier": "Submit",
-                          "actionLabel": "Delete"
-                        }
-                      ]
-                    }
+                    "formId": "rda.saas.snapshot.obj.view"
                   }
                 ]
               }
             }
-          ]
+          ],
+          "widget_id": "7089a9ae"
+        },
+        {
+          "title": "Snapshot Errors",
+          "widget_type": "tabular",
+          "max_width": 12,
+          "height": 8,
+          "min_width": 12,
+          "paginated": true,
+          "stream": "rda_system_snapshots_errors",
+          "ts_column": "timestamp",
+          "extra_filter0": "snapshot_name is '{{SNAPSHOT_NAME}}'",
+          "columns": {
+            "snapshot_type": {
+              "title": "Snapshot Type",
+              "type": "TEXT",
+              "hidden": false
+            },
+            "snapshot_name": {
+              "title": "Snapshot Name",
+              "type": "TEXT",
+              "hidden": false
+            },
+            "artifact_type": {
+              "title": "Artifact Type",
+              "type": "TEXT",
+              "hidden": false
+            },
+            "artifact_name": {
+              "title": "Artifact Name",
+              "type": "TEXT",
+              "hidden": false
+            },
+            "message": {
+              "title": "Message",
+              "type": "TEXT",
+              "hidden": false
+            },
+            "timestamp": {
+              "title": "Timestamp",
+              "type": "DATETIME"
+            }
+          },
+          "widget_id": "53447b4f"
         }
       ]
     }
