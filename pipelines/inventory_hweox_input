@@ -1,21 +1,16 @@
+
+ ## Get row input
 @c:new-block
  --> @dm:empty
- ## Get submitted form fields
-
  --> @exec:get-input
- ## Exclude label as it contains unneeded info that should not be written to stream later
+ ## --> @dm:selectcolumns include='device_hostname|device_identifier|device_controller_id'
 
- --> @dm:selectcolumns exclude='.*_label'
- --> @dm:save name='temp-input_data'
- --> @dm:save name='check-input_data'
- --> @dm:selectcolumns include="hweox_csv"
- --> @dm:explode-json column="hweox_csv"
- --> @dm:save name="input11-dataset"
- --> @dm:save name="temp-input-dataset"
- --> @c:data-loop dataset="temp-input-dataset" and columns="bucketName,objectName"
- --> @dm:recall name="temp-input-dataset"
- --> @dm:skip-block-if-shape row_count=0
- --> @dm:get-from-location path="$bucketName/$objectName"
- --> @dm:save name="temp-uploaded-file-data"
- --> @dm:save name="uploaded-hweox-data"
- --> @rn:write-stream name="test0-stream-input"
+ --> @dm:save name='temp-form-data'
+ --> @c:data-loop columns="customer_name" and dataset="temp-form-data"
+ --> @dm:empty
+ --> @dm:addrow name = "edc_oi_inventory_grouped" & conflicts = "proceed" & timeout = 1200
+ --> #dm:pstream-delete-data-by-query customer_name=="$customer_name"
+ --> @c:data-loop columns="customer_name" and dataset="temp-form-data"
+ --> @dm:empty
+ --> @dm:addrow name = "edc_oi_inventory_enriched" & conflicts = "proceed" & timeout = 1200
+ --> #dm:pstream-delete-data-by-query customer_name=="$customer_name"
