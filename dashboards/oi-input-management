@@ -1,149 +1,214 @@
 {
-  "name": "oi-input-management",
-  "label": "OI Configure and Manage",
-  "description": "OI configure and management dashboard",
-  "version": "25.09.08.1",
+  "name": "rda_system_single_snapshot_details",
+  "label": "Snapshot Details",
+  "description": "Snapshot Details",
+  "dashboard_folder": "System",
+  "version": "1.0.2",
+  "live_edit": true,
   "enabled": false,
+  "stream": "rda_system_snapshots_details",
   "dashboard_type": "template",
-  "dashboard_folder": "OI",
-  "dashboard_style": "auto",
   "template_variables": {
-    "CUST_ID": {
-      "contextId": "customerId"
-    },
-    "PROJ_ID": {
-      "contextId": "projectId"
-    },
-    "CUST_TAG": {
-      "contextId": "customerTag"
+    "SNAPSHOT_NAME": {
+      "contextId": "snapshot_name"
     }
   },
   "dashboard_filters": {
     "time_filter": true,
     "default_time_filter_labels": [
-      "Last 1 month"
+      "All Time"
+    ],
+    "extra_filter": "snapshot_name is '{{SNAPSHOT_NAME}}'",
+    "columns_filter": [
+      {
+        "id": "artifact_name",
+        "label": "Artifact Name",
+        "type": "TEXT"
+      },
+      {
+        "id": "artifact_type",
+        "label": "Artifact Type",
+        "type": "TEXT"
+      },
+      {
+        "id": "artifact_version_visibility",
+        "label": "Artifact Checksum In Snapshot Repo",
+        "type": "TEXT"
+      },
+      {
+        "id": "checksum",
+        "label": "Checksum",
+        "type": "TEXT"
+      },
+      {
+        "id": "object_name",
+        "label": "Object Name",
+        "type": "TEXT"
+      },
+      {
+        "id": "snapshot_name",
+        "label": "Snapshot Name",
+        "type": "TEXT"
+      },
+      {
+        "id": "snapshot_type",
+        "label": "Snapshot Type",
+        "type": "TEXT"
+      },
+      {
+        "id": "size",
+        "label": "Size",
+        "type": "DOUBLE"
+      }
+    ],
+    "group_filters": [
+      {
+        "stream": "rda_system_snapshots_details",
+        "title": "Artifact Type",
+        "duration_hours": 87600,
+        "limit": 200,
+        "extra_filter": "snapshot_name is '{{SNAPSHOT_NAME}}'",
+        "group_by": [
+          "artifact_type"
+        ],
+        "ts_column": "timestamp",
+        "agg": "sum",
+        "column": "count_",
+        "type": "int"
+      },
+      {
+        "stream": "rda_system_snapshots_details",
+        "title": "Artifact Checksum In Snapshot Repo",
+        "duration_hours": 87600,
+        "limit": 200,
+        "extra_filter": "snapshot_name is '{{SNAPSHOT_NAME}}'",
+        "group_by": [
+          "artifact_version_visibility"
+        ],
+        "ts_column": "timestamp",
+        "agg": "sum",
+        "column": "count_",
+        "type": "int"
+      }
     ]
   },
-  "live_edit": true,
   "dashboard_sections": [
     {
-      "title": "ONLINE Data Input",
+      "title": "rda_system_snapshots_details",
+      "show_filter": true,
       "widgets": [
         {
-          "title": "Snowflake Credential Management",
-          "widget_type": "tabular",
-          "stream": "rda_secrets_meta",
-          "extra_filter": "(type in ['snowflake'])",
-          "timebased": false,
-          "remote_searchable_cols": [
-            "name",
-            "type",
-            "typeDescription"
+          "widget_type": "label",
+          "min_width": 3,
+          "height": 3,
+          "max_width": 6,
+          "label": "{% raw %}<div><div style='color: #00aa00; font-size: 20px;'>Changes Since Last Snapshot: {{new_count|int}}</div><div style='color: #888888; font-size: 20px;'>Unchanged: {{unchanged_count|int}}</div></div>{% endraw %}",
+          "segments": [
+            {
+              "stream": "rda_system_snapshots_details",
+              "variable": "new_count",
+              "ts_column": "timestamp",
+              "extra_filter": "artifact_version_visibility == 'new' AND snapshot_name is '{{SNAPSHOT_NAME}}'",
+              "agg": "sum",
+              "group_by0": "artifact_version_visibility",
+              "column": "count_"
+            },
+            {
+              "stream": "rda_system_snapshots_details",
+              "variable": "unchanged_count",
+              "ts_column": "timestamp",
+              "extra_filter": "artifact_version_visibility == 'unchanged' AND snapshot_name is '{{SNAPSHOT_NAME}}'",
+              "agg": "sum",
+              "group_by0": "artifact_version_visibility",
+              "column": "count_"
+            }
           ],
-          "ts_column": "saved_time",
+          "widget_id": "23af24fa"
+        },
+        {
+          "widget_type": "pie_chart",
+          "title": "Artifact Type",
+          "stream": "rda_system_snapshots_details",
+          "ts_column": "timestamp",
+          "extra_filter": "snapshot_name is '{{SNAPSHOT_NAME}}'",
+          "column": "count_",
+          "agg": "sum",
+          "group_by": [
+            "artifact_type"
+          ],
+          "type": "int",
+          "min_width": 3,
+          "height": 3,
+          "max_width": 6,
+          "widget_id": "cc2794c5"
+        },
+        {
+          "title": "Snapshot Manifest",
+          "widget_type": "tabular",
+          "duration_hours": 87600,
+          "max_width": 12,
+          "height": 8,
+          "min_width": 12,
           "paginated": true,
-          "height": 4,
-          "min_wdith": 12,
+          "stream": "rda_system_snapshots_details",
+          "ts_column": "timestamp",
+          "extra_filter": "snapshot_name is '{{SNAPSHOT_NAME}}'",
           "columns": {
-            "name": {
-              "title": "Name",
+            "snapshot_type": {
+              "title": "Snapshot Type",
+              "type": "TEXT",
+              "hidden": false
+            },
+            "snapshot_name": {
+              "title": "Snapshot Name",
+              "type": "TEXT",
+              "hidden": false
+            },
+            "artifact_type": {
+              "title": "Artifact Type",
+              "type": "TEXT",
+              "hidden": false,
               "key": true
             },
-            "type": {
-              "title": "Type",
+            "artifact_name": {
+              "title": "Artifact Name",
+              "type": "TEXT",
+              "hidden": false,
               "key": true
             },
-            "typeDescription": {
-              "title": "description"
+            "artifact_version_visibility": {
+              "title": "Artifact Checksum In Snapshot Repo",
+              "type": "TEXT",
+              "hidden": false
             },
-            "has_credential_check": {
-              "title": "Credential Check",
-              "visible": false
+            "size": {
+              "title": "Size",
+              "type": "DOUBLE",
+              "hidden": false
             },
-            "saved_time": {
-              "title": "Saved Time",
-              "type": "DATETIME"
+            "checksum": {
+              "title": "Checksum",
+              "type": "TEXT",
+              "hidden": false
+            },
+            "object_name": {
+              "title": "Object Name",
+              "type": "TEXT",
+              "visible": false,
+              "key": true
             },
             "timestamp": {
-              "title": "When",
-              "type": "HUMANIZE_TIME_DELTA",
-              "source-column": "saved_time",
-              "sortable": false
+              "title": "Timestamp",
+              "type": "DATETIME"
             }
           },
-          "custom_columns": [
-            {
-              "id": "rowStyleClass",
-              "hidden": true,
-              "visiblle": false,
-              "expr": "'bg-fading-blue' if time_now_as_ms() - isoformat_to_ms(saved_time) <= 120000 else None"
-            },
-            {
-              "id": "artifact_name",
-              "label": "Artifact Name",
-              "expr": "name",
-              "key": true,
-              "visible": false,
-              "sortable": false
-            },
-            {
-              "id": "artifact_type",
-              "label": "Artifact Type",
-              "expr": "'source'",
-              "key": true,
-              "visible": false,
-              "sortable": false
-            }
-          ],
           "actions": [
             {
-              "permission": "rda:credential:add",
-              "title": "Add",
-              "icon": "mdi mdi-plus",
-              "type": "POPUP_FORM",
-              "selectionType": "NONE",
-              "identifier": "saas-service-action:vault-add",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.vault.add",
-                    "extension_types": [
-                      "snowflake"
-                    ]
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:credential:edit",
-              "title": "Edit",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:vault-edit",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.vault.edit"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:credential:view",
               "title": "View",
               "type": "POPUP_FORM",
               "selectionType": "SINGLE",
-              "displayLabelColumnId": "name",
-              "drillDownLinkField": "name",
-              "identifier": "saas-service-action:vault-view",
+              "permission": "rda:dataset:view",
+              "identifier": "rda.saas.snapshot.obj.view",
               "api-endpoint": {
                 "service-name": "saas-reports",
                 "methodName": "getForm",
@@ -151,609 +216,177 @@
                 "parse-output": false,
                 "params": [
                   {
-                    "formId": "rda.saas.vault.view"
+                    "formId": "rda.saas.snapshot.obj.view"
                   }
                 ]
               }
+            }
+          ],
+          "widget_id": "7089a9ae"
+        },
+        {
+          "title": "Snapshot Errors",
+          "widget_type": "tabular",
+          "max_width": 12,
+          "height": 8,
+          "min_width": 12,
+          "paginated": true,
+          "stream": "rda_system_snapshots_errors",
+          "ts_column": "timestamp",
+          "extra_filter0": "snapshot_name is '{{SNAPSHOT_NAME}}'",
+          "columns": {
+            "snapshot_type": {
+              "title": "Snapshot Type",
+              "type": "TEXT",
+              "hidden": false
             },
-            {
-              "permission": "rda:credential:verify",
-              "title": "Verify Credentials",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:vault-edit",
-              "actionCondition": {
-                "actionControl": "HIDE_IF",
-                "conditionalField": [
-                  {
-                    "conditionType": "EQUAL",
-                    "conditionValue": "false",
-                    "fieldId": "has_credential_check"
-                  }
-                ]
-              },
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.vault.validateConenctivity"
-                  }
-                ]
-              }
+            "snapshot_name": {
+              "title": "Snapshot Name",
+              "type": "TEXT",
+              "hidden": false
             },
-            {
-              "permission": "rda:credential:verify",
-              "title": "Delete",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:vault-delete",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.vault.delete"
-                  }
-                ]
-              }
-            }
-          ],
-          "widget_id": "01dc3a55"
-        }
-      ]
-    },
-    {
-      "title": "OFFLINE Data Input",
-      "widgets": [
-        {
-          "title": "Upload HW EoX Data",
-          "widget_type": "tabular",
-          "duration_hours": 1080,
-          "stream": "edc_oi_inventory_enriched",
-          "remote_searchable": true,
-          "ts_column": "timestamp",
-          "paginated": true,
-          "height": 4,
-          "min_wdith": 12,
-          "columns": {
-            "customer_name": {
-              "title": "Customer Name",
+            "artifact_type": {
+              "title": "Artifact Type",
               "type": "TEXT",
-              "visible": true,
-              "key": true
-            }
-          },
-          "pivot": {
-            "pivot_type": "advanced",
-            "group_by": [
-              "customer_name",
-              "count_"
-            ],
-            "series": [
-              {
-                "column": "_RDA_Id",
-                "agg": "value_count",
-                "type": "int",
-                "label": "Number of Records"
-              }
-            ]
-          },
-          "actions": [
-            {
-              "permission": "rda:github:view",
-              "title": "Add Inventory and HW EOX Data",
-              "type": "POPUP_FORM",
-              "selectionType": "NONE",
-              "identifier": "saas-service-action:userdashboard-add-yaml",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.dynamic.form",
-                    "formDefinition": {
-                      "id": "rda.saas.dynamic.form",
-                      "refreshRequired": true,
-                      "formFieldList": [
-                        {
-                          "label": "Upload a CSV or Excel file that contains the data for Inventory and HW EoX (for stream edc_oi_inventory_enriched)",
-                          "dataType": "string",
-                          "controlType": "LABEL",
-                          "required": false,
-                          "editable": true,
-                          "hidden": false,
-                          "fieldId": "devices_to_supp_csv"
-                        },
-                        {
-                          "help": "Choose csv file to upload",
-                          "dataType": "string",
-                          "required": true,
-                          "editable": true,
-                          "label": "CSV Upload",
-                          "controlType": "FILE_UPLOAD",
-                          "hidden": false,
-                          "fieldId": "hweox_csv"
-                        }
-                      ]
-                    },
-                    "actions": [
-                      {
-                        "type": "RUN_PIPELINE",
-                        "pipelineName": "edc_get_oi_input",
-                        "isSync": false
-                      }
-                    ]
-                  }
-                ]
-              }
-            }
-          ],
-          "widget_id": "1424a28e"
-        },
-        {
-          "title": "Upload SW EoX Data",
-          "widget_type": "tabular",
-          "duration_hours": 1080,
-          "stream": "edc_sweol_data",
-          "remote_searchable": true,
-          "ts_column": "timestamp",
-          "paginated": true,
-          "height": 4,
-          "min_wdith": 12,
-          "columns": {
-            "customer_name": {
-              "title": "Customer Name",
+              "hidden": false
+            },
+            "artifact_name": {
+              "title": "Artifact Name",
               "type": "TEXT",
-              "visible": true,
-              "key": true
-            }
-          },
-          "pivot": {
-            "pivot_type": "advanced",
-            "group_by": [
-              "customer_name",
-              "count_"
-            ],
-            "series": [
-              {
-                "column": "_RDA_Id",
-                "agg": "value_count",
-                "type": "int",
-                "label": "Number of Records"
-              }
-            ]
-          },
-          "actions": [
-            {
-              "permission": "rda:github:view",
-              "title": "Add SW EOX Data",
-              "type": "POPUP_FORM",
-              "selectionType": "NONE",
-              "identifier": "saas-service-action:userdashboard-add-yaml",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.dynamic.form",
-                    "formDefinition": {
-                      "id": "rda.saas.dynamic.form",
-                      "refreshRequired": true,
-                      "formFieldList": [
-                        {
-                          "label": "Upload a CSV or Excel file that contains the data for SW EoX (for stream: edc_sweol_data) ",
-                          "dataType": "string",
-                          "controlType": "LABEL",
-                          "required": true,
-                          "editable": true,
-                          "hidden": false,
-                          "fieldId": "devices_to_supp_csv"
-                        },
-                        {
-                          "help": "Choose csv file to upload",
-                          "dataType": "string",
-                          "required": true,
-                          "editable": true,
-                          "label": "CSV Upload",
-                          "controlType": "FILE_UPLOAD",
-                          "hidden": false,
-                          "fieldId": "sweox_csv"
-                        }
-                      ]
-                    },
-                    "actions": [
-                      {
-                        "type": "RUN_PIPELINE",
-                        "pipelineName": "edc_get_oi_input",
-                        "isSync": false
-                      }
-                    ]
-                  }
-                ]
-              }
-            }
-          ],
-          "widget_id": "6aa3e346"
-        },
-        {
-          "title": "Upload Security Advisory Data",
-          "widget_type": "tabular",
-          "duration_hours": 1080,
-          "stream": "edc_sec_adv_data_enriched",
-          "remote_searchable": true,
-          "ts_column": "timestamp",
-          "paginated": true,
-          "height": 5,
-          "min_wdith": 12,
-          "columns": {
-            "customer_name": {
-              "title": "Customer Name",
+              "hidden": false
+            },
+            "message": {
+              "title": "Message",
               "type": "TEXT",
-              "visible": true,
-              "key": true
+              "hidden": false
+            },
+            "timestamp": {
+              "title": "Timestamp",
+              "type": "DATETIME"
             }
           },
-          "pivot": {
-            "pivot_type": "advanced",
-            "group_by": [
-              "customer_name",
-              "count_"
-            ],
-            "series": [
-              {
-                "column": "_RDA_Id",
-                "agg": "value_count",
-                "type": "int",
-                "label": "Number of Records"
-              }
-            ]
-          },
-          "actions": [
-            {
-              "permission": "rda:github:view",
-              "title": "Add Security Advisory Data",
-              "type": "POPUP_FORM",
-              "selectionType": "NONE",
-              "identifier": "saas-service-action:userdashboard-add-yaml",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.dynamic.form",
-                    "formDefinition": {
-                      "id": "rda.saas.dynamic.form",
-                      "refreshRequired": true,
-                      "formFieldList": [
-                        {
-                          "label": "Upload a CSV or Excel file that contains the data for Security Advisories (for stream: edc_sec_adv_data_enriched) ",
-                          "dataType": "string",
-                          "controlType": "LABEL",
-                          "required": false,
-                          "editable": true,
-                          "hidden": false,
-                          "fieldId": "devices_to_supp_csv"
-                        },
-                        {
-                          "help": "Choose csv file to upload",
-                          "dataType": "string",
-                          "required": true,
-                          "editable": true,
-                          "label": "CSV Upload",
-                          "controlType": "FILE_UPLOAD",
-                          "hidden": false,
-                          "fieldId": "secadv_csv"
-                        }
-                      ]
-                    },
-                    "actions": [
-                      {
-                        "type": "RUN_PIPELINE",
-                        "pipelineName": "edc_get_oi_input",
-                        "isSync": false
-                      }
-                    ]
-                  }
-                ]
-              }
-            }
-          ],
-          "widget_id": "cff852c6"
-        },
-        {
-          "title": "Upload Licenses Details Data",
-          "widget_type": "tabular",
-          "duration_hours": 1080,
-          "stream": "edc_license_details",
-          "remote_searchable": true,
-          "ts_column": "timestamp",
-          "paginated": true,
-          "height": 5,
-          "min_wdith": 12,
-          "columns": {
-            "customer_name": {
-              "title": "Customer Name",
-              "type": "TEXT",
-              "visible": true,
-              "key": true
-            }
-          },
-          "pivot": {
-            "pivot_type": "advanced",
-            "group_by": [
-              "customer_name",
-              "count_"
-            ],
-            "series": [
-              {
-                "column": "_RDA_Id",
-                "agg": "value_count",
-                "type": "int",
-                "label": "Number of Records"
-              }
-            ]
-          },
-          "actions": [
-            {
-              "permission": "rda:github:view",
-              "title": "Add SW License Details Data",
-              "type": "POPUP_FORM",
-              "selectionType": "NONE",
-              "identifier": "saas-service-action:userdashboard-add-yaml",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.dynamic.form",
-                    "formDefinition": {
-                      "id": "rda.saas.dynamic.form",
-                      "refreshRequired": true,
-                      "formFieldList": [
-                        {
-                          "label": "Upload a CSV that contains the data for SW Licenes Details (for stream: edc_license_details) ",
-                          "dataType": "string",
-                          "controlType": "LABEL",
-                          "required": true,
-                          "editable": true,
-                          "hidden": false,
-                          "fieldId": "devices_to_supp_csv"
-                        },
-                        {
-                          "help": "Choose csv file to upload",
-                          "dataType": "string",
-                          "required": true,
-                          "editable": true,
-                          "label": "CSV Upload1",
-                          "controlType": "FILE_UPLOAD",
-                          "hidden": false,
-                          "fieldId": "swlicenses_details_csv1"
-                        },
-                        {
-                          "help": "Choose csv file to upload",
-                          "dataType": "string",
-                          "required": true,
-                          "editable": true,
-                          "label": "CSV Upload2",
-                          "controlType": "FILE_UPLOAD",
-                          "hidden": false,
-                          "fieldId": "swlicenses_details_csv2"
-                        }
-                      ]
-                    },
-                    "actions": [
-                      {
-                        "type": "RUN_PIPELINE",
-                        "pipelineName": "edc_get_oi_input",
-                        "isSync": false
-                      }
-                    ]
-                  }
-                ]
-              }
-            }
-          ],
-          "widget_id": "c7c809be"
-        },
-        {
-          "title": "Run OI Pipeline",
-          "widget_type": "tabular",
-          "duration_hours": 1080,
-          "stream": "oi_stream",
-          "ts_column": "timestamp",
-          "remote_searchable": true,
-          "paginated": true,
-          "height": 5,
-          "min_wdith": 12,
-          "time_agnostic": true,
-          "actions": [
-            {
-              "permission": "rda:github:view",
-              "title": "Run pipeline",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:userdashboard-add-yaml",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.dynamic.form",
-                    "formActionList": {
-                      "formActions": [
-                        {
-                          "identifier": "Submit",
-                          "actionLabel": "Run"
-                        }
-                      ]
-                    },
-                    "formDefinition": {
-                      "id": "rda.saas.dynamic.form",
-                      "refreshRequired": true,
-                      "formFieldList": [
-                        {
-                          "help": "Do you want to run the pipeline?",
-                          "dataType": "string",
-                          "controlType": "LABEL",
-                          "required": false,
-                          "editable": false,
-                          "label": "Do you want to run the pipeline?",
-                          "hidden": false,
-                          "fieldId": "runcollection"
-                        }
-                      ]
-                    },
-                    "actions": [
-                      {
-                        "type": "RUN_PIPELINE",
-                        "pipelineName": "edc_get_customer_data",
-                        "isSync": false
-                      }
-                    ]
-                  }
-                ]
-              }
-            }
-          ],
-          "widget_id": "957a565d"
+          "widget_id": "53447b4f"
         }
       ]
     }
   ],
   "pstream_dashboards": [
     {
-      "title": "ONLINE Data Input",
+      "title": "rda_system_snapshots_details",
+      "show_filter": true,
       "widgets": [
         {
-          "title": "Snowflake Credential Management",
-          "widget_type": "tabular",
-          "stream": "rda_secrets_meta",
-          "extra_filter": "(type in ['snowflake'])",
-          "timebased": false,
-          "remote_searchable_cols": [
-            "name",
-            "type",
-            "typeDescription"
+          "widget_type": "label",
+          "min_width": 3,
+          "height": 3,
+          "max_width": 6,
+          "label": "{% raw %}<div><div style='color: #00aa00; font-size: 20px;'>Changes Since Last Snapshot: {{new_count|int}}</div><div style='color: #888888; font-size: 20px;'>Unchanged: {{unchanged_count|int}}</div></div>{% endraw %}",
+          "segments": [
+            {
+              "stream": "rda_system_snapshots_details",
+              "variable": "new_count",
+              "ts_column": "timestamp",
+              "extra_filter": "artifact_version_visibility == 'new' AND snapshot_name is '{{SNAPSHOT_NAME}}'",
+              "agg": "sum",
+              "group_by0": "artifact_version_visibility",
+              "column": "count_"
+            },
+            {
+              "stream": "rda_system_snapshots_details",
+              "variable": "unchanged_count",
+              "ts_column": "timestamp",
+              "extra_filter": "artifact_version_visibility == 'unchanged' AND snapshot_name is '{{SNAPSHOT_NAME}}'",
+              "agg": "sum",
+              "group_by0": "artifact_version_visibility",
+              "column": "count_"
+            }
           ],
-          "ts_column": "saved_time",
+          "widget_id": "23af24fa"
+        },
+        {
+          "widget_type": "pie_chart",
+          "title": "Artifact Type",
+          "stream": "rda_system_snapshots_details",
+          "ts_column": "timestamp",
+          "extra_filter": "snapshot_name is '{{SNAPSHOT_NAME}}'",
+          "column": "count_",
+          "agg": "sum",
+          "group_by": [
+            "artifact_type"
+          ],
+          "type": "int",
+          "min_width": 3,
+          "height": 3,
+          "max_width": 6,
+          "widget_id": "cc2794c5"
+        },
+        {
+          "title": "Snapshot Manifest",
+          "widget_type": "tabular",
+          "duration_hours": 87600,
+          "max_width": 12,
+          "height": 8,
+          "min_width": 12,
           "paginated": true,
-          "height": 4,
-          "min_wdith": 12,
+          "stream": "rda_system_snapshots_details",
+          "ts_column": "timestamp",
+          "extra_filter": "snapshot_name is '{{SNAPSHOT_NAME}}'",
           "columns": {
-            "name": {
-              "title": "Name",
+            "snapshot_type": {
+              "title": "Snapshot Type",
+              "type": "TEXT",
+              "hidden": false
+            },
+            "snapshot_name": {
+              "title": "Snapshot Name",
+              "type": "TEXT",
+              "hidden": false
+            },
+            "artifact_type": {
+              "title": "Artifact Type",
+              "type": "TEXT",
+              "hidden": false,
               "key": true
             },
-            "type": {
-              "title": "Type",
+            "artifact_name": {
+              "title": "Artifact Name",
+              "type": "TEXT",
+              "hidden": false,
               "key": true
             },
-            "typeDescription": {
-              "title": "description"
+            "artifact_version_visibility": {
+              "title": "Artifact Checksum In Snapshot Repo",
+              "type": "TEXT",
+              "hidden": false
             },
-            "has_credential_check": {
-              "title": "Credential Check",
-              "visible": false
+            "size": {
+              "title": "Size",
+              "type": "DOUBLE",
+              "hidden": false
             },
-            "saved_time": {
-              "title": "Saved Time",
-              "type": "DATETIME"
+            "checksum": {
+              "title": "Checksum",
+              "type": "TEXT",
+              "hidden": false
+            },
+            "object_name": {
+              "title": "Object Name",
+              "type": "TEXT",
+              "visible": false,
+              "key": true
             },
             "timestamp": {
-              "title": "When",
-              "type": "HUMANIZE_TIME_DELTA",
-              "source-column": "saved_time",
-              "sortable": false
+              "title": "Timestamp",
+              "type": "DATETIME"
             }
           },
-          "custom_columns": [
-            {
-              "id": "rowStyleClass",
-              "hidden": true,
-              "visiblle": false,
-              "expr": "'bg-fading-blue' if time_now_as_ms() - isoformat_to_ms(saved_time) <= 120000 else None"
-            },
-            {
-              "id": "artifact_name",
-              "label": "Artifact Name",
-              "expr": "name",
-              "key": true,
-              "visible": false,
-              "sortable": false
-            },
-            {
-              "id": "artifact_type",
-              "label": "Artifact Type",
-              "expr": "'source'",
-              "key": true,
-              "visible": false,
-              "sortable": false
-            }
-          ],
           "actions": [
             {
-              "permission": "rda:credential:add",
-              "title": "Add",
-              "icon": "mdi mdi-plus",
-              "type": "POPUP_FORM",
-              "selectionType": "NONE",
-              "identifier": "saas-service-action:vault-add",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.vault.add",
-                    "extension_types": [
-                      "snowflake"
-                    ]
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:credential:edit",
-              "title": "Edit",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:vault-edit",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.vault.edit"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:credential:view",
               "title": "View",
               "type": "POPUP_FORM",
               "selectionType": "SINGLE",
-              "displayLabelColumnId": "name",
-              "drillDownLinkField": "name",
-              "identifier": "saas-service-action:vault-view",
+              "permission": "rda:dataset:view",
+              "identifier": "rda.saas.snapshot.obj.view",
               "api-endpoint": {
                 "service-name": "saas-reports",
                 "methodName": "getForm",
@@ -761,486 +394,56 @@
                 "parse-output": false,
                 "params": [
                   {
-                    "formId": "rda.saas.vault.view"
+                    "formId": "rda.saas.snapshot.obj.view"
                   }
                 ]
               }
+            }
+          ],
+          "widget_id": "7089a9ae"
+        },
+        {
+          "title": "Snapshot Errors",
+          "widget_type": "tabular",
+          "max_width": 12,
+          "height": 8,
+          "min_width": 12,
+          "paginated": true,
+          "stream": "rda_system_snapshots_errors",
+          "ts_column": "timestamp",
+          "extra_filter0": "snapshot_name is '{{SNAPSHOT_NAME}}'",
+          "columns": {
+            "snapshot_type": {
+              "title": "Snapshot Type",
+              "type": "TEXT",
+              "hidden": false
             },
-            {
-              "permission": "rda:credential:verify",
-              "title": "Verify Credentials",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:vault-edit",
-              "actionCondition": {
-                "actionControl": "HIDE_IF",
-                "conditionalField": [
-                  {
-                    "conditionType": "EQUAL",
-                    "conditionValue": "false",
-                    "fieldId": "has_credential_check"
-                  }
-                ]
-              },
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.vault.validateConenctivity"
-                  }
-                ]
-              }
+            "snapshot_name": {
+              "title": "Snapshot Name",
+              "type": "TEXT",
+              "hidden": false
             },
-            {
-              "permission": "rda:credential:verify",
-              "title": "Delete",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:vault-delete",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.vault.delete"
-                  }
-                ]
-              }
-            }
-          ],
-          "widget_id": "01dc3a55"
-        }
-      ]
-    },
-    {
-      "title": "OFFLINE Data Input",
-      "widgets": [
-        {
-          "title": "Upload HW EoX Data",
-          "widget_type": "tabular",
-          "duration_hours": 1080,
-          "stream": "edc_oi_inventory_enriched",
-          "remote_searchable": true,
-          "ts_column": "timestamp",
-          "paginated": true,
-          "height": 4,
-          "min_wdith": 12,
-          "columns": {
-            "customer_name": {
-              "title": "Customer Name",
+            "artifact_type": {
+              "title": "Artifact Type",
               "type": "TEXT",
-              "visible": true,
-              "key": true
-            }
-          },
-          "pivot": {
-            "pivot_type": "advanced",
-            "group_by": [
-              "customer_name",
-              "count_"
-            ],
-            "series": [
-              {
-                "column": "_RDA_Id",
-                "agg": "value_count",
-                "type": "int",
-                "label": "Number of Records"
-              }
-            ]
-          },
-          "actions": [
-            {
-              "permission": "rda:github:view",
-              "title": "Add Inventory and HW EOX Data",
-              "type": "POPUP_FORM",
-              "selectionType": "NONE",
-              "identifier": "saas-service-action:userdashboard-add-yaml",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.dynamic.form",
-                    "formDefinition": {
-                      "id": "rda.saas.dynamic.form",
-                      "refreshRequired": true,
-                      "formFieldList": [
-                        {
-                          "label": "Upload a CSV or Excel file that contains the data for Inventory and HW EoX (for stream edc_oi_inventory_enriched)",
-                          "dataType": "string",
-                          "controlType": "LABEL",
-                          "required": false,
-                          "editable": true,
-                          "hidden": false,
-                          "fieldId": "devices_to_supp_csv"
-                        },
-                        {
-                          "help": "Choose csv file to upload",
-                          "dataType": "string",
-                          "required": true,
-                          "editable": true,
-                          "label": "CSV Upload",
-                          "controlType": "FILE_UPLOAD",
-                          "hidden": false,
-                          "fieldId": "hweox_csv"
-                        }
-                      ]
-                    },
-                    "actions": [
-                      {
-                        "type": "RUN_PIPELINE",
-                        "pipelineName": "edc_get_oi_input",
-                        "isSync": false
-                      }
-                    ]
-                  }
-                ]
-              }
-            }
-          ],
-          "widget_id": "1424a28e"
-        },
-        {
-          "title": "Upload SW EoX Data",
-          "widget_type": "tabular",
-          "duration_hours": 1080,
-          "stream": "edc_sweol_data",
-          "remote_searchable": true,
-          "ts_column": "timestamp",
-          "paginated": true,
-          "height": 4,
-          "min_wdith": 12,
-          "columns": {
-            "customer_name": {
-              "title": "Customer Name",
+              "hidden": false
+            },
+            "artifact_name": {
+              "title": "Artifact Name",
               "type": "TEXT",
-              "visible": true,
-              "key": true
-            }
-          },
-          "pivot": {
-            "pivot_type": "advanced",
-            "group_by": [
-              "customer_name",
-              "count_"
-            ],
-            "series": [
-              {
-                "column": "_RDA_Id",
-                "agg": "value_count",
-                "type": "int",
-                "label": "Number of Records"
-              }
-            ]
-          },
-          "actions": [
-            {
-              "permission": "rda:github:view",
-              "title": "Add SW EOX Data",
-              "type": "POPUP_FORM",
-              "selectionType": "NONE",
-              "identifier": "saas-service-action:userdashboard-add-yaml",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.dynamic.form",
-                    "formDefinition": {
-                      "id": "rda.saas.dynamic.form",
-                      "refreshRequired": true,
-                      "formFieldList": [
-                        {
-                          "label": "Upload a CSV or Excel file that contains the data for SW EoX (for stream: edc_sweol_data) ",
-                          "dataType": "string",
-                          "controlType": "LABEL",
-                          "required": true,
-                          "editable": true,
-                          "hidden": false,
-                          "fieldId": "devices_to_supp_csv"
-                        },
-                        {
-                          "help": "Choose csv file to upload",
-                          "dataType": "string",
-                          "required": true,
-                          "editable": true,
-                          "label": "CSV Upload",
-                          "controlType": "FILE_UPLOAD",
-                          "hidden": false,
-                          "fieldId": "sweox_csv"
-                        }
-                      ]
-                    },
-                    "actions": [
-                      {
-                        "type": "RUN_PIPELINE",
-                        "pipelineName": "edc_get_oi_input",
-                        "isSync": false
-                      }
-                    ]
-                  }
-                ]
-              }
-            }
-          ],
-          "widget_id": "6aa3e346"
-        },
-        {
-          "title": "Upload Security Advisory Data",
-          "widget_type": "tabular",
-          "duration_hours": 1080,
-          "stream": "edc_sec_adv_data_enriched",
-          "remote_searchable": true,
-          "ts_column": "timestamp",
-          "paginated": true,
-          "height": 5,
-          "min_wdith": 12,
-          "columns": {
-            "customer_name": {
-              "title": "Customer Name",
+              "hidden": false
+            },
+            "message": {
+              "title": "Message",
               "type": "TEXT",
-              "visible": true,
-              "key": true
+              "hidden": false
+            },
+            "timestamp": {
+              "title": "Timestamp",
+              "type": "DATETIME"
             }
           },
-          "pivot": {
-            "pivot_type": "advanced",
-            "group_by": [
-              "customer_name",
-              "count_"
-            ],
-            "series": [
-              {
-                "column": "_RDA_Id",
-                "agg": "value_count",
-                "type": "int",
-                "label": "Number of Records"
-              }
-            ]
-          },
-          "actions": [
-            {
-              "permission": "rda:github:view",
-              "title": "Add Security Advisory Data",
-              "type": "POPUP_FORM",
-              "selectionType": "NONE",
-              "identifier": "saas-service-action:userdashboard-add-yaml",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.dynamic.form",
-                    "formDefinition": {
-                      "id": "rda.saas.dynamic.form",
-                      "refreshRequired": true,
-                      "formFieldList": [
-                        {
-                          "label": "Upload a CSV or Excel file that contains the data for Security Advisories (for stream: edc_sec_adv_data_enriched) ",
-                          "dataType": "string",
-                          "controlType": "LABEL",
-                          "required": false,
-                          "editable": true,
-                          "hidden": false,
-                          "fieldId": "devices_to_supp_csv"
-                        },
-                        {
-                          "help": "Choose csv file to upload",
-                          "dataType": "string",
-                          "required": true,
-                          "editable": true,
-                          "label": "CSV Upload",
-                          "controlType": "FILE_UPLOAD",
-                          "hidden": false,
-                          "fieldId": "secadv_csv"
-                        }
-                      ]
-                    },
-                    "actions": [
-                      {
-                        "type": "RUN_PIPELINE",
-                        "pipelineName": "edc_get_oi_input",
-                        "isSync": false
-                      }
-                    ]
-                  }
-                ]
-              }
-            }
-          ],
-          "widget_id": "cff852c6"
-        },
-        {
-          "title": "Upload Licenses Details Data",
-          "widget_type": "tabular",
-          "duration_hours": 1080,
-          "stream": "edc_license_details",
-          "remote_searchable": true,
-          "ts_column": "timestamp",
-          "paginated": true,
-          "height": 5,
-          "min_wdith": 12,
-          "columns": {
-            "customer_name": {
-              "title": "Customer Name",
-              "type": "TEXT",
-              "visible": true,
-              "key": true
-            }
-          },
-          "pivot": {
-            "pivot_type": "advanced",
-            "group_by": [
-              "customer_name",
-              "count_"
-            ],
-            "series": [
-              {
-                "column": "_RDA_Id",
-                "agg": "value_count",
-                "type": "int",
-                "label": "Number of Records"
-              }
-            ]
-          },
-          "actions": [
-            {
-              "permission": "rda:github:view",
-              "title": "Add SW License Details Data",
-              "type": "POPUP_FORM",
-              "selectionType": "NONE",
-              "identifier": "saas-service-action:userdashboard-add-yaml",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.dynamic.form",
-                    "formDefinition": {
-                      "id": "rda.saas.dynamic.form",
-                      "refreshRequired": true,
-                      "formFieldList": [
-                        {
-                          "label": "Upload a CSV that contains the data for SW Licenes Details (for stream: edc_license_details) ",
-                          "dataType": "string",
-                          "controlType": "LABEL",
-                          "required": true,
-                          "editable": true,
-                          "hidden": false,
-                          "fieldId": "devices_to_supp_csv"
-                        },
-                        {
-                          "help": "Choose csv file to upload",
-                          "dataType": "string",
-                          "required": true,
-                          "editable": true,
-                          "label": "CSV Upload1",
-                          "controlType": "FILE_UPLOAD",
-                          "hidden": false,
-                          "fieldId": "swlicenses_details_csv1"
-                        },
-                        {
-                          "help": "Choose csv file to upload",
-                          "dataType": "string",
-                          "required": true,
-                          "editable": true,
-                          "label": "CSV Upload2",
-                          "controlType": "FILE_UPLOAD",
-                          "hidden": false,
-                          "fieldId": "swlicenses_details_csv2"
-                        }
-                      ]
-                    },
-                    "actions": [
-                      {
-                        "type": "RUN_PIPELINE",
-                        "pipelineName": "edc_get_oi_input",
-                        "isSync": false
-                      }
-                    ]
-                  }
-                ]
-              }
-            }
-          ],
-          "widget_id": "c7c809be"
-        },
-        {
-          "title": "Run OI Pipeline",
-          "widget_type": "tabular",
-          "duration_hours": 1080,
-          "stream": "oi_stream",
-          "ts_column": "timestamp",
-          "remote_searchable": true,
-          "paginated": true,
-          "height": 5,
-          "min_wdith": 12,
-          "time_agnostic": true,
-          "actions": [
-            {
-              "permission": "rda:github:view",
-              "title": "Run pipeline",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:userdashboard-add-yaml",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.dynamic.form",
-                    "formActionList": {
-                      "formActions": [
-                        {
-                          "identifier": "Submit",
-                          "actionLabel": "Run"
-                        }
-                      ]
-                    },
-                    "formDefinition": {
-                      "id": "rda.saas.dynamic.form",
-                      "refreshRequired": true,
-                      "formFieldList": [
-                        {
-                          "help": "Do you want to run the pipeline?",
-                          "dataType": "string",
-                          "controlType": "LABEL",
-                          "required": false,
-                          "editable": false,
-                          "label": "Do you want to run the pipeline?",
-                          "hidden": false,
-                          "fieldId": "runcollection"
-                        }
-                      ]
-                    },
-                    "actions": [
-                      {
-                        "type": "RUN_PIPELINE",
-                        "pipelineName": "edc_get_customer_data",
-                        "isSync": false
-                      }
-                    ]
-                  }
-                ]
-              }
-            }
-          ],
-          "widget_id": "957a565d"
+          "widget_id": "53447b4f"
         }
       ]
     }
