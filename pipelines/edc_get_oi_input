@@ -1,35 +1,68 @@
-@dm:empty
- --> @c:new-block
- --> @rn:read-stream name = 'snmp_trap_event_stream' & group = '06_14_2023'
- --> @dm:map-snmp-trap-to-alert template_folder="trap2alert2"
- ## For now, process this only for cml devices
+@c:new-block
+ --> @dm:empty
+ ## Get submitted form fields
 
- --> *dm:filter rda_gw_client_ip contains '9.3.252'
- ## Handle OSPF NBR CHANGE traps
+ --> @exec:get-input
+ ## Exclude label as it contains unneeded info that should not be written to stream later
 
- --> *exec:if-condition snmpTrapName is 'ospfNbrStateChange'
- --> @dm:eval link_type="'OSPF'"
- --> @dm:save name="temp-ospf-raw-trap"
- --> #dm:query-persistent-stream left_id is '{{row.device}}' and neighbor_id="{{row.ospfNbrRtrId}}" and timestamp is after -1440 hours with-input name="cml_topo_edges" and limit="1" and max_rows="1"
- --> @dm:selectcolumns include="^left_id$|^right_id$"
- ## -->  @dm:eval left_id="left_id.strip()"
-
- --> @dm:map attr="left_id" & func="strip"
- --> @dm:eval dict_name = "'temp-topo-data'"
- --> @rn:write-stream name = 'new_cml_snmp_trap_alerts_debug'
- --> @dm:save name="temp-topo-data"
- --> @dm:recall name="temp-ospf-raw-trap"
- --> @dm:selectcolumns include="^device$"
- ## -->  @dm:eval device="device.strip()"
-
- --> @dm:map attr="device" & func="strip"
- --> @dm:eval dict_name = "'current'"
- --> @rn:write-stream name = 'new_cml_snmp_trap_alerts_debug'
- --> @dm:enrich dict="temp-topo-data"
-and src_key_cols="device"
-and dict_key_cols="left_id"
-and enrich_cols="right_id"
-and enrich_cols_as="remote_ip_new"
- --> @dm:eval dict_name = "'final'"
- --> @rn:write-stream name = 'new_cml_snmp_trap_alerts_debug'
+ --> @dm:selectcolumns exclude='.*_label'
+ --> @dm:save name='temp-input_data'
+ --> @dm:save name='check-input_data'
+ --> @dm:recall name="temp-input_data"
+ --> @dm:add-missing-columns columns = 'hweox_csv,sweox_csv,secadv_csv,swlicenses_details_csv1,swlicenses_details_csv2' &
+value = 'False'
+ --> @dm:save name='false_data'
+ --> *exec:if-condition hweox_csv !='False'
+ --> @dm:selectcolumns include="hweox_csv"
+ --> @dm:explode-json column="hweox_csv"
+ --> @dm:save name="temp-input0-dataset"
+ --> @dm:save name="input11-dataset"
+ --> @dm:recall name="temp-input0-dataset"
+ --> @dm:get-from-location path="{{row.bucketName}}/{{row.objectName}}"
+ --> @dm:save name="temp-uploaded-file-data"
+ --> @dm:save name="uploaded-data"
+ --> @rn:write-stream name="test0-stream-input"
+ --> @exec:end-if
+ --> *exec:if-condition sweox_csv !='False'
+ --> @dm:selectcolumns include="sweox_csv"
+ --> @dm:explode-json column="sweox_csv"
+ --> @dm:save name="temp-input0-dataset"
+ --> @dm:save name="input12-dataset"
+ --> @dm:recall name="temp-input0-dataset"
+ --> @dm:get-from-location path="{{row.bucketName}}/{{row.objectName}}"
+ --> @dm:save name="temp-uploaded-file-data"
+ --> @dm:save name="uploaded-data"
+ --> @rn:write-stream name="test1-stream-input"
+ --> @exec:end-if
+ --> *exec:if-condition secadv_csv !='False'
+ --> @dm:selectcolumns include="secadv_csv"
+ --> @dm:explode-json column="secadv_csv"
+ --> @dm:save name="temp-input0-dataset"
+ --> @dm:save name="input13-dataset"
+ --> @dm:recall name="temp-input0-dataset"
+ --> @dm:get-from-location path="{{row.bucketName}}/{{row.objectName}}"
+ --> @dm:save name="temp-uploaded-file-data"
+ --> @dm:save name="uploaded-data"
+ --> @rn:write-stream name="test2-stream-input"
+ --> @exec:end-if
+ --> *exec:if-condition swlicenses_details_csv1 !='False' and swlicenses_details_csv2 !='False'
+ --> @dm:selectcolumns include="swlicenses_details_csv1"
+ --> @dm:explode-json column="swlicenses_details_csv1"
+ --> @dm:save name="temp-input0-dataset"
+ --> @dm:save name="input14-dataset"
+ --> @dm:recall name="temp-input0-dataset"
+ --> @dm:get-from-location path="{{row.bucketName}}/{{row.objectName}}"
+ --> @dm:save name="temp-uploaded-file-data"
+ --> @dm:save name="uploaded-data"
+ --> @rn:write-stream name="test3-stream-input"
+ --> @dm:recall name="temp-input_data"
+ --> @dm:selectcolumns include="swlicenses_details_csv2"
+ --> @dm:explode-json column="swlicenses_details_csv2"
+ --> @dm:save name="temp-input0-dataset"
+ --> @dm:save name="input15-dataset"
+ --> @dm:recall name="temp-input0-dataset"
+ --> @dm:get-from-location path="{{row.bucketName}}/{{row.objectName}}"
+ --> @dm:save name="temp-uploaded-file-data"
+ --> @dm:save name="uploaded-data"
+ --> @rn:write-stream name="test4-stream-input"
  --> @exec:end-if
