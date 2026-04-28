@@ -1,8 +1,29 @@
-@dm:empty
- --> @dm:addrow name='edc_oi_inventory_enriched' and limit=0
- --> #dm:query-persistent-stream
- --> @dm:save name='temp-edc-oi-inv-enriched'
+
+ ## declaring child pipelines
+@c:new-block
+ --> @dm:empty
+ --> @exec:define-function name="define_child_pipelines"
+ --> @exec:run-pipeline name ="edc_oi_get_product_alerts" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_oi_product_alerts_raw" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_oi_product_alerts_run_scan" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_oi_generate_token" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_oi_process_sw_data" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_oi_get_sweol_data" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_oi_get_security_advisories_data" & ignore_failures = "no"
+ --> @exec:end-function
+ ## addingt the software and security advisories data
+
  --> @c:new-block
- --> @dm:recall name='temp-edc-oi-inv-enriched'
- --> @dm:selectcolumns exclude='^(EndOfLifeInternalAnnouncementDate|EndOfLastHardwareShipDate|EndOfHardwareNewServiceAttachmentDate|EndOfHardwareRoutineFailureAnalysisDate|EndOfBUEngineeringSupportTACDate|EndOfHardwareServiceContractRenewalDate|EndOfSignatureReleasesDate|EndOfSoftwareAvailabilityDate|EndOfSoftwareLicenseAvailabilityDate|created|customerVisible|external_text|external_title|firstIcAlertId|groups|icIssueId|icProblemId|ignored|lastIcAlertId|eoXAlertType|name|openedOn|resultType|severity|severityText|state|updated|deviceSN|runType|filename|icType|atticaStatus|cdetsList|retry|associatedGroups)$'
- --> @rn:write-stream name='edc_oi_inventory_enriched'
+ --> @dm:empty
+ --> @dm:addrow name='edc_sw_raw_data' and limit=0
+ --> #dm:query-persistent-stream
+ --> @dm:selectcolumns exclude='^(unique_key)$'
+ --> @dm:save name='temp-edc-sw-raw-op-exploded'
+ --> @exec:run-pipeline name='edc_oi_get_sweol_data' and ignore_failures = "no"
+ --> @c:new-block
+ --> @dm:empty
+ --> @dm:addrow name='edc_sec_adv_data_raw' and limit=0
+ --> #dm:query-persistent-stream
+ --> @dm:selectcolumns exclude='^(unique_key)$'
+ --> @dm:save name='temp-edc-sa-raw-op-exploded'
+ --> @exec:run-pipeline name='edc_oi_get_security_advisories_data' and ignore_failures = "no"
