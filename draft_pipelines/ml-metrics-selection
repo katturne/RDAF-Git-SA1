@@ -1,87 +1,140 @@
-
- ## Collecting selected metrics
 @c:new-block
- --> @dm:empty
- --> @dm:addrow name='oia-selected-metrics' and limit=0 and max_rows=10000
- --> #dm:query-persistent-stream
- --> @dm:save name='temp-oia-selected-metrics'
- ## Saving only de duped asset_ids from selected metrics
-
- --> @dm:dedup columns='asset_id'
- --> @dm:save name='temp-oia-selected-metrics-assetid'
- ## Collecting all metrics data for the selected asset_id
-
- --> @c:data-loop dataset="temp-oia-selected-metrics-assetid" & columns="asset_id"
- --> @dm:empty
- --> @dm:addrow name='oia-metrics-data' and limit=0 and max_rows=10000
- --> #dm:query-persistent-stream asset_id is '$asset_id' and metric_timestamp is after -1 week
- ## 1. Metric correlation for all metrics per asset_id
-
- --> @dm:eval-multi-proc value = "round(value, 0)"
- --> @dm:change-time-format columns='metric_timestamp' &
-from_format='ms' &            to_format='%Y-%m-%dT%H:%M:%S'
- --> @dm:metric-correlator metric_label='metric_id' & timestamp_column='metric_timestamp' & value_column='value' & correlation_threshold=0.9
- ## Checking if there are any correlations
-
- --> *exec:if-shape num_rows>0
- ## Getting Unique metrics from correlated metrics
-
- --> @dm:eval output="str(Metric1) + ',' + str(Metric2)"
- --> @dm:explode column='output' and sep=','
- --> @dm:selectcolumns include='output'
- --> @dm:dedup columns='output'
- --> @dm:add-missing-columns columns="asset_id" and value="$asset_id"
- --> @dm:save name='temp-metric-correlation-output' and append='yes'
- --> @rn:write-stream name='oia-metric-correlation-output'
- --> @exec:end-if
- ## If Metric Correlation output is empty adding any one metric per asset for regression
-
- --> *exec:if-shape num_rows=0
- --> @dm:recall-query name = 'temp-oia-selected-metrics-assetid' and query="asset_id is '$asset_id'"
- --> @dm:selectcolumns include='asset_id|metric_id'
- --> @dm:eval output='metric_id'
- --> @dm:save name='temp-metric-correlation-output' and append='yes'
- --> @rn:write-stream name='oia-metric-correlation-output'
- --> @exec:end-if
+ --> @exec:get-input
+ --> @dm:save name="ticket-create-input"
+ --> @dm:save name="temp-create-input"
+ --> @dm:save name="create-ticket-pipeline-input"
  --> @c:new-block
- --> @dm:recall name='temp-metric-correlation-output'
- --> @dm:save name='metric-correlation-output'
- ## Regression
-
- --> @c:data-loop columns = 'output,asset_id' &
-dataset = 'metric-correlation-output'
  --> @dm:empty
- --> @dm:addrow name='oia-metrics-data' and limit=0
- --> #dm:query-persistent-stream asset_id is '$asset_id' and metric_id is '$output' and metric_timestamp is after -1 week
- --> @cfxml:regression ts_column='metric_timestamp' &
-value_column='value' &            agg_func='mean' &            action='train' &            frequency='1H' &            prediction_duration='1H' &            skip_errors='yes' & job_name="$asset_id-$output"
- --> @dm:add-missing-columns columns='anomalies_type,anomaly_score,anomalies,predicted,baseline,upperBound,lowerBound,timestamp,anomalies_severity'
- --> @dm:eval anomalies_type = "'upper' if anomalies_type == 1 else 'lower' if anomalies_type == -1 else None"
- --> @dm:add-missing-columns columns="asset_id" and value="$asset_id"
- --> @dm:add-missing-columns columns="metric_id" and value="$output"
- --> @dm:enrich dict='temp-oia-selected-metrics' and
-src_key_cols='metric_id,asset_id' and            dict_key_cols='metric_id,asset_id' and            enrich_cols='metric_label,metric_source,unit,asset_name'
- --> @dm:change-time-format columns='timestamp' &
-from_format='datetimestr' &            to_format='%Y-%m-%dT%H:%M:%S'
- --> @dm:add-missing-columns columns='stream_name' and value='oia-ml-metrics-regression-output'
- --> @dm:map from='asset_id,metric_label' and to='marker_message' and func='join' and sep=' - '
- ## sending the regression output to stream for chart consumption
+ --> @dm:save name="temp-incident-alerts"
+ --> @dm:save name="temp-payload-snow-create"
+ --> @dm:save name="temp-notes"
+ --> @dm:save name="temp-incident-data"
+ --> @c:data-loop dataset="temp-create-input" & columns="project_id,incident_id,customer_id"
+ --> @dm:recall name="temp-create-input"
+ --> *dm:filter incident_id == '$incident_id' and project_id == '$project_id'
+ --> @dm:add-missing-columns columns = 'inc_data'
+ --> @dm:fixnull columns = 'inc_data' & value='{}'
+ --> *dm:filter inc_data != '{}' and inc_data != ''
+ --> @dm:skip-block-if-shape row_count = 0
+ --> @dm:eval inc_data="json_loads(inc_data)"
+ --> @dm:explode-json column = 'inc_data'
+ --> @dm:map to="incident_id" & func="fixed" & value="$incident_id"
+ --> @dm:map to="project_id" & func="fixed" & value='$project_id'
+ --> @dm:map to="customer_id" & func="fixed" & value="$customer_id"
+ --> @dm:save name="temp-incident-data" & append="yes"
+ ## Prepare worknotes using Alerts
 
- --> @rn:write-stream name='oia-ml-metrics-regression-output'
- --> *dm:filter anomalies_type is 'upper' and anomalies_severity is 'High'
- --> @dm:eval anomaly_score = "round(anomalies/upperBound,2) if upperBound and anomalies_type == 'upper' else round(lowerBound/anomalies,2) if anomalies and anomalies_type == 'lower' else 0"
- --> @dm:resample-timeseries ts_column='timestamp' and
-value_column='anomaly_score' and            interval='1H' and agg='max'
- ## Enriching and eval columns again as resample-timeseries bot filters all the columns
+ --> @c:data-loop dataset="temp-create-input" & columns="project_id,incident_id,customer_id"
+ --> @dm:recall name="temp-create-input"
+ --> *dm:filter incident_id == '$incident_id' and project_id == '$project_id'
+ --> @dm:add-missing-columns columns = 'alerts'
+ --> @dm:fixnull columns = 'alerts' & value='[]'
+ --> *dm:filter alerts != '[]' and alerts != ''
+ --> @dm:skip-block-if-shape row_count = 0
+ --> @dm:eval alerts="json_loads(alerts)"
+ --> @dm:explode-json column = 'alerts'
+ ## Will create new dataset. Old will be replaced with this new one
 
- --> @dm:add-missing-columns columns="asset_id" and value="$asset_id"
- --> @dm:add-missing-columns columns="metric_id" and value="$output"
- --> @dm:enrich dict='temp-oia-selected-metrics' and
-src_key_cols='metric_id,asset_id' and            dict_key_cols='metric_id,asset_id' and            enrich_cols='metric_label,metric_source,unit,asset_name'
- --> @dm:change-time-format columns='timestamp' &
-from_format='datetimestr' &            to_format='%Y-%m-%dT%H:00:00'
- --> @dm:fixnull columns='anomaly_score' and value=0
- --> @dm:to-type columns='anomaly_score' and type='float'
- --> *dm:filter anomaly_score is greater than 0
- --> @dm:eval anomaly_score = "round(anomaly_score,2)"
- --> @rn:write-stream name='oia-ml-metrics-meta-output'
+ ## Change-Here: make sure to find correct incident_id column
+
+ --> @dm:map to="incident_id" & func="fixed" & value="$incident_id"
+ --> @dm:map to="project_id" & func="fixed" & value="$project_id"
+ --> @dm:map to="customer_id" & func="fixed" & value="$customer_id"
+ --> @dm:map to="step" & func="fixed" & value="c1"
+ --> @rn:write-stream compression="auto" & name="debug-fsm-att"
+ ## Change-Here: Select columns
+
+ --> @dm:selectcolumns include="a_message|a_raised_ts|a_created_ts|a_updated_ts|a_status|a_asset_name|a_repeat_count|incident|project|customer"
+ --> @dm:add-missing-columns columns = 'a_message,a_raised_ts,a_created_ts,a_updated_ts,a_status,a_asset_name,a_repeat_count' & value=""
+ --> @dm:fixnull columns = 'a_message,a_raised_ts,a_created_ts,a_updated_ts,a_status,a_asset_name,a_repeat_count' & value=""
+ --> @dm:save name="temp-incident-alerts"
+ ## Prepare notes based on Alerts
+
+ --> @dm:save name="before-apply-template-for-create"
+ --> @dm:apply-template-all-rows template_name = 'snow-notes-template' & output_col = 'concat_value'
+ --> @dm:save name="after-apply-template-for-create"
+ --> @dm:add-missing-columns columns = 'concat_value' & value=""
+ --> @dm:eval work_notes="'[code] ' + concat_value + ' [/code]'"
+ --> @dm:copy-columns to="notes" & from="work_notes"
+ --> @dm:copy-columns to="comments" & from="work_notes"
+ --> @dm:map to="incident_id" & func="fixed" & value="$incident_id"
+ --> @dm:map to="project_id" & func="fixed" & value="$project_id"
+ --> @dm:map to="customer_id" & func="fixed" & value="$customer_id"
+ --> @dm:save name="temp-notes" & append="yes"
+ --> @dm:map to="step" & func="fixed" & value="c2"
+ --> @rn:write-stream compression="auto" & name="debug-fsm-att"
+ ## Prepare Payload for Snow
+
+ --> @c:data-loop dataset="temp-create-input" & columns="project_id,incident_id,customer_id"
+ --> @dm:recall name="temp-notes"
+ --> *dm:filter incident_id == '$incident_id' and project_id == '$project_id'
+ --> @dm:skip-block-if-shape row_count = 0
+ ## Incident Data
+
+ ## Join Alerts and Incident Data Records. One(Incident) to Many(Alerts).
+
+ --> @dm:enrich dict='temp-incident-data' & dict_key_cols='incident_id,project_id' & src_key_cols='incident_id,project_id' & enrich_cols='i_state,i_summary,i_description,i_priority'
+ --> @dm:map to="account" & func="fixed" & value="CloudFabrix"
+ --> @dm:map to="company" & func="fixed" & value="f5eab4f4070e1110187bf9fc7c1ed0ef"
+ --> @dm:map to="category" & func="fixed" & value="Software"
+ --> @dm:copy-columns to="shortDescription" & from="i_summary"
+ --> @dm:copy-columns to="short_description" & from="i_summary"
+ --> @dm:eval state="('New' if i_state == 'Open' else ('New' if i_state == 'Assigned' else ('On Hold' if i_state == 'On Hold' else ('Resolved' if i_state == 'Resolved' else ('Resolved' if i_state == 'Closed' else ('Canceled' if i_state == 'Cancelled' else ('New')))))))"
+ --> @dm:fixnull columns = 'i_priority' & value='3.0'
+ --> @dm:eval impact="('1 - High' if (str(i_priority) == '1.0') else ('2 - Medium' if (str(i_priority) == '2.0') else ('3 - Low')))"
+ --> @dm:eval urgency="('1 - High' if (str(i_priority) == '1.0') else ('2 - Medium' if (str(i_priority) == '2.0') else ('3 - Low')))"
+ --> @dm:eval severity="('1 - High' if (str(i_priority) == '1.0') else ('2 - Medium' if (str(i_priority) == '2.0') else ('3 - Low')))"
+ --> @dm:apply-template-by-row template_name = 'snow-description-template' & output_col = 'description'
+ --> @dm:map to="fsmInputEventName" & func="fixed" & value="save-ticket-id"
+ --> @dm:map to="fsmModelName" & func="fixed" & value="at_n_t_incident"
+ --> @dm:map to="incident_id" & func="fixed" & value="$incident_id"
+ --> @dm:map to="project_id" & func="fixed" & value="$project_id"
+ --> @dm:map to="customer_id" & func="fixed" & value="$customer_id"
+ --> @dm:save name="temp-payload-snow-create" & append="yes"
+ --> @dm:map to="step" & func="fixed" & value="c3"
+ --> @dm:save name="create-ticket-save-ticket-id"
+ --> @rn:write-stream compression="auto" & name="debug-fsm-att"
+ ## Create Snow Ticket
+
+ --> @c:data-loop dataset="temp-create-input" & columns="project_id,incident_id,customer_id"
+ --> @dm:recall name="temp-payload-snow-create"
+ --> *dm:filter incident_id == '$incident_id' and project_id == '$project_id'
+ --> @dm:skip-block-if-shape row_count = 0
+ --> @dm:selectcolumns include="account|company|category|description|short|state|urgency|impact|severity|notes|comments|work_notes|project_id|incident_id|customer_id|fsm"
+ --> @dm:save name="temp-before-snow-create"
+ --> @snowv2:create-incident mandatory_cols="short_description,urgency,state,impact,description,comments"
+ --> @dm:check-columns must_contain="rda_row_id,number" & action="skip-block"
+ --> @dm:fixnull columns = 'rda_row_id' & value=''
+ --> *dm:filter rda_row_id != ''
+ --> @dm:skip-block-if-shape row_count = 0
+ --> @dm:map to="incident_id" & func="fixed" & value="$incident_id"
+ --> @dm:map to="project_id" & func="fixed" & value="$project_id"
+ --> @dm:map to="customer_id" & func="fixed" & value="$customer_id"
+ --> @dm:eval itsm_link="'https://dev84819.service-now.com/nav_to.do?uri=%2Fincident.do%3Fsys_id%3D' + rda_row_id"
+ --> @dm:map to="step" & func="fixed" & value="c4"
+ --> @rn:write-stream compression="auto" & name="debug-fsm-att"
+ --> @dm:save name="temp-after-snow-create"
+ --> @dm:recall name="temp-before-snow-create"
+ --> @dm:enrich dict='temp-after-snow-create' & dict_key_cols='incident_id,project_id' & src_key_cols='incident_id,project_id' & enrich_cols='rda_row_id,number,itsm_link'
+ --> @dm:check-columns must_contain="rda_row_id,number" & action="skip-block"
+ --> @dm:fixnull columns = 'rda_row_id' & value=''
+ --> *dm:filter rda_row_id != ''
+ --> @dm:skip-block-if-shape row_count = 0
+ --> @dm:copy-columns to="itsm_ticket_number" & from="number"
+ --> @dm:copy-columns to="itsm_ticket_id" & from="rda_row_id"
+ --> @dm:save name="temp-merged-snow-create"
+ --> @dm:map to="step" & func="fixed" & value="c5"
+ --> @rn:write-stream compression="auto" & name="debug-fsm-att"
+ --> @dm:copy-columns to="label" & from="number"
+ --> @dm:copy-columns to="incidentid" & from="incident_id"
+ --> @dm:copy-columns to="roomid" & from="project_id"
+ --> @dm:copy-columns to="externalUrl" & from="itsm_link"
+ --> @dm:eval attrs=' "[{\"name\":\"externalUrl\",\"value\":\"" + itsm_link + "\"}]" '
+ --> @dm:eval attributes = "json_loads(attrs)"
+ --> @dm:selectcolumns include="roomid|incidentid|label|attributes"
+ --> @agent:agent-irm:irmagent:updateIncidents
+ --> @dm:save name="temp-irm-result"
+ --> @dm:map to="step" & func="fixed" & value="c6"
+ --> @rn:write-stream compression="auto" & name="debug-fsm-att"
+ --> @dm:recall name="temp-merged-snow-create"
+ --> @rn:write-stream compression="auto" & name="rda_fsm_event_stream"
