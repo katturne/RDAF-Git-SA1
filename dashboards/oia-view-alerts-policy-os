@@ -1,48 +1,36 @@
 {
-  "name": "oia-view-alerts-policy-os",
-  "label": "Alerts",
-  "description": "Open Search Based OIA View Alerts",
-  "version": "23.3.30.1",
+  "name": "oia-alert-group-view-details-os-v2",
+  "label": "OIA Alert Group View details",
+  "description": "OIA Alert Group View details Dashboard",
+  "version": "23.1.2",
   "enabled": true,
+  "dashboard_style": "tabbed",
+  "status_poller": {},
   "stream": "oia-alerts-stream",
-  "debug": true,
-  "dashboard_style": "auto",
   "dashboard_type": "template",
   "template_variables": {
     "PROJECT_ID": {
-      "default": [
-        "61ed50a5-8634-4464-a17e-adf6b40225b2"
-      ],
-      "contextId": "projectId"
+      "default": null,
+      "contextId": "project_id"
     },
-    "RULE_ID": {
-      "default": "2629b6df-d57f-4f81-8465-1d70ddc8dadf",
-      "contextId": "ruleid"
+    "CORRELATION_PARENT_ID": {
+      "default": null,
+      "contextId": "a_id",
+      "type": "stack"
+    },
+    "INCIDENT_ID": {
+      "default": null,
+      "contextId": "incidentid",
+      "type": "stack"
     },
     "SOURCE_DASHBOARD_ID": {
-      "default": "user-dashboard-oia-view-alerts-policy-os",
+      "default": "user-dashboard-oia-alert-group-view-details-os-v2",
       "contextId": "sourceDashboardId"
     }
   },
-  "status_poller": {
-    "stream": "oia-alerts-stream",
-    "frequency": 15,
-    "columns": [
-      "timestamp"
-    ],
-    "sorting": [
-      {
-        "timestamp": "desc"
-      }
-    ],
-    "query": "timestamp is after '$timestamp'",
-    "defaults": {
-      "timestamp": "$UTCNOW"
-    },
-    "action": "refresh"
-  },
   "dashboard_filters": {
     "time_filter": true,
+    "extra_filter": "a_correlation_parent is '{{CORRELATION_PARENT_ID}}'",
     "default_time_filter_non_removable": true,
     "show_default_time_filter": false,
     "additional_datetime_column_filters": [
@@ -287,10 +275,6 @@
         "type": "TEXT"
       }
     ],
-    "default_time_filter_labels": [
-      "Last 24 hours"
-    ],
-    "extra_filter": "a_rule_id is '{{RULE_ID}}' and a_source_systemname is not-in 'Alert Group' and a_correlation_status not-in 'AGGREGATE'",
     "group_filters": [
       {
         "stream": "oia-alerts-stream",
@@ -335,28 +319,6 @@
         "agg": "value_count",
         "column": "a_id",
         "type": "str"
-      },
-      {
-        "stream": "oia-alerts-stream",
-        "title": "Cluster",
-        "group_by": [
-          "a_cluster_label"
-        ],
-        "ts_column": "a_updated_ts",
-        "agg": "value_count",
-        "column": "a_id",
-        "type": "str"
-      },
-      {
-        "stream": "oia-alerts-stream",
-        "title": "Organizations",
-        "group_by": [
-          "project_id"
-        ],
-        "ts_column": "a_updated_ts",
-        "agg": "value_count",
-        "column": "project_id",
-        "type": "str"
       }
     ]
   },
@@ -364,6 +326,14 @@
     {
       "from": "oia-alerts-os",
       "as": "alerts"
+    },
+    {
+      "from": "oia-alerts-os",
+      "as": "alerts_source_timeseries"
+    },
+    {
+      "from": "oia-alerts-os",
+      "as": "alerts_severity_timeseries"
     }
   ],
   "dashboard_sections": [
@@ -380,13 +350,79 @@
             "alerts:actions_lib.alerts_tabular_actions"
           ],
           "extend_vars": {
-            "alerts_tabular_extra_filter": "a_rule_id is '{{RULE_ID}}' and a_source_systemname is not-in 'Alert Group' and a_correlation_status not-in 'AGGREGATE'",
-            "clear_alerts_extra_filter": "a_status is not 'CLEARED' and a_rule_id is '{{RULE_ID}}' and a_source_systemname is not-in 'Alert Group' and a_correlation_status not-in 'AGGREGATE'"
+            "alerts_tabular_extra_filter": "a_correlation_parent is '{{CORRELATION_PARENT_ID}}'",
+            "clear_alerts_extra_filter": "a_status is not 'CLEARED' and a_correlation_parent is '{{CORRELATION_PARENT_ID}}'"
           },
+          "extra_filter": "a_correlation_parent is '{{CORRELATION_PARENT_ID}}'",
           "min_width": 12,
           "height": 12,
           "max_width": 12,
           "widget_id": "94a3fc11"
+        }
+      ]
+    },
+    {
+      "title": "Alert Group Analytics",
+      "show_filter": true,
+      "projects": [
+        "ACME"
+      ],
+      "widgets": [
+        {
+          "title": "Correlated Alerts",
+          "widget_type": "custom_counter",
+          "stream": "oia-alerts-stream",
+          "max_width": 4,
+          "height": 3,
+          "min_width": 4,
+          "ts_column": "a_updated_ts",
+          "duration_hours": 1000,
+          "column": "a_id",
+          "agg": "cardinality",
+          "type": "str",
+          "widget_id": "02be1e20"
+        },
+        {
+          "title": "Impacted Assets",
+          "widget_type": "custom_counter",
+          "stream": "oia-alerts-stream",
+          "max_width": 4,
+          "height": 3,
+          "min_width": 4,
+          "ts_column": "a_updated_ts",
+          "duration_hours": 1000,
+          "column": "a_asset_name",
+          "agg": "cardinality",
+          "type": "str",
+          "widget_id": "b59f5ee2"
+        },
+        {
+          "title": "Alert Sources",
+          "widget_type": "custom_counter",
+          "stream": "oia-alerts-stream",
+          "max_width": 4,
+          "height": 3,
+          "min_width": 4,
+          "ts_column": "a_updated_ts",
+          "duration_hours": 1000,
+          "column": "a_source_systemname",
+          "agg": "cardinality",
+          "type": "str",
+          "widget_id": "5c36c890"
+        },
+        {
+          "extends": "alerts_source_timeseries:alerts_by_source_timeseries",
+          "min_width": 6,
+          "height": 6,
+          "max_width": 6,
+          "widget_id": "5eb5ba43"
+        },
+        {
+          "extends": "alerts_severity_timeseries:alerts_by_severity_timeseries",
+          "min_width": 6,
+          "height": 6,
+          "max_width": 6,
+          "widget_id": "a1f1498a"
         }
       ]
     }
@@ -405,13 +441,79 @@
             "alerts:actions_lib.alerts_tabular_actions"
           ],
           "extend_vars": {
-            "alerts_tabular_extra_filter": "a_rule_id is '{{RULE_ID}}' and a_source_systemname is not-in 'Alert Group' and a_correlation_status not-in 'AGGREGATE'",
-            "clear_alerts_extra_filter": "a_status is not 'CLEARED' and a_rule_id is '{{RULE_ID}}' and a_source_systemname is not-in 'Alert Group' and a_correlation_status not-in 'AGGREGATE'"
+            "alerts_tabular_extra_filter": "a_correlation_parent is '{{CORRELATION_PARENT_ID}}'",
+            "clear_alerts_extra_filter": "a_status is not 'CLEARED' and a_correlation_parent is '{{CORRELATION_PARENT_ID}}'"
           },
+          "extra_filter": "a_correlation_parent is '{{CORRELATION_PARENT_ID}}'",
           "min_width": 12,
           "height": 12,
           "max_width": 12,
           "widget_id": "94a3fc11"
+        }
+      ]
+    },
+    {
+      "title": "Alert Group Analytics",
+      "show_filter": true,
+      "projects": [
+        "ACME"
+      ],
+      "widgets": [
+        {
+          "title": "Correlated Alerts",
+          "widget_type": "custom_counter",
+          "stream": "oia-alerts-stream",
+          "max_width": 4,
+          "height": 3,
+          "min_width": 4,
+          "ts_column": "a_updated_ts",
+          "duration_hours": 1000,
+          "column": "a_id",
+          "agg": "cardinality",
+          "type": "str",
+          "widget_id": "02be1e20"
+        },
+        {
+          "title": "Impacted Assets",
+          "widget_type": "custom_counter",
+          "stream": "oia-alerts-stream",
+          "max_width": 4,
+          "height": 3,
+          "min_width": 4,
+          "ts_column": "a_updated_ts",
+          "duration_hours": 1000,
+          "column": "a_asset_name",
+          "agg": "cardinality",
+          "type": "str",
+          "widget_id": "b59f5ee2"
+        },
+        {
+          "title": "Alert Sources",
+          "widget_type": "custom_counter",
+          "stream": "oia-alerts-stream",
+          "max_width": 4,
+          "height": 3,
+          "min_width": 4,
+          "ts_column": "a_updated_ts",
+          "duration_hours": 1000,
+          "column": "a_source_systemname",
+          "agg": "cardinality",
+          "type": "str",
+          "widget_id": "5c36c890"
+        },
+        {
+          "extends": "alerts_source_timeseries:alerts_by_source_timeseries",
+          "min_width": 6,
+          "height": 6,
+          "max_width": 6,
+          "widget_id": "5eb5ba43"
+        },
+        {
+          "extends": "alerts_severity_timeseries:alerts_by_severity_timeseries",
+          "min_width": 6,
+          "height": 6,
+          "max_width": 6,
+          "widget_id": "a1f1498a"
         }
       ]
     }
