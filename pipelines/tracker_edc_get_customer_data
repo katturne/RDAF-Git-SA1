@@ -1,6 +1,23 @@
 @c:new-block
+ --> @exec:get-input
+ --> @dm:save name="temp-file_upload0"
+ --> @dm:save name="10dataset"
+ --> @dm:recall name="10dataset"
+ --> @dm:selectcolumns include = 'USER_ID|proj_name|customer_name'
+ --> @dm:add-missing-columns columns = 'pipeline_name' &
+value = 'swdata-status-test'
+ --> @dm:add-missing-columns columns = 'status_type' &
+value = 'Initiating'
+ --> @dm:add-missing-columns columns = 'jobid' &
+value = 'Initiating'
+ --> @dm:save name="temp1-temp"
+ --> @rn:write-stream name = "status-stream"
+ --> @exec:run-pipeline name ="swdata-status-test"
+ --> @dm:sleep seconds = 40
  --> @dm:empty
- --> #dm:query-persistent-stream status is "Failed" and pipeline_name is "edc_get_customer_data" with-input name="rda_system_job_tracker"
- --> @dm:sort columns = 'created' and order = "desc"
- --> @dm:head n = 1
- --> @dm:save name= 'failed_edc_get_customer_data'
+ --> @dm:recall name="temp1-temp"
+ --> @dm:replace-data columns = 'status_type' &
+expr = 'in-progress' &
+replace = 'Completed'
+ --> @dm:save name="temp1-temp"
+ --> @rn:write-stream name = "status-stream"
