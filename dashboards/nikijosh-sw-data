@@ -1,480 +1,786 @@
 {
-  "name": "event-tracking-details",
-  "label": "Alert Tracking Details",
-  "description": "OIA Alert Details",
-  "version": "23.2.13",
-  "enabled": true,
-  "exportable": false,
+  "name": "nikijosh-sw-data",
+  "label": "SW Data",
+  "description": "Upload SW Data",
+  "version": "2025-04-11-5",
+  "stream": "edc_cust_pid_sw",
+  "enabled": false,
+  "dashboard_folder": "Default",
   "dashboard_style": "auto",
-  "dashboard_type": "template",
-  "template_variables": {
-    "PROJECT_ID": {
-      "default": null,
-      "contextId": "projectid"
-    },
-    "INCIDENT_ID": {
-      "default": null,
-      "contextId": "incidentid"
-    },
-    "EVENT_ID": {
-      "default": null,
-      "contextId": "e_id"
-    },
-    "ALERT_ID": {
-      "default": null,
-      "contextId": "processedeventid"
-    },
-    "ALERT_KEY": {
-      "default": null,
-      "contextId": "eventkey"
-    },
-    "SOURCE_DASHBOARD_ID": {
-      "default": "user-dashboard-incident-details-alerts",
-      "contextId": "sourceDashboardId"
+  "live_edit": true,
+  "dashboard_type": "dashboard",
+  "stream_query_mapping": {
+    "edc_oi_inventory_enriched": {},
+    "edc_cust_contract_pid": {
+      "coverage": null
     }
   },
-  "custom_context": {
-    "alert-context": true
+  "computedContext": {
+    "show_pid_grp": {
+      "expr": "'yes' if str(show_pid_grp) in [ 'yes', 'True'] else 'no'",
+      "defaultValue": "error"
+    },
+    "all_context": {
+      "expr": "",
+      "defaultValue": "Unknown"
+    }
   },
+  "dashboard_pages": [],
   "dashboard_filters": {
-    "time_filter": false,
-    "default_time_filter_non_removable": false,
-    "show_default_time_filter": false
+    "time_filter": true,
+    "default_time_filter_labels": [
+      "Last 2 weeks"
+    ],
+    "custom_time_filters": [
+      "24h",
+      "2d",
+      "3d",
+      "1w",
+      "2w",
+      "3w",
+      "1M",
+      "2M",
+      "3M",
+      "6M",
+      "12M"
+    ],
+    "columns_filter": [
+      {
+        "id": "timestamp",
+        "label": "Timestamp",
+        "type": "DATETIME"
+      },
+      {
+        "id": "contract_number",
+        "label": "Contract Number",
+        "type": "TEXT"
+      },
+      {
+        "id": "product_name",
+        "label": "Product Name",
+        "type": "TEXT"
+      },
+      {
+        "id": "product_id",
+        "label": "Product ID",
+        "type": "TEXT"
+      },
+      {
+        "id": "customer",
+        "label": "Customer",
+        "type": "TEXT"
+      },
+      {
+        "id": "sw_version",
+        "label": "SW Version",
+        "type": "TEXT"
+      },
+      {
+        "id": "sw_os_type",
+        "label": "SW OS Type",
+        "type": "TEXT"
+      },
+      {
+        "id": "transaction_id",
+        "label": "Transaction ID",
+        "type": "TEXT"
+      }
+    ],
+    "group_filters": [
+      {
+        "stream": "edc_cust_pid_sw",
+        "title": "Customer Name",
+        "extra_filter1": "source in 'inventory'",
+        "group_by": [
+          "customer"
+        ],
+        "ts_column": "timestamp",
+        "duration_hours": 1080,
+        "limit": 200,
+        "agg": "value_count",
+        "column": "count_",
+        "type": "int"
+      },
+      {
+        "stream": "edc_cust_pid_sw",
+        "title": "Product ID",
+        "extra_filter1": "source in 'inventory'",
+        "group_by": [
+          "product_id"
+        ],
+        "ts_column": "timestamp",
+        "duration_hours": 1080,
+        "limit": 200,
+        "agg": "value_count",
+        "column": "count_",
+        "type": "text"
+      },
+      {
+        "stream": "edc_cust_pid_sw",
+        "title": "Contract Number",
+        "group_by": [
+          "contract_number"
+        ],
+        "ts_column": "timestamp",
+        "duration_hours": 1080,
+        "limit": 500,
+        "agg": "value_count",
+        "column": "count_",
+        "type": "int"
+      },
+      {
+        "stream": "edc_cust_pid_sw",
+        "title": "SW Version",
+        "group_by": [
+          "sw_version"
+        ],
+        "ts_column": "timestamp",
+        "duration_hours": 1080,
+        "limit": 500,
+        "agg": "value_count",
+        "column": "count_",
+        "type": "str"
+      },
+      {
+        "stream": "edc_cust_pid_sw",
+        "title": "SW OS Type",
+        "extra_filter1": "source in 'inventory'",
+        "group_by": [
+          "sw_os_type"
+        ],
+        "ts_column": "timestamp",
+        "duration_hours": 1080,
+        "limit": 400,
+        "agg": "value_count",
+        "column": "count_",
+        "type": "str"
+      }
+    ]
   },
-  "import": [
-    {
-      "from": "oia-alerts-os",
-      "as": "alerts"
-    }
-  ],
   "dashboard_sections": [
     {
-      "title": "Alert Trail",
-      "show_filter": false,
+      "title": "Assets",
+      "show_filter": true,
       "widgets": [
         {
-          "title": "Source Event",
-          "widget_type": "summary",
-          "stream": "oia-events-stream",
-          "ts_column": "e_updatedat",
-          "extra_filter": "e_id is '{{EVENT_ID}}'",
-          "min_width": 12,
-          "height": 5,
+          "title": "Unique Product IDs (for Product Type: ROUTER, SWITCH , FUNCSYSTM, MULTIPROD)",
+          "context_filter1": "show_pid_grp is 'yes'",
+          "widget_type": "tabular",
           "max_width": 12,
-          "paginated": true,
-          "resizableColumns": false,
+          "height": 8,
+          "min_width": 12,
+          "stream": "edc_cust_pid_sw",
+          "ts_column": "timestamp",
+          "duration_hours": 1080,
           "remote_searchable": true,
-          "remote_searchable_cols": [
-            "e_sourceeventid",
-            "e_id",
-            "e_processedeventid",
-            "e_eventkey",
-            "e_triggeredevent"
-          ],
-          "refreshRequired": true,
-          "timebased": false,
-          "max_rows": 50,
-          "sorting": [
-            {
-              "e_createdat": "desc"
-            }
-          ],
           "columns": {
-            "e_sourceeventid": {
-              "title": "Source Event Id",
+            "customer": {
+              "title": "Customer",
+              "type": "TEXT",
               "visible": true,
-              "defaultWidth": 150
+              "key": true
             },
-            "e_id": {
-              "title": "Event Id",
+            "product_name": {
+              "title": "Product Name",
+              "type": "TEXT",
               "visible": true,
-              "defaultWidth": 150
+              "key": true
             },
-            "e_eventkey": {
-              "title": "Alert Key",
-              "visible": true,
-              "defaultWidth": 150
+            "Qty": {
+              "title": "Qty",
+              "type": "TEXT",
+              "visible": false,
+              "key": true
             },
-            "e_processedeventid": {
-              "title": "Alert Id",
+            "contract_number": {
+              "title": "Contract_Number",
+              "type": "FLOAT",
               "visible": true,
-              "defaultWidth": 150
+              "key": true
             },
-            "e_sourcereceivedat": {
-              "title": "Received At",
-              "type": "DATETIME",
-              "visible": true,
-              "defaultWidth": 150
+            "unique_key": {
+              "title": "Unique_Key",
+              "type": "TEXT",
+              "visible": false,
+              "key": true
             },
-            "e_createdat": {
-              "title": "Created At",
-              "type": "DATETIME",
-              "visible": true,
-              "defaultWidth": 150
+            "ingestion_id": {
+              "title": "Ingestion_ID",
+              "type": "TEXT",
+              "visible": false,
+              "key": true
+            },
+            "product_id": {
+              "title": "Product_ID",
+              "type": "TEXT",
+              "key": true
+            },
+            "sw_os_type": {
+              "title": "SW_OS_Type",
+              "type": "TEXT",
+              "key": true
+            },
+            "sw_version": {
+              "title": "SW_Version",
+              "type": "TEXT",
+              "key": true
             }
           },
           "actions": [
             {
-              "title": "View Source Payload",
+              "permission": "rda:github:view",
+              "title": "Add Data",
               "type": "POPUP_FORM",
               "selectionType": "NONE",
-              "permission": "oia:event-tracking:downloadSourcePayload",
-              "identifier": "ingestion-tracker:com.cfx.form.view.sourceevent.payload",
+              "identifier": "saas-service-action:userdashboard-add-yaml",
               "api-endpoint": {
-                "service-name": "ingestion-tracker",
-                "namespace": "io.cfx.dimensions.app",
-                "methodName": "invokeAppApi:getFormById",
+                "service-name": "saas-reports",
+                "methodName": "getForm",
                 "stringified-params": true,
-                "useReportContext": true,
                 "parse-output": false,
                 "params": [
                   {
-                    "form_id": "com.cfx.form.view.sourceevent.payload",
-                    "context": {}
+                    "formId": "rda.saas.dynamic.form",
+                    "formActionList": {
+                      "formActions": [
+                        {
+                          "identifier": "Submit",
+                          "actionLabel": "Submit"
+                        }
+                      ]
+                    },
+                    "submitRequired": true,
+                    "formDefinition": {
+                      "id": "rda.saas.dynamic.form",
+                      "refreshRequired": true,
+                      "submitRequired": true,
+                      "formFieldList": [
+                        {
+                          "fieldId": "Option",
+                          "label": "Option for data population",
+                          "help": "Option for data population",
+                          "dataType": "string",
+                          "hidden": false,
+                          "editable": true,
+                          "required": true,
+                          "lovValues": [
+                            {
+                              "identifier": "option_1",
+                              "displayName": "Cisco inv with SW version"
+                            },
+                            {
+                              "identifier": "option_2",
+                              "displayName": "Network inv with SW version"
+                            }
+                          ],
+                          "controlType": "RADIO_BUTTON",
+                          "fieldControlPropertyList": [
+                            {
+                              "fieldId": "proj_name",
+                              "controlActions": [
+                                "ShowField"
+                              ],
+                              "condition": {
+                                "selectionValue": "option_2"
+                              }
+                            },
+                            {
+                              "fieldId": "customer_name",
+                              "controlActions": [
+                                "ShowField"
+                              ],
+                              "condition": {
+                                "selectionValue": "option_2"
+                              }
+                            },
+                            {
+                              "fieldId": "contract",
+                              "controlActions": [
+                                "ShowField"
+                              ],
+                              "condition": {
+                                "selectionValue": "option_2"
+                              }
+                            }
+                          ]
+                        },
+                        {
+                          "label": "Project Name",
+                          "help": "Name of the Project",
+                          "dataType": "string",
+                          "controlType": "TEXT_FIELD",
+                          "required": true,
+                          "editable": true,
+                          "hidden": false,
+                          "fieldId": "proj_name"
+                        },
+                        {
+                          "help": "Customer Name",
+                          "dataType": "string",
+                          "controlType": "COMBO_BOX",
+                          "required": true,
+                          "editable": true,
+                          "label": "Customer name",
+                          "hidden": false,
+                          "fieldId": "customer_name",
+                          "lovSourceType": "pstream",
+                          "lovSourceParams": {
+                            "name": "edc_oi_inventory_enriched",
+                            "valueColumn": "customer_name",
+                            "labelColumn": "customer_name"
+                          }
+                        },
+                        {
+                          "label": "Contract",
+                          "help": "Contract",
+                          "dataType": "string",
+                          "controlType": "TEXT_FIELD",
+                          "required": true,
+                          "editable": true,
+                          "hidden": false,
+                          "fieldId": "contract"
+                        },
+                        {
+                          "help": "Choose file to upload",
+                          "dataType": "string",
+                          "required": true,
+                          "editable": true,
+                          "label": "Choose file to upload",
+                          "controlType": "FILE_UPLOAD",
+                          "hidden": false,
+                          "fieldId": "fileUpload"
+                        },
+                        {
+                          "label": "NOTE: File upload must contain the following column headers: SW_OS_Type, SW_Version",
+                          "dataType": "string",
+                          "controlType": "LABEL",
+                          "required": false,
+                          "editable": false,
+                          "hidden": false,
+                          "fieldId": "file_upload_label"
+                        }
+                      ]
+                    },
+                    "actions": [
+                      {
+                        "type": "RUN_PIPELINE",
+                        "pipelineName": "add_data",
+                        "isSync": false
+                      }
+                    ]
                   }
                 ]
               }
             },
             {
-              "title": "Download Source Payload",
+              "permission": "rda:github:view",
+              "title": "Edit",
               "type": "POPUP_FORM",
-              "selectionType": "NONE",
-              "permission": "oia:event-tracking:downloadSourcePayload",
-              "identifier": "ingestion-tracker:com.cfx.form.download.sourceevent.payload",
+              "selectionType": "SINGLE",
+              "identifier": "saas-service-action:userdashboard-add-yaml",
               "api-endpoint": {
-                "service-name": "ingestion-tracker",
-                "namespace": "io.cfx.dimensions.app",
-                "methodName": "invokeAppApi:getFormById",
+                "service-name": "saas-reports",
+                "methodName": "getForm",
                 "stringified-params": true,
-                "useReportContext": true,
                 "parse-output": false,
                 "params": [
                   {
-                    "form_id": "com.cfx.form.download.sourceevent.payload",
-                    "context": {}
+                    "formId": "rda.saas.dynamic.form",
+                    "formDefinition": {
+                      "id": "rda.saas.dynamic.form",
+                      "refreshRequired": true,
+                      "formFieldList": [
+                        {
+                          "help": "Customer",
+                          "dataType": "string",
+                          "controlType": "TEXT_FIELD",
+                          "required": false,
+                          "editable": false,
+                          "label": "Customer",
+                          "hidden": false,
+                          "fieldId": "customer_name"
+                        },
+                        {
+                          "help": "Contract Number",
+                          "dataType": "string",
+                          "controlType": "TEXT_FIELD",
+                          "required": false,
+                          "editable": false,
+                          "label": "Contract Number",
+                          "hidden": false,
+                          "fieldId": "contract_number"
+                        },
+                        {
+                          "help": "Product ID",
+                          "dataType": "string",
+                          "controlType": "TEXT_FIELD",
+                          "required": false,
+                          "editable": false,
+                          "label": "Product ID",
+                          "hidden": false,
+                          "fieldId": "product_id"
+                        },
+                        {
+                          "help": "Unique Key",
+                          "dataType": "string",
+                          "controlType": "TEXT_FIELD",
+                          "required": false,
+                          "editable": true,
+                          "label": "Unique Key",
+                          "hidden": false,
+                          "fieldId": "unique_key"
+                        },
+                        {
+                          "help": "SW OS Type",
+                          "dataType": "string",
+                          "controlType": "TEXT_FIELD",
+                          "required": true,
+                          "editable": true,
+                          "label": "SW OS Type",
+                          "hidden": false,
+                          "fieldId": "sw_os_type"
+                        },
+                        {
+                          "help": "SW Version",
+                          "dataType": "string",
+                          "controlType": "TEXT_FIELD",
+                          "required": true,
+                          "editable": true,
+                          "label": "SW Version",
+                          "hidden": false,
+                          "fieldId": "sw_version"
+                        }
+                      ]
+                    },
+                    "actions": [
+                      {
+                        "type": "RUN_PIPELINE",
+                        "pipelineName": "",
+                        "isSync": true
+                      }
+                    ]
                   }
                 ]
               }
             }
           ],
-          "widget_id": "f0d249a2"
-        },
-        {
-          "title": "Alert Trail",
-          "widget_type": "tabular",
-          "stream": "oia-event-trail-stream",
-          "ts_column": "et_createdat",
-          "extra_filter": "et_eventid is '{{EVENT_ID}}'",
-          "min_width": 12,
-          "height": 5,
-          "max_width": 12,
-          "paginated": true,
-          "resizableColumns": false,
-          "remote_searchable": true,
-          "remote_searchable_cols": [
-            "et_eventstate",
-            "et_status",
-            "et_message"
-          ],
-          "refreshRequired": true,
-          "timebased": false,
-          "max_rows": 50,
-          "columns": {
-            "et_eventstate": {
-              "title": "Processing State",
-              "visible": true,
-              "defaultWidth": 150
-            },
-            "et_status": {
-              "title": "Status",
-              "visible": true,
-              "defaultWidth": 150
-            },
-            "et_message": {
-              "title": "Message",
-              "visible": true,
-              "defaultWidth": 150
-            },
-            "et_createdat": {
-              "title": "Created At",
-              "type": "DATETIME",
-              "visible": true,
-              "defaultWidth": 150
-            }
-          },
-          "widget_id": "f0f5dc42"
+          "widget_id": "826a4aad"
         }
-      ]
-    },
-    {
-      "title": "Alert Payload",
-      "show_filter": false,
-      "widgets": [
-        {
-          "title": " Alert Payload",
-          "widget_type": "summary",
-          "min_width": 12,
-          "height": 10,
-          "refreshRequired": false,
-          "timebased": false,
-          "api-endpoint": {
-            "service-name": "ingestion-tracker",
-            "namespace": "io.cfx.dimensions.app",
-            "version": "*",
-            "methodName": "invokeAppApi:viewEventPayload",
-            "stringified-params": true,
-            "parse-output": false,
-            "params": [
-              {}
-            ]
-          },
-          "widget_id": "2c46ed87"
-        }
-      ]
-    },
-    {
-      "title": "Enrichments",
-      "show_filter": true,
-      "projects": [
-        "ACME"
       ],
-      "widgets": [
-        {
-          "title": "Enrichments",
-          "widget_type": "summary",
-          "min_width": 12,
-          "height": 10,
-          "refreshRequired": false,
-          "timebased": false,
-          "api-endpoint": {
-            "service-name": "ingestion-tracker",
-            "namespace": "io.cfx.dimensions.app",
-            "version": "*",
-            "methodName": "invokeAppApi:getEventAttributes",
-            "stringified-params": true,
-            "parse-output": false,
-            "params": [
-              {}
-            ]
-          },
-          "widget_id": "df653485"
-        }
-      ]
+      "saved_time": "2025-05-09T06:51:12.699107"
     }
   ],
   "pstream_dashboards": [
     {
-      "title": "Alert Trail",
-      "show_filter": false,
+      "title": "Assets",
+      "show_filter": true,
       "widgets": [
         {
-          "title": "Source Event",
-          "widget_type": "summary",
-          "stream": "oia-events-stream",
-          "ts_column": "e_updatedat",
-          "extra_filter": "e_id is '{{EVENT_ID}}'",
-          "min_width": 12,
-          "height": 5,
+          "title": "Unique Product IDs (for Product Type: ROUTER, SWITCH , FUNCSYSTM, MULTIPROD)",
+          "context_filter1": "show_pid_grp is 'yes'",
+          "widget_type": "tabular",
           "max_width": 12,
-          "paginated": true,
-          "resizableColumns": false,
+          "height": 8,
+          "min_width": 12,
+          "stream": "edc_cust_pid_sw",
+          "ts_column": "timestamp",
+          "duration_hours": 1080,
           "remote_searchable": true,
-          "remote_searchable_cols": [
-            "e_sourceeventid",
-            "e_id",
-            "e_processedeventid",
-            "e_eventkey",
-            "e_triggeredevent"
-          ],
-          "refreshRequired": true,
-          "timebased": false,
-          "max_rows": 50,
-          "sorting": [
-            {
-              "e_createdat": "desc"
-            }
-          ],
           "columns": {
-            "e_sourceeventid": {
-              "title": "Source Event Id",
+            "customer": {
+              "title": "Customer",
+              "type": "TEXT",
               "visible": true,
-              "defaultWidth": 150
+              "key": true
             },
-            "e_id": {
-              "title": "Event Id",
+            "product_name": {
+              "title": "Product Name",
+              "type": "TEXT",
               "visible": true,
-              "defaultWidth": 150
+              "key": true
             },
-            "e_eventkey": {
-              "title": "Alert Key",
-              "visible": true,
-              "defaultWidth": 150
+            "Qty": {
+              "title": "Qty",
+              "type": "TEXT",
+              "visible": false,
+              "key": true
             },
-            "e_processedeventid": {
-              "title": "Alert Id",
+            "contract_number": {
+              "title": "Contract_Number",
+              "type": "FLOAT",
               "visible": true,
-              "defaultWidth": 150
+              "key": true
             },
-            "e_sourcereceivedat": {
-              "title": "Received At",
-              "type": "DATETIME",
-              "visible": true,
-              "defaultWidth": 150
+            "unique_key": {
+              "title": "Unique_Key",
+              "type": "TEXT",
+              "visible": false,
+              "key": true
             },
-            "e_createdat": {
-              "title": "Created At",
-              "type": "DATETIME",
-              "visible": true,
-              "defaultWidth": 150
+            "ingestion_id": {
+              "title": "Ingestion_ID",
+              "type": "TEXT",
+              "visible": false,
+              "key": true
+            },
+            "product_id": {
+              "title": "Product_ID",
+              "type": "TEXT",
+              "key": true
+            },
+            "sw_os_type": {
+              "title": "SW_OS_Type",
+              "type": "TEXT",
+              "key": true
+            },
+            "sw_version": {
+              "title": "SW_Version",
+              "type": "TEXT",
+              "key": true
             }
           },
           "actions": [
             {
-              "title": "View Source Payload",
+              "permission": "rda:github:view",
+              "title": "Add Data",
               "type": "POPUP_FORM",
               "selectionType": "NONE",
-              "permission": "oia:event-tracking:downloadSourcePayload",
-              "identifier": "ingestion-tracker:com.cfx.form.view.sourceevent.payload",
+              "identifier": "saas-service-action:userdashboard-add-yaml",
               "api-endpoint": {
-                "service-name": "ingestion-tracker",
-                "namespace": "io.cfx.dimensions.app",
-                "methodName": "invokeAppApi:getFormById",
+                "service-name": "saas-reports",
+                "methodName": "getForm",
                 "stringified-params": true,
-                "useReportContext": true,
                 "parse-output": false,
                 "params": [
                   {
-                    "form_id": "com.cfx.form.view.sourceevent.payload",
-                    "context": {}
+                    "formId": "rda.saas.dynamic.form",
+                    "formActionList": {
+                      "formActions": [
+                        {
+                          "identifier": "Submit",
+                          "actionLabel": "Submit"
+                        }
+                      ]
+                    },
+                    "submitRequired": true,
+                    "formDefinition": {
+                      "id": "rda.saas.dynamic.form",
+                      "refreshRequired": true,
+                      "submitRequired": true,
+                      "formFieldList": [
+                        {
+                          "fieldId": "Option",
+                          "label": "Option for data population",
+                          "help": "Option for data population",
+                          "dataType": "string",
+                          "hidden": false,
+                          "editable": true,
+                          "required": true,
+                          "lovValues": [
+                            {
+                              "identifier": "option_1",
+                              "displayName": "Cisco inv with SW version"
+                            },
+                            {
+                              "identifier": "option_2",
+                              "displayName": "Network inv with SW version"
+                            }
+                          ],
+                          "controlType": "RADIO_BUTTON",
+                          "fieldControlPropertyList": [
+                            {
+                              "fieldId": "proj_name",
+                              "controlActions": [
+                                "ShowField"
+                              ],
+                              "condition": {
+                                "selectionValue": "option_2"
+                              }
+                            },
+                            {
+                              "fieldId": "customer_name",
+                              "controlActions": [
+                                "ShowField"
+                              ],
+                              "condition": {
+                                "selectionValue": "option_2"
+                              }
+                            },
+                            {
+                              "fieldId": "contract",
+                              "controlActions": [
+                                "ShowField"
+                              ],
+                              "condition": {
+                                "selectionValue": "option_2"
+                              }
+                            }
+                          ]
+                        },
+                        {
+                          "label": "Project Name",
+                          "help": "Name of the Project",
+                          "dataType": "string",
+                          "controlType": "TEXT_FIELD",
+                          "required": true,
+                          "editable": true,
+                          "hidden": false,
+                          "fieldId": "proj_name"
+                        },
+                        {
+                          "help": "Customer Name",
+                          "dataType": "string",
+                          "controlType": "COMBO_BOX",
+                          "required": true,
+                          "editable": true,
+                          "label": "Customer name",
+                          "hidden": false,
+                          "fieldId": "customer_name",
+                          "lovSourceType": "pstream",
+                          "lovSourceParams": {
+                            "name": "edc_oi_inventory_enriched",
+                            "valueColumn": "customer_name",
+                            "labelColumn": "customer_name"
+                          }
+                        },
+                        {
+                          "label": "Contract",
+                          "help": "Contract",
+                          "dataType": "string",
+                          "controlType": "TEXT_FIELD",
+                          "required": true,
+                          "editable": true,
+                          "hidden": false,
+                          "fieldId": "contract"
+                        },
+                        {
+                          "help": "Choose file to upload",
+                          "dataType": "string",
+                          "required": true,
+                          "editable": true,
+                          "label": "Choose file to upload",
+                          "controlType": "FILE_UPLOAD",
+                          "hidden": false,
+                          "fieldId": "fileUpload"
+                        },
+                        {
+                          "label": "NOTE: File upload must contain the following column headers: SW_OS_Type, SW_Version",
+                          "dataType": "string",
+                          "controlType": "LABEL",
+                          "required": false,
+                          "editable": false,
+                          "hidden": false,
+                          "fieldId": "file_upload_label"
+                        }
+                      ]
+                    },
+                    "actions": [
+                      {
+                        "type": "RUN_PIPELINE",
+                        "pipelineName": "add_data",
+                        "isSync": false
+                      }
+                    ]
                   }
                 ]
               }
             },
             {
-              "title": "Download Source Payload",
+              "permission": "rda:github:view",
+              "title": "Edit",
               "type": "POPUP_FORM",
-              "selectionType": "NONE",
-              "permission": "oia:event-tracking:downloadSourcePayload",
-              "identifier": "ingestion-tracker:com.cfx.form.download.sourceevent.payload",
+              "selectionType": "SINGLE",
+              "identifier": "saas-service-action:userdashboard-add-yaml",
               "api-endpoint": {
-                "service-name": "ingestion-tracker",
-                "namespace": "io.cfx.dimensions.app",
-                "methodName": "invokeAppApi:getFormById",
+                "service-name": "saas-reports",
+                "methodName": "getForm",
                 "stringified-params": true,
-                "useReportContext": true,
                 "parse-output": false,
                 "params": [
                   {
-                    "form_id": "com.cfx.form.download.sourceevent.payload",
-                    "context": {}
+                    "formId": "rda.saas.dynamic.form",
+                    "formDefinition": {
+                      "id": "rda.saas.dynamic.form",
+                      "refreshRequired": true,
+                      "formFieldList": [
+                        {
+                          "help": "Customer",
+                          "dataType": "string",
+                          "controlType": "TEXT_FIELD",
+                          "required": false,
+                          "editable": false,
+                          "label": "Customer",
+                          "hidden": false,
+                          "fieldId": "customer_name"
+                        },
+                        {
+                          "help": "Contract Number",
+                          "dataType": "string",
+                          "controlType": "TEXT_FIELD",
+                          "required": false,
+                          "editable": false,
+                          "label": "Contract Number",
+                          "hidden": false,
+                          "fieldId": "contract_number"
+                        },
+                        {
+                          "help": "Product ID",
+                          "dataType": "string",
+                          "controlType": "TEXT_FIELD",
+                          "required": false,
+                          "editable": false,
+                          "label": "Product ID",
+                          "hidden": false,
+                          "fieldId": "product_id"
+                        },
+                        {
+                          "help": "Unique Key",
+                          "dataType": "string",
+                          "controlType": "TEXT_FIELD",
+                          "required": false,
+                          "editable": true,
+                          "label": "Unique Key",
+                          "hidden": false,
+                          "fieldId": "unique_key"
+                        },
+                        {
+                          "help": "SW OS Type",
+                          "dataType": "string",
+                          "controlType": "TEXT_FIELD",
+                          "required": true,
+                          "editable": true,
+                          "label": "SW OS Type",
+                          "hidden": false,
+                          "fieldId": "sw_os_type"
+                        },
+                        {
+                          "help": "SW Version",
+                          "dataType": "string",
+                          "controlType": "TEXT_FIELD",
+                          "required": true,
+                          "editable": true,
+                          "label": "SW Version",
+                          "hidden": false,
+                          "fieldId": "sw_version"
+                        }
+                      ]
+                    },
+                    "actions": [
+                      {
+                        "type": "RUN_PIPELINE",
+                        "pipelineName": "",
+                        "isSync": true
+                      }
+                    ]
                   }
                 ]
               }
             }
           ],
-          "widget_id": "f0d249a2"
-        },
-        {
-          "title": "Alert Trail",
-          "widget_type": "tabular",
-          "stream": "oia-event-trail-stream",
-          "ts_column": "et_createdat",
-          "extra_filter": "et_eventid is '{{EVENT_ID}}'",
-          "min_width": 12,
-          "height": 5,
-          "max_width": 12,
-          "paginated": true,
-          "resizableColumns": false,
-          "remote_searchable": true,
-          "remote_searchable_cols": [
-            "et_eventstate",
-            "et_status",
-            "et_message"
-          ],
-          "refreshRequired": true,
-          "timebased": false,
-          "max_rows": 50,
-          "columns": {
-            "et_eventstate": {
-              "title": "Processing State",
-              "visible": true,
-              "defaultWidth": 150
-            },
-            "et_status": {
-              "title": "Status",
-              "visible": true,
-              "defaultWidth": 150
-            },
-            "et_message": {
-              "title": "Message",
-              "visible": true,
-              "defaultWidth": 150
-            },
-            "et_createdat": {
-              "title": "Created At",
-              "type": "DATETIME",
-              "visible": true,
-              "defaultWidth": 150
-            }
-          },
-          "widget_id": "f0f5dc42"
+          "widget_id": "826a4aad"
         }
-      ]
-    },
-    {
-      "title": "Alert Payload",
-      "show_filter": false,
-      "widgets": [
-        {
-          "title": " Alert Payload",
-          "widget_type": "summary",
-          "min_width": 12,
-          "height": 10,
-          "refreshRequired": false,
-          "timebased": false,
-          "api-endpoint": {
-            "service-name": "ingestion-tracker",
-            "namespace": "io.cfx.dimensions.app",
-            "version": "*",
-            "methodName": "invokeAppApi:viewEventPayload",
-            "stringified-params": true,
-            "parse-output": false,
-            "params": [
-              {}
-            ]
-          },
-          "widget_id": "2c46ed87"
-        }
-      ]
-    },
-    {
-      "title": "Enrichments",
-      "show_filter": true,
-      "projects": [
-        "ACME"
       ],
-      "widgets": [
-        {
-          "title": "Enrichments",
-          "widget_type": "summary",
-          "min_width": 12,
-          "height": 10,
-          "refreshRequired": false,
-          "timebased": false,
-          "api-endpoint": {
-            "service-name": "ingestion-tracker",
-            "namespace": "io.cfx.dimensions.app",
-            "version": "*",
-            "methodName": "invokeAppApi:getEventAttributes",
-            "stringified-params": true,
-            "parse-output": false,
-            "params": [
-              {}
-            ]
-          },
-          "widget_id": "df653485"
-        }
-      ]
+      "saved_time": "2025-05-09T06:51:12.699107"
     }
   ]
 }
