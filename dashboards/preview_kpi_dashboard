@@ -1,726 +1,574 @@
 {
-  "name": "topology_geomap_dashboard",
-  "label": "Topology",
-  "description": "Topology",
+  "name": "preview_kpi_dashboard",
+  "label": "KPI Workbench",
+  "description": "KPI Workbench",
   "dashboard_folder": "NetworkDevicePack",
   "enabled": true,
-  "version": "24.1.1.1",
   "dashboard_type": "template",
-  "dashboard_style": "tabbed",
+  "exportable": false,
+  "live_edit": true,
   "template_variables": {
     "CUST_ID": {
       "contextId": "customerId"
     },
     "PROJ_ID": {
-      "contextId": "project_id"
-    },
-    "PROJ_ID_SINGLE": {
-      "contextId": "project_id"
+      "contextId": "projectId"
     },
     "CUST_TAG": {
-      "contextId": "customer_tag"
+      "contextId": "customerTag"
     }
   },
   "dashboard_filters": {
     "time_filter": false,
-    "extra_filter": "customer_tag is '{{CUST_TAG}}' or customer_tag is empty",
-    "default_time_filter_non_removable": true,
-    "show_default_time_filter": true
+    "extra_filter0": "i_projectid is '{{CUST_ID}}' or i_projectid is not empty or i_projectid is not 'None'",
+    "default_time_filter_non_removable": false,
+    "show_default_time_filter": true,
+    "default_time_filter_labels": [
+      "Last 1 month"
+    ]
+  },
+  "computedContext0": {
+    "customer_id": {
+      "expr": "customer_id if customer_id else ''",
+      "defaultValue": ""
+    }
   },
   "dashboard_sections": [
     {
-      "title": "Topology",
+      "title": "KPI Dashboard",
       "show_filter": true,
       "widgets": [
         {
-          "title": "Topology",
-          "widget_type": "topology",
-          "register_search_endpoints": true,
-          "reportId": "rda.saas.stack.view.topo",
-          "context_attributes": {
-            "CHASSIS": [
-              "parent_sn",
-              "device_ip"
-            ]
+          "title": "Time Series",
+          "widget_type": "timeseries",
+          "stream": "rdaf_network_device_snmp_metrics",
+          "extra_filter": "i_projectid in {{PROJ_ID}}",
+          "metric_source": "telegraf",
+          "ts_column": "timestamp",
+          "duration_hours": 96,
+          "max_width": 6,
+          "height": 6,
+          "min_width": 12,
+          "formatter": "DescriptiveCountFormatter",
+          "chartProperties": {
+            "yAxisLabel": "Value",
+            "xAxisLabel": "Timestamp",
+            "legendLocation": "right",
+            "mode": "zoom",
+            "options": {
+              "axes": {
+                "display": false
+              }
+            }
           },
-          "limit_to_node_types": [
-            "CHASSIS",
-            "Edge"
+          "interval": "5Min",
+          "group_by": [
+            "name"
           ],
-          "has_more_data_flag": false,
-          "expand_all": true,
-          "stack_type": "dynamic",
-          "stack_definition": {
-            "name": "Network Device Discovery Pack Stack",
-            "description": "",
-            "saved_time": "2023-09-12T21:08:31.418255",
-            "is_dynamic": true,
-            "hierarchical": true,
-            "dynamic_nodes": {
-              "column_name": "node_type",
-              "db_name": "cfx_rdaf_topology",
-              "query": "(customer_tag is '{{CUST_TAG}}' or customer_tag is empty or customer_tag is '')",
-              "nodes_collection": "cfx_rdaf_topology_nodes"
-            },
-            "dynamic_relationships": {
-              "db_name": "cfx_rdaf_topology",
-              "edges_collection": "cfx_rdaf_topology_edges",
-              "query": "(customer_tag is '{{CUST_TAG}}' or customer_tag is empty or customer_tag is '')",
-              "graph_name": "cfx_rdaf_topology_graph",
-              "relation_map": "rdaf_topology_relationships"
-            },
-            "dynamic_nodes0": {
-              "stream": "cfx_rdaf_topology_nodes",
-              "query": "(customer_tag is '{{CUST_TAG}}' or customer_tag is empty)",
-              "limit": 0,
-              "sorting": null
-            },
-            "dynamic_relationships0": {
-              "stream": "cfx_rdaf_topology_edges",
-              "limit": 0,
-              "sorting": null
+          "series_spec": [
+            {
+              "column": "value",
+              "agg": "max",
+              "type": "long"
             }
-          },
-          "nodes_report": {
-            "group_filters0": [
-              {
-                "title": "Edge State",
-                "group_by": [
-                  "edgeState"
-                ]
-              },
-              {
-                "title": "Family",
-                "group_by": [
-                  "deviceFamily"
-                ]
-              },
-              {
-                "title": "Activation State",
-                "group_by": [
-                  "activationState"
-                ]
-              },
-              {
-                "title": "Node Types",
-                "group_by": [
-                  "node_type"
-                ]
-              }
-            ],
-            "reportMetaData": {
-              "sorting": true,
-              "filtering": true,
-              "title": "Nodes",
-              "remote_searchable": false,
-              "extra_filter": "(customer_tag is '{{CUST_TAG}}' or customer_tag is empty)",
-              "remote_searchable_cols": [
-                "name",
-                "node_label",
-                "node_id",
-                "serialNumber",
-                "gateway_ip",
-                "edgeState",
-                "activationState",
-                "node_type",
-                "org_id"
-              ],
-              "custom_columns": [
-                {
-                  "id": "org_id",
-                  "label": "org id",
-                  "expr": "'single_tenant'",
-                  "expr1": "customer_id if customer_id != None else 'single_tenant'",
-                  "key": true,
-                  "visible": false,
-                  "sortable": false
-                }
-              ],
-              "color_columns": [
-                "edgeState",
-                "activationState"
-              ],
-              "color_map": {
-                "OFFLINE": "#B71C1C",
-                "NEVER_ACTIVATED": "#E53935",
-                "CONNECTED": "#4CAF50",
-                "ACTIVATED": "#4CAF50",
-                "PENDING": "#ffd54f",
-                "REACTIVATION_PENDING": "#ffd54f",
-                "Not Available": "#9E9E9E"
-              },
-              "actions": [
-                {
-                  "permission": "rda:user_dashboard:view",
-                  "appName": "user-dashboard/node_details_app",
-                  "drillDownLinkField": "node_label",
-                  "identifier": "launch.dashboard.node_details_app",
-                  "selectionType": "SINGLE",
-                  "title": "Device Details",
-                  "contextParamList": {
-                    "contextParams": [
-                      {
-                        "paramKey": "node_type",
-                        "paramId": "node_type"
-                      },
-                      {
-                        "paramKey": "edge_ip",
-                        "paramId": "edge_ip"
-                      },
-                      {
-                        "paramKey": "edge_id",
-                        "paramId": "edge_id"
-                      },
-                      {
-                        "paramKey": "serialNumber",
-                        "paramId": "serialNumber"
-                      },
-                      {
-                        "paramKey": "node_label",
-                        "paramId": "a_asset_name"
-                      },
-                      {
-                        "paramKey": "device_ip",
-                        "paramId": "device_ip"
-                      },
-                      {
-                        "paramKey": "parent_sn",
-                        "paramId": "parent_sn"
-                      },
-                      {
-                        "paramKey": "customer_tag",
-                        "paramId": "customer_tag"
-                      },
-                      {
-                        "paramKey": "customer_id",
-                        "paramId": "customer_id"
-                      },
-                      {
-                        "paramKey": "edgeName",
-                        "paramId": "edgeName"
-                      },
-                      {
-                        "paramKey": "org_id",
-                        "paramId": "org_id"
-                      }
-                    ]
-                  },
-                  "type": "GO_TO_APP_STATE"
-                }
-              ],
-              "reportColumnDefinitionList": [
-                {
-                  "identifier": "node_label",
-                  "title": "Name",
-                  "key": true
-                },
-                {
-                  "identifier": "name",
-                  "hidden": true,
-                  "key": false
-                },
-                {
-                  "identifier": "node_type",
-                  "title": "Type",
-                  "key": false
-                },
-                {
-                  "identifier": "node_id",
-                  "key": true,
-                  "hidden": true
-                },
-                {
-                  "identifier": "edgeState",
-                  "key": false,
-                  "title": "Edge State",
-                  "htmlTemplateForRow": "<span class='badge' style='background-color: {{'{{ row.edgeState_color }}'}}' > {{'{{ row.edgeState }}'}} </span>",
-                  "hidden": true
-                },
-                {
-                  "identifier": "edgeState_color",
-                  "key": false,
-                  "title": "Edge State",
-                  "type": "COLOR-MAP",
-                  "hidden": true,
-                  "visible": false,
-                  "from-column": "edgeState",
-                  "color-map": {
-                    "OFFLINE": "#B71C1C",
-                    "NEVER_ACTIVATED": "#E53935",
-                    "CONNECTED": "#4CAF50",
-                    "Not Available": "#9E9E9E"
-                  }
-                },
-                {
-                  "identifier": "serialNumber",
-                  "key": false,
-                  "title": "Serial Number"
-                },
-                {
-                  "identifier": "activationState",
-                  "key": false,
-                  "title": "Activation State",
-                  "htmlTemplateForRow": "<span class='badge' style='background-color: {{'{{ row.activationState_color }}'}}' > {{'{{ row.activationState }}'}} </span>"
-                },
-                {
-                  "identifier": "activationState_color",
-                  "title": "Activation State",
-                  "type": "COLOR-MAP",
-                  "hidden": true,
-                  "visible": false,
-                  "key": false,
-                  "from-column": "activationState",
-                  "color-map": {
-                    "ACTIVATED": "#4CAF50",
-                    "PENDING": "#ffd54f",
-                    "REACTIVATION_PENDING": "#ffd54f",
-                    "Not Available": "#9E9E9E"
-                  }
-                },
-                {
-                  "identifier": "deviceFamily",
-                  "key": false,
-                  "title": "Device Family"
-                },
-                {
-                  "identifier": "org_id",
-                  "key": true,
-                  "hidden": true
-                }
-              ]
-            }
-          },
-          "edges_report": {
-            "reportId": "rda.saas.topology.edges.report",
-            "group_filters0": [
-              {
-                "title": "Relations",
-                "group_by": [
-                  "relation_type"
-                ]
-              },
-              {
-                "title": "Links",
-                "group_by": [
-                  "link_type"
-                ]
-              }
-            ],
-            "reportMetaData": {
-              "sorting": true,
-              "filtering": true,
-              "title": "Edges",
-              "reportColumnDefinitionList": [
-                {
-                  "hidden": false,
-                  "id": "left_id",
-                  "identifier": "left_id",
-                  "key": true,
-                  "title": "Left Id",
-                  "type": "TEXT",
-                  "visible": false
-                },
-                {
-                  "hidden": false,
-                  "id": "left_label",
-                  "identifier": "left_label",
-                  "key": false,
-                  "title": "Source",
-                  "type": "TEXT",
-                  "visible": true
-                },
-                {
-                  "hidden": false,
-                  "id": "right_id",
-                  "identifier": "right_id",
-                  "key": true,
-                  "title": "Right Id",
-                  "type": "TEXT",
-                  "visible": false
-                },
-                {
-                  "hidden": false,
-                  "id": "right_label",
-                  "identifier": "right_label",
-                  "key": false,
-                  "title": "Destination",
-                  "type": "TEXT",
-                  "visible": true
-                },
-                {
-                  "hidden": false,
-                  "id": "link_type",
-                  "identifier": "link_type",
-                  "key": false,
-                  "title": "Link",
-                  "type": "TEXT",
-                  "visible": true
-                },
-                {
-                  "hidden": false,
-                  "id": "relation_type",
-                  "identifier": "relation_type",
-                  "key": false,
-                  "title": "Relation",
-                  "type": "TEXT",
-                  "visible": true
-                }
-              ],
-              "actions": []
-            }
-          },
-          "height": 12,
-          "min_wdith": 12,
-          "widget_id": "182287d8"
+          ],
+          "widget_id": "21e2dc4e"
         }
       ]
     }
   ],
+  "dynamic_form": {
+    "formData": {},
+    "formDefinition": {
+      "id": "kpi.benchmark.json",
+      "refreshRequired": true,
+      "formFieldList": [
+        {
+          "fieldId": "i_vendor",
+          "label": "Vendor",
+          "help": "Vendor",
+          "required": true,
+          "controlType": "SELECTOR_DIALOG",
+          "selectionType": "MULTIPLE",
+          "pstream": "rdaf_network_device_snmp_metrics",
+          "extra_filter1": "i_projectid i '{{CUST_ID}}' and i_projectid is not empty",
+          "extra_filter": "i_projectid in {{PROJ_ID}}",
+          "context_filter0": "i_projectid is '{{CUST_ID}}'",
+          "key_attribute": true,
+          "query_attributes": [
+            "i_vendor"
+          ],
+          "server-validation": {
+            "clear_attributes": [
+              "i_agent_host",
+              "name",
+              "i_description",
+              "kpi"
+            ],
+            "read_attributes": [
+              "i_agent_host",
+              "i_description",
+              "kpi"
+            ]
+          }
+        },
+        {
+          "fieldId": "i_sys_name",
+          "label": "Device",
+          "help": "Devices Monitored",
+          "key_attribute": true,
+          "required": true,
+          "controlType": "SELECTOR_DIALOG",
+          "selectionType": "MULTIPLE",
+          "pstream": "rdaf_network_device_snmp_metrics",
+          "extra_filter": "i_projectid in {{PROJ_ID}}",
+          "query_attributes": [
+            "i_vendor",
+            "i_agent_host"
+          ],
+          "include_context_in_query": true,
+          "include_context_keys": [
+            "i_projectid"
+          ],
+          "additional_display_attributes": [
+            {
+              "fieldId": "i_agent_host",
+              "label": "Device IP Address",
+              "key_attribute": true,
+              "table_key_attribute": true,
+              "hide_field": false
+            }
+          ],
+          "server-validation": {
+            "clear_attributes": [
+              "i_description",
+              "name",
+              "i_memory_pool_name"
+            ],
+            "read_attributes": [
+              "i_agent_host",
+              "name",
+              "i_description",
+              "i_memory_pool_name"
+            ]
+          }
+        },
+        {
+          "fieldId": "name",
+          "label": "KPI Group",
+          "help": "KPI Group",
+          "required": true,
+          "controlType": "SELECTOR_DIALOG",
+          "selectionType": "SINGLE",
+          "pstream": "rdaf_network_device_snmp_metrics",
+          "extra_filter0": "i_projectid is '{{CUST_ID}}' or i_projectid is empty or i_projectid is 'None'",
+          "key_attribute": true,
+          "extra_filter": "i_kpi_metric is not empty and name not in ['snmp'] and (i_projectid in {{PROJ_ID}})",
+          "query_attributes": [
+            "i_vendor",
+            "i_agent_host",
+            "name"
+          ],
+          "server-validation": {
+            "clear_attributes": [
+              "kpi"
+            ],
+            "read_attributes": [
+              "i_description",
+              "i_memory_pool_name",
+              "kpi"
+            ]
+          }
+        },
+        {
+          "fieldId": "i_description",
+          "label": "Interface Name",
+          "help": "Interface Name",
+          "hidden": true,
+          "key_attribute": true,
+          "controlType": "SELECTOR_DIALOG",
+          "selectionType": "MULTIPLE",
+          "pstream": "rdaf_network_device_snmp_metrics",
+          "extra_filter": "i_projectid in {{PROJ_ID}}",
+          "query_attributes": [
+            "i_vendor",
+            "i_agent_host",
+            "i_description",
+            "name"
+          ],
+          "include_context_in_query": false,
+          "include_context_keys": [
+            "project_id"
+          ],
+          "additional_display_attributes": [
+            {
+              "fieldId": "i_sys_name",
+              "label": "Device Hostname",
+              "key_attribute": false,
+              "hide_field": false,
+              "table_key_attribute": true
+            }
+          ],
+          "server-validation": {
+            "clear_attributes": [
+              "kpi"
+            ],
+            "read_attributes": [
+              "kpi"
+            ]
+          },
+          "actionCondition": {
+            "actionControl": "SHOW_IF",
+            "conditionalField": [
+              {
+                "conditionType": "IN",
+                "conditionValue": "interface",
+                "fieldId": "name"
+              }
+            ]
+          }
+        },
+        {
+          "fieldId": "i_memory_pool_name",
+          "label": "Memory Pool Name",
+          "help": "Memory Pool Name",
+          "hidden": true,
+          "key_attribute": true,
+          "controlType": "SELECTOR_DIALOG",
+          "selectionType": "MULTIPLE",
+          "pstream": "rdaf_network_device_snmp_metrics",
+          "extra_filter": "i_projectid in {{PROJ_ID}}",
+          "query_attributes": [
+            "i_vendor",
+            "i_agent_host",
+            "i_memory_pool_name",
+            "name"
+          ],
+          "include_context_in_query": true,
+          "include_context_keys": [
+            "project_id"
+          ],
+          "additional_display_attributes": [
+            {
+              "fieldId": "i_sys_name",
+              "label": "Device Hostname",
+              "key_attribute": false,
+              "hide_field": false,
+              "table_key_attribute": true
+            }
+          ],
+          "server-validation": {
+            "clear_attributes": [
+              "kpi"
+            ],
+            "read_attributes": [
+              "kpi"
+            ]
+          },
+          "actionCondition": {
+            "actionControl": "SHOW_IF",
+            "conditionalField": [
+              {
+                "conditionType": "IN",
+                "conditionValue": "memory",
+                "fieldId": "name"
+              }
+            ]
+          }
+        },
+        {
+          "fieldId": "kpi",
+          "label": "KPI",
+          "help": "KPI List",
+          "isList": true,
+          "required": true,
+          "dynamic_field_data": true,
+          "controlType": "SELECTOR_DIALOG",
+          "selectionType": "MULTIPLE",
+          "pstream": "rdaf_network_device_snmp_metrics",
+          "extra_filter": "i_projectid in {{PROJ_ID}}",
+          "key_attribute": true,
+          "query_attributes": [
+            "i_agent_host",
+            "i_description",
+            "i_memory_pool_name",
+            "name",
+            "kpi"
+          ],
+          "server-validation": {
+            "read_attributes": [
+              "duration"
+            ]
+          }
+        },
+        {
+          "fieldId": "precision",
+          "label": "Rollup Precision",
+          "help": "Rollup Precision",
+          "dataType": "string",
+          "hidden": false,
+          "editable": true,
+          "required": true,
+          "controlType": "COMBO_BOX",
+          "lovValues": [
+            {
+              "identifier": "i_agent_host",
+              "displayName": "Device"
+            },
+            {
+              "identifier": "i_agent_host,i_description",
+              "displayName": "Interface Name"
+            },
+            {
+              "identifier": "i_agent_host,i_memory_pool_name",
+              "displayName": "Memory Pool Name"
+            }
+          ]
+        },
+        {
+          "fieldId": "function",
+          "label": "Function",
+          "help": "Function",
+          "dataType": "string",
+          "hidden": false,
+          "editable": true,
+          "required": true,
+          "controlType": "COMBO_BOX",
+          "lovValues": [
+            {
+              "identifier": "avg",
+              "displayName": "Average"
+            },
+            {
+              "identifier": "max",
+              "displayName": "Maximum"
+            },
+            {
+              "identifier": "min",
+              "displayName": "Minimum"
+            },
+            {
+              "identifier": "delta",
+              "displayName": "Delta"
+            }
+          ]
+        },
+        {
+          "fieldId": "duration",
+          "label": "Duration",
+          "help": "Duration",
+          "dataType": "string",
+          "hidden": false,
+          "editable": true,
+          "required": true,
+          "controlType": "COMBO_BOX",
+          "lovValues": [
+            {
+              "identifier": "`timestamp` is after -1 hours",
+              "displayName": "1 Hour"
+            },
+            {
+              "identifier": "`timestamp` is after -6 hours",
+              "displayName": "6 Hours"
+            },
+            {
+              "identifier": "`timestamp` is after -12 hours",
+              "displayName": "12 Hours"
+            },
+            {
+              "identifier": "`timestamp` is after -24 hours",
+              "displayName": "1 Day"
+            },
+            {
+              "identifier": "`timestamp` is after -48 hours",
+              "displayName": "2 Days"
+            },
+            {
+              "identifier": "`timestamp` is after -72 hours",
+              "displayName": "3 Days"
+            }
+          ]
+        },
+        {
+          "fieldId": "legendLocation",
+          "label": "Legend Location",
+          "help": "Legend Location",
+          "dataType": "string",
+          "hidden": false,
+          "editable": true,
+          "required": true,
+          "controlType": "COMBO_BOX",
+          "lovValues": [
+            {
+              "identifier": "right",
+              "displayName": "Right"
+            },
+            {
+              "identifier": "left",
+              "displayName": "Left"
+            },
+            {
+              "identifier": "top",
+              "displayName": "Top"
+            },
+            {
+              "identifier": "bottom",
+              "displayName": "Bottom"
+            }
+          ]
+        },
+        {
+          "fieldId": "interval",
+          "label": "Interval",
+          "help": "Interval",
+          "dataType": "string",
+          "hidden": false,
+          "editable": true,
+          "required": true,
+          "controlType": "COMBO_BOX",
+          "lovValues": [
+            {
+              "identifier": "auto",
+              "displayName": "Auto"
+            },
+            {
+              "identifier": "5Min",
+              "displayName": "5 Minutes"
+            },
+            {
+              "identifier": "15Min",
+              "displayName": "15 Minutes"
+            },
+            {
+              "identifier": "1H",
+              "displayName": "1 Hour"
+            }
+          ]
+        }
+      ],
+      "formActionList": {
+        "formActions": [
+          {
+            "api-endpoint": {
+              "methodName": "submitForm",
+              "parse-output": false,
+              "params": [
+                {
+                  "formData": {},
+                  "formId": "kpi.benchmark.json"
+                }
+              ],
+              "service-name": "saas-reports",
+              "stringified-params": true
+            },
+            "actionLabel": "Save",
+            "type": "SUBMIT",
+            "identifier": "Submit"
+          },
+          {
+            "actionLabel": "Cancel",
+            "type": "CANCEL",
+            "identifier": "Cancel"
+          }
+        ]
+      }
+    }
+  },
+  "dynamic_field_data_mapping": {
+    "interface": [
+      {
+        "name": "InOctets",
+        "value": "m_in_octets",
+        "unit": "Percentage"
+      },
+      {
+        "name": "OutOctets",
+        "value": "m_out_octets",
+        "unit": "Percentage"
+      },
+      {
+        "name": "InDiscards",
+        "value": "m_in_discards",
+        "unit": "Percentage"
+      },
+      {
+        "name": "OutDiscards",
+        "value": "m_out_discards",
+        "unit": "Percentage"
+      },
+      {
+        "name": "InErrors",
+        "value": "m_in_errors",
+        "unit": "Percentage"
+      },
+      {
+        "name": "OutErrors",
+        "value": "m_out_errors",
+        "unit": "Percentage"
+      }
+    ],
+    "memory": [
+      {
+        "name": "Memory Usage",
+        "value": "m_memory_usage",
+        "unit": "Percentage"
+      }
+    ],
+    "cpu": [
+      {
+        "name": "CPU Usage",
+        "value": "m_cpu_usage",
+        "unit": "Percentage"
+      }
+    ],
+    "environmental_temperature_status": [
+      {
+        "name": "Temperatures Status",
+        "value": "m_temperature_status_value",
+        "unit": "Celsius"
+      }
+    ]
+  },
   "pstream_dashboards": [
     {
-      "title": "Topology",
+      "title": "KPI Dashboard",
       "show_filter": true,
       "widgets": [
         {
-          "title": "Topology",
-          "widget_type": "topology",
-          "register_search_endpoints": true,
-          "reportId": "rda.saas.stack.view.topo",
-          "context_attributes": {
-            "CHASSIS": [
-              "parent_sn",
-              "device_ip"
-            ]
+          "title": "Time Series",
+          "widget_type": "timeseries",
+          "stream": "rdaf_network_device_snmp_metrics",
+          "extra_filter": "i_projectid in {{PROJ_ID}}",
+          "metric_source": "telegraf",
+          "ts_column": "timestamp",
+          "duration_hours": 96,
+          "max_width": 6,
+          "height": 6,
+          "min_width": 12,
+          "formatter": "DescriptiveCountFormatter",
+          "chartProperties": {
+            "yAxisLabel": "Value",
+            "xAxisLabel": "Timestamp",
+            "legendLocation": "right",
+            "mode": "zoom",
+            "options": {
+              "axes": {
+                "display": false
+              }
+            }
           },
-          "limit_to_node_types": [
-            "CHASSIS",
-            "Edge"
+          "interval": "5Min",
+          "group_by": [
+            "name"
           ],
-          "has_more_data_flag": false,
-          "expand_all": true,
-          "stack_type": "dynamic",
-          "stack_definition": {
-            "name": "Network Device Discovery Pack Stack",
-            "description": "",
-            "saved_time": "2023-09-12T21:08:31.418255",
-            "is_dynamic": true,
-            "hierarchical": true,
-            "dynamic_nodes": {
-              "column_name": "node_type",
-              "db_name": "cfx_rdaf_topology",
-              "query": "(customer_tag is '{{CUST_TAG}}' or customer_tag is empty or customer_tag is '')",
-              "nodes_collection": "cfx_rdaf_topology_nodes"
-            },
-            "dynamic_relationships": {
-              "db_name": "cfx_rdaf_topology",
-              "edges_collection": "cfx_rdaf_topology_edges",
-              "query": "(customer_tag is '{{CUST_TAG}}' or customer_tag is empty or customer_tag is '')",
-              "graph_name": "cfx_rdaf_topology_graph",
-              "relation_map": "rdaf_topology_relationships"
-            },
-            "dynamic_nodes0": {
-              "stream": "cfx_rdaf_topology_nodes",
-              "query": "(customer_tag is '{{CUST_TAG}}' or customer_tag is empty)",
-              "limit": 0,
-              "sorting": null
-            },
-            "dynamic_relationships0": {
-              "stream": "cfx_rdaf_topology_edges",
-              "limit": 0,
-              "sorting": null
+          "series_spec": [
+            {
+              "column": "value",
+              "agg": "max",
+              "type": "long"
             }
-          },
-          "nodes_report": {
-            "group_filters0": [
-              {
-                "title": "Edge State",
-                "group_by": [
-                  "edgeState"
-                ]
-              },
-              {
-                "title": "Family",
-                "group_by": [
-                  "deviceFamily"
-                ]
-              },
-              {
-                "title": "Activation State",
-                "group_by": [
-                  "activationState"
-                ]
-              },
-              {
-                "title": "Node Types",
-                "group_by": [
-                  "node_type"
-                ]
-              }
-            ],
-            "reportMetaData": {
-              "sorting": true,
-              "filtering": true,
-              "title": "Nodes",
-              "remote_searchable": false,
-              "extra_filter": "(customer_tag is '{{CUST_TAG}}' or customer_tag is empty)",
-              "remote_searchable_cols": [
-                "name",
-                "node_label",
-                "node_id",
-                "serialNumber",
-                "gateway_ip",
-                "edgeState",
-                "activationState",
-                "node_type",
-                "org_id"
-              ],
-              "custom_columns": [
-                {
-                  "id": "org_id",
-                  "label": "org id",
-                  "expr": "'single_tenant'",
-                  "expr1": "customer_id if customer_id != None else 'single_tenant'",
-                  "key": true,
-                  "visible": false,
-                  "sortable": false
-                }
-              ],
-              "color_columns": [
-                "edgeState",
-                "activationState"
-              ],
-              "color_map": {
-                "OFFLINE": "#B71C1C",
-                "NEVER_ACTIVATED": "#E53935",
-                "CONNECTED": "#4CAF50",
-                "ACTIVATED": "#4CAF50",
-                "PENDING": "#ffd54f",
-                "REACTIVATION_PENDING": "#ffd54f",
-                "Not Available": "#9E9E9E"
-              },
-              "actions": [
-                {
-                  "permission": "rda:user_dashboard:view",
-                  "appName": "user-dashboard/node_details_app",
-                  "drillDownLinkField": "node_label",
-                  "identifier": "launch.dashboard.node_details_app",
-                  "selectionType": "SINGLE",
-                  "title": "Device Details",
-                  "contextParamList": {
-                    "contextParams": [
-                      {
-                        "paramKey": "node_type",
-                        "paramId": "node_type"
-                      },
-                      {
-                        "paramKey": "edge_ip",
-                        "paramId": "edge_ip"
-                      },
-                      {
-                        "paramKey": "edge_id",
-                        "paramId": "edge_id"
-                      },
-                      {
-                        "paramKey": "serialNumber",
-                        "paramId": "serialNumber"
-                      },
-                      {
-                        "paramKey": "node_label",
-                        "paramId": "a_asset_name"
-                      },
-                      {
-                        "paramKey": "device_ip",
-                        "paramId": "device_ip"
-                      },
-                      {
-                        "paramKey": "parent_sn",
-                        "paramId": "parent_sn"
-                      },
-                      {
-                        "paramKey": "customer_tag",
-                        "paramId": "customer_tag"
-                      },
-                      {
-                        "paramKey": "customer_id",
-                        "paramId": "customer_id"
-                      },
-                      {
-                        "paramKey": "edgeName",
-                        "paramId": "edgeName"
-                      },
-                      {
-                        "paramKey": "org_id",
-                        "paramId": "org_id"
-                      }
-                    ]
-                  },
-                  "type": "GO_TO_APP_STATE"
-                }
-              ],
-              "reportColumnDefinitionList": [
-                {
-                  "identifier": "node_label",
-                  "title": "Name",
-                  "key": true
-                },
-                {
-                  "identifier": "name",
-                  "hidden": true,
-                  "key": false
-                },
-                {
-                  "identifier": "node_type",
-                  "title": "Type",
-                  "key": false
-                },
-                {
-                  "identifier": "node_id",
-                  "key": true,
-                  "hidden": true
-                },
-                {
-                  "identifier": "edgeState",
-                  "key": false,
-                  "title": "Edge State",
-                  "htmlTemplateForRow": "<span class='badge' style='background-color: {{'{{ row.edgeState_color }}'}}' > {{'{{ row.edgeState }}'}} </span>",
-                  "hidden": true
-                },
-                {
-                  "identifier": "edgeState_color",
-                  "key": false,
-                  "title": "Edge State",
-                  "type": "COLOR-MAP",
-                  "hidden": true,
-                  "visible": false,
-                  "from-column": "edgeState",
-                  "color-map": {
-                    "OFFLINE": "#B71C1C",
-                    "NEVER_ACTIVATED": "#E53935",
-                    "CONNECTED": "#4CAF50",
-                    "Not Available": "#9E9E9E"
-                  }
-                },
-                {
-                  "identifier": "serialNumber",
-                  "key": false,
-                  "title": "Serial Number"
-                },
-                {
-                  "identifier": "activationState",
-                  "key": false,
-                  "title": "Activation State",
-                  "htmlTemplateForRow": "<span class='badge' style='background-color: {{'{{ row.activationState_color }}'}}' > {{'{{ row.activationState }}'}} </span>"
-                },
-                {
-                  "identifier": "activationState_color",
-                  "title": "Activation State",
-                  "type": "COLOR-MAP",
-                  "hidden": true,
-                  "visible": false,
-                  "key": false,
-                  "from-column": "activationState",
-                  "color-map": {
-                    "ACTIVATED": "#4CAF50",
-                    "PENDING": "#ffd54f",
-                    "REACTIVATION_PENDING": "#ffd54f",
-                    "Not Available": "#9E9E9E"
-                  }
-                },
-                {
-                  "identifier": "deviceFamily",
-                  "key": false,
-                  "title": "Device Family"
-                },
-                {
-                  "identifier": "org_id",
-                  "key": true,
-                  "hidden": true
-                }
-              ]
-            }
-          },
-          "edges_report": {
-            "reportId": "rda.saas.topology.edges.report",
-            "group_filters0": [
-              {
-                "title": "Relations",
-                "group_by": [
-                  "relation_type"
-                ]
-              },
-              {
-                "title": "Links",
-                "group_by": [
-                  "link_type"
-                ]
-              }
-            ],
-            "reportMetaData": {
-              "sorting": true,
-              "filtering": true,
-              "title": "Edges",
-              "reportColumnDefinitionList": [
-                {
-                  "hidden": false,
-                  "id": "left_id",
-                  "identifier": "left_id",
-                  "key": true,
-                  "title": "Left Id",
-                  "type": "TEXT",
-                  "visible": false
-                },
-                {
-                  "hidden": false,
-                  "id": "left_label",
-                  "identifier": "left_label",
-                  "key": false,
-                  "title": "Source",
-                  "type": "TEXT",
-                  "visible": true
-                },
-                {
-                  "hidden": false,
-                  "id": "right_id",
-                  "identifier": "right_id",
-                  "key": true,
-                  "title": "Right Id",
-                  "type": "TEXT",
-                  "visible": false
-                },
-                {
-                  "hidden": false,
-                  "id": "right_label",
-                  "identifier": "right_label",
-                  "key": false,
-                  "title": "Destination",
-                  "type": "TEXT",
-                  "visible": true
-                },
-                {
-                  "hidden": false,
-                  "id": "link_type",
-                  "identifier": "link_type",
-                  "key": false,
-                  "title": "Link",
-                  "type": "TEXT",
-                  "visible": true
-                },
-                {
-                  "hidden": false,
-                  "id": "relation_type",
-                  "identifier": "relation_type",
-                  "key": false,
-                  "title": "Relation",
-                  "type": "TEXT",
-                  "visible": true
-                }
-              ],
-              "actions": []
-            }
-          },
-          "height": 12,
-          "min_wdith": 12,
-          "widget_id": "182287d8"
+          ],
+          "widget_id": "21e2dc4e"
         }
       ]
     }
