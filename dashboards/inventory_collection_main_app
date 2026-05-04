@@ -1,76 +1,69 @@
 {
-  "name": "inventory_collection_main_app",
-  "label": "Inventory Collection Main App",
-  "description": "Inventory Collection Main App",
-  "version": "25.04.27",
-  "dashboard_folder": "InventoryCollection",
+  "name": "rdaf_system_health_trends",
+  "label": "RDAF System Health Trends",
+  "description": "RDAF System Health Trends",
+  "version": "1.0.1",
   "enabled": true,
+  "status_poller": {},
+  "dashboard_type": "app",
+  "is_template": true,
   "custom_context": {
     "rda-dashboard-live-edit": true
   },
-  "dashboard_filters": {
-    "time_filter": true,
-    "columns_filter": []
-  },
-  "dashboard_generator": {
-    "attachment": "add_pages_for_activated_collection_packs"
-  },
-  "dashboard_sections": [],
-  "dashboard_type": "app",
-  "dashboard_groups": {
-    "groupAlerts": {
-      "icon": "alert.svg",
-      "label": "Alerts and Incidents"
+  "computedContext": {
+    "RDAF_NAME": {
+      "expr": "'rdaf-prod'"
     },
-    "groupPolicies": {
-      "icon": "alert.svg",
-      "label": "Policies"
+    "NOW": {
+      "expr": "now().replace(hour = 0, minute = 0, second = 0, microsecond = 0).isoformat()"
     },
-    "groupMetrics": {
-      "icon": "topology.svg",
-      "label": "Metrics"
+    "DAY_1_AGO": {
+      "expr": "now().replace(hour = 0, minute = 0, second = 0, microsecond = 0).isoformat()"
     },
-    "groupData": {
-      "icon": "overall.svg",
-      "label": "Events"
+    "DAY_2_AGO": {
+      "expr": "(now().replace(hour = 0, minute = 0, second = 0, microsecond = 0) - timedelta(days=1)).isoformat()"
     },
-    "groupAssetNavigator": {
-      "icon": "activities.svg",
-      "label": "Asset Navigator"
+    "DAY_3_AGO": {
+      "expr": "(now().replace(hour = 0, minute = 0, second = 0, microsecond = 0) - timedelta(days=2)).isoformat()"
     },
-    "groupTopo": {
-      "icon": "topology.svg",
-      "label": "Topology"
+    "DAY_4_AGO": {
+      "expr": "(now().replace(hour = 0, minute = 0, second = 0, microsecond = 0) - timedelta(days=3)).isoformat()"
     },
-    "groupInventory": {
-      "icon": "hardware.svg",
-      "label": "Inventory"
-    },
-    "groupStatus": {
-      "icon": "history.svg",
-      "label": "Status"
-    },
-    "groupConfigure": {
-      "icon": "settings.svg",
-      "label": "Configure and Manage"
+    "TODAY": {
+      "expr": "now().strftime('%B %d, %Y')"
     }
   },
   "dashboard_pages": [
     {
-      "name": "rda-mgmt-page-credentials",
-      "label": "All Credentials",
-      "icon": "credentials.svg"
+      "name": "host_os_performance_metrics",
+      "label": "Host OS Metrics",
+      "icon": "pipeline.svg"
     },
     {
-      "name": "rda-mgmt-page-blueprints",
-      "label": "All Blueprints",
-      "icon": "blueprint.svg"
+      "name": "alert_trend_snap",
+      "label": "Alert Trend",
+      "icon": "alert.svg"
+    },
+    {
+      "name": "alert_analysis",
+      "label": "Alert Analysis",
+      "icon": "alertGroups.svg"
+    },
+    {
+      "name": "pipeline_failure_trends",
+      "label": "Pipeline Failure Trend",
+      "icon": "trace.svg"
+    },
+    {
+      "name": "artifact_change_trends",
+      "label": "Artifact Changes Trend",
+      "icon": "changes.svg"
+    },
+    {
+      "name": "user_activity_trends",
+      "label": "User Activity",
+      "icon": "customer.svg"
     }
   ],
-  "attachments": [
-    {
-      "name": "add_pages_for_activated_collection_packs",
-      "value": "{%- set existing_groups = dashboard[\"dashboard_groups\"] -%}\n{%- set d_pages = [] -%}\n{%- set d_groups = [] -%}\n\n{%- set dlist = engine.query_stream_data(stream=\"rda_packs_dynamic_groups_and_pages\", cfxql_query=\"customer_tag is empty\") or [] -%}\n\n{%- if dlist -%}\n\n            {# Process the dlist to populate dashboard groups and pages #}\n            {%- for i in dlist -%}\n                {%- set page_name = i[\"dashboard_page_name\"] -%}\n                {%- if page_name != \"device_SNMP_Traps_from_alerts_fault\"\n                      and page_name != \"device_syslog_from_alert_fault\"\n                      and page_name != \"device_alerts_from_alert_fault\" -%}\n\n                    {%- set dgroup_ = {\n                        \"g_name\": i[\"dashboard_group_name\"],\n                        \"g_label\": i[\"dashboard_group_label\"],\n                        \"g_icon\": i[\"dashboard_group_icon\"]\n                    } -%}\n                    {{ d_groups.append(dgroup_) }}\n\n                    {%- set dpage_ = {\n                        \"name\": i[\"dashboard_page_name\"],\n                        \"label\": i[\"dashboard_page_label\"],\n                        \"icon\": i[\"dashboard_page_icon\"],\n                        \"group\": i[\"dashboard_page_group\"]\n                    } -%}\n                    {{ d_pages.append(dpage_) }}\n\n                {%- endif -%}\n            {%- endfor -%}\n\n            {# Update dashboard groups #}\n            {%- for group in d_groups -%}\n                {%- if group.g_name not in existing_groups | map(attribute='g_name') | list -%}\n                    {%- set _ = dashboard[\"dashboard_groups\"].update({\n                        group.g_name: {\n                            \"icon\": group.g_icon,\n                            \"label\": group.g_label\n                        }\n                    }) -%}\n                {%- endif -%}\n            {%- endfor -%}\n\n            {# Update dashboard pages #}\n            {%- for page in d_pages -%}\n                {%- set _ = dashboard[\"dashboard_pages\"].append({\n                    \"name\": page.name,\n                    \"label\": page.label,\n                    \"icon\": page.icon,\n                    \"group\": page.group\n                }) -%}\n            {%- endfor -%}\n\n{%- endif -%}"
-    }
-  ]
+  "dashboard_folder": "RDAF_Health_Trends"
 }
