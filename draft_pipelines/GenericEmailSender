@@ -1,38 +1,45 @@
 
- ## Generate token
+ ## Bernie Wynia, Cisco Systems, 2025
+
+ ## It doesn't seem to have trouble with the following error cases:
+
+ ## -- no email addresses are found for template (valid template id)
+
+ ## -- invalid template ID (passed in inpute stream)
+
+ ## -- malforemd email addressneed
+
+ ## Because there is always at least 1 row (potentially with empty columns), this didn't seem to have any impact --> *exec:if-shape num_rows > 0
+
+ ## It doesn't seem to be needed because the apply-template and sendmail seem to complete regardless (so we resume on the read-stream)
+
+ ## The one case it doesn't handle is if the GenericEmailTemplates references a Template Name that doesn't exist in "Formatting Templates"
 @c:new-block
- --> @restclient:read url="https://int-id.cisco.com/oauth2/aussduh26AoUqMpmQ1d6/v1/token?grant_type=client_credentials&client_id=0oaknwhn14c4dkz131d7&client_secret=5uFg2IE0bCHKV75823fFZ-HYJGfIawA5UyZg_KrxArhLghWlLoTSV5EA6G_wjymB" and
-`method`="POST" and
-`Content-Type`='application/x-www-form-urlencoded' and
-`Accept`='*/*'
- --> @dm:eval key="'key'"
- --> @dm:save name="temp-token"
- ## Build payload
+ ## Wait for a request to send an email
 
- --> @c:new-block
- --> @dm:empty
- ## This payload is for Security Advisories
+ --> @rn:read-stream name = "genericEmailSender" & group = "group_genericEmailSender"
+ ## When we get one, fetch the template details
 
- --> @dm:addrow data='{"input":{"transaction_id":"6e86f3db55880afdc57e11c278637c19748faae6d","cloudStorage":true,"scanTrigger":"ManualScan","icTypes":["securityAdvisory"],"includePotentialVulnerableResults":true,"client_app":{"app_name":"OI","client_id":"0oaknwhn14c4dkz131d7"},"device_details":{"deviceType":"IOS-XE","model":"ASR9K","version":"6.5.3","serialNumber":"FXS2014Q1KG"}}}'
- ## This payload is for SW EoX
+ --> @dm:enrich dict = 'GenericEmailTemplates' & src_key_cols = 'Template_Id' & dict_key_cols = 'Template_Id' & enrich_cols = "Subject,Template_Name"
+ ## Formulate the Subject line by appending the Suffix, if provided
 
- ## --> @dm:addrow data='{"input": { "transaction_id": "6e86f3db55880afdc57e11c278637c19748faae62","cloudStorage": true,"scanTrigger": "ManualScan","icTypes": ["softwareEoX"],"client_app": {"app_name": "OI","client_id": "0oaknwhn14c4dkz131d7"},"device_details": {"softwareType": "IOS XR","model": "CISCO2501","softwareVersionNumber":"12.0(21a)", "serialNumber": "coronas2"}}}'
+ --> @dm:add-missing-columns columns = 'Subject_Suffix' & value = ''
+ --> @dm:eval Merged_Subject = "Subject + Subject_Suffix"
+ ## Figure out who to send it to
 
- --> @dm:eval key="'key'"
- --> @dm:enrich dict ="temp-token" and src_key_cols="key" and dict_key_cols="key" and enrich_cols = "access_token"
- --> @dm:save name="temp_scan_payload"
- ## Run Scan
+ --> @dm:enrich dict = 'GenericEmailRecipients' & src_key_cols = 'Template_Id' & dict_key_cols = 'Template_Id' & enrich_cols = "Recipient,User_Enabled" & dedup_dict = "no"
+ --> *dm:filter User_Enabled != 'no'
+ ## Format the email content
 
- --> @c:data-loop columns="access_token,data" and dataset="temp_scan_payload"
- --> @restclient:read url="https://api-cx.cisco.com/us/perf/ironbank/v1/scan/jobs/feb_device_scan/async" and payload = '$data' and method="POST" and Authorization= "Bearer $access_token"
- --> @dm:eval key="'key'"
- --> @dm:enrich dict ="temp_scan_payload" and src_key_cols="key" and dict_key_cols="key" and enrich_cols = "access_token"
- --> @dm:save name="temp_scan_id"
- --> @dm:sleep seconds = 5
- ## Get results from scan
+ --> @dm:add-missing-columns columns = 'lType' & value = "html"
+ --> @dm:apply-template-by-row template_name = "{{row.Template_Name}}" & output_col = "fMessage" & status_col = "Template_Result"
+ ## Note that if we fetch an invald template name, the pipeline will abort in the above line (contrary to documentation)
 
- --> @c:data-loop columns="access_token,id" and dataset="temp_scan_id"
- --> @restclient:read url="https://api-cx.cisco.com/us/perf/ironbank/v1/scan/jobs/$id" and method="GET" and Authorization= "Bearer $access_token" and `Accept`="*/*" and Connection="keep-alive"
- --> @dm:explode-json column="issues"
- --> @dm:save name="temp-scan_result"
- --> @dm:save name="sweox-scan_result"
+ ## It may be helful to uncomment this line when debugging
+
+ ## --> @dm:save name = "delete-me-email-working-data"
+
+ --> *dm:filter Template_Result = 'ok'
+ --> *exec:if-shape num_rows > 0
+ --> @email:sendmail-bulk recipient_col = 'Recipient' & message_mime_type_col = 'lType' & subject_col = 'Merged_Subject' & message_col = 'fMessage'
+ --> @exec:end-if
