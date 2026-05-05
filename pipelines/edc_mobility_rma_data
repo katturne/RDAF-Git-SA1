@@ -1,28 +1,14 @@
-
- ## 1 here we are taking command collection
 @dm:empty
- --> @exec:get-input
- --> @dm:explode-json column="commands"
- --> @dm:save name="temp-command-collction"
+ --> @dm:recall name='att_mobility_rma'
+ --> @dm:fixcolumns
+ --> @dm:to-type columns="product_total_rma_2024_count,product_total_rma_2025_count,product_total_stock_forecast" and type="int"
+ --> @dm:save name="temp-rma-devices"
  --> @c:new-block
- --> @exec:get-input
- --> @dm:explode-json column="commands"
- --> @dm:explode-json column="rules" and prefix_parent_key="yes"
- --> @dm:save name="test-spilt-rules"
- --> @c:new-block
- --> @dm:recall name="temp-command-collction"
- --> @dm:explode-json column="Inventory"
- --> @dm:save name="temp-command-collction"
- --> @dm:add-missing-columns columns="Upgradeid,start_time,status,action_type"
- --> @dm:eval OrderId="f'ORDER_{uuid()[:8]}'"
- --> @dm:eval start_time="start_time or now().isoformat()"
- --> @dm:eval status="status or 'Triggered'"
- --> @dm:eval action_type="action_type or 'Upgrade'"
- --> @dm:selectcolumns include="^Node_Name$|^Node_Type$|^IP_Address$|^SW_Version$|^target$|^OrderId$|^status$|^__uuid$|^action_type$"
- --> @dm:save name = "xnor-upgrade-details"
- --> @c:new-block
- --> @dm:recall name="temp-command-collction"
- --> @dm:selectcolumns include="^IP_Address$|^command$|^id$|^rules$"
- --> @dm:save name="test-split-command"
- --> @c:new-block
- --> @exec:run-pipeline name = "xnor_pack_command_collection_main"
+ --> @dm:empty
+ --> @dm:addrow name="edc_customer_inventory" & limit = '0' and sort_by_col='timestamp' and sort_type='desc'
+ --> #dm:query-persistent-stream project_name = 'ATT-Mobility'
+ --> @dm:selectcolumns exclude ="product_total_rma_2024_count|product_total_rma_2025_count|product_total_stock_forecast|product_id_rma_2025|product_id_rma_2024"
+ --> @dm:enrich dict="temp-rma-devices" and src_key_cols="product_id" and dict_key_cols="product_id" and enrich_cols="product_total_rma_2024_count,product_total_rma_2025_count,product_total_stock_forecast" and case_insensitive="yes"
+ --> @dm:fixnull columns="product_total_rma_2024_count,product_total_rma_2025_count,product_total_stock_forecast" and value=0 and apply_for_empty="yes"
+ --> @dm:save name="temp-devices"
+ --> @rn:write-stream name='edc_customer_inventory' and direct_to_opensearch="yes"
