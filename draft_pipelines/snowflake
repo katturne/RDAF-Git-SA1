@@ -1,2 +1,9 @@
-@snowflake:native-query dbname is "CX_DB" and warehouse is "CX_DMP_RPT_WH" and query is "WITH UniqueCombinations AS (SELECT CONTRACT_NUMBER, PRODUCT_NAME, COVERAGE, COVERED_LINE_STATUS, BUSINESS_ENTITY, BUSINESS_SUB_ENTITY, COUNT(*) AS combination_count FROM CX_DB.CX_DMP_EBV.BV_ASSET WHERE GU_NAME = 'AT&T INC' AND ASSET_TYPE = 'Hardware' GROUP BY CONTRACT_NUMBER, PRODUCT_NAME, COVERAGE, COVERED_LINE_STATUS, BUSINESS_ENTITY, BUSINESS_SUB_ENTITY ) SELECT DISTINCT a.BK_END_OF_LIFE_REQUEST_NUM, a.BK_EOL_BULLETIN_PRODUCT_TYP_CD, a.BUSINESS_ENTITY, a.BUSINESS_SUB_ENTITY, a.CONTRACT_NUMBER,a.COVERAGE, a.COVERED_LINE_STATUS, a.END_OF_NEW_SVC_ATTACHMENT_DT, a.END_OF_ROUTINE_FAIL_ANLYSYS_DT, a.END_OF_SOFTWARE_MAINTENANCE_DT, a.END_OF_SVC_CONTRACT_RNWL_DT, a.EOL_EXTERNAL_ANNOUNCE_DT, a.EOL_PRODUCT_NAME, a.GU_NAME,a.ITEM_TYPE, a.LAST_DATE_OF_SALE, a.LAST_DATE_OF_SUPPORT, a.PRODUCT_DESCRIPTION, a.PRODUCT_FAMILY, a.PRODUCT_FAMILY_DESCRIPTION, a.PRODUCT_NAME, a.PRODUCT_TYPE, u.combination_count FROM CX_DB.CX_DMP_EBV.BV_ASSET a JOIN UniqueCombinations u ON a.CONTRACT_NUMBER = u.CONTRACT_NUMBER AND a.PRODUCT_NAME = u.PRODUCT_NAME AND a.COVERAGE = u.COVERAGE AND a.COVERED_LINE_STATUS = u.COVERED_LINE_STATUS AND a.BUSINESS_ENTITY = u.BUSINESS_ENTITY AND a.BUSINESS_SUB_ENTITY = u.BUSINESS_SUB_ENTITY WHERE a.GU_NAME = 'AT&T INC' AND a.ASSET_TYPE = 'Hardware' LIMIT 10;"
- --> @rn:write-stream name is "test-stream"
+@dm:recall name='sa-raw-data'
+ --> @dm:eval unique_key="unique_key"
+ ## --> @dm:to-type columns='customer,product_name,product_id,sw_version,sw_os_type,advisoryId,PsirtID' and type='str'
+
+ --> @dm:implode key_columns='unique_key' and merge_columns='AdvisoryId,PsirtID,product_name,product_id' and dedup_merge_values='no' and keep_columns='AdvisoryId,PsirtID'
+ --> @dm:eval transaction_id_list="str(product_id).split(',')"
+ --> @dm:eval record_count = "len(transaction_id_list)"
+ --> *dm:filter record_count > 1
+ --> @dm:save name="test-implode-sw"
