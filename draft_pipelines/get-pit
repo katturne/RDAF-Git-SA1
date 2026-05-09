@@ -1,54 +1,32 @@
+
+ ## snmp_trap_genaric_raise_alerts
 @c:new-block
- --> @dm:recall name='before-explode-sweol'
- --> @dm:dedup columns='product_id,sw_os_type,sw_version'
- --> *dm:filter issues is not '[]'
- --> @dm:save name='before-explode-sweol-new'
- --> @dm:eval issues='eval(issues)'
- --> @dm:eval issues='json_dumps(issues)'
- --> @dm:explode-json column="issues"
- --> @dm:eval eoXAlert='json_dumps(eoXAlert)'
- --> @dm:explode-json column="eoXAlert"
- --> @dm:save name='temp-sweol'
- ## --> @dm:save name='exploded-sweol'
+ --> @dm:recall name="alert_endpoint_details" & cache_refresh_seconds = 120
+ --> @dm:manipulate-string from = "alertEndpointName" and func = "strip" and to = "alertEndpointName"
+ --> *dm:filter alertEndpointName is 'SNMP_Traps' and webhookURL is not Empty
+ --> @dm:save name = "temp-webhook-url-details"
+ --> @c:new-block
+ ## -->  @rn:read-stream     name = 'snmp_trap_event_stream' & group = 'snmp_trap_event_stream_group_alerts'
 
- ## --> @c:new-block
+ --> @dm:query-persistent-stream-from-bookmark name = "snmp_trap_event_stream" & bookmark = "snmp_trap_event_stream_bkmrk"
+ --> @dm:enrich dict = "temp-webhook-url-details" & src_key_cols = "customerTag,projectId" & dict_key_cols="customerTag,projectId" & enrich_cols = "webhookURL" & cache_refresh_seconds = 120
+ --> @dm:enrich dict = "device_mapping" & src_key_cols="rda_gw_client_ip" & dict_key_cols = "ip_address" & enrich_cols = "zone,network_type,CLLI_code,city,region,network_code,image,device" & replace_values = "yes" & cache_refresh_seconds = "60"
+ --> @dm:rename-columns device_NEW='device'
+ --> @rn:write-stream name = 'snmp_trap_enriched_events_stream'
+ --> *exec:if-condition webhookURL is not Empty
+ ## --> *dm:filter device_status is "MANAGED"
 
- ## --> @dm:recall name='added-sw-data'
-
- ## --> @dm:addrow product_id='AIR-AP2802E-B-K9' and sw_version='17.12.4.208' and sw_os_type='IOS-XE' and contract_number='9517555'
-
- ## --> @dm:enrich dict='before-explode-sweol-new' and src_key_cols='product_id,sw_os_type,sw_version' and dict_key_cols='product_id,sw_os_type,sw_version' and enrich_cols='issues' and how_type='inner' and dedup_dict='no'
-
- ## --> @dm:save name='test-sweol_cn_enriched'
-
- ## --> @dm:empty
-
- ## --> @dm:addrow name='edc_oi_inventory_enriched' and limit=0
-
- ## --> #dm:query-persistent-stream customer_name=='ATT'
-
- ## --> @dm:save name='temp-hw-data'
-
- ## --> @c:new-block
-
- ## --> @dm:recall name='temp-hw-data'
-
- ## --> @dm:to-type columns='contract_number' and type='int'
-
- ## --> @dm:save name='temp-hw-data'
-
- ## --> @c:new-block
-
- ## --> @dm:recall name='test-sweol_cn_enriched'
-
- ## --> @dm:to-type columns='contract_number' and type='int'
-
- ## --> @dm:enrich dict='temp-hw-data' and src_key_cols='product_id,contract_number,customer' and dict_key_cols='product_id,contract_number,customer_name' and enrich_cols='gu_name,savm_sales_level_4_name,coverage,covered_line_status,business_entity,business_sub_entity,bk_end_of_life_request_num,bk_eol_bulletin_product_typ_cd,hwEOL_endOfNewServiceAttachmentDate,hwEOL_endOfRoutineFailureAnalysisDate,hwEOL_endOfSoftwareMaintenanceReleasesDate,hwEOL_endOfServiceContractRenewalDate,hwEOL_endOfLifeAnnouncementDate,eol_product_name,item_type,hwEOL_endOfSaleDate,hwEOL_lastDayOfSupportDate,product_description,product_family,product_family_description,product_type,product_list_price,portfolio_desc,usage_code,combination_count,execution_status,total_product_list_price,unique_key,hw_status,hw_expiring_qtr,hw_expiring_year,last_updated_time,product_name' and how_type='inner' and replace_values='yes'
-
- ## --> @dm:save name='enriched-op-35-inv'
-
- --> @dm:recall name='temp-sweol'
- --> *dm:filter customer == 'ATT'
- --> @exec:run-pipeline name='edc_processing_sw_data'
- --> @dm:to-type columns='contract_number' and type='int'
- --> @dm:save name='processed-sw-op'
+ --> @dm:add-missing-columns columns = 'mappingStatus' & value = 'found'
+ --> @dm:eval-multi-proc execution_step = "'source_event'"
+ --> *dm:filter mappingStatus is 'found'
+ --> @dm:eval execution_step = "'mapping_filter'"
+ --> @dm:rename-columns snmp_trap_mib = 'snmpTrapMIB' & snmp_trap_name = 'snmpTrapName' & snmp_trap_description = 'snmpTrapDescription' & snmp_trap_oid = 'snmpTrapOID' & device_NEW = 'device_name'
+ --> @dm:enrich-using-rule-dict dict = "snmp_trap_alert_rules_dict" & enrich_columns = "action,reason,state,severity"
+ --> @dm:eval-multi-proc execution_step = "'alert_rule_enrichment'" and   timestamp="utcnow().isoformat()"
+ --> *dm:filter action is 'KEEP'
+ --> @dm:map to = 'snmp_trap_timestamp' and from = 'rda_gw_timestamp'
+ --> @dm:to-json output_column is payload
+ --> @exec:for-loop num_rows = 1
+ --> @restclient:write url  = '{{row.webhookURL}}' & envelope is "{{'{{payload}}'}}" & batch_size = 1
+ --> @exec:end-loop
+ --> @exec:end-if
