@@ -1,261 +1,216 @@
 {
-  "name": "preview_performance_dashboard",
-  "label": "Performance Workbench",
-  "description": "Performance Workbench",
-  "dashboard_folder": "Default",
-  "enabled": true,
-  "dashboard_type": "dashboard",
+  "name": "incident-topology",
+  "label": "Incident Topology",
+  "description": "Incident Topology",
+  "dashboard_style": "auto",
+  "version": "22.8.20.1",
+  "enabled": false,
+  "dashboard_type": "template",
+  "template_variables": {
+    "STACK_NAME": {
+      "default": "Online_Banking_Stack",
+      "contextId": "stack_name"
+    },
+    "INCIDENT_ID": {
+      "default": "CFX20220922543515",
+      "contextId": "incident_id"
+    },
+    "MY_TEMPLATE": {
+      "default": "<details><summary><b>{{row.alerttype}}</b></summary><div class='v-data-table v-data-table--dense theme--light'><div class='v-data-table__wrapper'><table style='width: 300px;'><tbody><tr><td>Source</td><td>{{row.sourcesystemname}}</td></tr><tr><td>Asset ID</td><td>{{row.assetid}}</td></tr><tr><td>Message</td><td>{{row.message}}</td></tr><tr><td>Assett IP</td><td>{{row.assetipaddress}}</td></tr><tr><td>Alert Status</td><td>{{row.sourcestatus}}</td></tr></tbody></table></div></div></details>",
+      "contextId": "MY_TEMPLATE"
+    }
+  },
+  "custom_context": {
+    "alert-context": true
+  },
   "dashboard_filters": {
     "time_filter": true,
-    "default_time_filter_non_removable": true,
-    "show_default_time_filter": true
+    "columns_filter": []
   },
   "dashboard_sections": [
     {
-      "title": "Ops Insights",
+      "title": "Topology",
       "show_filter": true,
       "widgets": [
         {
-          "title": "Time Series",
-          "widget_type": "timeseries",
-          "stream": "psl_kafka_data",
-          "ts_column": "timestamp",
-          "duration_hours": 720,
-          "max_width": 6,
-          "height": 6,
+          "widget_type": "incident_kb_article",
+          "stream": "oia-incidents-stream",
+          "incidentid": "{{INCIDENT_ID}}",
           "min_width": 12,
+          "height": 2,
+          "widget_id": "847e51a0"
+        },
+        {
+          "widget_type": "topology",
+          "title": "Topology",
           "chartProperties": {
-            "yAxisLabel": "Count",
-            "xAxisLabel": "Date",
-            "legendLocation": "top"
+            "hasToolbar": true,
+            "shortToolbar": true,
+            "userZoomingEnabled": false
           },
-          "interval": "1H",
-          "group_by": [
-            "instance"
-          ],
-          "series_spec": [
+          "stack": "Online_Banking_Stack",
+          "max_width": 12,
+          "min_width": 7,
+          "height": 12,
+          "alert_source": {
+            "stream": "oia-alerts-stream",
+            "group_by": [
+              "a_asset_id",
+              "a_severity_label",
+              "a_source_status"
+            ],
+            "extra_filter": "incidentid is '{{INCIDENT_ID}}' ",
+            "ts_column": "timestamp",
+            "duration_hours": 1440,
+            "agg": "value_count",
+            "column": "_id",
+            "type": "int"
+          },
+          "widget_id": "9db5a36f"
+        },
+        {
+          "title": "Alerts",
+          "widget_type": "tabular",
+          "max_width": 12,
+          "height": 12,
+          "min_width": 5,
+          "sorting": [
             {
-              "column": "System_Calls_Active",
-              "agg": "max",
-              "type": "int",
-              "label": "System_Calls_Active"
+              "a_raised_ts": "desc"
             }
           ],
-          "widget_id": "ee43c826",
-          "extra_filter": "device in [\"'AKRNOHNF11G'\"] and `timestamp` is after -168 hours"
+          "stream": "oia-alerts-stream",
+          "extra_filter": "incident_id is '{{INCIDENT_ID}}' and a_source_system_name is not 'Alert Group' ",
+          "query": "*",
+          "duration_hours": 24,
+          "columns": {
+            "alerttype": {
+              "title": "Alert Type",
+              "type": "GROUPED",
+              "group": {
+                "a_source_system_name": "Source",
+                "a_asset_id": "Asset Id",
+                "a_message": "Message",
+                "a_asset_ip_address": "Asset IP Address",
+                "a_source_status": "Status",
+                "a_asset_name": "Asset Name",
+                "a_asset_type": "Asset Type"
+              },
+              "color-column": "state_color"
+            },
+            "state_color": {
+              "type": "COLOR-MAP",
+              "source-column": "sourcestatus",
+              "color-map": {
+                "ACTIVE": "#dd0000",
+                "CLEAR": "#00dd00",
+                "CLEARED": "#00dd00"
+              }
+            },
+            "a_raised_ts": {
+              "title": "Raised At",
+              "type": "DATETIME"
+            },
+            "a_severity_label": "Severity"
+          },
+          "severity_columns": [
+            "a_severity_label"
+          ],
+          "widget_id": "a7f6e486"
         }
       ]
     }
   ],
-  "dynamic_form": {
-    "formData": {},
-    "formDefinition": {
-      "id": "performance.benchmark.json",
-      "refreshRequired": true,
-      "formFieldList": [
-        {
-          "fieldId": "instance",
-          "label": "Device",
-          "help": "Devices",
-          "controlType": "SELECTOR_DIALOG",
-          "selectionType": "MULTIPLE",
-          "pstream": "psl_kafka_data_kpi",
-          "query_attributes": [
-            "instance"
-          ],
-          "server-validation": {
-            "clear_attributes": [
-              "ifName",
-              "name"
-            ],
-            "read_attributes": [
-              "ifName",
-              "name"
-            ]
-          }
-        },
-        {
-          "fieldId": "ifName",
-          "label": "Interface",
-          "help": "Device Interface",
-          "controlType": "SELECTOR_DIALOG",
-          "selectionType": "MULTIPLE",
-          "pstream": "psl_kafka_data_kpi",
-          "query_attributes": [
-            "instance",
-            "ifName"
-          ],
-          "server-validation": {
-            "clear_attributes": [
-              "name"
-            ],
-            "read_attributes": [
-              "name"
-            ]
-          }
-        },
-        {
-          "fieldId": "name",
-          "label": "Metrics",
-          "help": "Performance Metrics",
-          "isList": true,
-          "required": true,
-          "controlType": "SELECTOR_DIALOG",
-          "selectionType": "MULTIPLE",
-          "pstream": "psl_kafka_data_kpi",
-          "query_attributes": [
-            "instance",
-            "ifName",
-            "name"
-          ]
-        },
-        {
-          "dataType": "string",
-          "required": false,
-          "editable": true,
-          "label": "Combine All",
-          "controlType": "BOOLEAN_FIELD",
-          "hidden": false,
-          "fieldId": "combine"
-        },
-        {
-          "fieldId": "precision",
-          "label": "Rollup Precision",
-          "help": "Rollup Precision",
-          "dataType": "string",
-          "hidden": false,
-          "editable": true,
-          "required": true,
-          "controlType": "COMBO_BOX",
-          "lovValues": [
-            {
-              "identifier": "instance",
-              "displayName": "Device"
-            },
-            {
-              "identifier": "ifName",
-              "displayName": "Interface"
-            },
-            {
-              "identifier": "name",
-              "displayName": "Metric"
-            }
-          ]
-        },
-        {
-          "fieldId": "function",
-          "label": "Function",
-          "help": "Function",
-          "dataType": "string",
-          "hidden": false,
-          "editable": true,
-          "required": true,
-          "controlType": "COMBO_BOX",
-          "lovValues": [
-            {
-              "identifier": "max",
-              "displayName": "Maximum"
-            },
-            {
-              "identifier": "min",
-              "displayName": "Minimum"
-            },
-            {
-              "identifier": "mean",
-              "displayName": "Mean"
-            }
-          ]
-        },
-        {
-          "fieldId": "duration",
-          "label": "Duration",
-          "help": "Duration",
-          "dataType": "string",
-          "hidden": false,
-          "editable": true,
-          "required": true,
-          "controlType": "COMBO_BOX",
-          "lovValues": [
-            {
-              "identifier": "`timestamp` is after -24 hours",
-              "displayName": "1 Day"
-            },
-            {
-              "identifier": "`timestamp` is after -48 hours",
-              "displayName": "2 Days"
-            },
-            {
-              "identifier": "`timestamp` is after -168 hours",
-              "displayName": "7 Days"
-            },
-            {
-              "identifier": "`timestamp` is after -720 hours",
-              "displayName": "30 Days"
-            }
-          ]
-        }
-      ],
-      "formActionList": {
-        "formActions": [
-          {
-            "api-endpoint": {
-              "methodName": "submitForm",
-              "parse-output": false,
-              "params": [
-                {
-                  "formData": {},
-                  "formId": "kpi.benchmark.json"
-                }
-              ],
-              "service-name": "saas-reports",
-              "stringified-params": true
-            },
-            "actionLabel": "Save",
-            "type": "SUBMIT",
-            "identifier": "Submit"
-          },
-          {
-            "actionLabel": "Cancel",
-            "type": "CANCEL",
-            "identifier": "Cancel"
-          }
-        ]
-      }
-    }
-  },
   "pstream_dashboards": [
     {
-      "title": "Ops Insights",
+      "title": "Topology",
       "show_filter": true,
       "widgets": [
         {
-          "title": "Time Series",
-          "widget_type": "timeseries",
-          "stream": "psl_kafka_data",
-          "ts_column": "timestamp",
-          "duration_hours": 720,
-          "max_width": 6,
-          "height": 6,
+          "widget_type": "incident_kb_article",
+          "stream": "oia-incidents-stream",
+          "incidentid": "{{INCIDENT_ID}}",
           "min_width": 12,
+          "height": 2,
+          "widget_id": "847e51a0"
+        },
+        {
+          "widget_type": "topology",
+          "title": "Topology",
           "chartProperties": {
-            "yAxisLabel": "Count",
-            "xAxisLabel": "Date",
-            "legendLocation": "top"
+            "hasToolbar": true,
+            "shortToolbar": true,
+            "userZoomingEnabled": false
           },
-          "interval": "1H",
-          "group_by": [
-            "instance"
-          ],
-          "series_spec": [
+          "stack": "Online_Banking_Stack",
+          "max_width": 12,
+          "min_width": 7,
+          "height": 12,
+          "alert_source": {
+            "stream": "oia-alerts-stream",
+            "group_by": [
+              "a_asset_id",
+              "a_severity_label",
+              "a_source_status"
+            ],
+            "extra_filter": "incidentid is '{{INCIDENT_ID}}' ",
+            "ts_column": "timestamp",
+            "duration_hours": 1440,
+            "agg": "value_count",
+            "column": "_id",
+            "type": "int"
+          },
+          "widget_id": "9db5a36f"
+        },
+        {
+          "title": "Alerts",
+          "widget_type": "tabular",
+          "max_width": 12,
+          "height": 12,
+          "min_width": 5,
+          "sorting": [
             {
-              "column": "System_Calls_Active",
-              "agg": "max",
-              "type": "int",
-              "label": "System_Calls_Active"
+              "a_raised_ts": "desc"
             }
           ],
-          "widget_id": "ee43c826",
-          "extra_filter": "device in [\"'AKRNOHNF11G'\"] and `timestamp` is after -168 hours"
+          "stream": "oia-alerts-stream",
+          "extra_filter": "incident_id is '{{INCIDENT_ID}}' and a_source_system_name is not 'Alert Group' ",
+          "query": "*",
+          "duration_hours": 24,
+          "columns": {
+            "alerttype": {
+              "title": "Alert Type",
+              "type": "GROUPED",
+              "group": {
+                "a_source_system_name": "Source",
+                "a_asset_id": "Asset Id",
+                "a_message": "Message",
+                "a_asset_ip_address": "Asset IP Address",
+                "a_source_status": "Status",
+                "a_asset_name": "Asset Name",
+                "a_asset_type": "Asset Type"
+              },
+              "color-column": "state_color"
+            },
+            "state_color": {
+              "type": "COLOR-MAP",
+              "source-column": "sourcestatus",
+              "color-map": {
+                "ACTIVE": "#dd0000",
+                "CLEAR": "#00dd00",
+                "CLEARED": "#00dd00"
+              }
+            },
+            "a_raised_ts": {
+              "title": "Raised At",
+              "type": "DATETIME"
+            },
+            "a_severity_label": "Severity"
+          },
+          "severity_columns": [
+            "a_severity_label"
+          ],
+          "widget_id": "a7f6e486"
         }
       ]
     }
