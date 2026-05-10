@@ -1,13 +1,16 @@
+
+ ## Get row input
 @c:new-block
  --> @dm:empty
- --> @exec:define-function name="generate_access_token"
- --> @exec:run-pipeline name ="edc_generate_token" & ignore_failures = "no"
- --> @dm:addrow key='key'
- --> @dm:eval current_time_ms="int(time_now_as_ms())"
- --> @dm:eval token_expiry_time='current_time_ms+3000000'
- --> @dm:save name='temp-expiry-time'
- --> @exec:end-function
- --> @c:new-block
+ --> @exec:get-input
+ ## --> @dm:selectcolumns include='device_hostname|device_identifier|device_controller_id'
+
+ --> @dm:save name='temp-form-data'
+ --> @c:data-loop columns="customer_name" and dataset="temp-form-data"
  --> @dm:empty
- --> @exec:call-function name='generate_access_token'
- --> @dm:save name='temp-expiry-time'
+ --> @dm:addrow name = "edc_oi_inventory_grouped" & conflicts = "proceed" & timeout = 1200
+ --> #dm:pstream-delete-data-by-query customer_name=="$customer_name"
+ --> @c:data-loop columns="customer_name" and dataset="temp-form-data"
+ --> @dm:empty
+ --> @dm:addrow name = "edc_oi_inventory_enriched" & conflicts = "proceed" & timeout = 1200
+ --> #dm:pstream-delete-data-by-query customer_name=="$customer_name"
