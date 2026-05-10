@@ -1,108 +1,68 @@
 {
-  "name": "rda-dashboard-view-logs",
-  "label": "Export Job Logs",
-  "description": "Dashboard Schedule Logs: Insights",
-  "dashboard_folder": "Default",
-  "version": "1.0.3",
-  "enabled": false,
-  "dashboard_type": "template",
-  "status_poller": {
-    "stream": "rda_dashboard_schedule_logs",
-    "frequency": 30,
-    "columns": [
-      "timestamp"
-    ]
-  },
-  "template_variables": {
-    "JOBID": {
-      "contextId": "job_id"
-    }
+  "name": "customer_ops_application",
+  "label": "Customer Ops App",
+  "description": "Customer Operations App",
+  "version": "24.12.22",
+  "dashboard_folder": "Onboarding",
+  "enabled": true,
+  "custom_context": {
+    "rda-dashboard-live-edit": true
   },
   "dashboard_filters": {
     "time_filter": true,
-    "extra_filter": "job_id is '{{JOBID}}'",
-    "default_time_filter_labels": [
-      "Last 1 month"
-    ],
-    "columns_filter": [
-      {
-        "id": "timestamp",
-        "label": "Timestamp",
-        "type": "DATETIME"
-      }
-    ],
-    "group_filters": []
+    "columns_filter": []
   },
-  "dashboard_sections": [
+  "dashboard_generator": {
+    "attachment": "add_pages_for_activated_packs"
+  },
+  "dashboard_sections": [],
+  "dashboard_type": "app",
+  "dashboard_groups": {
+    "groupAlerts": {
+      "icon": "alert.svg",
+      "label": "Alerts and Incidents"
+    },
+    "groupPolicies": {
+      "icon": "alert.svg",
+      "label": "Policies"
+    },
+    "groupMetrics": {
+      "icon": "topology.svg",
+      "label": "Metrics"
+    },
+    "groupTopo": {
+      "icon": "topology.svg",
+      "label": "Topology"
+    },
+    "groupInventory": {
+      "icon": "hardware.svg",
+      "label": "Inventory"
+    },
+    "groupData": {
+      "icon": "overall.svg",
+      "label": "Events"
+    },
+    "groupDiscovery": {
+      "icon": "activities.svg",
+      "label": "Onboarding"
+    }
+  },
+  "dashboard_pages": [
     {
-      "title": "Schedule Logs",
-      "show_filter": true,
-      "widgets": [
-        {
-          "title": "Schedule Logs",
-          "widget_type": "tabular",
-          "stream": "rda_dashboard_schedule_logs",
-          "height": 4,
-          "paginated": true,
-          "max_width": 12,
-          "min_width": 12,
-          "sorting": [
-            {
-              "timestamp": "desc"
-            }
-          ],
-          "columns": {
-            "ingestion_id": "Job ID",
-            "timestamp": {
-              "title": "Timestamp",
-              "type": "DATETIME"
-            },
-            "status": "Progress",
-            "job_id": {
-              "title": "ID",
-              "visible": false
-            },
-            "reason": "Reason"
-          },
-          "widget_id": "b2c8d81c"
-        }
-      ]
+      "name": "rda-mgmt-page-credentials-test",
+      "label": "Credentials",
+      "icon": "credentials.svg"
+    },
+    {
+      "name": "rda-mgmt-page-blueprints-test",
+      "label": "Blueprints",
+      "icon": "blueprint.svg"
     }
   ],
-  "pstream_dashboards": [
+  "attachments": [
     {
-      "title": "Schedule Logs",
-      "show_filter": true,
-      "widgets": [
-        {
-          "title": "Schedule Logs",
-          "widget_type": "tabular",
-          "stream": "rda_dashboard_schedule_logs",
-          "height": 4,
-          "paginated": true,
-          "max_width": 12,
-          "min_width": 12,
-          "sorting": [
-            {
-              "timestamp": "desc"
-            }
-          ],
-          "columns": {
-            "ingestion_id": "Job ID",
-            "timestamp": {
-              "title": "Timestamp",
-              "type": "DATETIME"
-            },
-            "status": "Progress",
-            "job_id": {
-              "title": "ID",
-              "visible": false
-            },
-            "reason": "Reason"
-          },
-          "widget_id": "b2c8d81c"
-        }
-      ]
+      "name": "add_pages_for_activated_packs",
+      "value": "{%- set existing_groups = dashboard[\"dashboard_groups\"] -%}\n{%- set d_pages = [] -%}\n{%- set d_groups = [] -%}\n{%- set customer_tag = customerTag -%}\n\n{%- set dlist = engine.query_stream_data(stream=\"rda_packs_dynamic_groups_and_pages\", cfxql_query=\"customer_tag is '\" ~ customer_tag ~ \"'\") or [] -%}\n\n{%- if dlist -%}\n\n\n            {# Process the dlist to populate dashboard groups and pages #}\n            {%- for i in dlist -%}\n                {%- set dgroup_ = {\n                    \"g_name\": i[\"dashboard_group_name\"],\n                    \"g_label\": i[\"dashboard_group_label\"],\n                    \"g_icon\": i[\"dashboard_group_icon\"]\n                } -%}\n                {{ d_groups.append(dgroup_) }}\n\n                {%- set dpage_ = {\n                    \"name\": i[\"dashboard_page_name\"],\n                    \"label\": i[\"dashboard_page_label\"],\n                    \"icon\": i[\"dashboard_page_icon\"],\n                    \"group\": i[\"dashboard_page_group\"]\n                } -%}\n                {{ d_pages.append(dpage_) }}\n            {%- endfor -%}\n\n            {# Update dashboard groups #}\n            {%- for group in d_groups -%}\n                {%- if group.g_name not in existing_groups | map(attribute='g_name') | list -%}\n                    {%- set _ = dashboard[\"dashboard_groups\"].update({\n                        group.g_name: {\n                            \"icon\": group.g_icon,\n                            \"label\": group.g_label\n                        }\n                    }) -%}\n                {%- endif -%}\n\n            {%- endfor -%}\n\n            {# Update dashboard pages #}\n            {%- for page in d_pages -%}\n                {%- set _ = dashboard[\"dashboard_pages\"].append({\n                    \"name\": page.name,\n                    \"label\": page.label,\n                    \"icon\": page.icon,\n                    \"group\": page.group\n                }) -%}\n            {%- endfor -%}\n\n{%- endif -%}"
     }
   ]
 }

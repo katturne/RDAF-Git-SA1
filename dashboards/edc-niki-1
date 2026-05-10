@@ -1,554 +1,320 @@
 {
-  "name": "edc-niki-1",
-  "label": "SW Data",
-  "description": "Upload SW Data",
-  "version": "2025-04-11-4",
-  "stream": "edc_niki-1",
-  "enabled": false,
-  "dashboard_folder": "OI",
+  "name": "topology-details-with-html-and-pivot-report",
+  "label": "X-Leaf Workflow Results",
+  "description": "X-Leaf EVT Workflow Results",
+  "enabled": true,
   "dashboard_style": "auto",
-  "live_edit": true,
-  "dashboard_type": "dashboard",
-  "stream_query_mapping": {
-    "edc_oi_inventory_enriched": {},
-    "edc_cust_contract_pid": {
-      "coverage": null
-    }
-  },
-  "computedContext": {
-    "show_pid_grp": {
-      "expr": "'yes' if str(show_pid_grp) in [ 'yes', 'True'] else 'no'",
-      "defaultValue": "error"
+  "dashboard_type": "template",
+  "dashboard_folder": "X-Leaf",
+  "version": "23.8.21.1",
+  "short_label": "X-Leaf EVT Workflow",
+  "dashboard_filters": {},
+  "template_variables": {
+    "NODE_ID": {
+      "contextId": [
+        "navigatorSelectionContexts",
+        "secondaryListSelection",
+        "device_ip"
+      ]
     },
-    "all_context": {
-      "expr": "",
-      "defaultValue": "Unknown"
+    "PRECHECK_NAME": {
+      "contextId": [
+        "navigatorSelectionContexts",
+        "secondaryListSelection",
+        "evt_check_name"
+      ]
+    },
+    "COMMAND": {
+      "contextId": [
+        "navigatorSelectionContexts",
+        "secondaryListSelection",
+        "command"
+      ]
     }
   },
-  "dashboard_pages": [],
-  "dashboard_filters": {
-    "time_filter": true,
-    "default_time_filter_labels": [
-      "Last 2 weeks"
-    ],
-    "custom_time_filters": [
-      "24h",
-      "2d",
-      "3d",
-      "1w",
-      "2w",
-      "3w",
-      "1M",
-      "2M",
-      "3M",
-      "6M",
-      "12M"
-    ],
-    "columns_filter": [
-      {
-        "id": "timestamp",
-        "label": "Timestamp",
-        "type": "DATETIME"
-      },
-      {
-        "id": "contract_number",
-        "label": "Contract Number",
-        "type": "TEXT"
-      },
-      {
-        "id": "product_name",
-        "label": "Product Name",
-        "type": "TEXT"
-      },
-      {
-        "id": "product_id",
-        "label": "Product ID",
-        "type": "TEXT"
-      },
-      {
-        "id": "customer",
-        "label": "Customer",
-        "type": "TEXT"
-      },
-      {
-        "id": "sw_version",
-        "label": "SW Version",
-        "type": "TEXT"
-      },
-      {
-        "id": "sw_os_type",
-        "label": "SW OS Type",
-        "type": "TEXT"
-      },
-      {
-        "id": "transaction_id",
-        "label": "Transaction ID",
-        "type": "TEXT"
+  "navigation_dashboards": {
+    "tree_data": {
+      "column_name": "device_ip",
+      "pstream_name": "xleaf_evt_results_summary",
+      "cfxql_query": "timestamp is after -30d",
+      "show_counts": false
+    },
+    "tree_detail": {
+      "display_column": "evt_check_name",
+      "pstream_name": "xleaf_evt_results_summary",
+      "cfxql_query": "timestamp is after -30d",
+      "htmlTemplate": "<div style='overflow:hidden;'><div class='d-flex'><div style='flex-grow: 1' class='label1 text-truncate'><b>{{data.label1}}</b></div><div class='label2 text-truncate badge' :style='{backgroundColor: data.color}'>{{data.label2}}</div></div><div class='cfx-list-item-end-label'>{{data.label3}}</div></div>",
+      "report_definition": {
+        "title": "Validation Checks",
+        "widget_type": "tabular",
+        "stream": "xleaf_evt_results_summary",
+        "ts_column": "timestamp",
+        "timebased": false,
+        "columns": {
+          "evt_check_name": "evt_check_name",
+          "device_ip": "device_ip",
+          "status": "status",
+          "command": "command"
+        },
+        "sorting": [
+          {
+            "result_int_max": "desc"
+          }
+        ],
+        "cfxql_query": "device_ip is '{{NODE_ID}}' and timestamp is after -30d",
+        "pivot": {
+          "pivot_type": "advanced",
+          "series": [
+            {
+              "column": "evt_check_name",
+              "agg": "cardinality"
+            },
+            {
+              "column": "result_int",
+              "agg": "max"
+            }
+          ],
+          "group_by": [
+            "evt_check_name",
+            "device_ip",
+            "status",
+            "command"
+          ]
+        },
+        "paginated": true,
+        "enableVirtualScrolling": false,
+        "custom_columns": [
+          {
+            "id": "label1",
+            "expr": "str(evt_check_name)"
+          },
+          {
+            "id": "label2",
+            "expr": "'Pass' if int(result_int_max) == 0 else 'Fail' if int(result_int_max) == 1 else 'Run'"
+          },
+          {
+            "id": "label3",
+            "expr": "str(status)"
+          },
+          {
+            "id": "color",
+            "expr": "'#4caf50' if int(result_int_max) == 0 else '#E53935' if int(result_int_max) == 1 else '#FFD54F'"
+          }
+        ],
+        "widget_id": "5afc2391"
       }
-    ],
-    "group_filters": [
-      {
-        "stream": "edc_niki-1",
-        "title": "Customer Name",
-        "extra_filter1": "source in 'inventory'",
-        "group_by": [
-          "customer"
-        ],
-        "ts_column": "timestamp",
-        "duration_hours": 1080,
-        "limit": 200,
-        "agg": "value_count",
-        "column": "count_",
-        "type": "int"
-      },
-      {
-        "stream": "edc_niki-1",
-        "title": "Product ID",
-        "extra_filter1": "source in 'inventory'",
-        "group_by": [
-          "product_id"
-        ],
-        "ts_column": "timestamp",
-        "duration_hours": 1080,
-        "limit": 200,
-        "agg": "value_count",
-        "column": "count_",
-        "type": "text"
-      },
-      {
-        "stream": "edc_niki-1",
-        "title": "Contract Number",
-        "group_by": [
-          "contract_number"
-        ],
-        "ts_column": "timestamp",
-        "duration_hours": 1080,
-        "limit": 500,
-        "agg": "value_count",
-        "column": "count_",
-        "type": "int"
-      },
-      {
-        "stream": "edc_niki-1",
-        "title": "SW Version",
-        "group_by": [
-          "sw_version"
-        ],
-        "ts_column": "timestamp",
-        "duration_hours": 1080,
-        "limit": 500,
-        "agg": "value_count",
-        "column": "count_",
-        "type": "str"
-      },
-      {
-        "stream": "edc_niki-1",
-        "title": "SW OS Type",
-        "extra_filter1": "source in 'inventory'",
-        "group_by": [
-          "sw_os_type"
-        ],
-        "ts_column": "timestamp",
-        "duration_hours": 1080,
-        "limit": 400,
-        "agg": "value_count",
-        "column": "count_",
-        "type": "str"
-      }
-    ]
+    },
+    "showNodeIcon": false,
+    "showSearchBox": true
   },
   "dashboard_sections": [
     {
-      "title": "Assets",
-      "show_filter": true,
+      "title": "Passed",
       "widgets": [
         {
-          "title": "Unique Product IDs (for Produc Type: ROUTER, SWITCH , FUNCSYSTM, MULTIPROD)",
-          "context_filter1": "show_pid_grp is 'yes'",
+          "title": "Summary",
           "widget_type": "tabular",
-          "max_width": 12,
-          "height": 8,
-          "min_width": 12,
-          "stream": "edc_niki-1",
+          "stream": "xleaf_evt_results",
           "ts_column": "timestamp",
-          "duration_hours": 1080,
-          "remote_searchable": true,
-          "columns": {
-            "customer": {
-              "title": "Customer",
-              "type": "TEXT",
-              "visible": true,
-              "key": true
-            },
-            "contract_number": {
-              "title": "Contract_Number",
-              "type": "FLOAT",
-              "visible": true,
-              "key": true
-            },
-            "unique_key": {
-              "title": "Unique_Key",
-              "type": "TEXT",
-              "visible": false,
-              "key": true
-            },
-            "ingestion_id": {
-              "title": "Ingestion_ID",
-              "type": "TEXT",
-              "visible": false,
-              "key": true
-            },
-            "product_id": {
-              "title": "Product_ID",
-              "type": "TEXT",
-              "key": true
-            },
-            "sw_os_type": {
-              "title": "SW_OS_Type",
-              "type": "TEXT",
-              "key": true
-            },
-            "sw_version": {
-              "title": "SW_Version",
-              "type": "TEXT",
-              "key": true
-            }
-          },
-          "actions": [
+          "timebased": false,
+          "paginated": true,
+          "hide_columns": [
+            "collection_status",
+            "device_ip",
+            "evt_check_name",
+            "key",
+            "iconURL",
+            "timestamp",
+            "count_",
+            "_RDA_Id",
+            "jobid",
+            "result_int"
+          ],
+          "custom_columns": [
             {
-              "permission": "rda:github:view",
-              "title": "Add",
-              "type": "POPUP_FORM",
-              "selectionType": "NONE",
-              "identifier": "saas-service-action:userdashboard-add-yaml",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.dynamic.form",
-                    "formDefinition": {
-                      "id": "rda.saas.dynamic.form",
-                      "refreshRequired": true,
-                      "formFieldList": [
-                        {
-                          "help": "Choose file to upload",
-                          "dataType": "string",
-                          "required": true,
-                          "editable": true,
-                          "label": "Choose file to upload",
-                          "controlType": "FILE_UPLOAD",
-                          "hidden": false,
-                          "fieldId": "fileUpload"
-                        }
-                      ]
-                    },
-                    "actions": [
-                      {
-                        "type": "RUN_PIPELINE",
-                        "pipelineName": "edc_add_sw_details",
-                        "isSync": false
-                      }
-                    ]
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:github:view",
-              "title": "Edit",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:userdashboard-add-yaml",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.dynamic.form",
-                    "formDefinition": {
-                      "id": "rda.saas.dynamic.form",
-                      "refreshRequired": true,
-                      "formFieldList": [
-                        {
-                          "help": "Customer",
-                          "dataType": "string",
-                          "controlType": "TEXT_FIELD",
-                          "required": false,
-                          "editable": false,
-                          "label": "Customer",
-                          "hidden": false,
-                          "fieldId": "customer_name"
-                        },
-                        {
-                          "help": "Contract Number",
-                          "dataType": "string",
-                          "controlType": "TEXT_FIELD",
-                          "required": false,
-                          "editable": false,
-                          "label": "Contract Number",
-                          "hidden": false,
-                          "fieldId": "contract_number"
-                        },
-                        {
-                          "help": "Product ID",
-                          "dataType": "string",
-                          "controlType": "TEXT_FIELD",
-                          "required": false,
-                          "editable": false,
-                          "label": "Product ID",
-                          "hidden": false,
-                          "fieldId": "product_id"
-                        },
-                        {
-                          "help": "Unique Key",
-                          "dataType": "string",
-                          "controlType": "TEXT_FIELD",
-                          "required": false,
-                          "editable": true,
-                          "label": "Unique Key",
-                          "hidden": false,
-                          "fieldId": "unique_key"
-                        },
-                        {
-                          "help": "SW OS Type",
-                          "dataType": "string",
-                          "controlType": "TEXT_FIELD",
-                          "required": true,
-                          "editable": true,
-                          "label": "SW OS Type",
-                          "hidden": false,
-                          "fieldId": "sw_os_type"
-                        },
-                        {
-                          "help": "SW Version",
-                          "dataType": "string",
-                          "controlType": "TEXT_FIELD",
-                          "required": true,
-                          "editable": true,
-                          "label": "SW Version",
-                          "hidden": false,
-                          "fieldId": "sw_version"
-                        }
-                      ]
-                    },
-                    "actions": [
-                      {
-                        "type": "RUN_PIPELINE",
-                        "pipelineName": "test-input-data",
-                        "isSync": true
-                      }
-                    ]
-                  }
-                ]
-              }
+              "id": "label1",
+              "expr": "str(evt_check_name)",
+              "hidden": true
             }
           ],
-          "widget_id": "826a4aad"
+          "ui_widget_type": "TABULAR",
+          "max_width": 4,
+          "height": 5,
+          "min_width": 4,
+          "widget_id": "182229d8",
+          "query": "device_ip is '{{NODE_ID}}' and evt_check_name is '{{PRECHECK_NAME}}' and result is 'Passed'"
         }
-      ],
-      "saved_time": "2025-05-09T06:51:12.699107"
+      ]
+    },
+    {
+      "title": "Failed",
+      "widgets": [
+        {
+          "title": "Summary",
+          "widget_type": "tabular",
+          "stream": "xleaf_evt_results",
+          "ts_column": "timestamp",
+          "timebased": false,
+          "paginated": true,
+          "hide_columns": [
+            "collection_status",
+            "device_ip",
+            "evt_check_name",
+            "key",
+            "iconURL",
+            "timestamp",
+            "count_",
+            "_RDA_Id",
+            "jobid",
+            "result_int"
+          ],
+          "custom_columns": [
+            {
+              "id": "label1",
+              "expr": "str(evt_check_name)",
+              "hidden": true
+            }
+          ],
+          "ui_widget_type": "TABULAR",
+          "max_width": 4,
+          "height": 5,
+          "min_width": 4,
+          "widget_id": "06f22a21",
+          "query": "device_ip is '{{NODE_ID}}'and evt_check_name is '{{PRECHECK_NAME}}' and result is 'Failed'"
+        }
+      ]
+    },
+    {
+      "title": "Command output",
+      "widgets": [
+        {
+          "title": "Raw Output",
+          "widget_type": "tabular",
+          "stream": "xleaf_raw_outputs",
+          "ts_column": "timestamp",
+          "timebased": false,
+          "paginated": true,
+          "columns": {
+            "command": "command",
+            "raw_output": {
+              "title": "Output",
+              "htmlTemplateForRow": "{{'{%raw%}<pre>{{row.raw_output}}</pre>{%endraw%}'}}"
+            }
+          },
+          "ui_widget_type": "TABULAR",
+          "max_width": 4,
+          "height": 5,
+          "min_width": 4,
+          "widget_id": "182229d9",
+          "max_rows": 1,
+          "query": "device_ip is '{{NODE_ID}}' and command is '{{COMMAND}}'"
+        }
+      ]
     }
   ],
   "pstream_dashboards": [
     {
-      "title": "Assets",
-      "show_filter": true,
+      "title": "Passed",
       "widgets": [
         {
-          "title": "Unique Product IDs (for Produc Type: ROUTER, SWITCH , FUNCSYSTM, MULTIPROD)",
-          "context_filter1": "show_pid_grp is 'yes'",
+          "title": "Summary",
           "widget_type": "tabular",
-          "max_width": 12,
-          "height": 8,
-          "min_width": 12,
-          "stream": "edc_niki-1",
+          "stream": "xleaf_evt_results",
           "ts_column": "timestamp",
-          "duration_hours": 1080,
-          "remote_searchable": true,
-          "columns": {
-            "customer": {
-              "title": "Customer",
-              "type": "TEXT",
-              "visible": true,
-              "key": true
-            },
-            "contract_number": {
-              "title": "Contract_Number",
-              "type": "FLOAT",
-              "visible": true,
-              "key": true
-            },
-            "unique_key": {
-              "title": "Unique_Key",
-              "type": "TEXT",
-              "visible": false,
-              "key": true
-            },
-            "ingestion_id": {
-              "title": "Ingestion_ID",
-              "type": "TEXT",
-              "visible": false,
-              "key": true
-            },
-            "product_id": {
-              "title": "Product_ID",
-              "type": "TEXT",
-              "key": true
-            },
-            "sw_os_type": {
-              "title": "SW_OS_Type",
-              "type": "TEXT",
-              "key": true
-            },
-            "sw_version": {
-              "title": "SW_Version",
-              "type": "TEXT",
-              "key": true
-            }
-          },
-          "actions": [
+          "timebased": false,
+          "paginated": true,
+          "hide_columns": [
+            "collection_status",
+            "device_ip",
+            "evt_check_name",
+            "key",
+            "iconURL",
+            "timestamp",
+            "count_",
+            "_RDA_Id",
+            "jobid",
+            "result_int"
+          ],
+          "custom_columns": [
             {
-              "permission": "rda:github:view",
-              "title": "Add",
-              "type": "POPUP_FORM",
-              "selectionType": "NONE",
-              "identifier": "saas-service-action:userdashboard-add-yaml",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.dynamic.form",
-                    "formDefinition": {
-                      "id": "rda.saas.dynamic.form",
-                      "refreshRequired": true,
-                      "formFieldList": [
-                        {
-                          "help": "Choose file to upload",
-                          "dataType": "string",
-                          "required": true,
-                          "editable": true,
-                          "label": "Choose file to upload",
-                          "controlType": "FILE_UPLOAD",
-                          "hidden": false,
-                          "fieldId": "fileUpload"
-                        }
-                      ]
-                    },
-                    "actions": [
-                      {
-                        "type": "RUN_PIPELINE",
-                        "pipelineName": "edc_add_sw_details",
-                        "isSync": false
-                      }
-                    ]
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:github:view",
-              "title": "Edit",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:userdashboard-add-yaml",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.dynamic.form",
-                    "formDefinition": {
-                      "id": "rda.saas.dynamic.form",
-                      "refreshRequired": true,
-                      "formFieldList": [
-                        {
-                          "help": "Customer",
-                          "dataType": "string",
-                          "controlType": "TEXT_FIELD",
-                          "required": false,
-                          "editable": false,
-                          "label": "Customer",
-                          "hidden": false,
-                          "fieldId": "customer_name"
-                        },
-                        {
-                          "help": "Contract Number",
-                          "dataType": "string",
-                          "controlType": "TEXT_FIELD",
-                          "required": false,
-                          "editable": false,
-                          "label": "Contract Number",
-                          "hidden": false,
-                          "fieldId": "contract_number"
-                        },
-                        {
-                          "help": "Product ID",
-                          "dataType": "string",
-                          "controlType": "TEXT_FIELD",
-                          "required": false,
-                          "editable": false,
-                          "label": "Product ID",
-                          "hidden": false,
-                          "fieldId": "product_id"
-                        },
-                        {
-                          "help": "Unique Key",
-                          "dataType": "string",
-                          "controlType": "TEXT_FIELD",
-                          "required": false,
-                          "editable": true,
-                          "label": "Unique Key",
-                          "hidden": false,
-                          "fieldId": "unique_key"
-                        },
-                        {
-                          "help": "SW OS Type",
-                          "dataType": "string",
-                          "controlType": "TEXT_FIELD",
-                          "required": true,
-                          "editable": true,
-                          "label": "SW OS Type",
-                          "hidden": false,
-                          "fieldId": "sw_os_type"
-                        },
-                        {
-                          "help": "SW Version",
-                          "dataType": "string",
-                          "controlType": "TEXT_FIELD",
-                          "required": true,
-                          "editable": true,
-                          "label": "SW Version",
-                          "hidden": false,
-                          "fieldId": "sw_version"
-                        }
-                      ]
-                    },
-                    "actions": [
-                      {
-                        "type": "RUN_PIPELINE",
-                        "pipelineName": "test-input-data",
-                        "isSync": true
-                      }
-                    ]
-                  }
-                ]
-              }
+              "id": "label1",
+              "expr": "str(evt_check_name)",
+              "hidden": true
             }
           ],
-          "widget_id": "826a4aad"
+          "ui_widget_type": "TABULAR",
+          "max_width": 4,
+          "height": 5,
+          "min_width": 4,
+          "widget_id": "182229d8",
+          "query": "device_ip is '{{NODE_ID}}' and evt_check_name is '{{PRECHECK_NAME}}' and result is 'Passed'"
         }
-      ],
-      "saved_time": "2025-05-09T06:51:12.699107"
+      ]
+    },
+    {
+      "title": "Failed",
+      "widgets": [
+        {
+          "title": "Summary",
+          "widget_type": "tabular",
+          "stream": "xleaf_evt_results",
+          "ts_column": "timestamp",
+          "timebased": false,
+          "paginated": true,
+          "hide_columns": [
+            "collection_status",
+            "device_ip",
+            "evt_check_name",
+            "key",
+            "iconURL",
+            "timestamp",
+            "count_",
+            "_RDA_Id",
+            "jobid",
+            "result_int"
+          ],
+          "custom_columns": [
+            {
+              "id": "label1",
+              "expr": "str(evt_check_name)",
+              "hidden": true
+            }
+          ],
+          "ui_widget_type": "TABULAR",
+          "max_width": 4,
+          "height": 5,
+          "min_width": 4,
+          "widget_id": "06f22a21",
+          "query": "device_ip is '{{NODE_ID}}'and evt_check_name is '{{PRECHECK_NAME}}' and result is 'Failed'"
+        }
+      ]
+    },
+    {
+      "title": "Command output",
+      "widgets": [
+        {
+          "title": "Raw Output",
+          "widget_type": "tabular",
+          "stream": "xleaf_raw_outputs",
+          "ts_column": "timestamp",
+          "timebased": false,
+          "paginated": true,
+          "columns": {
+            "command": "command",
+            "raw_output": {
+              "title": "Output",
+              "htmlTemplateForRow": "{{'{%raw%}<pre>{{row.raw_output}}</pre>{%endraw%}'}}"
+            }
+          },
+          "ui_widget_type": "TABULAR",
+          "max_width": 4,
+          "height": 5,
+          "min_width": 4,
+          "widget_id": "182229d9",
+          "max_rows": 1,
+          "query": "device_ip is '{{NODE_ID}}' and command is '{{COMMAND}}'"
+        }
+      ]
     }
   ]
 }

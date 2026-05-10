@@ -1,157 +1,318 @@
 {
-  "name": "training_drilldown_dashboard",
-  "label": "Tabular Chart",
-  "description": "Tabular Chart example",
-  "version": "10.12.24.1",
+  "name": "topology-details-with-html-and-pivot-report",
+  "label": "X-Leaf Workflow Results",
+  "description": "X-Leaf EVT Workflow Results",
   "enabled": true,
   "dashboard_style": "auto",
-  "context_label_id": "customer_full_name",
-  "live_edit": true,
-  "status_poller": {},
   "dashboard_type": "template",
+  "dashboard_folder": "X-Leaf",
+  "version": "23.8.21.1",
+  "short_label": "X-Leaf EVT Workflow",
+  "dashboard_filters": {},
   "template_variables": {
-    "CUSTOMER_NAME": {
-      "contextId": "customer_full_name"
+    "NODE_ID": {
+      "contextId": [
+        "navigatorSelectionContexts",
+        "secondaryListSelection",
+        "device_ip"
+      ]
+    },
+    "PRECHECK_NAME": {
+      "contextId": [
+        "navigatorSelectionContexts",
+        "secondaryListSelection",
+        "evt_check_name"
+      ]
+    },
+    "COMMAND": {
+      "contextId": [
+        "navigatorSelectionContexts",
+        "secondaryListSelection",
+        "command"
+      ]
     }
   },
-  "dashboard_pages": [],
-  "dashboard_filters": {
-    "time_filter": true,
-    "extra_filter": "customer_full_name is '{{CUSTOMER_NAME}}'",
-    "default_time_filter_labels": [
-      "All Time"
-    ],
-    "columns_filter": [],
-    "group_filters": []
+  "navigation_dashboards": {
+    "tree_data": {
+      "column_name": "device_ip",
+      "pstream_name": "xleaf_evt_results_summary",
+      "cfxql_query": "timestamp is after -30d",
+      "show_counts": false
+    },
+    "tree_detail": {
+      "display_column": "evt_check_name",
+      "pstream_name": "xleaf_evt_results_summary",
+      "cfxql_query": "timestamp is after -30d",
+      "htmlTemplate": "<div style='overflow:hidden;'><div class='d-flex'><div style='flex-grow: 1' class='label1 text-truncate'><b>{{data.label1}}</b></div><div class='label2 text-truncate badge' :style='{backgroundColor: data.color}'>{{data.label2}}</div></div><div class='cfx-list-item-end-label'>{{data.label3}}</div></div>",
+      "report_definition": {
+        "title": "Validation Checks",
+        "widget_type": "tabular",
+        "stream": "xleaf_evt_results_summary",
+        "ts_column": "timestamp",
+        "timebased": false,
+        "columns": {
+          "evt_check_name": "evt_check_name",
+          "device_ip": "device_ip",
+          "status": "status",
+          "command": "command"
+        },
+        "sorting": [
+          {
+            "result_int_max": "desc"
+          }
+        ],
+        "cfxql_query": "device_ip is '{{NODE_ID}}' and timestamp is after -30d",
+        "pivot": {
+          "pivot_type": "advanced",
+          "series": [
+            {
+              "column": "evt_check_name",
+              "agg": "cardinality"
+            },
+            {
+              "column": "result_int",
+              "agg": "max"
+            }
+          ],
+          "group_by": [
+            "evt_check_name",
+            "device_ip",
+            "status",
+            "command"
+          ]
+        },
+        "paginated": true,
+        "enableVirtualScrolling": false,
+        "custom_columns": [
+          {
+            "id": "label1",
+            "expr": "str(evt_check_name)"
+          },
+          {
+            "id": "label2",
+            "expr": "'Pass' if int(result_int_max) == 0 else 'Fail' if int(result_int_max) == 1 else 'Run'"
+          },
+          {
+            "id": "label3",
+            "expr": "str(status)"
+          },
+          {
+            "id": "color",
+            "expr": "'#4caf50' if int(result_int_max) == 0 else '#E53935' if int(result_int_max) == 1 else '#FFD54F'"
+          }
+        ],
+        "widget_id": "5afc2391"
+      }
+    },
+    "showNodeIcon": false,
+    "showSearchBox": true
   },
   "dashboard_sections": [
     {
-      "title": "Tabular Chart",
-      "show_filter": true,
+      "title": "Passed",
       "widgets": [
         {
-          "widget_type": "label",
-          "label": "<div style='text-align:center;width:100%;'><h1><a style='text-decoration:none;color:#0066ff;' target='_blank'> Drilldown Example </a></h1></div>",
-          "min_width": 12,
-          "height": 1,
-          "max_width": 1,
-          "widget_id": "69661818"
-        },
-        {
-          "title": "Summary Chart",
-          "widget_type": "summary",
-          "stream": "sample-ecommerce-data",
-          "query": "",
-          "min_width": 6,
-          "height": 4,
-          "max_width": 6,
-          "paginated": true,
-          "max_rows": 100,
-          "columns": {
-            "customer_full_name": "Customer name",
-            "geoip.city_name": "Customer city",
-            "customer_id": "Customer ID",
-            "order_id": "Order ID",
-            "user": "user",
-            "timestamp": "Timestamp"
-          },
-          "widget_id": "1051a855"
-        },
-        {
+          "title": "Summary",
           "widget_type": "tabular",
-          "title": "Simple Tabular Chart ",
-          "stream": "sample-ecommerce-data",
-          "extra_filter": "geoip.city_name is not empty",
-          "min_width": 6,
-          "height": 8,
-          "max_width": 6,
+          "stream": "xleaf_evt_results",
+          "ts_column": "timestamp",
+          "timebased": false,
           "paginated": true,
-          "remote_searchable": true,
-          "remote_searchable_cols": [
-            "customer_full_name",
-            "geoip.city_name"
+          "hide_columns": [
+            "collection_status",
+            "device_ip",
+            "evt_check_name",
+            "key",
+            "iconURL",
+            "timestamp",
+            "count_",
+            "_RDA_Id",
+            "jobid",
+            "result_int"
           ],
-          "max_rows": 50,
-          "sorting": [
+          "custom_columns": [
             {
-              "timestamp": "desc"
+              "id": "label1",
+              "expr": "str(evt_check_name)",
+              "hidden": true
             }
           ],
+          "ui_widget_type": "TABULAR",
+          "max_width": 4,
+          "height": 5,
+          "min_width": 4,
+          "widget_id": "182229d8",
+          "query": "device_ip is '{{NODE_ID}}' and evt_check_name is '{{PRECHECK_NAME}}' and result is 'Passed'"
+        }
+      ]
+    },
+    {
+      "title": "Failed",
+      "widgets": [
+        {
+          "title": "Summary",
+          "widget_type": "tabular",
+          "stream": "xleaf_evt_results",
+          "ts_column": "timestamp",
+          "timebased": false,
+          "paginated": true,
+          "hide_columns": [
+            "collection_status",
+            "device_ip",
+            "evt_check_name",
+            "key",
+            "iconURL",
+            "timestamp",
+            "count_",
+            "_RDA_Id",
+            "jobid",
+            "result_int"
+          ],
+          "custom_columns": [
+            {
+              "id": "label1",
+              "expr": "str(evt_check_name)",
+              "hidden": true
+            }
+          ],
+          "ui_widget_type": "TABULAR",
+          "max_width": 4,
+          "height": 5,
+          "min_width": 4,
+          "widget_id": "06f22a21",
+          "query": "device_ip is '{{NODE_ID}}'and evt_check_name is '{{PRECHECK_NAME}}' and result is 'Failed'"
+        }
+      ]
+    },
+    {
+      "title": "Command output",
+      "widgets": [
+        {
+          "title": "Raw Output",
+          "widget_type": "tabular",
+          "stream": "xleaf_raw_outputs",
+          "ts_column": "timestamp",
+          "timebased": false,
+          "paginated": true,
           "columns": {
-            "customer_full_name": "Customer name",
-            "geoip.city_name": "Customer city",
-            "customer_id": "Customer ID",
-            "order_id": "Order ID",
-            "user": "user",
-            "timestamp": "Timestamp"
+            "command": "command",
+            "raw_output": {
+              "title": "Output",
+              "htmlTemplateForRow": "{{'{%raw%}<pre>{{row.raw_output}}</pre>{%endraw%}'}}"
+            }
           },
-          "widget_id": "94a3fc11"
+          "ui_widget_type": "TABULAR",
+          "max_width": 4,
+          "height": 5,
+          "min_width": 4,
+          "widget_id": "182229d9",
+          "max_rows": 1,
+          "query": "device_ip is '{{NODE_ID}}' and command is '{{COMMAND}}'"
         }
       ]
     }
   ],
   "pstream_dashboards": [
     {
-      "title": "Tabular Chart",
-      "show_filter": true,
+      "title": "Passed",
       "widgets": [
         {
-          "widget_type": "label",
-          "label": "<div style='text-align:center;width:100%;'><h1><a style='text-decoration:none;color:#0066ff;' target='_blank'> Drilldown Example </a></h1></div>",
-          "min_width": 12,
-          "height": 1,
-          "max_width": 1,
-          "widget_id": "69661818"
-        },
-        {
-          "title": "Summary Chart",
-          "widget_type": "summary",
-          "stream": "sample-ecommerce-data",
-          "query": "",
-          "min_width": 6,
-          "height": 4,
-          "max_width": 6,
-          "paginated": true,
-          "max_rows": 100,
-          "columns": {
-            "customer_full_name": "Customer name",
-            "geoip.city_name": "Customer city",
-            "customer_id": "Customer ID",
-            "order_id": "Order ID",
-            "user": "user",
-            "timestamp": "Timestamp"
-          },
-          "widget_id": "1051a855"
-        },
-        {
+          "title": "Summary",
           "widget_type": "tabular",
-          "title": "Simple Tabular Chart ",
-          "stream": "sample-ecommerce-data",
-          "extra_filter": "geoip.city_name is not empty",
-          "min_width": 6,
-          "height": 8,
-          "max_width": 6,
+          "stream": "xleaf_evt_results",
+          "ts_column": "timestamp",
+          "timebased": false,
           "paginated": true,
-          "remote_searchable": true,
-          "remote_searchable_cols": [
-            "customer_full_name",
-            "geoip.city_name"
+          "hide_columns": [
+            "collection_status",
+            "device_ip",
+            "evt_check_name",
+            "key",
+            "iconURL",
+            "timestamp",
+            "count_",
+            "_RDA_Id",
+            "jobid",
+            "result_int"
           ],
-          "max_rows": 50,
-          "sorting": [
+          "custom_columns": [
             {
-              "timestamp": "desc"
+              "id": "label1",
+              "expr": "str(evt_check_name)",
+              "hidden": true
             }
           ],
+          "ui_widget_type": "TABULAR",
+          "max_width": 4,
+          "height": 5,
+          "min_width": 4,
+          "widget_id": "182229d8",
+          "query": "device_ip is '{{NODE_ID}}' and evt_check_name is '{{PRECHECK_NAME}}' and result is 'Passed'"
+        }
+      ]
+    },
+    {
+      "title": "Failed",
+      "widgets": [
+        {
+          "title": "Summary",
+          "widget_type": "tabular",
+          "stream": "xleaf_evt_results",
+          "ts_column": "timestamp",
+          "timebased": false,
+          "paginated": true,
+          "hide_columns": [
+            "collection_status",
+            "device_ip",
+            "evt_check_name",
+            "key",
+            "iconURL",
+            "timestamp",
+            "count_",
+            "_RDA_Id",
+            "jobid",
+            "result_int"
+          ],
+          "custom_columns": [
+            {
+              "id": "label1",
+              "expr": "str(evt_check_name)",
+              "hidden": true
+            }
+          ],
+          "ui_widget_type": "TABULAR",
+          "max_width": 4,
+          "height": 5,
+          "min_width": 4,
+          "widget_id": "06f22a21",
+          "query": "device_ip is '{{NODE_ID}}'and evt_check_name is '{{PRECHECK_NAME}}' and result is 'Failed'"
+        }
+      ]
+    },
+    {
+      "title": "Command output",
+      "widgets": [
+        {
+          "title": "Raw Output",
+          "widget_type": "tabular",
+          "stream": "xleaf_raw_outputs",
+          "ts_column": "timestamp",
+          "timebased": false,
+          "paginated": true,
           "columns": {
-            "customer_full_name": "Customer name",
-            "geoip.city_name": "Customer city",
-            "customer_id": "Customer ID",
-            "order_id": "Order ID",
-            "user": "user",
-            "timestamp": "Timestamp"
+            "command": "command",
+            "raw_output": {
+              "title": "Output",
+              "htmlTemplateForRow": "{{'{%raw%}<pre>{{row.raw_output}}</pre>{%endraw%}'}}"
+            }
           },
-          "widget_id": "94a3fc11"
+          "ui_widget_type": "TABULAR",
+          "max_width": 4,
+          "height": 5,
+          "min_width": 4,
+          "widget_id": "182229d9",
+          "max_rows": 1,
+          "query": "device_ip is '{{NODE_ID}}' and command is '{{COMMAND}}'"
         }
       ]
     }
