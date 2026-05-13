@@ -1,78 +1,261 @@
 {
-  "name": "customer_kpi_workbench",
-  "label": "KPI Workbench",
-  "description": "Workbench for KPIs",
+  "name": "preview_performance_dashboard",
+  "label": "Performance Workbench",
+  "description": "Performance Workbench",
+  "dashboard_folder": "Default",
   "enabled": true,
-  "version": "24.1.1.1",
-  "dashboard_type": "template",
-  "template_variables": {
-    "CUST_ID": {
-      "contextId": "customer_id"
-    },
-    "PROJ_ID": {
-      "contextId": "project_id"
-    },
-    "PROJ_ID_SINGLE": {
-      "contextId": "project_id"
-    },
-    "CUST_TAG": {
-      "contextId": "customer_tag"
-    }
-  },
-  "dashboard_folder": "NetworkDevicePack",
-  "custom_context": {
-    "formEndpoint": "dynamic_form.preview_kpi_dashboard",
-    "previewEndpoint": "preview_kpi_dashboard"
-  },
+  "dashboard_type": "dashboard",
   "dashboard_filters": {
-    "time_filter": false
+    "time_filter": true,
+    "default_time_filter_non_removable": true,
+    "show_default_time_filter": true
   },
   "dashboard_sections": [
     {
-      "title": "KPI Workbench",
-      "show_filter": false,
+      "title": "Ops Insights",
+      "show_filter": true,
       "widgets": [
         {
-          "widget_type": "label",
-          "max_width": 12,
-          "height": 0.5,
+          "title": "Time Series",
+          "widget_type": "timeseries",
+          "stream": "psl_kafka_data",
+          "ts_column": "timestamp",
+          "duration_hours": 720,
+          "max_width": 6,
+          "height": 6,
           "min_width": 12,
-          "label": "<div style='text-align:center;width:100%;'><h1><a style='text-decoration:none;color:#0066ff;' target='_blank'>Customer Metrics(Workbench)</a></h1></div>",
-          "widget_id": "33317e49"
-        },
-        {
-          "title": "KPI Workbench",
-          "widget_type": "portal_html",
-          "widget_template": "app-rda/kpi-workbench",
-          "reportId": "benchmark.actions.list.tabular",
-          "height": 12,
-          "min_wdith": 12,
-          "widget_id": "d767314b"
+          "chartProperties": {
+            "yAxisLabel": "Count",
+            "xAxisLabel": "Date",
+            "legendLocation": "top"
+          },
+          "interval": "1H",
+          "group_by": [
+            "instance"
+          ],
+          "series_spec": [
+            {
+              "column": "System_Calls_Active",
+              "agg": "max",
+              "type": "int",
+              "label": "System_Calls_Active"
+            }
+          ],
+          "widget_id": "ee43c826",
+          "extra_filter": "device in [\"'AKRNOHNF11G'\"] and `timestamp` is after -168 hours"
         }
       ]
     }
   ],
-  "pstream_dashboards": [
-    {
-      "title": "KPI Workbench",
-      "show_filter": false,
-      "widgets": [
+  "dynamic_form": {
+    "formData": {},
+    "formDefinition": {
+      "id": "performance.benchmark.json",
+      "refreshRequired": true,
+      "formFieldList": [
         {
-          "widget_type": "label",
-          "max_width": 12,
-          "height": 0.5,
-          "min_width": 12,
-          "label": "<div style='text-align:center;width:100%;'><h1><a style='text-decoration:none;color:#0066ff;' target='_blank'>Customer Metrics(Workbench)</a></h1></div>",
-          "widget_id": "33317e49"
+          "fieldId": "instance",
+          "label": "Device",
+          "help": "Devices",
+          "controlType": "SELECTOR_DIALOG",
+          "selectionType": "MULTIPLE",
+          "pstream": "psl_kafka_data_kpi",
+          "query_attributes": [
+            "instance"
+          ],
+          "server-validation": {
+            "clear_attributes": [
+              "ifName",
+              "name"
+            ],
+            "read_attributes": [
+              "ifName",
+              "name"
+            ]
+          }
         },
         {
-          "title": "KPI Workbench",
-          "widget_type": "portal_html",
-          "widget_template": "app-rda/kpi-workbench",
-          "reportId": "benchmark.actions.list.tabular",
-          "height": 12,
-          "min_wdith": 12,
-          "widget_id": "d767314b"
+          "fieldId": "ifName",
+          "label": "Interface",
+          "help": "Device Interface",
+          "controlType": "SELECTOR_DIALOG",
+          "selectionType": "MULTIPLE",
+          "pstream": "psl_kafka_data_kpi",
+          "query_attributes": [
+            "instance",
+            "ifName"
+          ],
+          "server-validation": {
+            "clear_attributes": [
+              "name"
+            ],
+            "read_attributes": [
+              "name"
+            ]
+          }
+        },
+        {
+          "fieldId": "name",
+          "label": "Metrics",
+          "help": "Performance Metrics",
+          "isList": true,
+          "required": true,
+          "controlType": "SELECTOR_DIALOG",
+          "selectionType": "MULTIPLE",
+          "pstream": "psl_kafka_data_kpi",
+          "query_attributes": [
+            "instance",
+            "ifName",
+            "name"
+          ]
+        },
+        {
+          "dataType": "string",
+          "required": false,
+          "editable": true,
+          "label": "Combine All",
+          "controlType": "BOOLEAN_FIELD",
+          "hidden": false,
+          "fieldId": "combine"
+        },
+        {
+          "fieldId": "precision",
+          "label": "Rollup Precision",
+          "help": "Rollup Precision",
+          "dataType": "string",
+          "hidden": false,
+          "editable": true,
+          "required": true,
+          "controlType": "COMBO_BOX",
+          "lovValues": [
+            {
+              "identifier": "instance",
+              "displayName": "Device"
+            },
+            {
+              "identifier": "ifName",
+              "displayName": "Interface"
+            },
+            {
+              "identifier": "name",
+              "displayName": "Metric"
+            }
+          ]
+        },
+        {
+          "fieldId": "function",
+          "label": "Function",
+          "help": "Function",
+          "dataType": "string",
+          "hidden": false,
+          "editable": true,
+          "required": true,
+          "controlType": "COMBO_BOX",
+          "lovValues": [
+            {
+              "identifier": "max",
+              "displayName": "Maximum"
+            },
+            {
+              "identifier": "min",
+              "displayName": "Minimum"
+            },
+            {
+              "identifier": "mean",
+              "displayName": "Mean"
+            }
+          ]
+        },
+        {
+          "fieldId": "duration",
+          "label": "Duration",
+          "help": "Duration",
+          "dataType": "string",
+          "hidden": false,
+          "editable": true,
+          "required": true,
+          "controlType": "COMBO_BOX",
+          "lovValues": [
+            {
+              "identifier": "`timestamp` is after -24 hours",
+              "displayName": "1 Day"
+            },
+            {
+              "identifier": "`timestamp` is after -48 hours",
+              "displayName": "2 Days"
+            },
+            {
+              "identifier": "`timestamp` is after -168 hours",
+              "displayName": "7 Days"
+            },
+            {
+              "identifier": "`timestamp` is after -720 hours",
+              "displayName": "30 Days"
+            }
+          ]
+        }
+      ],
+      "formActionList": {
+        "formActions": [
+          {
+            "api-endpoint": {
+              "methodName": "submitForm",
+              "parse-output": false,
+              "params": [
+                {
+                  "formData": {},
+                  "formId": "kpi.benchmark.json"
+                }
+              ],
+              "service-name": "saas-reports",
+              "stringified-params": true
+            },
+            "actionLabel": "Save",
+            "type": "SUBMIT",
+            "identifier": "Submit"
+          },
+          {
+            "actionLabel": "Cancel",
+            "type": "CANCEL",
+            "identifier": "Cancel"
+          }
+        ]
+      }
+    }
+  },
+  "pstream_dashboards": [
+    {
+      "title": "Ops Insights",
+      "show_filter": true,
+      "widgets": [
+        {
+          "title": "Time Series",
+          "widget_type": "timeseries",
+          "stream": "psl_kafka_data",
+          "ts_column": "timestamp",
+          "duration_hours": 720,
+          "max_width": 6,
+          "height": 6,
+          "min_width": 12,
+          "chartProperties": {
+            "yAxisLabel": "Count",
+            "xAxisLabel": "Date",
+            "legendLocation": "top"
+          },
+          "interval": "1H",
+          "group_by": [
+            "instance"
+          ],
+          "series_spec": [
+            {
+              "column": "System_Calls_Active",
+              "agg": "max",
+              "type": "int",
+              "label": "System_Calls_Active"
+            }
+          ],
+          "widget_id": "ee43c826",
+          "extra_filter": "device in [\"'AKRNOHNF11G'\"] and `timestamp` is after -168 hours"
         }
       ]
     }

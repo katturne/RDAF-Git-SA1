@@ -1,506 +1,307 @@
 {
-  "name": "oia-event-tracking-view-alerts",
-  "label": "Events-View-Alerts",
-  "description": "OIA Event Tracking View Alerts",
-  "version": "23.1.2",
+  "name": "device_SNMP_Traps_from_alerts_fault",
+  "label": "SNMP Traps",
+  "description": "SNMP traps dashboard",
+  "version": "2023-06-13-02",
   "enabled": true,
-  "stream": "oia-events-stream",
+  "dashboard_folder": "NetworkDevicePack",
   "dashboard_style": "auto",
-  "status_poller": {},
-  "dashboard_type": "template",
   "template_variables": {
-    "SOURCE_EVENT_ID": {
-      "default": null,
-      "contextId": "se_id",
-      "type": "stack"
+    "CUST_ID": {
+      "contextId": "customer_id"
+    },
+    "PROJ_ID": {
+      "contextId": "project_id"
+    },
+    "CUST_TAG": {
+      "contextId": "customer_tag"
+    },
+    "DEVICE_IP": {
+      "contextId": "device_ip"
     }
   },
+  "status_poller": {
+    "stream": "snmp_trap_event_stream_all",
+    "frequency": 10,
+    "columns": [
+      "timestamp"
+    ],
+    "sorting": [
+      {
+        "timestamp": "desc"
+      }
+    ],
+    "query": "timestamp is after '${timestamp}'",
+    "defaults": {
+      "timestamp": "$UTCNOW"
+    },
+    "action": "refresh"
+  },
   "dashboard_filters": {
-    "show_default_time_filter": false,
-    "additional_datetime_column_filters": [
-      {
-        "id": "e_createdat",
-        "label": "Created At"
-      },
-      {
-        "id": "e_updatedat",
-        "label": "Updated At"
-      }
+    "default_time_filter_labels": [
+      "Last 1 month"
     ],
-    "columns_filter": [
-      {
-        "id": "e_createdat",
-        "label": "Created At",
-        "type": "DATETIME"
-      }
-    ],
-    "time_filter": false,
-    "default_time_filter_non_removable": true
+    "extra_filter1": "(customer_tag is '{{CUST_TAG}}')",
+    "time_filter": true,
+    "columns_filter": [],
+    "group_filters": []
   },
   "dashboard_sections": [
     {
-      "title": "Events",
+      "title": "snmp details",
       "show_filter": true,
-      "projects": [
-        "ACME"
-      ],
       "widgets": [
         {
-          "title": "Event",
-          "widget_type": "summary",
-          "stream": "oia-source-events-stream",
-          "extra_filter": "se_id is '{{SOURCE_EVENT_ID}}'",
-          "ts_column": "se_updatedat",
-          "timebased": false,
-          "min_width": 6,
-          "height": 4,
-          "max_width": 6,
-          "paginated": true,
-          "resizableColumns": false,
-          "refreshRequired": true,
-          "remote_searchable": true,
-          "remote_searchable_cols": [
-            "se_sourcesystemname",
-            "se_status",
-            "se_message",
-            "se_projectid",
-            "se_id"
-          ],
-          "max_rows": 50,
-          "columns": {
-            "se_id": {
-              "title": "Source Event ID",
-              "visible": false,
-              "key": true,
-              "defaultWidth": 150
-            },
-            "se_projectid": {
-              "title": "project Id",
-              "visible": false,
-              "key": true,
-              "defaultWidth": 150
-            },
-            "se_sourcereceivedat": {
-              "title": "Received At",
-              "type": "DATETIME",
-              "defaultWidth": 150
-            },
-            "se_sourcesystemname": {
-              "title": "Source",
-              "defaultWidth": 150
-            },
-            "se_status": {
-              "title": "Status",
-              "defaultWidth": 150
-            },
-            "se_numberofevents": {
-              "title": "No of Events",
-              "defaultWidth": 150
-            },
-            "se_message": {
-              "title": "Message",
-              "defaultWidth": 270
-            },
-            "se_createdat": {
-              "title": "Created At",
-              "type": "DATETIME",
-              "defaultWidth": 180
-            },
-            "se_updatedat": {
-              "title": "Updated At",
-              "type": "DATETIME",
-              "defaultWidth": 180
-            }
-          },
-          "actions": [],
-          "widget_id": "94a3fc11"
+          "widget_type": "label",
+          "max_width": 12,
+          "height": 0.5,
+          "min_width": 12,
+          "label": "<div style='text-align:center;width:100%;'><h1><a style='text-decoration:none;color:#0066ff;' target='_blank'>Device SNMP Traps</a></h1></div>",
+          "widget_id": "33317e49"
         },
         {
-          "widget_type": "pie_chart",
-          "title": "Alerts by Status",
-          "stream": "oia-events-stream",
-          "extra_filter": "e_sourceeventid is '{{SOURCE_EVENT_ID}}'",
-          "ts_column": "e_updatedat",
-          "min_width": 6,
+          "title": "Total Traps",
+          "widget_type": "custom_counter",
+          "formatter": "DescriptiveCountFormatter",
+          "stream": "snmp_trap_event_stream_all",
+          "ts_column": "timestamp",
+          "column": "_id",
+          "agg": "value_count",
+          "type": "int",
+          "max_width": 2,
           "height": 4,
-          "max_width": 6,
-          "column": "e_id",
+          "min_width": 2,
+          "style": {
+            "color-list": [
+              "#215CC3"
+            ]
+          },
+          "widget_id": "df82078f"
+        },
+        {
+          "title": "Unique Traps by OID",
+          "widget_type": "custom_counter",
+          "formatter": "DescriptiveCountFormatter",
+          "stream": "snmp_trap_event_stream_all",
+          "ts_column": "timestamp",
+          "column": "snmpTrapOID",
+          "agg": "cardinality",
+          "type": "int",
+          "max_width": 2,
+          "height": 4,
+          "min_width": 2,
+          "style": {
+            "color-list": [
+              "#21C374"
+            ]
+          },
+          "widget_id": "ed5e8ee0"
+        },
+        {
+          "title": "Distribution by OID",
+          "widget_type": "bar_chart",
+          "stream": "snmp_trap_event_stream_all",
+          "ts_column": "timestamp",
+          "chartProperties": {
+            "yAxisLabel": "Count",
+            "xAxisLabel": "OID",
+            "stacked": true,
+            "legendLocation": "none",
+            "orientation": "vertical"
+          },
+          "group_by": [
+            "snmpTrapOID"
+          ],
+          "column": "_id",
+          "agg": "cardinality",
+          "type": "int",
+          "min_width": 4,
+          "height": 4,
+          "max_width": 4,
+          "widget_id": "43799fef"
+        },
+        {
+          "title": "Traps by IP",
+          "widget_type": "pie_chart",
+          "stream": "snmp_trap_event_stream_all",
+          "ts_column": "timestamp",
+          "column": "rda_gw_client_ip",
           "agg": "value_count",
           "group_by": [
-            "e_status"
+            "rda_gw_client_ip"
           ],
           "type": "str",
-          "widget_id": "cb0706e6"
+          "min_width": 4,
+          "height": 4,
+          "max_width": 4,
+          "widget_id": "5d627f3e"
         },
         {
-          "title": "Alerts",
+          "title": "SNMP Traps",
           "widget_type": "tabular",
-          "stream": "oia-events-stream",
-          "ts_column": "e_updatedat",
-          "timebased": false,
-          "min_width": 12,
-          "height": 8,
           "max_width": 12,
-          "paginated": true,
-          "resizableColumns": false,
-          "refreshRequired": true,
-          "remote_searchable": true,
-          "extra_filter": "e_sourceeventid is '{{SOURCE_EVENT_ID}}'",
-          "remote_searchable_cols": [
-            "e_label",
-            "e_severity",
-            "e_status",
-            "e_eventstate",
-            "e_message"
-          ],
-          "max_rows": 50,
-          "columns": {
-            "e_label": {
-              "title": "Label",
-              "formatter": "truncate",
-              "defaultWidth": 270
-            },
-            "e_severity_color": {
-              "title": "Sev_2",
-              "type": "COLOR-MAP",
-              "source-column": "e_severity",
-              "color-map": {
-                "SEVERE": "#B71C1C",
-                "CRITICAL": "#E53935",
-                "MAJOR": "#F57C00",
-                "MINOR": "#FFA726",
-                "WARNING": "#FFD54F",
-                "NOTIFICATION": "#4DD0E1",
-                "INFORMATION": "#03A9F4"
-              }
-            },
-            "e_severity": {
-              "title": "Severity",
-              "htmlTemplateForRow": "<span class='badge' style='background-color: {{'{{ row.e_severity_color }}'}}' > {{'{{ row.e_severity }}'}} </span>",
-              "defaultWidth": 150
-            },
-            "e_status": {
-              "title": "Status",
-              "defaultWidth": 150
-            },
-            "e_eventstate": {
-              "title": "Processing State",
-              "defaultWidth": 150
-            },
-            "e_message": {
-              "title": "Comments",
-              "defaultWidth": 270
-            },
-            "e_createdat": {
-              "title": "Created At",
-              "type": "DATETIME",
-              "defaultWidth": 180
-            },
-            "e_updatedat": {
-              "title": "Updated At",
-              "type": "DATETIME",
-              "defaultWidth": 180
-            },
-            "e_id": {
-              "title": "Event Id",
-              "visible": false,
-              "key": true,
-              "defaultWidth": 150
-            },
-            "e_projectid": {
-              "title": "project Id",
-              "visible": false,
-              "key": true,
-              "defaultWidth": 150
-            },
-            "e_sourceeventid": {
-              "title": "Source Event ID",
-              "visible": false,
-              "key": true,
-              "defaultWidth": 150
-            },
-            "e_eventkey": {
-              "title": "Alert Key",
-              "visible": false,
-              "key": true,
-              "defaultWidth": 150
-            },
-            "e_processedeventid": {
-              "title": "Alert ID",
-              "visible": false,
-              "key": true,
-              "defaultWidth": 150
-            }
-          },
-          "actions": [
+          "height": 8,
+          "min_width": 12,
+          "stream": "snmp_trap_event_stream_all",
+          "ts_column": "timestamp",
+          "resizableColumns": true,
+          "max_rows": 100,
+          "showRowSummary": true,
+          "sorting": [
             {
-              "title": "View Alert Trail",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "permission": "oia:event-tracking:view",
-              "identifier": "ingestion-tracker:cfx.view.alert.trail",
-              "drillDownLinkField": "label",
-              "drillDownContext": "id",
-              "displayLabelColumnId": "label",
-              "contextParamList": {
-                "contextParams": [
-                  {
-                    "paramKey": "e_processedeventid",
-                    "paramId": "processedeventid"
-                  }
-                ]
-              },
-              "api-endpoint": {
-                "service-name": "ingestion-tracker",
-                "namespace": "io.cfx.dimensions.app",
-                "methodName": "invokeAppApi:getFormById",
-                "stringified-params": true,
-                "useReportContext": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "form_id": "com.cfx.form.view.alert.trail",
-                    "context": {}
-                  }
-                ]
-              }
+              "timestamp": "desc"
             }
           ],
-          "widget_id": "2d17f8a1"
+          "remote_searchable": true,
+          "remote_searchable_cols": [
+            "rda_gw_client_ip",
+            "snmpTrapName",
+            "snmpTrapOID"
+          ],
+          "columns": {
+            "timestamp": "Timestamp",
+            "rda_gw_client_ip": "Device",
+            "snmpTrapOID": "SNMP Trap OID",
+            "snmpTrapName": "SNMP Trap Name",
+            "snmpTrapDescription": "SNMP Trap Description",
+            "message": "Message",
+            "vb_oid_1": "SNMP OID 1",
+            "vb_value_1": "SNMP Value 1",
+            "vb_oid_2": "SNMP OID 2",
+            "vb_value_2": "SNMP Value 2"
+          },
+          "widget_id": "46a6b5b6"
         }
       ]
     }
   ],
+  "dashboard_type": "template",
+  "dashboard_pages": [],
   "pstream_dashboards": [
     {
-      "title": "Events",
+      "title": "snmp details",
       "show_filter": true,
-      "projects": [
-        "ACME"
-      ],
       "widgets": [
         {
-          "title": "Event",
-          "widget_type": "summary",
-          "stream": "oia-source-events-stream",
-          "extra_filter": "se_id is '{{SOURCE_EVENT_ID}}'",
-          "ts_column": "se_updatedat",
-          "timebased": false,
-          "min_width": 6,
-          "height": 4,
-          "max_width": 6,
-          "paginated": true,
-          "resizableColumns": false,
-          "refreshRequired": true,
-          "remote_searchable": true,
-          "remote_searchable_cols": [
-            "se_sourcesystemname",
-            "se_status",
-            "se_message",
-            "se_projectid",
-            "se_id"
-          ],
-          "max_rows": 50,
-          "columns": {
-            "se_id": {
-              "title": "Source Event ID",
-              "visible": false,
-              "key": true,
-              "defaultWidth": 150
-            },
-            "se_projectid": {
-              "title": "project Id",
-              "visible": false,
-              "key": true,
-              "defaultWidth": 150
-            },
-            "se_sourcereceivedat": {
-              "title": "Received At",
-              "type": "DATETIME",
-              "defaultWidth": 150
-            },
-            "se_sourcesystemname": {
-              "title": "Source",
-              "defaultWidth": 150
-            },
-            "se_status": {
-              "title": "Status",
-              "defaultWidth": 150
-            },
-            "se_numberofevents": {
-              "title": "No of Events",
-              "defaultWidth": 150
-            },
-            "se_message": {
-              "title": "Message",
-              "defaultWidth": 270
-            },
-            "se_createdat": {
-              "title": "Created At",
-              "type": "DATETIME",
-              "defaultWidth": 180
-            },
-            "se_updatedat": {
-              "title": "Updated At",
-              "type": "DATETIME",
-              "defaultWidth": 180
-            }
-          },
-          "actions": [],
-          "widget_id": "94a3fc11"
+          "widget_type": "label",
+          "max_width": 12,
+          "height": 0.5,
+          "min_width": 12,
+          "label": "<div style='text-align:center;width:100%;'><h1><a style='text-decoration:none;color:#0066ff;' target='_blank'>Device SNMP Traps</a></h1></div>",
+          "widget_id": "33317e49"
         },
         {
-          "widget_type": "pie_chart",
-          "title": "Alerts by Status",
-          "stream": "oia-events-stream",
-          "extra_filter": "e_sourceeventid is '{{SOURCE_EVENT_ID}}'",
-          "ts_column": "e_updatedat",
-          "min_width": 6,
+          "title": "Total Traps",
+          "widget_type": "custom_counter",
+          "formatter": "DescriptiveCountFormatter",
+          "stream": "snmp_trap_event_stream_all",
+          "ts_column": "timestamp",
+          "column": "_id",
+          "agg": "value_count",
+          "type": "int",
+          "max_width": 2,
           "height": 4,
-          "max_width": 6,
-          "column": "e_id",
+          "min_width": 2,
+          "style": {
+            "color-list": [
+              "#215CC3"
+            ]
+          },
+          "widget_id": "df82078f"
+        },
+        {
+          "title": "Unique Traps by OID",
+          "widget_type": "custom_counter",
+          "formatter": "DescriptiveCountFormatter",
+          "stream": "snmp_trap_event_stream_all",
+          "ts_column": "timestamp",
+          "column": "snmpTrapOID",
+          "agg": "cardinality",
+          "type": "int",
+          "max_width": 2,
+          "height": 4,
+          "min_width": 2,
+          "style": {
+            "color-list": [
+              "#21C374"
+            ]
+          },
+          "widget_id": "ed5e8ee0"
+        },
+        {
+          "title": "Distribution by OID",
+          "widget_type": "bar_chart",
+          "stream": "snmp_trap_event_stream_all",
+          "ts_column": "timestamp",
+          "chartProperties": {
+            "yAxisLabel": "Count",
+            "xAxisLabel": "OID",
+            "stacked": true,
+            "legendLocation": "none",
+            "orientation": "vertical"
+          },
+          "group_by": [
+            "snmpTrapOID"
+          ],
+          "column": "_id",
+          "agg": "cardinality",
+          "type": "int",
+          "min_width": 4,
+          "height": 4,
+          "max_width": 4,
+          "widget_id": "43799fef"
+        },
+        {
+          "title": "Traps by IP",
+          "widget_type": "pie_chart",
+          "stream": "snmp_trap_event_stream_all",
+          "ts_column": "timestamp",
+          "column": "rda_gw_client_ip",
           "agg": "value_count",
           "group_by": [
-            "e_status"
+            "rda_gw_client_ip"
           ],
           "type": "str",
-          "widget_id": "cb0706e6"
+          "min_width": 4,
+          "height": 4,
+          "max_width": 4,
+          "widget_id": "5d627f3e"
         },
         {
-          "title": "Alerts",
+          "title": "SNMP Traps",
           "widget_type": "tabular",
-          "stream": "oia-events-stream",
-          "ts_column": "e_updatedat",
-          "timebased": false,
-          "min_width": 12,
-          "height": 8,
           "max_width": 12,
-          "paginated": true,
-          "resizableColumns": false,
-          "refreshRequired": true,
-          "remote_searchable": true,
-          "extra_filter": "e_sourceeventid is '{{SOURCE_EVENT_ID}}'",
-          "remote_searchable_cols": [
-            "e_label",
-            "e_severity",
-            "e_status",
-            "e_eventstate",
-            "e_message"
-          ],
-          "max_rows": 50,
-          "columns": {
-            "e_label": {
-              "title": "Label",
-              "formatter": "truncate",
-              "defaultWidth": 270
-            },
-            "e_severity_color": {
-              "title": "Sev_2",
-              "type": "COLOR-MAP",
-              "source-column": "e_severity",
-              "color-map": {
-                "SEVERE": "#B71C1C",
-                "CRITICAL": "#E53935",
-                "MAJOR": "#F57C00",
-                "MINOR": "#FFA726",
-                "WARNING": "#FFD54F",
-                "NOTIFICATION": "#4DD0E1",
-                "INFORMATION": "#03A9F4"
-              }
-            },
-            "e_severity": {
-              "title": "Severity",
-              "htmlTemplateForRow": "<span class='badge' style='background-color: {{'{{ row.e_severity_color }}'}}' > {{'{{ row.e_severity }}'}} </span>",
-              "defaultWidth": 150
-            },
-            "e_status": {
-              "title": "Status",
-              "defaultWidth": 150
-            },
-            "e_eventstate": {
-              "title": "Processing State",
-              "defaultWidth": 150
-            },
-            "e_message": {
-              "title": "Comments",
-              "defaultWidth": 270
-            },
-            "e_createdat": {
-              "title": "Created At",
-              "type": "DATETIME",
-              "defaultWidth": 180
-            },
-            "e_updatedat": {
-              "title": "Updated At",
-              "type": "DATETIME",
-              "defaultWidth": 180
-            },
-            "e_id": {
-              "title": "Event Id",
-              "visible": false,
-              "key": true,
-              "defaultWidth": 150
-            },
-            "e_projectid": {
-              "title": "project Id",
-              "visible": false,
-              "key": true,
-              "defaultWidth": 150
-            },
-            "e_sourceeventid": {
-              "title": "Source Event ID",
-              "visible": false,
-              "key": true,
-              "defaultWidth": 150
-            },
-            "e_eventkey": {
-              "title": "Alert Key",
-              "visible": false,
-              "key": true,
-              "defaultWidth": 150
-            },
-            "e_processedeventid": {
-              "title": "Alert ID",
-              "visible": false,
-              "key": true,
-              "defaultWidth": 150
-            }
-          },
-          "actions": [
+          "height": 8,
+          "min_width": 12,
+          "stream": "snmp_trap_event_stream_all",
+          "ts_column": "timestamp",
+          "resizableColumns": true,
+          "max_rows": 100,
+          "showRowSummary": true,
+          "sorting": [
             {
-              "title": "View Alert Trail",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "permission": "oia:event-tracking:view",
-              "identifier": "ingestion-tracker:cfx.view.alert.trail",
-              "drillDownLinkField": "label",
-              "drillDownContext": "id",
-              "displayLabelColumnId": "label",
-              "contextParamList": {
-                "contextParams": [
-                  {
-                    "paramKey": "e_processedeventid",
-                    "paramId": "processedeventid"
-                  }
-                ]
-              },
-              "api-endpoint": {
-                "service-name": "ingestion-tracker",
-                "namespace": "io.cfx.dimensions.app",
-                "methodName": "invokeAppApi:getFormById",
-                "stringified-params": true,
-                "useReportContext": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "form_id": "com.cfx.form.view.alert.trail",
-                    "context": {}
-                  }
-                ]
-              }
+              "timestamp": "desc"
             }
           ],
-          "widget_id": "2d17f8a1"
+          "remote_searchable": true,
+          "remote_searchable_cols": [
+            "rda_gw_client_ip",
+            "snmpTrapName",
+            "snmpTrapOID"
+          ],
+          "columns": {
+            "timestamp": "Timestamp",
+            "rda_gw_client_ip": "Device",
+            "snmpTrapOID": "SNMP Trap OID",
+            "snmpTrapName": "SNMP Trap Name",
+            "snmpTrapDescription": "SNMP Trap Description",
+            "message": "Message",
+            "vb_oid_1": "SNMP OID 1",
+            "vb_value_1": "SNMP Value 1",
+            "vb_oid_2": "SNMP OID 2",
+            "vb_value_2": "SNMP Value 2"
+          },
+          "widget_id": "46a6b5b6"
         }
       ]
     }
