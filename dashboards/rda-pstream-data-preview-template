@@ -1,172 +1,261 @@
 {
-  "name": "rda-pstream-data-preview-template",
-  "label": "Persistent Stream Data Preview",
-  "description": "Persistent Stream Data Preview",
+  "name": "preview_performance_dashboard",
+  "label": "Performance Workbench",
+  "description": "Performance Workbench",
+  "dashboard_folder": "Default",
   "enabled": true,
-  "dashboard_type": "template",
-  "dashboard_style": "auto",
-  "template_variables": {
-    "PSTREAM_NAME": {
-      "contextId": "pstream_name"
-    },
-    "TS_COLUMN": {
-      "contextId": "ts_column"
-    },
-    "DEFFAUT_TIME_FILTER": {
-      "contextId": "default_data_preview_time_filter",
-      "default": "Last 12 months"
-    }
-  },
+  "dashboard_type": "dashboard",
   "dashboard_filters": {
     "time_filter": true,
-    "build_dynamic_columns_filter": {
-      "stream": "{{PSTREAM_NAME}}"
-    },
-    "columns_filter": [],
-    "default_time_filter_labels": [
-      "{{DEFFAUT_TIME_FILTER}}"
-    ]
+    "default_time_filter_non_removable": true,
+    "show_default_time_filter": true
   },
   "dashboard_sections": [
     {
-      "title": "Data Preview",
+      "title": "Ops Insights",
       "show_filter": true,
       "widgets": [
         {
-          "widget_type": "custom_counter",
-          "title": "Row Count",
-          "stream": "{{PSTREAM_NAME}}",
-          "ts_column": "{{TS_COLUMN}}",
-          "duration_hours": 24,
-          "min_width": 3,
-          "style": {
-            "color-list": [
-              "#35b539"
-            ]
-          },
-          "height": 3,
-          "max_width": 6,
-          "agg": "value_count",
-          "column": "{{TS_COLUMN}}",
-          "type": "int",
-          "widget_id": "2faa4f30"
-        },
-        {
+          "title": "Time Series",
           "widget_type": "timeseries",
-          "title": "Histogram",
-          "stream": "{{PSTREAM_NAME}}",
-          "ts_column": "{{TS_COLUMN}}",
-          "duration_hours": 24,
-          "min_width": 9,
-          "height": 3,
-          "max_width": 12,
-          "interval": "15Min",
+          "stream": "psl_kafka_data",
+          "ts_column": "timestamp",
+          "duration_hours": 720,
+          "max_width": 6,
+          "height": 6,
+          "min_width": 12,
+          "chartProperties": {
+            "yAxisLabel": "Count",
+            "xAxisLabel": "Date",
+            "legendLocation": "top"
+          },
+          "interval": "1H",
+          "group_by": [
+            "instance"
+          ],
           "series_spec": [
             {
-              "agg": "value_count",
-              "column": "{{TS_COLUMN}}",
-              "type": "int"
+              "column": "System_Calls_Active",
+              "agg": "max",
+              "type": "int",
+              "label": "System_Calls_Active"
             }
           ],
-          "chartProperties": {
-            "yAxisLabel": null,
-            "xAxisLabel": null,
-            "legendLocation": "none",
-            "mode": "selection",
-            "column-id": "{{TS_COLUMN}}"
-          },
-          "widget_id": "faa7e361"
-        },
-        {
-          "title": "Data Preview",
-          "widget_type": "tabular",
-          "showRowSummary": true,
-          "max_width": 12,
-          "height": 8,
-          "min_width": 12,
-          "paginated": true,
-          "stream": "{{PSTREAM_NAME}}",
-          "ts_column": "{{TS_COLUMN}}",
-          "max_rows": 100,
-          "duration_hours": 24,
-          "sorting": [
-            {
-              "{{TS_COLUMN}}": "desc"
-            }
-          ],
-          "widget_id": "72498ed7"
+          "widget_id": "ee43c826",
+          "extra_filter": "device in [\"'AKRNOHNF11G'\"] and `timestamp` is after -168 hours"
         }
       ]
     }
   ],
+  "dynamic_form": {
+    "formData": {},
+    "formDefinition": {
+      "id": "performance.benchmark.json",
+      "refreshRequired": true,
+      "formFieldList": [
+        {
+          "fieldId": "instance",
+          "label": "Device",
+          "help": "Devices",
+          "controlType": "SELECTOR_DIALOG",
+          "selectionType": "MULTIPLE",
+          "pstream": "psl_kafka_data_kpi",
+          "query_attributes": [
+            "instance"
+          ],
+          "server-validation": {
+            "clear_attributes": [
+              "ifName",
+              "name"
+            ],
+            "read_attributes": [
+              "ifName",
+              "name"
+            ]
+          }
+        },
+        {
+          "fieldId": "ifName",
+          "label": "Interface",
+          "help": "Device Interface",
+          "controlType": "SELECTOR_DIALOG",
+          "selectionType": "MULTIPLE",
+          "pstream": "psl_kafka_data_kpi",
+          "query_attributes": [
+            "instance",
+            "ifName"
+          ],
+          "server-validation": {
+            "clear_attributes": [
+              "name"
+            ],
+            "read_attributes": [
+              "name"
+            ]
+          }
+        },
+        {
+          "fieldId": "name",
+          "label": "Metrics",
+          "help": "Performance Metrics",
+          "isList": true,
+          "required": true,
+          "controlType": "SELECTOR_DIALOG",
+          "selectionType": "MULTIPLE",
+          "pstream": "psl_kafka_data_kpi",
+          "query_attributes": [
+            "instance",
+            "ifName",
+            "name"
+          ]
+        },
+        {
+          "dataType": "string",
+          "required": false,
+          "editable": true,
+          "label": "Combine All",
+          "controlType": "BOOLEAN_FIELD",
+          "hidden": false,
+          "fieldId": "combine"
+        },
+        {
+          "fieldId": "precision",
+          "label": "Rollup Precision",
+          "help": "Rollup Precision",
+          "dataType": "string",
+          "hidden": false,
+          "editable": true,
+          "required": true,
+          "controlType": "COMBO_BOX",
+          "lovValues": [
+            {
+              "identifier": "instance",
+              "displayName": "Device"
+            },
+            {
+              "identifier": "ifName",
+              "displayName": "Interface"
+            },
+            {
+              "identifier": "name",
+              "displayName": "Metric"
+            }
+          ]
+        },
+        {
+          "fieldId": "function",
+          "label": "Function",
+          "help": "Function",
+          "dataType": "string",
+          "hidden": false,
+          "editable": true,
+          "required": true,
+          "controlType": "COMBO_BOX",
+          "lovValues": [
+            {
+              "identifier": "max",
+              "displayName": "Maximum"
+            },
+            {
+              "identifier": "min",
+              "displayName": "Minimum"
+            },
+            {
+              "identifier": "mean",
+              "displayName": "Mean"
+            }
+          ]
+        },
+        {
+          "fieldId": "duration",
+          "label": "Duration",
+          "help": "Duration",
+          "dataType": "string",
+          "hidden": false,
+          "editable": true,
+          "required": true,
+          "controlType": "COMBO_BOX",
+          "lovValues": [
+            {
+              "identifier": "`timestamp` is after -24 hours",
+              "displayName": "1 Day"
+            },
+            {
+              "identifier": "`timestamp` is after -48 hours",
+              "displayName": "2 Days"
+            },
+            {
+              "identifier": "`timestamp` is after -168 hours",
+              "displayName": "7 Days"
+            },
+            {
+              "identifier": "`timestamp` is after -720 hours",
+              "displayName": "30 Days"
+            }
+          ]
+        }
+      ],
+      "formActionList": {
+        "formActions": [
+          {
+            "api-endpoint": {
+              "methodName": "submitForm",
+              "parse-output": false,
+              "params": [
+                {
+                  "formData": {},
+                  "formId": "kpi.benchmark.json"
+                }
+              ],
+              "service-name": "saas-reports",
+              "stringified-params": true
+            },
+            "actionLabel": "Save",
+            "type": "SUBMIT",
+            "identifier": "Submit"
+          },
+          {
+            "actionLabel": "Cancel",
+            "type": "CANCEL",
+            "identifier": "Cancel"
+          }
+        ]
+      }
+    }
+  },
   "pstream_dashboards": [
     {
-      "title": "Data Preview",
+      "title": "Ops Insights",
       "show_filter": true,
       "widgets": [
         {
-          "widget_type": "custom_counter",
-          "title": "Row Count",
-          "stream": "{{PSTREAM_NAME}}",
-          "ts_column": "{{TS_COLUMN}}",
-          "duration_hours": 24,
-          "min_width": 3,
-          "style": {
-            "color-list": [
-              "#35b539"
-            ]
-          },
-          "height": 3,
-          "max_width": 6,
-          "agg": "value_count",
-          "column": "{{TS_COLUMN}}",
-          "type": "int",
-          "widget_id": "2faa4f30"
-        },
-        {
+          "title": "Time Series",
           "widget_type": "timeseries",
-          "title": "Histogram",
-          "stream": "{{PSTREAM_NAME}}",
-          "ts_column": "{{TS_COLUMN}}",
-          "duration_hours": 24,
-          "min_width": 9,
-          "height": 3,
-          "max_width": 12,
-          "interval": "15Min",
+          "stream": "psl_kafka_data",
+          "ts_column": "timestamp",
+          "duration_hours": 720,
+          "max_width": 6,
+          "height": 6,
+          "min_width": 12,
+          "chartProperties": {
+            "yAxisLabel": "Count",
+            "xAxisLabel": "Date",
+            "legendLocation": "top"
+          },
+          "interval": "1H",
+          "group_by": [
+            "instance"
+          ],
           "series_spec": [
             {
-              "agg": "value_count",
-              "column": "{{TS_COLUMN}}",
-              "type": "int"
+              "column": "System_Calls_Active",
+              "agg": "max",
+              "type": "int",
+              "label": "System_Calls_Active"
             }
           ],
-          "chartProperties": {
-            "yAxisLabel": null,
-            "xAxisLabel": null,
-            "legendLocation": "none",
-            "mode": "selection",
-            "column-id": "{{TS_COLUMN}}"
-          },
-          "widget_id": "faa7e361"
-        },
-        {
-          "title": "Data Preview",
-          "widget_type": "tabular",
-          "showRowSummary": true,
-          "max_width": 12,
-          "height": 8,
-          "min_width": 12,
-          "paginated": true,
-          "stream": "{{PSTREAM_NAME}}",
-          "ts_column": "{{TS_COLUMN}}",
-          "max_rows": 100,
-          "duration_hours": 24,
-          "sorting": [
-            {
-              "{{TS_COLUMN}}": "desc"
-            }
-          ],
-          "widget_id": "72498ed7"
+          "widget_id": "ee43c826",
+          "extra_filter": "device in [\"'AKRNOHNF11G'\"] and `timestamp` is after -168 hours"
         }
       ]
     }
