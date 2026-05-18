@@ -1,59 +1,137 @@
 {
-  "name": "rda-mgmt-page-transform-jobs",
-  "label": "Transform Jobs",
-  "description": "Transform Jobs Page",
+  "name": "ai-llm-page-credentials",
+  "label": "LLM Credentials Management Page",
+  "description": "LLM Credentials Management Page",
   "enabled": true,
   "dashboard_type": "dashboard",
-  "dashboard_folder": "System",
+  "dashboard_folder": "AI",
+  "dashboard_style": "auto",
+  "stream": "rda_secret_meta",
   "dashboard_filters": {
-    "time_filter": false
+    "time_filter": true,
+    "columns_filter": [
+      {
+        "id": "name",
+        "label": "Name",
+        "type": "TEXT"
+      },
+      {
+        "id": "type",
+        "label": "Type",
+        "type": "TEXT"
+      },
+      {
+        "id": "typeDescription",
+        "label": "Type Description",
+        "type": "TEXT"
+      },
+      {
+        "id": "checksum",
+        "label": "Checksum",
+        "type": "TEXT"
+      },
+      {
+        "id": "saved_time",
+        "label": "Saved Time",
+        "type": "DATETIME"
+      }
+    ]
   },
   "dashboard_sections": [
     {
-      "title": "Transform Jobs",
+      "title": "LLMs",
       "show_filter": true,
       "widgets": [
         {
-          "title": "Transform Jobs",
+          "title": "LLMs",
           "widget_type": "tabular",
+          "stream": "rda_secrets_meta",
           "duration_hours": 87600,
-          "stream": "rda_transformjobs_meta",
           "remote_searchable": true,
           "remote_searchable_cols": [
             "name",
-            "description"
+            "type",
+            "typeDescription",
+            "checksum"
           ],
           "ts_column": "saved_time",
           "paginated": true,
-          "height": 5,
+          "extra_filter": "customerTag is empty and type is 'llm'",
+          "height": 10,
           "min_wdith": 12,
           "columns": {
             "name": {
               "title": "Name",
               "key": true
             },
-            "transform_id": {
-              "title": "Transform Id",
-              "key": true,
+            "type": {
+              "title": "Type",
+              "key": true
+            },
+            "typeDescription": {
+              "title": "description"
+            },
+            "has_credential_check": {
+              "title": "Credential Check",
               "visible": false
             },
-            "source": "Source PStream",
-            "target": "Target PStream",
-            "description": "Description",
-            "status": "Status",
+            "checksum": {
+              "title": "Checksum"
+            },
+            "tags": {
+              "title": "Tags",
+              "type": "TEXT",
+              "key": true
+            },
+            "customerTag": {
+              "title": "Customer Tag",
+              "type": "TEXT",
+              "key": true,
+              "hidden": true
+            },
             "saved_time": {
               "title": "Saved Time",
               "type": "DATETIME"
+            },
+            "timestamp": {
+              "title": "When",
+              "type": "HUMANIZE_TIME_DELTA",
+              "source-column": "saved_time",
+              "sortable": false
             }
           },
+          "custom_columns": [
+            {
+              "id": "rowStyleClass",
+              "hidden": true,
+              "visiblle": false,
+              "expr": "'bg-fading-blue' if time_now_as_ms() - isoformat_to_ms(saved_time) <= 120000 else None"
+            },
+            {
+              "id": "artifact_name",
+              "label": "Artifact Name",
+              "expr": "name",
+              "key": true,
+              "visible": false,
+              "sortable": false
+            },
+            {
+              "id": "artifact_type",
+              "label": "Artifact Type",
+              "expr": "'source'",
+              "key": true,
+              "visible": false,
+              "sortable": false
+            }
+          ],
           "actions": [
             {
-              "permission": "rda:user_dashboard:add",
+              "permission": "rda:credential:add",
               "title": "Add",
               "icon": "mdi mdi-plus",
               "type": "POPUP_FORM",
               "selectionType": "NONE",
-              "identifier": "saas-service-action:transformjob-add",
+              "identifier": "saas-service-action:vault-add",
               "api-endpoint": {
                 "service-name": "saas-reports",
                 "methodName": "getForm",
@@ -61,17 +139,20 @@
                 "parse-output": false,
                 "params": [
                   {
-                    "formId": "rda.saas.transform.job.add"
+                    "formId": "rda.saas.vault.add",
+                    "extension_types": [
+                      "llm"
+                    ]
                   }
                 ]
               }
             },
             {
-              "permission": "rda:user_dashboard:view",
-              "title": "View JSON",
+              "permission": "rda:credential:edit",
+              "title": "Edit",
               "type": "POPUP_FORM",
               "selectionType": "SINGLE",
-              "identifier": "saas-service-action:transformjob-view-json",
+              "identifier": "saas-service-action:vault-edit",
               "api-endpoint": {
                 "service-name": "saas-reports",
                 "methodName": "getForm",
@@ -79,18 +160,19 @@
                 "parse-output": false,
                 "params": [
                   {
-                    "formId": "rda.saas.transform.job.view"
+                    "formId": "rda.saas.vault.edit"
                   }
                 ]
               }
             },
             {
-              "permission": "rda:user_dashboard:edit",
-              "title": "Edit JSON",
-              "icon": "mdi mdi-plus",
+              "permission": "rda:credential:view",
+              "title": "View",
               "type": "POPUP_FORM",
               "selectionType": "SINGLE",
-              "identifier": "saas-service-action:transformjob-edit-json",
+              "displayLabelColumnId": "name",
+              "drillDownLinkField": "name",
+              "identifier": "saas-service-action:vault-view",
               "api-endpoint": {
                 "service-name": "saas-reports",
                 "methodName": "getForm",
@@ -98,18 +180,27 @@
                 "parse-output": false,
                 "params": [
                   {
-                    "formId": "rda.saas.transform.job.edit"
+                    "formId": "rda.saas.vault.view"
                   }
                 ]
               }
             },
             {
-              "permission": "rda:user_dashboard:details",
-              "title": "Details",
-              "icon": "mdi mdi-plus",
+              "permission": "rda:credential:verify",
+              "title": "Verify Credentials",
               "type": "POPUP_FORM",
               "selectionType": "SINGLE",
-              "identifier": "saas-service-action:transformjob-details-json",
+              "identifier": "saas-service-action:vault-edit",
+              "actionCondition": {
+                "actionControl": "HIDE_IF",
+                "conditionalField": [
+                  {
+                    "conditionType": "EQUAL",
+                    "conditionValue": "false",
+                    "fieldId": "has_credential_check"
+                  }
+                ]
+              },
               "api-endpoint": {
                 "service-name": "saas-reports",
                 "methodName": "getForm",
@@ -117,72 +208,35 @@
                 "parse-output": false,
                 "params": [
                   {
-                    "formId": "rda.saas.transform.job.details"
+                    "formId": "rda.saas.vault.validateConenctivity"
                   }
                 ]
               }
             },
             {
-              "permission": "rda:user_dashboard:preview",
-              "title": "Preview",
-              "icon": "mdi mdi-plus",
+              "permission": "rda:credential:assign_tag",
+              "title": "Manage Tags",
               "type": "POPUP_FORM",
               "selectionType": "SINGLE",
-              "identifier": "saas-service-action:transformjob-preview-json",
+              "identifier": "saas-service-action:assign-tag",
               "api-endpoint": {
-                "service-name": "saas-reports",
                 "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
                 "params": [
                   {
-                    "formId": "rda.saas.transform.job.preview"
+                    "formId": "rda.saas.tags.assign"
                   }
-                ]
+                ],
+                "parse-output": false,
+                "service-name": "saas-reports",
+                "stringified-params": true
               }
             },
             {
-              "permission": "rda:user_dashboard:start",
-              "title": "Start",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:transformjob-start",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.transform.job.start"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:user_dashboard:stop",
-              "title": "Stop",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:transformjob-stop",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.transform.job.stop"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:user_dashboard:delete",
+              "permission": "rda:credential:verify",
               "title": "Delete",
               "type": "POPUP_FORM",
               "selectionType": "SINGLE",
-              "identifier": "saas-service-action:transformjob-delete",
+              "identifier": "saas-service-action:vault-delete",
               "api-endpoint": {
                 "service-name": "saas-reports",
                 "methodName": "getForm",
@@ -190,63 +244,121 @@
                 "parse-output": false,
                 "params": [
                   {
-                    "formId": "rda.saas.transform.job.delete"
+                    "formId": "rda.saas.vault.delete"
                   }
                 ]
               }
+            },
+            {
+              "permission": "rda:credential:view",
+              "appName": "user-dashboard/rda-artifact-dependencies-app",
+              "identifier": "launch.url.dashboard",
+              "selectionType": "SINGLE",
+              "stateName": "app.featureapp",
+              "title": "View Dependencies",
+              "type": "GO_TO_APP_STATE"
             }
           ],
-          "widget_id": "d5b2edf1"
+          "widget_id": "9a21b5c6"
         }
       ]
     }
   ],
   "pstream_dashboards": [
     {
-      "title": "Transform Jobs",
+      "title": "LLMs",
       "show_filter": true,
       "widgets": [
         {
-          "title": "Transform Jobs",
+          "title": "LLMs",
           "widget_type": "tabular",
+          "stream": "rda_secrets_meta",
           "duration_hours": 87600,
-          "stream": "rda_transformjobs_meta",
           "remote_searchable": true,
           "remote_searchable_cols": [
             "name",
-            "description"
+            "type",
+            "typeDescription",
+            "checksum"
           ],
           "ts_column": "saved_time",
           "paginated": true,
-          "height": 5,
+          "extra_filter": "customerTag is empty and type is 'llm'",
+          "height": 10,
           "min_wdith": 12,
           "columns": {
             "name": {
               "title": "Name",
               "key": true
             },
-            "transform_id": {
-              "title": "Transform Id",
-              "key": true,
+            "type": {
+              "title": "Type",
+              "key": true
+            },
+            "typeDescription": {
+              "title": "description"
+            },
+            "has_credential_check": {
+              "title": "Credential Check",
               "visible": false
             },
-            "source": "Source PStream",
-            "target": "Target PStream",
-            "description": "Description",
-            "status": "Status",
+            "checksum": {
+              "title": "Checksum"
+            },
+            "tags": {
+              "title": "Tags",
+              "type": "TEXT",
+              "key": true
+            },
+            "customerTag": {
+              "title": "Customer Tag",
+              "type": "TEXT",
+              "key": true,
+              "hidden": true
+            },
             "saved_time": {
               "title": "Saved Time",
               "type": "DATETIME"
+            },
+            "timestamp": {
+              "title": "When",
+              "type": "HUMANIZE_TIME_DELTA",
+              "source-column": "saved_time",
+              "sortable": false
             }
           },
+          "custom_columns": [
+            {
+              "id": "rowStyleClass",
+              "hidden": true,
+              "visiblle": false,
+              "expr": "'bg-fading-blue' if time_now_as_ms() - isoformat_to_ms(saved_time) <= 120000 else None"
+            },
+            {
+              "id": "artifact_name",
+              "label": "Artifact Name",
+              "expr": "name",
+              "key": true,
+              "visible": false,
+              "sortable": false
+            },
+            {
+              "id": "artifact_type",
+              "label": "Artifact Type",
+              "expr": "'source'",
+              "key": true,
+              "visible": false,
+              "sortable": false
+            }
+          ],
           "actions": [
             {
-              "permission": "rda:user_dashboard:add",
+              "permission": "rda:credential:add",
               "title": "Add",
               "icon": "mdi mdi-plus",
               "type": "POPUP_FORM",
               "selectionType": "NONE",
-              "identifier": "saas-service-action:transformjob-add",
+              "identifier": "saas-service-action:vault-add",
               "api-endpoint": {
                 "service-name": "saas-reports",
                 "methodName": "getForm",
@@ -254,17 +366,20 @@
                 "parse-output": false,
                 "params": [
                   {
-                    "formId": "rda.saas.transform.job.add"
+                    "formId": "rda.saas.vault.add",
+                    "extension_types": [
+                      "llm"
+                    ]
                   }
                 ]
               }
             },
             {
-              "permission": "rda:user_dashboard:view",
-              "title": "View JSON",
+              "permission": "rda:credential:edit",
+              "title": "Edit",
               "type": "POPUP_FORM",
               "selectionType": "SINGLE",
-              "identifier": "saas-service-action:transformjob-view-json",
+              "identifier": "saas-service-action:vault-edit",
               "api-endpoint": {
                 "service-name": "saas-reports",
                 "methodName": "getForm",
@@ -272,18 +387,19 @@
                 "parse-output": false,
                 "params": [
                   {
-                    "formId": "rda.saas.transform.job.view"
+                    "formId": "rda.saas.vault.edit"
                   }
                 ]
               }
             },
             {
-              "permission": "rda:user_dashboard:edit",
-              "title": "Edit JSON",
-              "icon": "mdi mdi-plus",
+              "permission": "rda:credential:view",
+              "title": "View",
               "type": "POPUP_FORM",
               "selectionType": "SINGLE",
-              "identifier": "saas-service-action:transformjob-edit-json",
+              "displayLabelColumnId": "name",
+              "drillDownLinkField": "name",
+              "identifier": "saas-service-action:vault-view",
               "api-endpoint": {
                 "service-name": "saas-reports",
                 "methodName": "getForm",
@@ -291,18 +407,27 @@
                 "parse-output": false,
                 "params": [
                   {
-                    "formId": "rda.saas.transform.job.edit"
+                    "formId": "rda.saas.vault.view"
                   }
                 ]
               }
             },
             {
-              "permission": "rda:user_dashboard:details",
-              "title": "Details",
-              "icon": "mdi mdi-plus",
+              "permission": "rda:credential:verify",
+              "title": "Verify Credentials",
               "type": "POPUP_FORM",
               "selectionType": "SINGLE",
-              "identifier": "saas-service-action:transformjob-details-json",
+              "identifier": "saas-service-action:vault-edit",
+              "actionCondition": {
+                "actionControl": "HIDE_IF",
+                "conditionalField": [
+                  {
+                    "conditionType": "EQUAL",
+                    "conditionValue": "false",
+                    "fieldId": "has_credential_check"
+                  }
+                ]
+              },
               "api-endpoint": {
                 "service-name": "saas-reports",
                 "methodName": "getForm",
@@ -310,72 +435,35 @@
                 "parse-output": false,
                 "params": [
                   {
-                    "formId": "rda.saas.transform.job.details"
+                    "formId": "rda.saas.vault.validateConenctivity"
                   }
                 ]
               }
             },
             {
-              "permission": "rda:user_dashboard:preview",
-              "title": "Preview",
-              "icon": "mdi mdi-plus",
+              "permission": "rda:credential:assign_tag",
+              "title": "Manage Tags",
               "type": "POPUP_FORM",
               "selectionType": "SINGLE",
-              "identifier": "saas-service-action:transformjob-preview-json",
+              "identifier": "saas-service-action:assign-tag",
               "api-endpoint": {
-                "service-name": "saas-reports",
                 "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
                 "params": [
                   {
-                    "formId": "rda.saas.transform.job.preview"
+                    "formId": "rda.saas.tags.assign"
                   }
-                ]
+                ],
+                "parse-output": false,
+                "service-name": "saas-reports",
+                "stringified-params": true
               }
             },
             {
-              "permission": "rda:user_dashboard:start",
-              "title": "Start",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:transformjob-start",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.transform.job.start"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:user_dashboard:stop",
-              "title": "Stop",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:transformjob-stop",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.transform.job.stop"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:user_dashboard:delete",
+              "permission": "rda:credential:verify",
               "title": "Delete",
               "type": "POPUP_FORM",
               "selectionType": "SINGLE",
-              "identifier": "saas-service-action:transformjob-delete",
+              "identifier": "saas-service-action:vault-delete",
               "api-endpoint": {
                 "service-name": "saas-reports",
                 "methodName": "getForm",
@@ -383,13 +471,22 @@
                 "parse-output": false,
                 "params": [
                   {
-                    "formId": "rda.saas.transform.job.delete"
+                    "formId": "rda.saas.vault.delete"
                   }
                 ]
               }
+            },
+            {
+              "permission": "rda:credential:view",
+              "appName": "user-dashboard/rda-artifact-dependencies-app",
+              "identifier": "launch.url.dashboard",
+              "selectionType": "SINGLE",
+              "stateName": "app.featureapp",
+              "title": "View Dependencies",
+              "type": "GO_TO_APP_STATE"
             }
           ],
-          "widget_id": "d5b2edf1"
+          "widget_id": "9a21b5c6"
         }
       ]
     }
