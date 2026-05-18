@@ -1,280 +1,406 @@
 {
-  "name": "test-edc-att-customer",
-  "label": "Customers",
-  "description": "ASP Customers",
-  "version": "2025-04-01-1",
-  "stream": "edc_customer_names",
+  "name": "artifact_change_trends",
+  "label": "Health: Artifact Change Trend",
+  "description": "Artifact Changes: Insights",
+  "dashboard_folder": "RDAF_Health_Trends",
+  "version": "2025-02-11_2",
   "enabled": false,
-  "dashboard_folder": "OI",
+  "dashboard_type": "template",
+  "stream": "rda_system_audit_logs",
   "live_edit": true,
-  "dashboard_style": "auto",
-  "dashboard_type": "dashboard",
-  "dashboard_pages": [],
   "dashboard_filters": {
     "time_filter": true,
     "default_time_filter_labels": [
-      "Last 12 months"
+      "Last 1 month"
     ],
-    "extra_filter": "(customer_name is 'ATT') ",
     "columns_filter": [
       {
-        "id": "customer",
-        "label": "Customer",
+        "id": "operation",
+        "label": "Operation",
         "type": "TEXT"
       }
     ],
     "group_filters": [
       {
-        "stream": "edc_customer_names",
-        "title": "Customer Name",
+        "stream": "rda_system_audit_logs",
+        "title": "Operation",
+        "extra_filter": "user_id != 'SERVICE' and operation in [ 'ADD', 'UPDATE', 'DELETE'] ",
+        "limit": 50,
         "group_by": [
-          "customer"
+          "operation"
         ],
         "ts_column": "timestamp",
-        "duration_hours": 1080,
-        "limit": 200,
-        "agg": "value_count",
-        "column": "count_",
-        "type": "int"
+        "agg": "cardinality",
+        "column": "operation",
+        "type": "int",
+        "show_counts": false
+      },
+      {
+        "stream": "rda_system_audit_logs",
+        "title": "Artifact Type",
+        "extra_filter": "user_id != 'SERVICE' and operation in [ 'ADD', 'UPDATE', 'DELETE'] ",
+        "limit": 50,
+        "group_by": [
+          "artifact_type"
+        ],
+        "ts_column": "timestamp",
+        "agg": "cardinality",
+        "column": "artifact_type",
+        "type": "int",
+        "show_counts": false
       }
     ]
   },
   "dashboard_sections": [
     {
-      "title": "Inventory",
+      "title": "Artifact Changes",
       "show_filter": true,
       "widgets": [
         {
           "widget_type": "label",
-          "label": "<div style=' padding: 12px; display: flex; align-items: center; justify-content: space-between;'><h1 style='margin: 0; color: #0066ff; text-align: center; flex-grow: 1;'> Inventory </h1></div>",
-          "min_width": 12,
-          "height": 0.8,
+          "context_filter": "show_traces is 'yes'",
           "max_width": 12,
-          "widget_id": "dd3ae8ae"
+          "height": 0.5,
+          "min_width": 12,
+          "label": "<div style='text-align:center;width:100%;'><h1><a style='text-decoration:none;color:#0066ff;' target='_blank'>Artifact Change Trend</a></h1></div>",
+          "widget_id": "33317e49"
         },
         {
-          "title": "Customer Record Summary (raw data)",
-          "widget_type": "tabular",
-          "stream": "edc_oi_inventory_grouped",
-          "duration_hours": 10800,
-          "extra_filter": "(coverage is 'COVERED') ",
+          "widget_type": "pie_chart",
+          "title": "Artifacts Changed",
+          "duration_hours": 1080,
+          "stream": "rda_system_audit_logs",
           "ts_column": "timestamp",
-          "paginated": true,
-          "height": 8,
-          "min_width": 6,
-          "remote_searchable": true,
-          "sorting": [
+          "extra_filter": "user_id != 'SERVICE' and operation in [ 'ADD', 'UPDATE', 'DELETE'] ",
+          "column": "count_",
+          "agg": "value_count",
+          "group_by": [
+            "artifact_type"
+          ],
+          "min_width": 4,
+          "height": 4,
+          "max_width": 4,
+          "widget_id": "b015e2a2"
+        },
+        {
+          "title": "Artifact Changes Trend (Daily)",
+          "widget_type": "timeseries",
+          "stream": "rda_system_audit_logs",
+          "ts_column": "timestamp",
+          "extra_filter": "user_id != 'SERVICE' and operation in [ 'ADD', 'UPDATE', 'DELETE']",
+          "duration_hours": 1080,
+          "max_width": 8,
+          "height": 5,
+          "min_width": 8,
+          "gap_interval": "keep",
+          "chartProperties": {
+            "yAxisLabel": "Artifacts",
+            "xAxisLabel": "Local Time",
+            "legendLocation": "bottom",
+            "isDownsamplingDisabled": true,
+            "mode": "selection",
+            "column-id": "timestamp",
+            "options": {
+              "axes": {
+                "display": false
+              }
+            }
+          },
+          "interval": "1d",
+          "group_by": [
+            "artifact_type"
+          ],
+          "series_spec": [
             {
-              "created_time": "desc"
+              "column": "artifact_type",
+              "agg": "value_count",
+              "type": "int"
             }
           ],
+          "widget_id": "ed5ca8c1"
+        },
+        {
+          "title": "Artifacts changed",
+          "widget_type": "counter",
+          "label": "",
+          "min_width": 5,
+          "max_width": 5,
+          "height": 4,
+          "unit": "",
+          "group_by": [
+            "operation"
+          ],
+          "style": {
+            "color-map": {
+              "DELETE": "#df0000",
+              "ADD": "#00df00",
+              "UPDATE": "#ad00bd"
+            }
+          },
+          "stream": "rda_system_audit_logs",
+          "extra_filter": "user_id != 'SERVICE' and operation in [ 'ADD', 'UPDATE', 'DELETE'] ",
+          "ts_column": "timestamp",
+          "duration_hours": 1080,
+          "column": "count_",
+          "agg": "sum",
+          "type": "int",
+          "widget_id": "d73e52ec"
+        },
+        {
+          "title": "Top Artifacts",
+          "widget_type": "tabular",
+          "duration_hours": 1080,
+          "max_width": 7,
+          "max_rows": 10,
+          "height": 5,
+          "min_width": 7,
+          "stream": "rda_system_audit_logs",
+          "ts_column": "timestamp",
+          "extra_filter": "user_id != 'SERVICE' and operation in [ 'ADD', 'UPDATE', 'DELETE']",
+          "paginated": false,
           "columns": {
-            "customer_name": {
-              "title": "Customer Name",
-              "type": "TEXT",
-              "visible": true,
+            "artifact_type": {
+              "title": "Artifact Type",
               "key": true
             },
-            "contract_number": {
-              "title": "Contract",
-              "type": "TEXT",
-              "visible": true
+            "artifact_name": {
+              "title": "Artifact Name",
+              "key": true
             },
-            "count_": {
-              "title": "count",
-              "type": "TEXT",
-              "visible": false
+            "operation": {
+              "title": "Operation",
+              "key": false
             }
           },
           "pivot": {
             "pivot_type": "advanced",
             "group_by": [
-              "customer_name",
-              "contract_number",
-              "count_"
+              "artifact_type",
+              "artifact_name",
+              "operation"
             ],
             "series": [
               {
-                "column": "_RDA_Id",
-                "agg": "value_count",
+                "column": "count_",
+                "agg": "sum",
                 "type": "int",
-                "label": "Total Count"
+                "label": "Count"
               }
             ]
           },
-          "widget_id": "25cbbfd3"
+          "widget_id": "954ed85a"
         },
         {
-          "title": "Customer Record Summary (enriched data)",
+          "title": "Modified Artifact List",
           "widget_type": "tabular",
-          "stream": "edc_oi_inventory_enriched",
-          "duration_hours": 10800,
-          "extra_filter": "(coverage is 'COVERED') ",
-          "ts_column": "timestamp",
-          "paginated": true,
+          "duration_hours": 1080,
+          "max_width": 12,
           "height": 8,
-          "min_width": 6,
-          "remote_searchable": true,
-          "sorting": [
-            {
-              "created_time": "desc"
-            }
-          ],
+          "min_width": 12,
+          "stream": "rda_system_audit_logs",
+          "ts_column": "timestamp",
+          "extra_filter": "user_id != 'SERVICE' and operation in [ 'ADD', 'UPDATE', 'DELETE']",
           "columns": {
-            "customer_name": {
-              "title": "Customer Name",
-              "type": "TEXT",
-              "visible": true,
-              "key": true
+            "artifact_type": {
+              "title": "Artifact Type",
+              "type": "TEXT"
             },
-            "contract_number": {
-              "title": "Contract",
-              "type": "TEXT",
+            "artifact_name": {
+              "title": "Artifact Name",
+              "type": "TEXT"
+            },
+            "operation": {
+              "title": "Operation",
+              "type": "TEXT"
+            },
+            "user_id": {
+              "title": "User",
+              "type": "TEXT"
+            },
+            "timestamp": {
+              "title": "Timestamp",
+              "type": "DATETIME",
               "visible": true
-            },
-            "count_": {
-              "title": "count",
-              "type": "TEXT",
-              "visible": false
             }
           },
-          "pivot": {
-            "pivot_type": "advanced",
-            "group_by": [
-              "customer_name",
-              "contract_number",
-              "count_"
-            ],
-            "series": [
-              {
-                "column": "_RDA_Id",
-                "agg": "value_count",
-                "type": "int",
-                "label": "Total Count"
-              }
-            ]
-          },
-          "widget_id": "a69be2eb"
+          "widget_id": "0877d31e"
         }
       ]
     }
   ],
   "pstream_dashboards": [
     {
-      "title": "Inventory",
+      "title": "Artifact Changes",
       "show_filter": true,
       "widgets": [
         {
           "widget_type": "label",
-          "label": "<div style=' padding: 12px; display: flex; align-items: center; justify-content: space-between;'><h1 style='margin: 0; color: #0066ff; text-align: center; flex-grow: 1;'> Inventory </h1></div>",
-          "min_width": 12,
-          "height": 0.8,
+          "context_filter": "show_traces is 'yes'",
           "max_width": 12,
-          "widget_id": "dd3ae8ae"
+          "height": 0.5,
+          "min_width": 12,
+          "label": "<div style='text-align:center;width:100%;'><h1><a style='text-decoration:none;color:#0066ff;' target='_blank'>Artifact Change Trend</a></h1></div>",
+          "widget_id": "33317e49"
         },
         {
-          "title": "Customer Record Summary (raw data)",
-          "widget_type": "tabular",
-          "stream": "edc_oi_inventory_grouped",
-          "duration_hours": 10800,
-          "extra_filter": "(coverage is 'COVERED') ",
+          "widget_type": "pie_chart",
+          "title": "Artifacts Changed",
+          "duration_hours": 1080,
+          "stream": "rda_system_audit_logs",
           "ts_column": "timestamp",
-          "paginated": true,
-          "height": 8,
-          "min_width": 6,
-          "remote_searchable": true,
-          "sorting": [
+          "extra_filter": "user_id != 'SERVICE' and operation in [ 'ADD', 'UPDATE', 'DELETE'] ",
+          "column": "count_",
+          "agg": "value_count",
+          "group_by": [
+            "artifact_type"
+          ],
+          "min_width": 4,
+          "height": 4,
+          "max_width": 4,
+          "widget_id": "b015e2a2"
+        },
+        {
+          "title": "Artifact Changes Trend (Daily)",
+          "widget_type": "timeseries",
+          "stream": "rda_system_audit_logs",
+          "ts_column": "timestamp",
+          "extra_filter": "user_id != 'SERVICE' and operation in [ 'ADD', 'UPDATE', 'DELETE']",
+          "duration_hours": 1080,
+          "max_width": 8,
+          "height": 5,
+          "min_width": 8,
+          "gap_interval": "keep",
+          "chartProperties": {
+            "yAxisLabel": "Artifacts",
+            "xAxisLabel": "Local Time",
+            "legendLocation": "bottom",
+            "isDownsamplingDisabled": true,
+            "mode": "selection",
+            "column-id": "timestamp",
+            "options": {
+              "axes": {
+                "display": false
+              }
+            }
+          },
+          "interval": "1d",
+          "group_by": [
+            "artifact_type"
+          ],
+          "series_spec": [
             {
-              "created_time": "desc"
+              "column": "artifact_type",
+              "agg": "value_count",
+              "type": "int"
             }
           ],
+          "widget_id": "ed5ca8c1"
+        },
+        {
+          "title": "Artifacts changed",
+          "widget_type": "counter",
+          "label": "",
+          "min_width": 5,
+          "max_width": 5,
+          "height": 4,
+          "unit": "",
+          "group_by": [
+            "operation"
+          ],
+          "style": {
+            "color-map": {
+              "DELETE": "#df0000",
+              "ADD": "#00df00",
+              "UPDATE": "#ad00bd"
+            }
+          },
+          "stream": "rda_system_audit_logs",
+          "extra_filter": "user_id != 'SERVICE' and operation in [ 'ADD', 'UPDATE', 'DELETE'] ",
+          "ts_column": "timestamp",
+          "duration_hours": 1080,
+          "column": "count_",
+          "agg": "sum",
+          "type": "int",
+          "widget_id": "d73e52ec"
+        },
+        {
+          "title": "Top Artifacts",
+          "widget_type": "tabular",
+          "duration_hours": 1080,
+          "max_width": 7,
+          "max_rows": 10,
+          "height": 5,
+          "min_width": 7,
+          "stream": "rda_system_audit_logs",
+          "ts_column": "timestamp",
+          "extra_filter": "user_id != 'SERVICE' and operation in [ 'ADD', 'UPDATE', 'DELETE']",
+          "paginated": false,
           "columns": {
-            "customer_name": {
-              "title": "Customer Name",
-              "type": "TEXT",
-              "visible": true,
+            "artifact_type": {
+              "title": "Artifact Type",
               "key": true
             },
-            "contract_number": {
-              "title": "Contract",
-              "type": "TEXT",
-              "visible": true
+            "artifact_name": {
+              "title": "Artifact Name",
+              "key": true
             },
-            "count_": {
-              "title": "count",
-              "type": "TEXT",
-              "visible": false
+            "operation": {
+              "title": "Operation",
+              "key": false
             }
           },
           "pivot": {
             "pivot_type": "advanced",
             "group_by": [
-              "customer_name",
-              "contract_number",
-              "count_"
+              "artifact_type",
+              "artifact_name",
+              "operation"
             ],
             "series": [
               {
-                "column": "_RDA_Id",
-                "agg": "value_count",
+                "column": "count_",
+                "agg": "sum",
                 "type": "int",
-                "label": "Total Count"
+                "label": "Count"
               }
             ]
           },
-          "widget_id": "25cbbfd3"
+          "widget_id": "954ed85a"
         },
         {
-          "title": "Customer Record Summary (enriched data)",
+          "title": "Modified Artifact List",
           "widget_type": "tabular",
-          "stream": "edc_oi_inventory_enriched",
-          "duration_hours": 10800,
-          "extra_filter": "(coverage is 'COVERED') ",
-          "ts_column": "timestamp",
-          "paginated": true,
+          "duration_hours": 1080,
+          "max_width": 12,
           "height": 8,
-          "min_width": 6,
-          "remote_searchable": true,
-          "sorting": [
-            {
-              "created_time": "desc"
-            }
-          ],
+          "min_width": 12,
+          "stream": "rda_system_audit_logs",
+          "ts_column": "timestamp",
+          "extra_filter": "user_id != 'SERVICE' and operation in [ 'ADD', 'UPDATE', 'DELETE']",
           "columns": {
-            "customer_name": {
-              "title": "Customer Name",
-              "type": "TEXT",
-              "visible": true,
-              "key": true
+            "artifact_type": {
+              "title": "Artifact Type",
+              "type": "TEXT"
             },
-            "contract_number": {
-              "title": "Contract",
-              "type": "TEXT",
+            "artifact_name": {
+              "title": "Artifact Name",
+              "type": "TEXT"
+            },
+            "operation": {
+              "title": "Operation",
+              "type": "TEXT"
+            },
+            "user_id": {
+              "title": "User",
+              "type": "TEXT"
+            },
+            "timestamp": {
+              "title": "Timestamp",
+              "type": "DATETIME",
               "visible": true
-            },
-            "count_": {
-              "title": "count",
-              "type": "TEXT",
-              "visible": false
             }
           },
-          "pivot": {
-            "pivot_type": "advanced",
-            "group_by": [
-              "customer_name",
-              "contract_number",
-              "count_"
-            ],
-            "series": [
-              {
-                "column": "_RDA_Id",
-                "agg": "value_count",
-                "type": "int",
-                "label": "Total Count"
-              }
-            ]
-          },
-          "widget_id": "a69be2eb"
+          "widget_id": "0877d31e"
         }
       ]
     }
