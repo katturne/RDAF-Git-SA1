@@ -1,1246 +1,578 @@
 {
-  "name": "oia-logs-war-room-customer-view",
-  "label": "War Room - Customer View",
-  "description": "War Room - Customer View",
-  "enabled": true,
-  "version": "2024.6.17.2",
-  "dashboard_type": "template",
-  "template_variables": {
-    "LOG_OT": {
-      "contextId": "rda_gw_timestamp"
-    },
-    "CUSTOMER_ID": {
-      "contextId": "customer_id"
+  "name": "edc-cust-pid-sw",
+  "label": "SW Data",
+  "description": "Upload SW Data",
+  "version": "2025-04-11-4",
+  "stream": "edc_cust_pid_sw",
+  "enabled": false,
+  "dashboard_folder": "OI",
+  "dashboard_style": "auto",
+  "live_edit": true,
+  "dashboard_type": "dashboard",
+  "stream_query_mapping": {
+    "edc_oi_inventory_enriched": {},
+    "edc_cust_contract_pid": {
+      "coverage": null
     }
   },
+  "computedContext": {
+    "show_pid_grp": {
+      "expr": "'yes' if str(show_pid_grp) in [ 'yes', 'True'] else 'no'",
+      "defaultValue": "error"
+    },
+    "all_context": {
+      "expr": "",
+      "defaultValue": "Unknown"
+    }
+  },
+  "dashboard_pages": [],
   "dashboard_filters": {
     "time_filter": true,
-    "default_time_range": {
-      "from_time": "{{LOG_OT}}",
-      "from_time_delta_hours": -24,
-      "to_time": "{{LOG_OT}}",
-      "to_time_delta_hours": 24,
-      "label": "Time Range"
-    }
-  },
-  "stream_query_mapping": {
-    "oia-alerts-stream": {
-      "rda_gw_timestamp": "a_created_ts"
-    },
-    "oia-ml-metrics-regression-output": {
-      "rda_gw_timestamp": "timestamp"
-    },
-    "change_requests_stream": {
-      "rda_gw_timestamp": "timestamp"
-    },
-    "oia-incidents-stream": {
-      "rda_gw_timestamp": "i_created_ts"
-    }
+    "default_time_filter_labels": [
+      "Last 2 weeks"
+    ],
+    "custom_time_filters": [
+      "24h",
+      "2d",
+      "3d",
+      "1w",
+      "2w",
+      "3w",
+      "1M",
+      "2M",
+      "3M",
+      "6M",
+      "12M"
+    ],
+    "columns_filter": [
+      {
+        "id": "timestamp",
+        "label": "Timestamp",
+        "type": "DATETIME"
+      },
+      {
+        "id": "contract_number",
+        "label": "Contract Number",
+        "type": "TEXT"
+      },
+      {
+        "id": "product_name",
+        "label": "Product Name",
+        "type": "TEXT"
+      },
+      {
+        "id": "product_id",
+        "label": "Product ID",
+        "type": "TEXT"
+      },
+      {
+        "id": "customer",
+        "label": "Customer",
+        "type": "TEXT"
+      },
+      {
+        "id": "sw_version",
+        "label": "SW Version",
+        "type": "TEXT"
+      },
+      {
+        "id": "sw_os_type",
+        "label": "SW OS Type",
+        "type": "TEXT"
+      },
+      {
+        "id": "transaction_id",
+        "label": "Transaction ID",
+        "type": "TEXT"
+      }
+    ],
+    "group_filters": [
+      {
+        "stream": "edc_cust_pid_sw",
+        "title": "Customer Name",
+        "extra_filter1": "source in 'inventory'",
+        "group_by": [
+          "customer"
+        ],
+        "ts_column": "timestamp",
+        "duration_hours": 1080,
+        "limit": 200,
+        "agg": "value_count",
+        "column": "count_",
+        "type": "int"
+      },
+      {
+        "stream": "edc_cust_pid_sw",
+        "title": "Product ID",
+        "extra_filter1": "source in 'inventory'",
+        "group_by": [
+          "product_id"
+        ],
+        "ts_column": "timestamp",
+        "duration_hours": 1080,
+        "limit": 200,
+        "agg": "value_count",
+        "column": "count_",
+        "type": "text"
+      },
+      {
+        "stream": "edc_cust_pid_sw",
+        "title": "Contract Number",
+        "group_by": [
+          "contract_number"
+        ],
+        "ts_column": "timestamp",
+        "duration_hours": 1080,
+        "limit": 500,
+        "agg": "value_count",
+        "column": "count_",
+        "type": "int"
+      },
+      {
+        "stream": "edc_cust_pid_sw",
+        "title": "SW Version",
+        "group_by": [
+          "sw_version"
+        ],
+        "ts_column": "timestamp",
+        "duration_hours": 1080,
+        "limit": 500,
+        "agg": "value_count",
+        "column": "count_",
+        "type": "str"
+      },
+      {
+        "stream": "edc_cust_pid_sw",
+        "title": "SW OS Type",
+        "extra_filter1": "source in 'inventory'",
+        "group_by": [
+          "sw_os_type"
+        ],
+        "ts_column": "timestamp",
+        "duration_hours": 1080,
+        "limit": 400,
+        "agg": "value_count",
+        "column": "count_",
+        "type": "str"
+      }
+    ]
   },
   "dashboard_sections": [
     {
-      "title": "Customer View",
+      "title": "Assets",
       "show_filter": true,
       "widgets": [
         {
-          "widget_type": "label",
-          "label": "<h3 style='text-align: center;'>Log Time: {%raw%} {{' {{ '}} {%endraw%} toDateTimeString({{ LOG_OT }}) {%raw%} {{ '}}' }} {%endraw%} </h3>",
-          "advanced": true,
-          "min_width": 12,
-          "max_width": 12,
-          "height": 1,
-          "widget_id": "5ae002f1"
-        },
-        {
-          "title": "Link Up/Down Alerts",
-          "widget_type": "counter",
-          "min_width": 2.4,
-          "max_width": 2.4,
-          "height": 4,
-          "stream": "oia-alerts-stream",
-          "ts_column": "a_created_ts",
-          "extra_filter": "a_message contains 'link'",
-          "sparkline": {
-            "interval": "1h"
-          },
-          "column": "count_",
-          "agg": "sum",
-          "type": "int",
-          "widget_id": "42b0d069"
-        },
-        {
-          "title": "BGP Alerts",
-          "widget_type": "counter",
-          "min_width": 2.4,
-          "max_width": 2.4,
-          "height": 4,
-          "stream": "oia-alerts-stream",
-          "ts_column": "a_created_ts",
-          "extra_filter": "a_message contains 'BGP'",
-          "sparkline": {
-            "interval": "1h"
-          },
-          "column": "count_",
-          "agg": "sum",
-          "type": "int",
-          "widget_id": "5962e11c"
-        },
-        {
-          "title": "OSPF Alerts",
-          "widget_type": "counter",
-          "min_width": 2.4,
-          "max_width": 2.4,
-          "height": 4,
-          "stream": "oia-alerts-stream",
-          "ts_column": "a_created_ts",
-          "extra_filter": "a_message contains 'OSPF'",
-          "sparkline": {
-            "interval": "1h"
-          },
-          "column": "count_",
-          "agg": "sum",
-          "type": "int",
-          "widget_id": "3f145adb"
-        },
-        {
-          "title": "Patch Changes",
-          "widget_type": "counter",
-          "min_width": 2.4,
-          "max_width": 2.4,
-          "height": 4,
-          "stream": "change_requests_stream",
-          "ts_column": "timestamp",
-          "extra_filter": "message contains 'patch'",
-          "sparkline": {
-            "interval": "1h"
-          },
-          "column": "count_",
-          "agg": "sum",
-          "type": "int",
-          "widget_id": "a90db915"
-        },
-        {
-          "title": "Change Requests",
-          "widget_type": "counter",
-          "min_width": 2.4,
-          "max_width": 2.4,
-          "height": 4,
-          "stream": "change_requests_stream",
-          "ts_column": "timestamp",
-          "extra_filter0": "message contains 'config'",
-          "sparkline": {
-            "interval": "1h"
-          },
-          "column": "count_",
-          "agg": "sum",
-          "type": "int",
-          "widget_id": "8bc53b8f"
-        },
-        {
-          "title": "Events Timeline",
-          "widget_type": "timeseries",
-          "stream": "oia-alerts-stream",
-          "ts_column": "a_created_ts",
+          "title": "Unique Product IDs (for COVERED Produc Type: ROUTER, SWITCH , FUNCSYSTM, MULTIPROD)",
+          "context_filter1": "show_pid_grp is 'yes'",
+          "widget_type": "tabular",
           "max_width": 12,
           "height": 8,
           "min_width": 12,
-          "fixTimeWindow": true,
-          "chartProperties": {
-            "yAxisLabel": "Alert Count",
-            "xAxisLabel": "Time",
-            "legendLocation": "none"
-          },
-          "static_markers": [
-            {
-              "timestamp": "{{LOG_OT}}",
-              "message": "Log Time",
-              "color": "#B71C1C"
-            }
-          ],
-          "alert_markers": [
-            {
-              "stream": "change_requests_stream",
-              "ts_column": "timestamp",
-              "type": "circle",
-              "message_column": "message",
-              "severity_column": "severity"
-            },
-            {
-              "stream": "oia-alerts-stream",
-              "ts_column": "a_created_ts",
-              "type": "triangle",
-              "message_column": "a_message",
-              "severity_column": "a_severity"
-            },
-            {
-              "stream": "oia-ml-metrics-regression-output",
-              "ts_column": "timestamp",
-              "type": "square",
-              "message_column": "marker_message",
-              "extra_filter": "anomalies_severity is 'High' and anomalies_type is 'Upper'",
-              "severity_column": "anomalies_severity",
-              "columns": [
-                "asset_id",
-                "metric_id",
-                "metric_label",
-                "asset_name",
-                "metric_source",
-                "timestamp",
-                "job_name",
-                "unit",
-                "stream_name"
-              ],
-              "action": {
-                "appName": "user-dashboard/rca_regression_dashboard",
-                "permission": "ml:ml-jobs:viewSampledata",
-                "identifier": "ViewRegressionDashboard",
-                "selectionType": "SINGLE",
-                "stateName": "app.featureapp",
-                "title": "View Regression Dashboard",
-                "type": "GO_TO_APP_STATE"
-              }
-            },
-            {
-              "stream": "oia-logs-regression-output",
-              "ts_column": "timestamp",
-              "type": "circle",
-              "message_column": "asset_id",
-              "extra_filter": "anomalies_severity is 'High' and anomalies_type is 'Upper'",
-              "severity_column": "anomalies_severity",
-              "columns": [
-                "asset_id",
-                "asset_name",
-                "timestamp",
-                "job_name",
-                "stream_name"
-              ],
-              "action": {
-                "appName": "user-dashboard/rca_regression_dashboard",
-                "permission": "ml:ml-jobs:viewSampledata",
-                "identifier": "ViewRegressionDashboard",
-                "selectionType": "SINGLE",
-                "stateName": "app.featureapp",
-                "title": "View Regression Dashboard",
-                "type": "GO_TO_APP_STATE"
-              }
-            }
-          ],
-          "interval": "1min",
-          "series_spec": [
-            {
-              "label": "Alerts",
-              "column": "a_id",
-              "agg": "value_count",
-              "type": "int"
-            }
-          ],
-          "widget_id": "121762cf"
-        },
-        {
-          "title": "Metric Anomalies",
-          "widget_type": "multi_bar_chart",
-          "stream": "oia-ml-metrics-regression-output",
+          "stream": "edc_cust_pid_sw",
           "ts_column": "timestamp",
-          "chartProperties": {
-            "yAxisLabel": "Anomalies (%)",
-            "xAxisLabel": "Metric Name",
-            "stacked": false,
-            "legendLocation": "none",
-            "orientation": "vertical"
-          },
-          "group_by": [
-            "asset_id",
-            "metric_label"
-          ],
-          "descending_order": true,
-          "others_spec": {
-            "limit": 4,
-            "show_others": false
-          },
-          "column": "anomalies_percent",
-          "agg": "max",
-          "type": "float",
-          "widget_id": "f4786acb"
-        },
-        {
-          "title": "Change Requests",
-          "widget_type": "tabular",
-          "min_width": 6,
-          "max_width": 6,
-          "height": 5,
-          "timebased": false,
-          "stream": "change_requests_stream",
-          "ts_column": "timestamp",
-          "columns": {
-            "timestamp": {
-              "title": "Time",
-              "type": "DATETIME"
-            },
-            "message": {
-              "title": "Change Description",
-              "type": "TEXT"
-            }
-          },
-          "widget_id": "31e2f2ed"
-        },
-        {
-          "widget_type": "pie_chart",
-          "title": "Alerts by Severity",
-          "stream": "oia-alerts-stream",
-          "ts_column": "a_created_ts",
-          "extra_filter": "customer_id is '{{CUSTOMER_ID}}'",
-          "min_width": 3,
-          "height": 4,
-          "max_width": 3,
-          "column": "a_id",
-          "agg": "value_count",
-          "group_by": [
-            "a_severity"
-          ],
-          "type": "str",
-          "style": {
-            "color-map": {
-              "SEVERE": [
-                "#B71C1C",
-                "#ffffff"
-              ],
-              "CRITICAL": [
-                "#E53935",
-                "#ffffff"
-              ],
-              "MAJOR": [
-                "#F57C00",
-                "#ffffff"
-              ],
-              "MINOR": [
-                "#FFA726",
-                "#ffffff"
-              ],
-              "WARNING": [
-                "#FFD54F",
-                "#ffffff"
-              ],
-              "NOTIFICATION": [
-                "#4DD0E1",
-                "#ffffff"
-              ],
-              "INFORMATION": [
-                "#03A9F4",
-                "#ffffff"
-              ]
-            }
-          },
-          "widget_id": "cb0706e6"
-        },
-        {
-          "title": "Alert Trend",
-          "widget_type": "timeseries",
-          "stream": "oia-alerts-stream",
-          "ts_column": "a_created_ts",
-          "max_width": 9,
-          "height": 4,
-          "min_width": 9,
-          "fixTimeWindow": true,
-          "extra_filter": "customer_id is '{{CUSTOMER_ID}}'",
-          "chartProperties": {
-            "yAxisLabel": "Count",
-            "xAxisLabel": "Time",
-            "legendLocation": "top"
-          },
-          "interval": "1H",
-          "group_by": [
-            "a_severity"
-          ],
-          "static_markers": [
-            {
-              "timestamp": "{{LOG_OT}}",
-              "message": "Log Time",
-              "color": "#B71C1C"
-            }
-          ],
-          "series_spec": [
-            {
-              "column": "a_id",
-              "agg": "value_count",
-              "type": "int"
-            }
-          ],
-          "style": {
-            "color-map": {
-              "SEVERE": [
-                "#B71C1C",
-                "#ffffff"
-              ],
-              "CRITICAL": [
-                "#E53935",
-                "#ffffff"
-              ],
-              "MAJOR": [
-                "#F57C00",
-                "#ffffff"
-              ],
-              "MINOR": [
-                "#FFA726",
-                "#ffffff"
-              ],
-              "WARNING": [
-                "#FFD54F",
-                "#ffffff"
-              ],
-              "NOTIFICATION": [
-                "#4DD0E1",
-                "#ffffff"
-              ],
-              "INFORMATION": [
-                "#03A9F4",
-                "#ffffff"
-              ]
-            }
-          },
-          "widget_id": "c29bb686"
-        },
-        {
-          "widget_type": "pie_chart",
-          "title": "Incidents By Priority",
-          "stream": "oia-incidents-stream",
-          "ts_column": "i_created_ts",
-          "extra_filter": "customer_id is '{{CUSTOMER_ID}}'",
-          "min_width": 3,
-          "height": 4,
-          "max_width": 3,
-          "column": "incident_id",
-          "agg": "value_count",
-          "group_by": [
-            "i_priority_label"
-          ],
-          "style": {
-            "color-map": {
-              "Critical": [
-                "#B71C1C",
-                "#ffffff"
-              ],
-              "High": [
-                "#FFA726",
-                "#ffffff"
-              ],
-              "Moderate": [
-                "#90CAF9",
-                "#ffffff"
-              ],
-              "Low": [
-                "#4DD0E1",
-                "#ffffff"
-              ],
-              "Planning": [
-                "#4FC3F7",
-                "#ffffff"
-              ]
-            }
-          },
-          "type": "str",
-          "widget_id": "58e08b21"
-        },
-        {
-          "title": "Incident Trend",
-          "widget_type": "timeseries",
-          "stream": "oia-incidents-stream",
-          "ts_column": "i_created_ts",
-          "max_width": 9,
-          "height": 4,
-          "min_width": 9,
-          "fixTimeWindow": true,
-          "extra_filter": "customer_id is '{{CUSTOMER_ID}}'",
-          "chartProperties": {
-            "yAxisLabel": "Count",
-            "xAxisLabel": "Time",
-            "legendLocation": "top"
-          },
-          "interval": "1H",
-          "group_by": [
-            "i_priority_label"
-          ],
-          "static_markers": [
-            {
-              "timestamp": "{{LOG_OT}}",
-              "message": "Log Time",
-              "color": "#B71C1C"
-            }
-          ],
-          "series_spec": [
-            {
-              "column": "incident_id",
-              "agg": "value_count",
-              "type": "int"
-            }
-          ],
-          "style": {
-            "color-map": {
-              "Critical": [
-                "#B71C1C",
-                "#ffffff"
-              ],
-              "High": [
-                "#FFA726",
-                "#ffffff"
-              ],
-              "Moderate": [
-                "#FFD54F",
-                "#ffffff"
-              ],
-              "Low": [
-                "#90CAF9",
-                "#ffffff"
-              ],
-              "Planning": [
-                "#4FC3F7",
-                "#ffffff"
-              ]
-            }
-          },
-          "widget_id": "3e5d8325"
-        },
-        {
-          "widget_type": "pie_chart",
-          "title": "Syslogs By Severity",
-          "ts_column": "rda_gw_timestamp",
-          "stream": "syslog_udp_event_stream_all",
-          "min_width": 3,
-          "height": 4,
-          "max_width": 3,
-          "duration_hours0": 10000,
-          "column": "count_",
-          "agg": "sum",
-          "group_by": [
-            "syslog_severity"
-          ],
-          "type": "int",
-          "style": {
-            "color-map": {
-              "SEVERE": [
-                "#B71C1C",
-                "#ffffff"
-              ],
-              "CRITICAL": [
-                "#E53935",
-                "#ffffff"
-              ],
-              "MAJOR": [
-                "#F57C00",
-                "#ffffff"
-              ],
-              "MINOR": [
-                "#FFA726",
-                "#ffffff"
-              ],
-              "WARNING": [
-                "#FFD54F",
-                "#ffffff"
-              ]
-            }
-          },
-          "widget_id": "ed85e796"
-        },
-        {
-          "title": "Syslogs",
-          "widget_type": "timeseries",
-          "max_width": 9,
-          "height": 4,
-          "min_width": 9,
-          "ts_column": "rda_gw_timestamp",
-          "show-markers": true,
-          "fixTimeWindow": true,
-          "stream": "syslog_udp_event_stream_all",
-          "group_by": [
-            "syslog_severity"
-          ],
-          "style": {
-            "color-map": {
-              "SEVERE": [
-                "#B71C1C",
-                "#ffffff"
-              ],
-              "CRITICAL": [
-                "#E53935",
-                "#ffffff"
-              ],
-              "MAJOR": [
-                "#F57C00",
-                "#ffffff"
-              ],
-              "MINOR": [
-                "#FFA726",
-                "#ffffff"
-              ],
-              "WARNING": [
-                "#FFD54F",
-                "#ffffff"
-              ]
-            }
-          },
-          "chartProperties": {
-            "xAxisLabel": "Timestamp",
-            "yAxisLabel": "Count",
-            "legendLocation": "none",
-            "xAxisTickOrientation": "STAGGERED",
-            "options": {
-              "elements": {
-                "line": {
-                  "borderWidth": 1
-                },
-                "point": {
-                  "radius": 2,
-                  "hitRadius": 3,
-                  "hoverRadius": 3
-                }
-              }
-            }
-          },
-          "static_markers": [
-            {
-              "timestamp": "{{LOG_OT}}",
-              "message": "Log Time",
-              "color": "#B71C1C"
-            }
-          ],
-          "series_spec": [
-            {
-              "column": "count_",
-              "agg": "sum",
-              "type": "int"
-            }
-          ],
-          "widget_id": "7ee88e42"
-        },
-        {
-          "title": "Syslogs",
-          "widget_type": "tabular",
-          "stream": "syslog_udp_event_stream_all",
-          "min_width": 12,
-          "height": 6,
-          "max_width": 12,
-          "ts_column": "rda_gw_timestamp",
-          "resizableColumns": true,
-          "duration_hours": 100000,
+          "duration_hours": 1080,
           "remote_searchable": true,
-          "remote_searchable_cols": [
-            "message"
-          ],
           "columns": {
-            "rda_gw_timestamp": {
-              "title": "Event Time",
-              "type": "DATETIME"
+            "customer": {
+              "title": "Customer",
+              "type": "TEXT",
+              "visible": true,
+              "key": true
             },
-            "rda_gw_client_ip": "IP Address",
-            "hostname": "Host",
-            "raw": "Message",
-            "syslog_severity": "Severity"
+            "product_name": {
+              "title": "Product_Name",
+              "type": "TEXT",
+              "visible": true,
+              "key": true
+            },
+            "Qty": {
+              "title": "Qty",
+              "type": "TEXT",
+              "visible": false,
+              "key": true
+            },
+            "contract_number": {
+              "title": "Contract_Number",
+              "type": "FLOAT",
+              "visible": true,
+              "key": true
+            },
+            "unique_key": {
+              "title": "Unique_Key",
+              "type": "TEXT",
+              "visible": false,
+              "key": true
+            },
+            "ingestion_id": {
+              "title": "Ingestion_ID",
+              "type": "TEXT",
+              "visible": false,
+              "key": true
+            },
+            "product_id": {
+              "title": "Product_ID",
+              "type": "TEXT",
+              "key": true
+            },
+            "sw_os_type": {
+              "title": "SW_OS_Type",
+              "type": "TEXT",
+              "key": true
+            },
+            "sw_version": {
+              "title": "SW_Version",
+              "type": "TEXT",
+              "key": true
+            }
           },
-          "widget_id": "3d7466a3"
+          "actions": [
+            {
+              "permission": "rda:github:view",
+              "title": "Add",
+              "type": "POPUP_FORM",
+              "selectionType": "NONE",
+              "identifier": "saas-service-action:userdashboard-add-yaml",
+              "api-endpoint": {
+                "service-name": "saas-reports",
+                "methodName": "getForm",
+                "stringified-params": true,
+                "parse-output": false,
+                "params": [
+                  {
+                    "formId": "rda.saas.dynamic.form",
+                    "formDefinition": {
+                      "id": "rda.saas.dynamic.form",
+                      "refreshRequired": true,
+                      "formFieldList": [
+                        {
+                          "help": "Choose file to upload",
+                          "dataType": "string",
+                          "required": true,
+                          "editable": true,
+                          "label": "Choose file to upload",
+                          "controlType": "FILE_UPLOAD",
+                          "hidden": false,
+                          "fieldId": "fileUpload"
+                        }
+                      ]
+                    },
+                    "actions": [
+                      {
+                        "type": "RUN_PIPELINE",
+                        "pipelineName": "edc_oi_call_product_alerts",
+                        "isSync": false
+                      }
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "permission": "rda:github:view",
+              "title": "Edit",
+              "type": "POPUP_FORM",
+              "selectionType": "SINGLE",
+              "identifier": "saas-service-action:userdashboard-add-yaml",
+              "api-endpoint": {
+                "service-name": "saas-reports",
+                "methodName": "getForm",
+                "stringified-params": true,
+                "parse-output": false,
+                "params": [
+                  {
+                    "formId": "rda.saas.dynamic.form",
+                    "formDefinition": {
+                      "id": "rda.saas.dynamic.form",
+                      "refreshRequired": true,
+                      "formFieldList": [
+                        {
+                          "help": "Customer",
+                          "dataType": "string",
+                          "controlType": "TEXT_FIELD",
+                          "required": false,
+                          "editable": false,
+                          "label": "Customer",
+                          "hidden": false,
+                          "fieldId": "customer_name"
+                        },
+                        {
+                          "help": "Contract Number",
+                          "dataType": "string",
+                          "controlType": "TEXT_FIELD",
+                          "required": false,
+                          "editable": false,
+                          "label": "Contract Number",
+                          "hidden": false,
+                          "fieldId": "contract_number"
+                        },
+                        {
+                          "help": "Product ID",
+                          "dataType": "string",
+                          "controlType": "TEXT_FIELD",
+                          "required": false,
+                          "editable": false,
+                          "label": "Product ID",
+                          "hidden": false,
+                          "fieldId": "product_id"
+                        },
+                        {
+                          "help": "Unique Key",
+                          "dataType": "string",
+                          "controlType": "TEXT_FIELD",
+                          "required": false,
+                          "editable": true,
+                          "label": "Unique Key",
+                          "hidden": false,
+                          "fieldId": "unique_key"
+                        },
+                        {
+                          "help": "SW OS Type",
+                          "dataType": "string",
+                          "controlType": "TEXT_FIELD",
+                          "required": true,
+                          "editable": true,
+                          "label": "SW OS Type",
+                          "hidden": false,
+                          "fieldId": "sw_os_type"
+                        },
+                        {
+                          "help": "SW Version",
+                          "dataType": "string",
+                          "controlType": "TEXT_FIELD",
+                          "required": true,
+                          "editable": true,
+                          "label": "SW Version",
+                          "hidden": false,
+                          "fieldId": "sw_version"
+                        }
+                      ]
+                    },
+                    "actions": [
+                      {
+                        "type": "RUN_PIPELINE",
+                        "pipelineName": "test-input-data",
+                        "isSync": true
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          ],
+          "widget_id": "826a4aad"
         }
-      ]
+      ],
+      "saved_time": "2025-05-09T06:51:12.699107"
     }
   ],
   "pstream_dashboards": [
     {
-      "title": "Customer View",
+      "title": "Assets",
       "show_filter": true,
       "widgets": [
         {
-          "widget_type": "label",
-          "label": "<h3 style='text-align: center;'>Log Time: {%raw%} {{' {{ '}} {%endraw%} toDateTimeString({{ LOG_OT }}) {%raw%} {{ '}}' }} {%endraw%} </h3>",
-          "advanced": true,
-          "min_width": 12,
-          "max_width": 12,
-          "height": 1,
-          "widget_id": "5ae002f1"
-        },
-        {
-          "title": "Link Up/Down Alerts",
-          "widget_type": "counter",
-          "min_width": 2.4,
-          "max_width": 2.4,
-          "height": 4,
-          "stream": "oia-alerts-stream",
-          "ts_column": "a_created_ts",
-          "extra_filter": "a_message contains 'link'",
-          "sparkline": {
-            "interval": "1h"
-          },
-          "column": "count_",
-          "agg": "sum",
-          "type": "int",
-          "widget_id": "42b0d069"
-        },
-        {
-          "title": "BGP Alerts",
-          "widget_type": "counter",
-          "min_width": 2.4,
-          "max_width": 2.4,
-          "height": 4,
-          "stream": "oia-alerts-stream",
-          "ts_column": "a_created_ts",
-          "extra_filter": "a_message contains 'BGP'",
-          "sparkline": {
-            "interval": "1h"
-          },
-          "column": "count_",
-          "agg": "sum",
-          "type": "int",
-          "widget_id": "5962e11c"
-        },
-        {
-          "title": "OSPF Alerts",
-          "widget_type": "counter",
-          "min_width": 2.4,
-          "max_width": 2.4,
-          "height": 4,
-          "stream": "oia-alerts-stream",
-          "ts_column": "a_created_ts",
-          "extra_filter": "a_message contains 'OSPF'",
-          "sparkline": {
-            "interval": "1h"
-          },
-          "column": "count_",
-          "agg": "sum",
-          "type": "int",
-          "widget_id": "3f145adb"
-        },
-        {
-          "title": "Patch Changes",
-          "widget_type": "counter",
-          "min_width": 2.4,
-          "max_width": 2.4,
-          "height": 4,
-          "stream": "change_requests_stream",
-          "ts_column": "timestamp",
-          "extra_filter": "message contains 'patch'",
-          "sparkline": {
-            "interval": "1h"
-          },
-          "column": "count_",
-          "agg": "sum",
-          "type": "int",
-          "widget_id": "a90db915"
-        },
-        {
-          "title": "Change Requests",
-          "widget_type": "counter",
-          "min_width": 2.4,
-          "max_width": 2.4,
-          "height": 4,
-          "stream": "change_requests_stream",
-          "ts_column": "timestamp",
-          "extra_filter0": "message contains 'config'",
-          "sparkline": {
-            "interval": "1h"
-          },
-          "column": "count_",
-          "agg": "sum",
-          "type": "int",
-          "widget_id": "8bc53b8f"
-        },
-        {
-          "title": "Events Timeline",
-          "widget_type": "timeseries",
-          "stream": "oia-alerts-stream",
-          "ts_column": "a_created_ts",
+          "title": "Unique Product IDs (for COVERED Produc Type: ROUTER, SWITCH , FUNCSYSTM, MULTIPROD)",
+          "context_filter1": "show_pid_grp is 'yes'",
+          "widget_type": "tabular",
           "max_width": 12,
           "height": 8,
           "min_width": 12,
-          "fixTimeWindow": true,
-          "chartProperties": {
-            "yAxisLabel": "Alert Count",
-            "xAxisLabel": "Time",
-            "legendLocation": "none"
-          },
-          "static_markers": [
-            {
-              "timestamp": "{{LOG_OT}}",
-              "message": "Log Time",
-              "color": "#B71C1C"
-            }
-          ],
-          "alert_markers": [
-            {
-              "stream": "change_requests_stream",
-              "ts_column": "timestamp",
-              "type": "circle",
-              "message_column": "message",
-              "severity_column": "severity"
-            },
-            {
-              "stream": "oia-alerts-stream",
-              "ts_column": "a_created_ts",
-              "type": "triangle",
-              "message_column": "a_message",
-              "severity_column": "a_severity"
-            },
-            {
-              "stream": "oia-ml-metrics-regression-output",
-              "ts_column": "timestamp",
-              "type": "square",
-              "message_column": "marker_message",
-              "extra_filter": "anomalies_severity is 'High' and anomalies_type is 'Upper'",
-              "severity_column": "anomalies_severity",
-              "columns": [
-                "asset_id",
-                "metric_id",
-                "metric_label",
-                "asset_name",
-                "metric_source",
-                "timestamp",
-                "job_name",
-                "unit",
-                "stream_name"
-              ],
-              "action": {
-                "appName": "user-dashboard/rca_regression_dashboard",
-                "permission": "ml:ml-jobs:viewSampledata",
-                "identifier": "ViewRegressionDashboard",
-                "selectionType": "SINGLE",
-                "stateName": "app.featureapp",
-                "title": "View Regression Dashboard",
-                "type": "GO_TO_APP_STATE"
-              }
-            },
-            {
-              "stream": "oia-logs-regression-output",
-              "ts_column": "timestamp",
-              "type": "circle",
-              "message_column": "asset_id",
-              "extra_filter": "anomalies_severity is 'High' and anomalies_type is 'Upper'",
-              "severity_column": "anomalies_severity",
-              "columns": [
-                "asset_id",
-                "asset_name",
-                "timestamp",
-                "job_name",
-                "stream_name"
-              ],
-              "action": {
-                "appName": "user-dashboard/rca_regression_dashboard",
-                "permission": "ml:ml-jobs:viewSampledata",
-                "identifier": "ViewRegressionDashboard",
-                "selectionType": "SINGLE",
-                "stateName": "app.featureapp",
-                "title": "View Regression Dashboard",
-                "type": "GO_TO_APP_STATE"
-              }
-            }
-          ],
-          "interval": "1min",
-          "series_spec": [
-            {
-              "label": "Alerts",
-              "column": "a_id",
-              "agg": "value_count",
-              "type": "int"
-            }
-          ],
-          "widget_id": "121762cf"
-        },
-        {
-          "title": "Metric Anomalies",
-          "widget_type": "multi_bar_chart",
-          "stream": "oia-ml-metrics-regression-output",
+          "stream": "edc_cust_pid_sw",
           "ts_column": "timestamp",
-          "chartProperties": {
-            "yAxisLabel": "Anomalies (%)",
-            "xAxisLabel": "Metric Name",
-            "stacked": false,
-            "legendLocation": "none",
-            "orientation": "vertical"
-          },
-          "group_by": [
-            "asset_id",
-            "metric_label"
-          ],
-          "descending_order": true,
-          "others_spec": {
-            "limit": 4,
-            "show_others": false
-          },
-          "column": "anomalies_percent",
-          "agg": "max",
-          "type": "float",
-          "widget_id": "f4786acb"
-        },
-        {
-          "title": "Change Requests",
-          "widget_type": "tabular",
-          "min_width": 6,
-          "max_width": 6,
-          "height": 5,
-          "timebased": false,
-          "stream": "change_requests_stream",
-          "ts_column": "timestamp",
-          "columns": {
-            "timestamp": {
-              "title": "Time",
-              "type": "DATETIME"
-            },
-            "message": {
-              "title": "Change Description",
-              "type": "TEXT"
-            }
-          },
-          "widget_id": "31e2f2ed"
-        },
-        {
-          "widget_type": "pie_chart",
-          "title": "Alerts by Severity",
-          "stream": "oia-alerts-stream",
-          "ts_column": "a_created_ts",
-          "extra_filter": "customer_id is '{{CUSTOMER_ID}}'",
-          "min_width": 3,
-          "height": 4,
-          "max_width": 3,
-          "column": "a_id",
-          "agg": "value_count",
-          "group_by": [
-            "a_severity"
-          ],
-          "type": "str",
-          "style": {
-            "color-map": {
-              "SEVERE": [
-                "#B71C1C",
-                "#ffffff"
-              ],
-              "CRITICAL": [
-                "#E53935",
-                "#ffffff"
-              ],
-              "MAJOR": [
-                "#F57C00",
-                "#ffffff"
-              ],
-              "MINOR": [
-                "#FFA726",
-                "#ffffff"
-              ],
-              "WARNING": [
-                "#FFD54F",
-                "#ffffff"
-              ],
-              "NOTIFICATION": [
-                "#4DD0E1",
-                "#ffffff"
-              ],
-              "INFORMATION": [
-                "#03A9F4",
-                "#ffffff"
-              ]
-            }
-          },
-          "widget_id": "cb0706e6"
-        },
-        {
-          "title": "Alert Trend",
-          "widget_type": "timeseries",
-          "stream": "oia-alerts-stream",
-          "ts_column": "a_created_ts",
-          "max_width": 9,
-          "height": 4,
-          "min_width": 9,
-          "fixTimeWindow": true,
-          "extra_filter": "customer_id is '{{CUSTOMER_ID}}'",
-          "chartProperties": {
-            "yAxisLabel": "Count",
-            "xAxisLabel": "Time",
-            "legendLocation": "top"
-          },
-          "interval": "1H",
-          "group_by": [
-            "a_severity"
-          ],
-          "static_markers": [
-            {
-              "timestamp": "{{LOG_OT}}",
-              "message": "Log Time",
-              "color": "#B71C1C"
-            }
-          ],
-          "series_spec": [
-            {
-              "column": "a_id",
-              "agg": "value_count",
-              "type": "int"
-            }
-          ],
-          "style": {
-            "color-map": {
-              "SEVERE": [
-                "#B71C1C",
-                "#ffffff"
-              ],
-              "CRITICAL": [
-                "#E53935",
-                "#ffffff"
-              ],
-              "MAJOR": [
-                "#F57C00",
-                "#ffffff"
-              ],
-              "MINOR": [
-                "#FFA726",
-                "#ffffff"
-              ],
-              "WARNING": [
-                "#FFD54F",
-                "#ffffff"
-              ],
-              "NOTIFICATION": [
-                "#4DD0E1",
-                "#ffffff"
-              ],
-              "INFORMATION": [
-                "#03A9F4",
-                "#ffffff"
-              ]
-            }
-          },
-          "widget_id": "c29bb686"
-        },
-        {
-          "widget_type": "pie_chart",
-          "title": "Incidents By Priority",
-          "stream": "oia-incidents-stream",
-          "ts_column": "i_created_ts",
-          "extra_filter": "customer_id is '{{CUSTOMER_ID}}'",
-          "min_width": 3,
-          "height": 4,
-          "max_width": 3,
-          "column": "incident_id",
-          "agg": "value_count",
-          "group_by": [
-            "i_priority_label"
-          ],
-          "style": {
-            "color-map": {
-              "Critical": [
-                "#B71C1C",
-                "#ffffff"
-              ],
-              "High": [
-                "#FFA726",
-                "#ffffff"
-              ],
-              "Moderate": [
-                "#90CAF9",
-                "#ffffff"
-              ],
-              "Low": [
-                "#4DD0E1",
-                "#ffffff"
-              ],
-              "Planning": [
-                "#4FC3F7",
-                "#ffffff"
-              ]
-            }
-          },
-          "type": "str",
-          "widget_id": "58e08b21"
-        },
-        {
-          "title": "Incident Trend",
-          "widget_type": "timeseries",
-          "stream": "oia-incidents-stream",
-          "ts_column": "i_created_ts",
-          "max_width": 9,
-          "height": 4,
-          "min_width": 9,
-          "fixTimeWindow": true,
-          "extra_filter": "customer_id is '{{CUSTOMER_ID}}'",
-          "chartProperties": {
-            "yAxisLabel": "Count",
-            "xAxisLabel": "Time",
-            "legendLocation": "top"
-          },
-          "interval": "1H",
-          "group_by": [
-            "i_priority_label"
-          ],
-          "static_markers": [
-            {
-              "timestamp": "{{LOG_OT}}",
-              "message": "Log Time",
-              "color": "#B71C1C"
-            }
-          ],
-          "series_spec": [
-            {
-              "column": "incident_id",
-              "agg": "value_count",
-              "type": "int"
-            }
-          ],
-          "style": {
-            "color-map": {
-              "Critical": [
-                "#B71C1C",
-                "#ffffff"
-              ],
-              "High": [
-                "#FFA726",
-                "#ffffff"
-              ],
-              "Moderate": [
-                "#FFD54F",
-                "#ffffff"
-              ],
-              "Low": [
-                "#90CAF9",
-                "#ffffff"
-              ],
-              "Planning": [
-                "#4FC3F7",
-                "#ffffff"
-              ]
-            }
-          },
-          "widget_id": "3e5d8325"
-        },
-        {
-          "widget_type": "pie_chart",
-          "title": "Syslogs By Severity",
-          "ts_column": "rda_gw_timestamp",
-          "stream": "syslog_udp_event_stream_all",
-          "min_width": 3,
-          "height": 4,
-          "max_width": 3,
-          "duration_hours0": 10000,
-          "column": "count_",
-          "agg": "sum",
-          "group_by": [
-            "syslog_severity"
-          ],
-          "type": "int",
-          "style": {
-            "color-map": {
-              "SEVERE": [
-                "#B71C1C",
-                "#ffffff"
-              ],
-              "CRITICAL": [
-                "#E53935",
-                "#ffffff"
-              ],
-              "MAJOR": [
-                "#F57C00",
-                "#ffffff"
-              ],
-              "MINOR": [
-                "#FFA726",
-                "#ffffff"
-              ],
-              "WARNING": [
-                "#FFD54F",
-                "#ffffff"
-              ]
-            }
-          },
-          "widget_id": "ed85e796"
-        },
-        {
-          "title": "Syslogs",
-          "widget_type": "timeseries",
-          "max_width": 9,
-          "height": 4,
-          "min_width": 9,
-          "ts_column": "rda_gw_timestamp",
-          "show-markers": true,
-          "fixTimeWindow": true,
-          "stream": "syslog_udp_event_stream_all",
-          "group_by": [
-            "syslog_severity"
-          ],
-          "style": {
-            "color-map": {
-              "SEVERE": [
-                "#B71C1C",
-                "#ffffff"
-              ],
-              "CRITICAL": [
-                "#E53935",
-                "#ffffff"
-              ],
-              "MAJOR": [
-                "#F57C00",
-                "#ffffff"
-              ],
-              "MINOR": [
-                "#FFA726",
-                "#ffffff"
-              ],
-              "WARNING": [
-                "#FFD54F",
-                "#ffffff"
-              ]
-            }
-          },
-          "chartProperties": {
-            "xAxisLabel": "Timestamp",
-            "yAxisLabel": "Count",
-            "legendLocation": "none",
-            "xAxisTickOrientation": "STAGGERED",
-            "options": {
-              "elements": {
-                "line": {
-                  "borderWidth": 1
-                },
-                "point": {
-                  "radius": 2,
-                  "hitRadius": 3,
-                  "hoverRadius": 3
-                }
-              }
-            }
-          },
-          "static_markers": [
-            {
-              "timestamp": "{{LOG_OT}}",
-              "message": "Log Time",
-              "color": "#B71C1C"
-            }
-          ],
-          "series_spec": [
-            {
-              "column": "count_",
-              "agg": "sum",
-              "type": "int"
-            }
-          ],
-          "widget_id": "7ee88e42"
-        },
-        {
-          "title": "Syslogs",
-          "widget_type": "tabular",
-          "stream": "syslog_udp_event_stream_all",
-          "min_width": 12,
-          "height": 6,
-          "max_width": 12,
-          "ts_column": "rda_gw_timestamp",
-          "resizableColumns": true,
-          "duration_hours": 100000,
+          "duration_hours": 1080,
           "remote_searchable": true,
-          "remote_searchable_cols": [
-            "message"
-          ],
           "columns": {
-            "rda_gw_timestamp": {
-              "title": "Event Time",
-              "type": "DATETIME"
+            "customer": {
+              "title": "Customer",
+              "type": "TEXT",
+              "visible": true,
+              "key": true
             },
-            "rda_gw_client_ip": "IP Address",
-            "hostname": "Host",
-            "raw": "Message",
-            "syslog_severity": "Severity"
+            "product_name": {
+              "title": "Product_Name",
+              "type": "TEXT",
+              "visible": true,
+              "key": true
+            },
+            "Qty": {
+              "title": "Qty",
+              "type": "TEXT",
+              "visible": false,
+              "key": true
+            },
+            "contract_number": {
+              "title": "Contract_Number",
+              "type": "FLOAT",
+              "visible": true,
+              "key": true
+            },
+            "unique_key": {
+              "title": "Unique_Key",
+              "type": "TEXT",
+              "visible": false,
+              "key": true
+            },
+            "ingestion_id": {
+              "title": "Ingestion_ID",
+              "type": "TEXT",
+              "visible": false,
+              "key": true
+            },
+            "product_id": {
+              "title": "Product_ID",
+              "type": "TEXT",
+              "key": true
+            },
+            "sw_os_type": {
+              "title": "SW_OS_Type",
+              "type": "TEXT",
+              "key": true
+            },
+            "sw_version": {
+              "title": "SW_Version",
+              "type": "TEXT",
+              "key": true
+            }
           },
-          "widget_id": "3d7466a3"
+          "actions": [
+            {
+              "permission": "rda:github:view",
+              "title": "Add",
+              "type": "POPUP_FORM",
+              "selectionType": "NONE",
+              "identifier": "saas-service-action:userdashboard-add-yaml",
+              "api-endpoint": {
+                "service-name": "saas-reports",
+                "methodName": "getForm",
+                "stringified-params": true,
+                "parse-output": false,
+                "params": [
+                  {
+                    "formId": "rda.saas.dynamic.form",
+                    "formDefinition": {
+                      "id": "rda.saas.dynamic.form",
+                      "refreshRequired": true,
+                      "formFieldList": [
+                        {
+                          "help": "Choose file to upload",
+                          "dataType": "string",
+                          "required": true,
+                          "editable": true,
+                          "label": "Choose file to upload",
+                          "controlType": "FILE_UPLOAD",
+                          "hidden": false,
+                          "fieldId": "fileUpload"
+                        }
+                      ]
+                    },
+                    "actions": [
+                      {
+                        "type": "RUN_PIPELINE",
+                        "pipelineName": "edc_oi_call_product_alerts",
+                        "isSync": false
+                      }
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "permission": "rda:github:view",
+              "title": "Edit",
+              "type": "POPUP_FORM",
+              "selectionType": "SINGLE",
+              "identifier": "saas-service-action:userdashboard-add-yaml",
+              "api-endpoint": {
+                "service-name": "saas-reports",
+                "methodName": "getForm",
+                "stringified-params": true,
+                "parse-output": false,
+                "params": [
+                  {
+                    "formId": "rda.saas.dynamic.form",
+                    "formDefinition": {
+                      "id": "rda.saas.dynamic.form",
+                      "refreshRequired": true,
+                      "formFieldList": [
+                        {
+                          "help": "Customer",
+                          "dataType": "string",
+                          "controlType": "TEXT_FIELD",
+                          "required": false,
+                          "editable": false,
+                          "label": "Customer",
+                          "hidden": false,
+                          "fieldId": "customer_name"
+                        },
+                        {
+                          "help": "Contract Number",
+                          "dataType": "string",
+                          "controlType": "TEXT_FIELD",
+                          "required": false,
+                          "editable": false,
+                          "label": "Contract Number",
+                          "hidden": false,
+                          "fieldId": "contract_number"
+                        },
+                        {
+                          "help": "Product ID",
+                          "dataType": "string",
+                          "controlType": "TEXT_FIELD",
+                          "required": false,
+                          "editable": false,
+                          "label": "Product ID",
+                          "hidden": false,
+                          "fieldId": "product_id"
+                        },
+                        {
+                          "help": "Unique Key",
+                          "dataType": "string",
+                          "controlType": "TEXT_FIELD",
+                          "required": false,
+                          "editable": true,
+                          "label": "Unique Key",
+                          "hidden": false,
+                          "fieldId": "unique_key"
+                        },
+                        {
+                          "help": "SW OS Type",
+                          "dataType": "string",
+                          "controlType": "TEXT_FIELD",
+                          "required": true,
+                          "editable": true,
+                          "label": "SW OS Type",
+                          "hidden": false,
+                          "fieldId": "sw_os_type"
+                        },
+                        {
+                          "help": "SW Version",
+                          "dataType": "string",
+                          "controlType": "TEXT_FIELD",
+                          "required": true,
+                          "editable": true,
+                          "label": "SW Version",
+                          "hidden": false,
+                          "fieldId": "sw_version"
+                        }
+                      ]
+                    },
+                    "actions": [
+                      {
+                        "type": "RUN_PIPELINE",
+                        "pipelineName": "test-input-data",
+                        "isSync": true
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          ],
+          "widget_id": "826a4aad"
         }
-      ]
+      ],
+      "saved_time": "2025-05-09T06:51:12.699107"
     }
   ]
 }

@@ -1,5 +1,5 @@
 {
-  "name": "rda-mgmt-page-tenant-nonsystem-dashboards",
+  "name": "rda-mgmt-page-system-dashboards",
   "label": "Dashboards",
   "description": "User Dashboard Management Page",
   "enabled": false,
@@ -8,14 +8,14 @@
   "stream": "rda_dashboards_meta",
   "dashboard_filters": {
     "time_filter": true,
-    "extra_filter": "( dashboard_folder not in 'System')",
+    "extra_filter": "( dashboard_folder in 'System')",
     "group_filters": [
       {
         "stream": "rda_dashboards_meta",
         "title": "Folder",
-        "duration_hours": 87600,
         "limit": 200,
         "extra_filter": null,
+        "duration_hours": 87600,
         "group_by": [
           "dashboard_folder"
         ],
@@ -75,6 +75,11 @@
         "type": "DOUBLE"
       },
       {
+        "id": "enabled",
+        "label": "Enabled",
+        "type": "BOOLEAN"
+      },
+      {
         "id": "description",
         "label": "Description",
         "type": "TEXT"
@@ -83,11 +88,6 @@
         "id": "reltime",
         "label": "RelTime",
         "type": "DATETIME"
-      },
-      {
-        "id": "enabled",
-        "label": "Enabled",
-        "type": "BOOLEAN"
       },
       {
         "id": "timestamp",
@@ -103,46 +103,45 @@
       "widgets": [
         {
           "widget_type": "pie_chart",
-          "title": "Dashboards by Folders",
+          "title": "Dashboards By Folders",
           "stream": "rda_dashboards_meta",
-          "ts_column": "saved_time",
           "duration_hours": 87600,
+          "limit": 25,
+          "ts_column": "saved_time",
           "min_width": 6,
           "height": 4,
           "max_width": 6,
-          "limit": 25,
           "column": "count_",
           "agg": "value_count",
           "group_by": [
             "dashboard_folder"
           ],
           "type": "int",
-          "widget_id": "bf50e7c9"
+          "widget_id": "cb0706e6"
         },
         {
           "widget_type": "pie_chart",
-          "title": "Dashboards by Type",
+          "title": "Dashboards By Type",
           "stream": "rda_dashboards_meta",
-          "ts_column": "saved_time",
           "duration_hours": 87600,
+          "limit": 25,
+          "ts_column": "saved_time",
           "min_width": 6,
           "height": 4,
           "max_width": 6,
-          "limit": 25,
           "column": "count_",
           "agg": "value_count",
           "group_by": [
             "dashboard_type"
           ],
           "type": "int",
-          "widget_id": "cad3aabd"
+          "widget_id": "2279df68"
         },
         {
           "title": "Dashboards",
           "widget_type": "tabular",
-          "stream": "rda_dashboards_meta",
           "duration_hours": 87600,
-          "timebased": true,
+          "stream": "rda_dashboards_meta",
           "remote_searchable": true,
           "remote_searchable_cols": [
             "name",
@@ -158,12 +157,10 @@
           "columns": {
             "name": {
               "title": "Name",
-              "key": true,
-              "type": "TEXT"
+              "key": true
             },
             "dashboard_folder": {
-              "title": "Dashboard Folder",
-              "type": "TEXT"
+              "title": "Dashboard Folder"
             },
             "type": {
               "title": "Type",
@@ -173,36 +170,23 @@
               "sortable": false
             },
             "dashboard_type": {
-              "title": "Dashboard Type",
-              "type": "TEXT"
+              "title": "Dashboard Type"
             },
             "label": {
-              "title": "Label",
-              "key": true,
-              "type": "TEXT"
+              "title": "Label"
             },
             "description": {
-              "title": "description"
+              "title": "Description"
             },
             "saved_time": {
               "title": "Saved Time",
               "type": "DATETIME"
-            },
-            "tags": {
-              "title": "Tags",
-              "type": "TEXT"
             },
             "timestamp": {
               "title": "When",
               "type": "HUMANIZE_TIME_DELTA",
               "source-column": "saved_time",
               "sortable": false
-            },
-            "menu_folder": {
-              "title": "Menu Folder",
-              "type": "TEXT",
-              "hidden": false,
-              "key": true
             }
           },
           "custom_columns": [
@@ -239,6 +223,22 @@
               "hidden": true,
               "visible": false,
               "expr": "'bg-fading-blue' if time_now_as_ms() - isoformat_to_ms(saved_time) <= 120000 else None",
+              "sortable": false
+            },
+            {
+              "id": "artifact_name",
+              "label": "Artifact Name",
+              "expr": "name",
+              "key": true,
+              "visible": false,
+              "sortable": false
+            },
+            {
+              "id": "artifact_type",
+              "label": "Artifact Type",
+              "expr": "'dashboard'",
+              "key": true,
+              "visible": false,
               "sortable": false
             }
           ],
@@ -289,9 +289,132 @@
                   }
                 ]
               }
+            },
+            {
+              "permission": "rda:user_dashboard:edit",
+              "title": "Edit YAML",
+              "icon": "mdi mdi-plus",
+              "type": "POPUP_FORM",
+              "selectionType": "SINGLE",
+              "identifier": "saas-service-action:userdashboard-edit-yaml",
+              "api-endpoint": {
+                "service-name": "saas-reports",
+                "methodName": "getForm",
+                "stringified-params": true,
+                "parse-output": false,
+                "params": [
+                  {
+                    "formId": "rda.saas.userdashboard.edit.yaml"
+                  }
+                ]
+              },
+              "actionCondition": {
+                "actionControl": "HIDE_IF",
+                "conditionalField": [
+                  {
+                    "conditionType": "EQUAL",
+                    "conditionValue": "System",
+                    "fieldId": "dashboard_folder"
+                  }
+                ]
+              }
+            },
+            {
+              "permission": "rda:user_dashboard:edit",
+              "title": "Edit JSON",
+              "icon": "mdi mdi-plus",
+              "type": "POPUP_FORM",
+              "selectionType": "SINGLE",
+              "identifier": "saas-service-action:userdashboard-edit-json",
+              "api-endpoint": {
+                "service-name": "saas-reports",
+                "methodName": "getForm",
+                "stringified-params": true,
+                "parse-output": false,
+                "params": [
+                  {
+                    "formId": "rda.saas.userdashboard.edit.json"
+                  }
+                ]
+              },
+              "actionCondition": {
+                "actionControl": "HIDE_IF",
+                "conditionalField": [
+                  {
+                    "conditionType": "EQUAL",
+                    "conditionValue": "System",
+                    "fieldId": "dashboard_folder"
+                  }
+                ]
+              }
+            },
+            {
+              "permission": "rda:user_dashboard:disable",
+              "title": "Disable",
+              "type": "POPUP_FORM",
+              "selectionType": "SINGLE",
+              "identifier": "saas-service-action:userdashboard-deactivate-dashboard",
+              "api-endpoint": {
+                "service-name": "saas-reports",
+                "methodName": "getForm",
+                "stringified-params": true,
+                "parse-output": false,
+                "params": [
+                  {
+                    "formId": "rda.saas.userdashboard.deactivate"
+                  }
+                ]
+              },
+              "actionCondition": {
+                "actionControl": "SHOW_IF",
+                "conditionalField": [
+                  {
+                    "conditionType": "EQUAL",
+                    "conditionValue": "yes",
+                    "fieldId": "enabled"
+                  }
+                ]
+              }
+            },
+            {
+              "permission": "rda:user_dashboard:enable",
+              "title": "Enable",
+              "type": "POPUP_FORM",
+              "selectionType": "SINGLE",
+              "identifier": "saas-service-action:userdashboard-activate-dashboard",
+              "api-endpoint": {
+                "service-name": "saas-reports",
+                "methodName": "getForm",
+                "stringified-params": true,
+                "parse-output": false,
+                "params": [
+                  {
+                    "formId": "rda.saas.userdashboard.activate"
+                  }
+                ]
+              },
+              "actionCondition": {
+                "actionControl": "SHOW_IF",
+                "conditionalField": [
+                  {
+                    "conditionType": "EQUAL",
+                    "conditionValue": "no",
+                    "fieldId": "enabled"
+                  }
+                ]
+              }
+            },
+            {
+              "permission": "rda:user_dashboard:view",
+              "appName": "user-dashboard/rda-artifact-dependencies-app",
+              "identifier": "launch.url.dashboard",
+              "selectionType": "SINGLE",
+              "stateName": "app.featureapp",
+              "title": "View Dependencies",
+              "type": "GO_TO_APP_STATE"
             }
           ],
-          "widget_id": "c466cddc"
+          "widget_id": "d5b2edf0"
         }
       ]
     }
@@ -303,46 +426,45 @@
       "widgets": [
         {
           "widget_type": "pie_chart",
-          "title": "Dashboards by Folders",
+          "title": "Dashboards By Folders",
           "stream": "rda_dashboards_meta",
-          "ts_column": "saved_time",
           "duration_hours": 87600,
+          "limit": 25,
+          "ts_column": "saved_time",
           "min_width": 6,
           "height": 4,
           "max_width": 6,
-          "limit": 25,
           "column": "count_",
           "agg": "value_count",
           "group_by": [
             "dashboard_folder"
           ],
           "type": "int",
-          "widget_id": "bf50e7c9"
+          "widget_id": "cb0706e6"
         },
         {
           "widget_type": "pie_chart",
-          "title": "Dashboards by Type",
+          "title": "Dashboards By Type",
           "stream": "rda_dashboards_meta",
-          "ts_column": "saved_time",
           "duration_hours": 87600,
+          "limit": 25,
+          "ts_column": "saved_time",
           "min_width": 6,
           "height": 4,
           "max_width": 6,
-          "limit": 25,
           "column": "count_",
           "agg": "value_count",
           "group_by": [
             "dashboard_type"
           ],
           "type": "int",
-          "widget_id": "cad3aabd"
+          "widget_id": "2279df68"
         },
         {
           "title": "Dashboards",
           "widget_type": "tabular",
-          "stream": "rda_dashboards_meta",
           "duration_hours": 87600,
-          "timebased": true,
+          "stream": "rda_dashboards_meta",
           "remote_searchable": true,
           "remote_searchable_cols": [
             "name",
@@ -358,12 +480,10 @@
           "columns": {
             "name": {
               "title": "Name",
-              "key": true,
-              "type": "TEXT"
+              "key": true
             },
             "dashboard_folder": {
-              "title": "Dashboard Folder",
-              "type": "TEXT"
+              "title": "Dashboard Folder"
             },
             "type": {
               "title": "Type",
@@ -373,36 +493,23 @@
               "sortable": false
             },
             "dashboard_type": {
-              "title": "Dashboard Type",
-              "type": "TEXT"
+              "title": "Dashboard Type"
             },
             "label": {
-              "title": "Label",
-              "key": true,
-              "type": "TEXT"
+              "title": "Label"
             },
             "description": {
-              "title": "description"
+              "title": "Description"
             },
             "saved_time": {
               "title": "Saved Time",
               "type": "DATETIME"
-            },
-            "tags": {
-              "title": "Tags",
-              "type": "TEXT"
             },
             "timestamp": {
               "title": "When",
               "type": "HUMANIZE_TIME_DELTA",
               "source-column": "saved_time",
               "sortable": false
-            },
-            "menu_folder": {
-              "title": "Menu Folder",
-              "type": "TEXT",
-              "hidden": false,
-              "key": true
             }
           },
           "custom_columns": [
@@ -439,6 +546,22 @@
               "hidden": true,
               "visible": false,
               "expr": "'bg-fading-blue' if time_now_as_ms() - isoformat_to_ms(saved_time) <= 120000 else None",
+              "sortable": false
+            },
+            {
+              "id": "artifact_name",
+              "label": "Artifact Name",
+              "expr": "name",
+              "key": true,
+              "visible": false,
+              "sortable": false
+            },
+            {
+              "id": "artifact_type",
+              "label": "Artifact Type",
+              "expr": "'dashboard'",
+              "key": true,
+              "visible": false,
               "sortable": false
             }
           ],
@@ -489,9 +612,132 @@
                   }
                 ]
               }
+            },
+            {
+              "permission": "rda:user_dashboard:edit",
+              "title": "Edit YAML",
+              "icon": "mdi mdi-plus",
+              "type": "POPUP_FORM",
+              "selectionType": "SINGLE",
+              "identifier": "saas-service-action:userdashboard-edit-yaml",
+              "api-endpoint": {
+                "service-name": "saas-reports",
+                "methodName": "getForm",
+                "stringified-params": true,
+                "parse-output": false,
+                "params": [
+                  {
+                    "formId": "rda.saas.userdashboard.edit.yaml"
+                  }
+                ]
+              },
+              "actionCondition": {
+                "actionControl": "HIDE_IF",
+                "conditionalField": [
+                  {
+                    "conditionType": "EQUAL",
+                    "conditionValue": "System",
+                    "fieldId": "dashboard_folder"
+                  }
+                ]
+              }
+            },
+            {
+              "permission": "rda:user_dashboard:edit",
+              "title": "Edit JSON",
+              "icon": "mdi mdi-plus",
+              "type": "POPUP_FORM",
+              "selectionType": "SINGLE",
+              "identifier": "saas-service-action:userdashboard-edit-json",
+              "api-endpoint": {
+                "service-name": "saas-reports",
+                "methodName": "getForm",
+                "stringified-params": true,
+                "parse-output": false,
+                "params": [
+                  {
+                    "formId": "rda.saas.userdashboard.edit.json"
+                  }
+                ]
+              },
+              "actionCondition": {
+                "actionControl": "HIDE_IF",
+                "conditionalField": [
+                  {
+                    "conditionType": "EQUAL",
+                    "conditionValue": "System",
+                    "fieldId": "dashboard_folder"
+                  }
+                ]
+              }
+            },
+            {
+              "permission": "rda:user_dashboard:disable",
+              "title": "Disable",
+              "type": "POPUP_FORM",
+              "selectionType": "SINGLE",
+              "identifier": "saas-service-action:userdashboard-deactivate-dashboard",
+              "api-endpoint": {
+                "service-name": "saas-reports",
+                "methodName": "getForm",
+                "stringified-params": true,
+                "parse-output": false,
+                "params": [
+                  {
+                    "formId": "rda.saas.userdashboard.deactivate"
+                  }
+                ]
+              },
+              "actionCondition": {
+                "actionControl": "SHOW_IF",
+                "conditionalField": [
+                  {
+                    "conditionType": "EQUAL",
+                    "conditionValue": "yes",
+                    "fieldId": "enabled"
+                  }
+                ]
+              }
+            },
+            {
+              "permission": "rda:user_dashboard:enable",
+              "title": "Enable",
+              "type": "POPUP_FORM",
+              "selectionType": "SINGLE",
+              "identifier": "saas-service-action:userdashboard-activate-dashboard",
+              "api-endpoint": {
+                "service-name": "saas-reports",
+                "methodName": "getForm",
+                "stringified-params": true,
+                "parse-output": false,
+                "params": [
+                  {
+                    "formId": "rda.saas.userdashboard.activate"
+                  }
+                ]
+              },
+              "actionCondition": {
+                "actionControl": "SHOW_IF",
+                "conditionalField": [
+                  {
+                    "conditionType": "EQUAL",
+                    "conditionValue": "no",
+                    "fieldId": "enabled"
+                  }
+                ]
+              }
+            },
+            {
+              "permission": "rda:user_dashboard:view",
+              "appName": "user-dashboard/rda-artifact-dependencies-app",
+              "identifier": "launch.url.dashboard",
+              "selectionType": "SINGLE",
+              "stateName": "app.featureapp",
+              "title": "View Dependencies",
+              "type": "GO_TO_APP_STATE"
             }
           ],
-          "widget_id": "c466cddc"
+          "widget_id": "d5b2edf0"
         }
       ]
     }

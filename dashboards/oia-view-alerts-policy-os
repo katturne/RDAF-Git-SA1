@@ -1,417 +1,318 @@
 {
-  "name": "oia-view-alerts-policy-os",
-  "label": "Alerts",
-  "description": "Open Search Based OIA View Alerts",
-  "version": "23.3.30.1",
+  "name": "topology-details-with-html-and-pivot-report",
+  "label": "X-Leaf Workflow Results",
+  "description": "X-Leaf EVT Workflow Results",
   "enabled": true,
-  "stream": "oia-alerts-stream",
-  "debug": true,
   "dashboard_style": "auto",
   "dashboard_type": "template",
+  "dashboard_folder": "X-Leaf",
+  "version": "23.8.21.1",
+  "short_label": "X-Leaf EVT Workflow",
+  "dashboard_filters": {},
   "template_variables": {
-    "PROJECT_ID": {
-      "default": [
-        "61ed50a5-8634-4464-a17e-adf6b40225b2"
-      ],
-      "contextId": "projectId"
+    "NODE_ID": {
+      "contextId": [
+        "navigatorSelectionContexts",
+        "secondaryListSelection",
+        "device_ip"
+      ]
     },
-    "RULE_ID": {
-      "default": "2629b6df-d57f-4f81-8465-1d70ddc8dadf",
-      "contextId": "ruleid"
+    "PRECHECK_NAME": {
+      "contextId": [
+        "navigatorSelectionContexts",
+        "secondaryListSelection",
+        "evt_check_name"
+      ]
     },
-    "SOURCE_DASHBOARD_ID": {
-      "default": "user-dashboard-oia-view-alerts-policy-os",
-      "contextId": "sourceDashboardId"
+    "COMMAND": {
+      "contextId": [
+        "navigatorSelectionContexts",
+        "secondaryListSelection",
+        "command"
+      ]
     }
   },
-  "status_poller": {
-    "stream": "oia-alerts-stream",
-    "frequency": 15,
-    "columns": [
-      "timestamp"
-    ],
-    "sorting": [
-      {
-        "timestamp": "desc"
-      }
-    ],
-    "query": "timestamp is after '$timestamp'",
-    "defaults": {
-      "timestamp": "$UTCNOW"
+  "navigation_dashboards": {
+    "tree_data": {
+      "column_name": "device_ip",
+      "pstream_name": "xleaf_evt_results_summary",
+      "cfxql_query": "timestamp is after -30d",
+      "show_counts": false
     },
-    "action": "refresh"
+    "tree_detail": {
+      "display_column": "evt_check_name",
+      "pstream_name": "xleaf_evt_results_summary",
+      "cfxql_query": "timestamp is after -30d",
+      "htmlTemplate": "<div style='overflow:hidden;'><div class='d-flex'><div style='flex-grow: 1' class='label1 text-truncate'><b>{{data.label1}}</b></div><div class='label2 text-truncate badge' :style='{backgroundColor: data.color}'>{{data.label2}}</div></div><div class='cfx-list-item-end-label'>{{data.label3}}</div></div>",
+      "report_definition": {
+        "title": "Validation Checks",
+        "widget_type": "tabular",
+        "stream": "xleaf_evt_results_summary",
+        "ts_column": "timestamp",
+        "timebased": false,
+        "columns": {
+          "evt_check_name": "evt_check_name",
+          "device_ip": "device_ip",
+          "status": "status",
+          "command": "command"
+        },
+        "sorting": [
+          {
+            "result_int_max": "desc"
+          }
+        ],
+        "cfxql_query": "device_ip is '{{NODE_ID}}' and timestamp is after -30d",
+        "pivot": {
+          "pivot_type": "advanced",
+          "series": [
+            {
+              "column": "evt_check_name",
+              "agg": "cardinality"
+            },
+            {
+              "column": "result_int",
+              "agg": "max"
+            }
+          ],
+          "group_by": [
+            "evt_check_name",
+            "device_ip",
+            "status",
+            "command"
+          ]
+        },
+        "paginated": true,
+        "enableVirtualScrolling": false,
+        "custom_columns": [
+          {
+            "id": "label1",
+            "expr": "str(evt_check_name)"
+          },
+          {
+            "id": "label2",
+            "expr": "'Pass' if int(result_int_max) == 0 else 'Fail' if int(result_int_max) == 1 else 'Run'"
+          },
+          {
+            "id": "label3",
+            "expr": "str(status)"
+          },
+          {
+            "id": "color",
+            "expr": "'#4caf50' if int(result_int_max) == 0 else '#E53935' if int(result_int_max) == 1 else '#FFD54F'"
+          }
+        ],
+        "widget_id": "5afc2391"
+      }
+    },
+    "showNodeIcon": false,
+    "showSearchBox": true
   },
-  "dashboard_filters": {
-    "time_filter": true,
-    "default_time_filter_non_removable": true,
-    "show_default_time_filter": false,
-    "additional_datetime_column_filters": [
-      {
-        "id": "a_created_ts",
-        "label": "Created At"
-      },
-      {
-        "id": "a_updated_ts",
-        "label": "Updated At"
-      }
-    ],
-    "columns_filter": [
-      {
-        "id": "a_incident_id",
-        "label": "Incident",
-        "type": "TEXT"
-      },
-      {
-        "id": "a_ticket_id",
-        "label": "ITSM Ticket",
-        "type": "TEXT"
-      },
-      {
-        "id": "a_id",
-        "label": "Alert Id",
-        "type": "TEXT"
-      },
-      {
-        "id": "a_alert_key",
-        "label": "Alert Key",
-        "type": "TEXT"
-      },
-      {
-        "id": "a_event_id",
-        "label": "Event Id",
-        "type": "TEXT"
-      },
-      {
-        "id": "a_source_event_id",
-        "label": "Source Event Id",
-        "type": "TEXT"
-      },
-      {
-        "id": "a_en_incidentAnalytics_alerts",
-        "label": "Alerts",
-        "type": "DOUBLE"
-      },
-      {
-        "id": "project_id",
-        "label": "Organizations",
-        "type": "TEXT"
-      },
-      {
-        "id": "a_component_name",
-        "label": "Component Name",
-        "type": "TEXT"
-      },
-      {
-        "id": "a_cluster_label",
-        "label": "Cluster",
-        "type": "TEXT"
-      },
-      {
-        "id": "a_correlation_status",
-        "label": "Correlation Status",
-        "type": "TEXT"
-      },
-      {
-        "id": "a_rule_type",
-        "label": "Policy Type",
-        "type": "TEXT"
-      },
-      {
-        "id": "a_rule_name",
-        "label": "Policy Name",
-        "type": "TEXT"
-      },
-      {
-        "id": "a_burst_rule_name",
-        "label": "Correlation Burst Policy",
-        "type": "TEXT"
-      },
-      {
-        "id": "a_source_systemname",
-        "label": "Source",
-        "type": "TEXT"
-      },
-      {
-        "id": "a_created_ts",
-        "label": "Created At",
-        "type": "DATETIME"
-      },
-      {
-        "id": "a_updated_ts",
-        "label": "Updated At",
-        "type": "DATETIME"
-      },
-      {
-        "id": "a_lastraisereceivedat_ts",
-        "label": "Last Raise Received At",
-        "type": "DATETIME"
-      },
-      {
-        "id": "a_correlation_parent",
-        "label": "Correlation Parent",
-        "type": "TEXT"
-      },
-      {
-        "id": "a_severity",
-        "label": "Severity",
-        "type": "TEXT"
-      },
-      {
-        "id": "a_status",
-        "label": "Monitoring Status",
-        "type": "TEXT"
-      },
-      {
-        "id": "a_alert_category",
-        "label": "Alert Category",
-        "type": "TEXT"
-      },
-      {
-        "id": "a_alert_type",
-        "label": "Alert Type",
-        "type": "TEXT"
-      },
-      {
-        "id": "a_asset_ip_address",
-        "label": "IP Address",
-        "type": "TEXT"
-      },
-      {
-        "id": "a_asset_name",
-        "label": "Asset Name",
-        "type": "TEXT"
-      },
-      {
-        "id": "a_asset_type",
-        "label": "Asset Type",
-        "type": "TEXT"
-      },
-      {
-        "id": "a_source_mechanism",
-        "label": "Source Mechanism",
-        "type": "TEXT"
-      },
-      {
-        "id": "a_source_event_id",
-        "label": "Source Event Id",
-        "type": "TEXT"
-      },
-      {
-        "id": "a_message",
-        "label": "Message",
-        "type": "TEXT"
-      },
-      {
-        "id": "a_en_stack_name",
-        "label": "Stack Name",
-        "type": "TEXT"
-      },
-      {
-        "id": "customer_id",
-        "label": "Customer ID",
-        "type": "TEXT"
-      },
-      {
-        "id": "a_en_node_id",
-        "label": "Node ID",
-        "type": "TEXT"
-      },
-      {
-        "id": "a_raised_ts",
-        "label": "Raised At",
-        "type": "DATETIME"
-      },
-      {
-        "id": "a_en_fqdn",
-        "label": "Fully Qualified Domain Name",
-        "type": "TEXT"
-      },
-      {
-        "id": "a_repeat_count",
-        "label": "Repeat Count",
-        "type": "DOUBLE"
-      },
-      {
-        "id": "a_cluster_score",
-        "label": "Cluster Score",
-        "type": "DOUBLE"
-      },
-      {
-        "id": "a_cleared_ts",
-        "label": "Cleared At",
-        "type": "DATETIME"
-      },
-      {
-        "id": "a_sourceeventreceivedat_ts",
-        "label": "Source Event Received At",
-        "type": "DATETIME"
-      },
-      {
-        "id": "a_raisedreceivedat_ts",
-        "label": "Raise Received At",
-        "type": "DATETIME"
-      },
-      {
-        "id": "a_clearreceivedat_ts",
-        "label": "Clear Received At",
-        "type": "DATETIME"
-      },
-      {
-        "id": "a_cleared_by",
-        "label": "Cleared By",
-        "type": "TEXT"
-      },
-      {
-        "id": "a_clearcode",
-        "label": "Clear Code",
-        "type": "TEXT"
-      },
-      {
-        "id": "a_clear_message",
-        "label": "Clear Message",
-        "type": "TEXT"
-      },
-      {
-        "id": "a_reviveat_ts",
-        "label": "Revive At",
-        "type": "DATETIME"
-      },
-      {
-        "id": "a_en_revivededat",
-        "label": "Revived Time",
-        "type": "DATETIME"
-      },
-      {
-        "id": "a_en_revivedrulename",
-        "label": "Revived From Policy",
-        "type": "TEXT"
-      }
-    ],
-    "default_time_filter_labels": [
-      "Last 24 hours"
-    ],
-    "extra_filter": "a_rule_id is '{{RULE_ID}}' and a_source_systemname is not-in 'Alert Group' and a_correlation_status not-in 'AGGREGATE'",
-    "group_filters": [
-      {
-        "stream": "oia-alerts-stream",
-        "title": "Source",
-        "group_by": [
-          "a_source_systemname"
-        ],
-        "ts_column": "a_updated_ts",
-        "agg": "value_count",
-        "column": "a_id",
-        "type": "str"
-      },
-      {
-        "stream": "oia-alerts-stream",
-        "title": "Monitoring Status",
-        "group_by": [
-          "a_status"
-        ],
-        "ts_column": "a_updated_ts",
-        "agg": "value_count",
-        "column": "a_id",
-        "type": "str"
-      },
-      {
-        "stream": "oia-alerts-stream",
-        "title": "Correlation Status",
-        "group_by": [
-          "a_correlation_status"
-        ],
-        "ts_column": "a_updated_ts",
-        "agg": "value_count",
-        "column": "a_id",
-        "type": "str"
-      },
-      {
-        "stream": "oia-alerts-stream",
-        "title": "Severity",
-        "group_by": [
-          "a_severity"
-        ],
-        "ts_column": "a_updated_ts",
-        "agg": "value_count",
-        "column": "a_id",
-        "type": "str"
-      },
-      {
-        "stream": "oia-alerts-stream",
-        "title": "Cluster",
-        "group_by": [
-          "a_cluster_label"
-        ],
-        "ts_column": "a_updated_ts",
-        "agg": "value_count",
-        "column": "a_id",
-        "type": "str"
-      },
-      {
-        "stream": "oia-alerts-stream",
-        "title": "Organizations",
-        "group_by": [
-          "project_id"
-        ],
-        "ts_column": "a_updated_ts",
-        "agg": "value_count",
-        "column": "project_id",
-        "type": "str"
-      }
-    ]
-  },
-  "import": [
-    {
-      "from": "oia-alerts-os",
-      "as": "alerts"
-    }
-  ],
   "dashboard_sections": [
     {
-      "title": "alerts",
-      "show_filter": true,
-      "projects": [
-        "ACME"
-      ],
+      "title": "Passed",
       "widgets": [
         {
-          "extends": [
-            "alerts:alerts_tabular",
-            "alerts:actions_lib.alerts_tabular_actions"
+          "title": "Summary",
+          "widget_type": "tabular",
+          "stream": "xleaf_evt_results",
+          "ts_column": "timestamp",
+          "timebased": false,
+          "paginated": true,
+          "hide_columns": [
+            "collection_status",
+            "device_ip",
+            "evt_check_name",
+            "key",
+            "iconURL",
+            "timestamp",
+            "count_",
+            "_RDA_Id",
+            "jobid",
+            "result_int"
           ],
-          "extend_vars": {
-            "alerts_tabular_extra_filter": "a_rule_id is '{{RULE_ID}}' and a_source_systemname is not-in 'Alert Group' and a_correlation_status not-in 'AGGREGATE'",
-            "clear_alerts_extra_filter": "a_status is not 'CLEARED' and a_rule_id is '{{RULE_ID}}' and a_source_systemname is not-in 'Alert Group' and a_correlation_status not-in 'AGGREGATE'"
+          "custom_columns": [
+            {
+              "id": "label1",
+              "expr": "str(evt_check_name)",
+              "hidden": true
+            }
+          ],
+          "ui_widget_type": "TABULAR",
+          "max_width": 4,
+          "height": 5,
+          "min_width": 4,
+          "widget_id": "182229d8",
+          "query": "device_ip is '{{NODE_ID}}' and evt_check_name is '{{PRECHECK_NAME}}' and result is 'Passed'"
+        }
+      ]
+    },
+    {
+      "title": "Failed",
+      "widgets": [
+        {
+          "title": "Summary",
+          "widget_type": "tabular",
+          "stream": "xleaf_evt_results",
+          "ts_column": "timestamp",
+          "timebased": false,
+          "paginated": true,
+          "hide_columns": [
+            "collection_status",
+            "device_ip",
+            "evt_check_name",
+            "key",
+            "iconURL",
+            "timestamp",
+            "count_",
+            "_RDA_Id",
+            "jobid",
+            "result_int"
+          ],
+          "custom_columns": [
+            {
+              "id": "label1",
+              "expr": "str(evt_check_name)",
+              "hidden": true
+            }
+          ],
+          "ui_widget_type": "TABULAR",
+          "max_width": 4,
+          "height": 5,
+          "min_width": 4,
+          "widget_id": "06f22a21",
+          "query": "device_ip is '{{NODE_ID}}'and evt_check_name is '{{PRECHECK_NAME}}' and result is 'Failed'"
+        }
+      ]
+    },
+    {
+      "title": "Command output",
+      "widgets": [
+        {
+          "title": "Raw Output",
+          "widget_type": "tabular",
+          "stream": "xleaf_raw_outputs",
+          "ts_column": "timestamp",
+          "timebased": false,
+          "paginated": true,
+          "columns": {
+            "command": "command",
+            "raw_output": {
+              "title": "Output",
+              "htmlTemplateForRow": "{{'{%raw%}<pre>{{row.raw_output}}</pre>{%endraw%}'}}"
+            }
           },
-          "min_width": 12,
-          "height": 12,
-          "max_width": 12,
-          "widget_id": "94a3fc11"
+          "ui_widget_type": "TABULAR",
+          "max_width": 4,
+          "height": 5,
+          "min_width": 4,
+          "widget_id": "182229d9",
+          "max_rows": 1,
+          "query": "device_ip is '{{NODE_ID}}' and command is '{{COMMAND}}'"
         }
       ]
     }
   ],
   "pstream_dashboards": [
     {
-      "title": "alerts",
-      "show_filter": true,
-      "projects": [
-        "ACME"
-      ],
+      "title": "Passed",
       "widgets": [
         {
-          "extends": [
-            "alerts:alerts_tabular",
-            "alerts:actions_lib.alerts_tabular_actions"
+          "title": "Summary",
+          "widget_type": "tabular",
+          "stream": "xleaf_evt_results",
+          "ts_column": "timestamp",
+          "timebased": false,
+          "paginated": true,
+          "hide_columns": [
+            "collection_status",
+            "device_ip",
+            "evt_check_name",
+            "key",
+            "iconURL",
+            "timestamp",
+            "count_",
+            "_RDA_Id",
+            "jobid",
+            "result_int"
           ],
-          "extend_vars": {
-            "alerts_tabular_extra_filter": "a_rule_id is '{{RULE_ID}}' and a_source_systemname is not-in 'Alert Group' and a_correlation_status not-in 'AGGREGATE'",
-            "clear_alerts_extra_filter": "a_status is not 'CLEARED' and a_rule_id is '{{RULE_ID}}' and a_source_systemname is not-in 'Alert Group' and a_correlation_status not-in 'AGGREGATE'"
+          "custom_columns": [
+            {
+              "id": "label1",
+              "expr": "str(evt_check_name)",
+              "hidden": true
+            }
+          ],
+          "ui_widget_type": "TABULAR",
+          "max_width": 4,
+          "height": 5,
+          "min_width": 4,
+          "widget_id": "182229d8",
+          "query": "device_ip is '{{NODE_ID}}' and evt_check_name is '{{PRECHECK_NAME}}' and result is 'Passed'"
+        }
+      ]
+    },
+    {
+      "title": "Failed",
+      "widgets": [
+        {
+          "title": "Summary",
+          "widget_type": "tabular",
+          "stream": "xleaf_evt_results",
+          "ts_column": "timestamp",
+          "timebased": false,
+          "paginated": true,
+          "hide_columns": [
+            "collection_status",
+            "device_ip",
+            "evt_check_name",
+            "key",
+            "iconURL",
+            "timestamp",
+            "count_",
+            "_RDA_Id",
+            "jobid",
+            "result_int"
+          ],
+          "custom_columns": [
+            {
+              "id": "label1",
+              "expr": "str(evt_check_name)",
+              "hidden": true
+            }
+          ],
+          "ui_widget_type": "TABULAR",
+          "max_width": 4,
+          "height": 5,
+          "min_width": 4,
+          "widget_id": "06f22a21",
+          "query": "device_ip is '{{NODE_ID}}'and evt_check_name is '{{PRECHECK_NAME}}' and result is 'Failed'"
+        }
+      ]
+    },
+    {
+      "title": "Command output",
+      "widgets": [
+        {
+          "title": "Raw Output",
+          "widget_type": "tabular",
+          "stream": "xleaf_raw_outputs",
+          "ts_column": "timestamp",
+          "timebased": false,
+          "paginated": true,
+          "columns": {
+            "command": "command",
+            "raw_output": {
+              "title": "Output",
+              "htmlTemplateForRow": "{{'{%raw%}<pre>{{row.raw_output}}</pre>{%endraw%}'}}"
+            }
           },
-          "min_width": 12,
-          "height": 12,
-          "max_width": 12,
-          "widget_id": "94a3fc11"
+          "ui_widget_type": "TABULAR",
+          "max_width": 4,
+          "height": 5,
+          "min_width": 4,
+          "widget_id": "182229d9",
+          "max_rows": 1,
+          "query": "device_ip is '{{NODE_ID}}' and command is '{{COMMAND}}'"
         }
       ]
     }
