@@ -1,435 +1,814 @@
 {
-  "name": "user_activity_trends",
-  "label": "Health: User Activity Trend",
-  "description": "User Activity: Insights",
-  "dashboard_folder": "RDAF_Health_Trends",
-  "version": "1.0.0",
-  "enabled": false,
+  "name": "oia-alert-tracking-os",
+  "label": "Open Search Based OIA Alert Tracking",
+  "description": "Open Search Based OIA Alert Tracking",
+  "version": "23.1.2",
+  "enabled": true,
+  "stream": "oia-events-stream",
+  "debug": true,
+  "dashboard_style": "tabbed",
+  "status_poller": {},
   "dashboard_type": "template",
-  "stream": "rda_system_audit_logs",
-  "live_edit": true,
+  "template_variables": {
+    "PROJECT_ID": {
+      "default": [
+        "61ed50a5-8634-4464-a17e-adf6b40225b2"
+      ],
+      "contextId": "projectId"
+    }
+  },
   "dashboard_filters": {
     "time_filter": true,
-    "default_time_filter_labels": [
-      "Last 1 month"
+    "default_time_filter_non_removable": true,
+    "show_default_time_filter": false,
+    "additional_datetime_column_filters": [
+      {
+        "id": "e_createdat",
+        "label": "Created At"
+      },
+      {
+        "id": "e_updatedat",
+        "label": "Updated At"
+      }
     ],
-    "extra_filter": "user_id != 'SERVICE' ",
     "columns_filter": [
       {
-        "id": "operation",
-        "label": "Operation",
+        "id": "e_label",
+        "label": "Message",
+        "type": "TEXT"
+      },
+      {
+        "id": "e_customerid",
+        "label": "Customer ID",
+        "type": "TEXT"
+      },
+      {
+        "id": "e_status",
+        "label": "Phase Status",
+        "type": "TEXT"
+      },
+      {
+        "id": "e_sourcesystemname",
+        "label": "Source",
+        "type": "TEXT"
+      },
+      {
+        "id": "e_message",
+        "label": "Comments",
+        "type": "TEXT"
+      },
+      {
+        "id": "e_projectid",
+        "label": "Organizations",
+        "type": "TEXT"
+      },
+      {
+        "id": "e_severity",
+        "label": "Severity",
+        "type": "TEXT"
+      },
+      {
+        "id": "e_sourceeventid",
+        "label": "Source Event Id",
+        "type": "TEXT"
+      },
+      {
+        "id": "e_eventstate",
+        "label": "Phase",
+        "type": "TEXT"
+      },
+      {
+        "id": "e_triggeredevent",
+        "label": "Event Type",
+        "type": "TEXT"
+      },
+      {
+        "id": "e_processedeventid",
+        "label": "Alert Id",
+        "type": "TEXT"
+      },
+      {
+        "id": "e_eventkey",
+        "label": "Alert Key",
         "type": "TEXT"
       }
     ],
+    "extra_filter": "e_projectid in {{PROJECT_ID}}",
     "group_filters": [
       {
-        "stream": "rda_system_audit_logs",
-        "title": "Activity",
-        "extra_filter": null,
-        "limit": 50,
+        "stream": "oia-events-stream",
+        "title": "Source",
         "group_by": [
-          "artifact_type"
+          "e_sourcesystemname"
         ],
-        "ts_column": "timestamp",
-        "agg": "cardinality",
-        "column": "operation",
-        "type": "int",
-        "show_counts": false
+        "ts_column": "e_updatedat",
+        "agg": "value_count",
+        "column": "e_id",
+        "type": "str"
       },
       {
-        "stream": "rda_system_audit_logs",
-        "title": "Operation",
-        "extra_filter": null,
-        "limit": 50,
+        "stream": "oia-events-stream",
+        "title": "Severity",
         "group_by": [
-          "operation"
+          "e_severity"
         ],
-        "ts_column": "timestamp",
-        "agg": "cardinality",
-        "column": "operation",
-        "type": "int",
-        "show_counts": false
+        "ts_column": "e_updatedat",
+        "agg": "value_count",
+        "column": "e_id",
+        "type": "str"
+      },
+      {
+        "stream": "oia-events-stream",
+        "title": "Phase",
+        "group_by": [
+          "e_eventstate"
+        ],
+        "ts_column": "e_updatedat",
+        "agg": "value_count",
+        "column": "e_id",
+        "type": "str"
+      },
+      {
+        "stream": "oia-events-stream",
+        "title": "Phase Status",
+        "group_by": [
+          "e_status"
+        ],
+        "ts_column": "e_updatedat",
+        "agg": "value_count",
+        "column": "e_id",
+        "type": "str"
+      },
+      {
+        "stream": "oia-events-stream",
+        "title": "Organizations",
+        "group_by": [
+          "project_id"
+        ],
+        "ts_column": "e_updatedat",
+        "agg": "value_count",
+        "column": "e_projectid",
+        "type": "str"
       }
+    ],
+    "default_time_filter_labels": [
+      "Last 24 hours"
     ]
   },
   "dashboard_sections": [
     {
-      "title": "User Activity",
+      "title": "Alerts",
       "show_filter": true,
+      "projects": [
+        "ACME"
+      ],
       "widgets": [
         {
-          "widget_type": "label",
-          "context_filter": "show_traces is 'yes'",
-          "max_width": 12,
-          "height": 0.5,
+          "title": "Alerts",
+          "widget_type": "tabular",
+          "stream": "oia-events-stream",
+          "ts_column": "e_updatedat",
+          "timebased": false,
           "min_width": 12,
-          "label": "<div style='text-align:center;width:100%;'><h1><a style='text-decoration:none;color:#0066ff;' target='_blank'>User Login Trend </a></h1></div>",
-          "widget_id": "33317e49"
-        },
-        {
-          "title": "Total Logins",
-          "widget_type": "custom_counter",
-          "label": "",
-          "min_width": 3,
-          "max_width": 3,
-          "height": 3,
-          "unit": "",
-          "stream": "rda_system_audit_logs",
-          "extra_filter": "artifact_type = 'UserActivity' and operation = 'LOGIN' ",
-          "ts_column": "timestamp",
-          "duration_hours": 10000000,
-          "column": "user_id",
-          "agg": "value_count",
-          "type": "str",
-          "style": {
-            "color-list": [
-              "#90CAF9"
-            ]
+          "height": 12,
+          "max_width": 12,
+          "paginated": true,
+          "resizableColumns": false,
+          "refreshRequired": true,
+          "remote_searchable": true,
+          "remote_searchable_cols": [
+            "e_processedeventid",
+            "e_label",
+            "e_severity",
+            "e_sourcesystemname",
+            "e_eventstate",
+            "e_status",
+            "e_message"
+          ],
+          "max_rows": 50,
+          "columns": {
+            "e_processedeventid": {
+              "title": "Alert ID",
+              "visible": false,
+              "key": true,
+              "defaultWidth": 150
+            },
+            "e_projectid": {
+              "title": "project Id",
+              "visible": false,
+              "key": true,
+              "defaultWidth": 150
+            },
+            "e_label": {
+              "title": "Message",
+              "formatter": "truncate",
+              "defaultWidth": 270
+            },
+            "e_id": {
+              "title": "Event Id",
+              "visible": false,
+              "key": true,
+              "defaultWidth": 150
+            },
+            "e_sourceeventid": {
+              "title": "Source Event ID",
+              "visible": false,
+              "key": true,
+              "defaultWidth": 150
+            },
+            "e_severity_color": {
+              "title": "Sev_2",
+              "type": "COLOR-MAP",
+              "source-column": "e_severity",
+              "color-map": {
+                "SEVERE": "#B71C1C",
+                "CRITICAL": "#E53935",
+                "MAJOR": "#F57C00",
+                "MINOR": "#FFA726",
+                "WARNING": "#FFD54F",
+                "NOTIFICATION": "#4DD0E1",
+                "INFORMATION": "#03A9F4"
+              }
+            },
+            "e_severity": {
+              "title": "Severity",
+              "htmlTemplateForRow": "<span class='badge' style='background-color: {{'{{ row.e_severity_color }}'}}' > {{'{{ row.e_severity }}'}} </span>",
+              "defaultWidth": 150
+            },
+            "e_sourcesystemname": {
+              "title": "Source",
+              "defaultWidth": 150
+            },
+            "e_createdat": {
+              "title": "Created At",
+              "type": "DATETIME",
+              "defaultWidth": 180
+            },
+            "e_updatedat": {
+              "title": "Updated At",
+              "type": "DATETIME",
+              "defaultWidth": 180
+            },
+            "e_eventstate": {
+              "title": "Phase",
+              "defaultWidth": 150
+            },
+            "e_status": {
+              "title": "Phase Status",
+              "defaultWidth": 150
+            },
+            "e_message": {
+              "title": "Comments",
+              "defaultWidth": 270
+            },
+            "e_triggeredevent": {
+              "title": "Event Type",
+              "visible": false,
+              "key": true,
+              "defaultWidth": 150
+            },
+            "e_eventkey": {
+              "title": "Alert Key",
+              "visible": false,
+              "key": true,
+              "defaultWidth": 150
+            }
           },
-          "widget_id": "d73e52ec"
-        },
-        {
-          "title": "Total Login - Unique Users",
-          "widget_type": "custom_counter",
-          "label": "",
-          "min_width": 3,
-          "max_width": 3,
-          "height": 3,
-          "unit": "",
-          "stream": "rda_system_audit_logs",
-          "extra_filter": "artifact_type = 'UserActivity' and operation = 'LOGIN' ",
-          "ts_column": "timestamp",
-          "duration_hours": 10000000,
-          "column": "user_id",
-          "agg": "cardinality",
-          "type": "str",
-          "style": {
-            "color-list": [
-              "#90CAF9"
-            ]
-          },
-          "widget_id": "cdc38ae1"
-        },
-        {
-          "title": "Total Users Login Trend (Daily)",
-          "widget_type": "timeseries",
-          "stream": "rda_system_audit_logs",
-          "ts_column": "timestamp",
-          "extra_filter": "artifact_type = 'UserActivity' and operation = 'LOGIN'",
-          "duration_hours": 1080,
-          "max_width": 8,
-          "height": 4,
-          "min_width": 6,
-          "gap_interval": "keep",
-          "chartProperties": {
-            "yAxisLabel": "Total Users",
-            "xAxisLabel": "Local Time",
-            "legendLocation": "bottom",
-            "isDownsamplingDisabled": true,
-            "mode": "selection",
-            "column-id": "timestamp",
-            "options": {
-              "axes": {
-                "display": false
+          "actions": [
+            {
+              "permission": "oia:alert:view",
+              "title": "Alert Details",
+              "type": "GO_TO_APP_STATE",
+              "stateName": "app.featureapp",
+              "appName": "user-dashboard/tracking-event-details-app",
+              "selectionType": "SINGLE",
+              "drillDownContext": "e_label",
+              "destinationContext": "e_label",
+              "displayLabelColumnId": "e_label",
+              "contextParamList": {
+                "contextParams": [
+                  {
+                    "paramKey": "e_projectid",
+                    "paramId": "projectId"
+                  },
+                  {
+                    "paramKey": "e_projectid",
+                    "paramId": "roomid"
+                  },
+                  {
+                    "paramKey": "e_projectid",
+                    "paramId": "projectid"
+                  },
+                  {
+                    "paramKey": "e_id",
+                    "paramId": "eventid"
+                  },
+                  {
+                    "paramKey": "e_sourceeventid",
+                    "paramId": "sourceeventid"
+                  },
+                  {
+                    "paramKey": "e_eventkey",
+                    "paramId": "eventkey"
+                  },
+                  {
+                    "paramKey": "e_processedeventid",
+                    "paramId": "processedeventid"
+                  }
+                ]
               }
             }
-          },
-          "interval": "1d",
-          "series_spec": [
-            {
-              "column": "count_",
-              "agg": "sum",
-              "type": "int",
-              "label": "Total"
-            },
-            {
-              "column": "user_id",
-              "agg": "cardinality",
-              "type": "cardinality",
-              "label": "Unique"
-            }
           ],
-          "widget_id": "ed5ca8c1"
-        },
+          "widget_id": "94a3fc11"
+        }
+      ]
+    },
+    {
+      "title": "Tracking Analytics",
+      "show_filter": true,
+      "projects": [
+        "ACME"
+      ],
+      "widgets": [
         {
-          "title": "User Activity Operations",
+          "title": "Consumed Alerts",
           "widget_type": "counter",
-          "label": "",
+          "stream": "oia-events-stream",
+          "ts_column": "e_updatedat",
+          "column": "e_id",
+          "agg": "value_count",
           "min_width": 6,
+          "height": 2.6,
           "max_width": 6,
-          "height": 4,
-          "unit": "",
-          "group_by": [
-            "operation"
-          ],
-          "stream": "rda_system_audit_logs",
-          "extra_filter": "artifact_type = 'UserActivity'",
-          "ts_column": "timestamp",
-          "duration_hours": 1080,
-          "column": "count_",
-          "agg": "sum",
-          "type": "int",
-          "widget_id": "ddfbf320"
+          "type": "str",
+          "widget_id": "02be1e20"
         },
         {
-          "title": "Top Users Login",
-          "widget_type": "tabular",
-          "duration_hours": 1080,
+          "title": "Deduped Alerts",
+          "widget_type": "counter",
+          "stream": "oia-events-stream",
+          "extra_filter": "e_status is 'Deduped'",
+          "ts_column": "e_updatedat",
+          "column": "e_id",
+          "agg": "value_count",
+          "min_width": 6,
+          "height": 2.6,
           "max_width": 6,
-          "max_rows": 10,
+          "type": "str",
+          "widget_id": "abbd680b"
+        },
+        {
+          "widget_type": "pie_chart",
+          "title": "Alerts By Phase Status",
+          "stream": "oia-events-stream",
+          "ts_column": "e_updatedat",
+          "min_width": 4,
+          "height": 4,
+          "max_width": 4,
+          "column": "e_id",
+          "agg": "value_count",
+          "group_by": [
+            "e_status"
+          ],
+          "type": "str",
+          "widget_id": "cb0706e6"
+        },
+        {
+          "widget_type": "pie_chart",
+          "title": "Alerts By Source",
+          "stream": "oia-events-stream",
+          "ts_column": "e_updatedat",
+          "min_width": 4,
+          "height": 4,
+          "max_width": 4,
+          "column": "e_id",
+          "agg": "value_count",
+          "group_by": [
+            "e_sourcesystemname"
+          ],
+          "type": "str",
+          "widget_id": "f2dc71c5"
+        },
+        {
+          "widget_type": "pie_chart",
+          "title": "Alerts By Phase",
+          "stream": "oia-events-stream",
+          "ts_column": "e_updatedat",
+          "min_width": 4,
+          "height": 4,
+          "max_width": 4,
+          "column": "e_id",
+          "agg": "value_count",
+          "group_by": [
+            "e_eventstate"
+          ],
+          "type": "str",
+          "widget_id": "89d660a9"
+        },
+        {
+          "title": "Alerts Status By Source",
+          "widget_type": "multi_bar_chart",
+          "stream": "oia-events-stream",
+          "ts_column": "e_updatedat",
+          "min_width": 4,
+          "height": 4,
+          "max_width": 4,
+          "chartProperties": {
+            "yAxisLabel": "Count",
+            "xAxisLabel": "Source",
+            "stacked": true,
+            "legendLocation": "right",
+            "orientation": "vertical"
+          },
+          "group_by": [
+            "e_status",
+            "e_sourcesystemname"
+          ],
+          "column": "e_id",
+          "agg": "value_count",
+          "type": "int",
+          "widget_id": "172919af"
+        },
+        {
+          "title": "Hourly Alerts by Source",
+          "widget_type": "timeseries",
+          "stream": "oia-events-stream",
+          "ts_column": "e_updatedat",
+          "max_width": 4,
           "height": 4,
           "min_width": 4,
-          "stream": "rda_system_audit_logs",
-          "ts_column": "timestamp",
-          "extra_filter": "artifact_type = 'UserActivity' and operation = 'LOGIN'",
-          "paginated": false,
-          "columns": {
-            "user_id": {
-              "title": "User ID",
-              "key": true
+          "chartProperties": {
+            "yAxisLabel": "Count",
+            "xAxisLabel": "Hourly Alerts",
+            "legendLocation": "top"
+          },
+          "interval": "60Min",
+          "group_by": [
+            "e_sourcesystemname"
+          ],
+          "series_spec": [
+            {
+              "column": "e_id",
+              "agg": "value_count",
+              "type": "int"
             }
-          },
-          "pivot": {
-            "pivot_type": "advanced",
-            "group_by": [
-              "user_id"
-            ],
-            "series": [
-              {
-                "column": "count_",
-                "agg": "sum",
-                "type": "int",
-                "label": "Login Count"
-              }
-            ]
-          },
-          "widget_id": "954ed85a"
+          ],
+          "widget_id": "c29bb685"
         },
         {
-          "title": "User Activity",
-          "widget_type": "tabular",
-          "duration_hours": 1080,
-          "max_width": 12,
-          "height": 8,
-          "min_width": 12,
-          "stream": "rda_system_audit_logs",
-          "ts_column": "timestamp",
-          "extra_filter": "user_id != 'SERVICE' ",
-          "columns": {
-            "artifact_type": {
-              "title": "Artifact Type",
-              "type": "TEXT"
-            },
-            "artifact_name": {
-              "title": "Artifact Name",
-              "type": "TEXT"
-            },
-            "operation": {
-              "title": "Operation",
-              "type": "TEXT"
-            },
-            "user_id": {
-              "title": "User",
-              "type": "TEXT"
-            },
-            "timestamp": {
-              "title": "Timestamp",
-              "type": "DATETIME",
-              "visible": true
-            }
+          "title": "Hourly Alerts by Severity",
+          "widget_type": "timeseries",
+          "stream": "oia-events-stream",
+          "ts_column": "e_updatedat",
+          "max_width": 4,
+          "height": 4,
+          "min_width": 4,
+          "chartProperties": {
+            "yAxisLabel": "Count",
+            "xAxisLabel": "Hourly Alerts",
+            "legendLocation": "top"
           },
-          "widget_id": "0877d31e"
+          "interval": "60Min",
+          "group_by": [
+            "e_severity"
+          ],
+          "series_spec": [
+            {
+              "column": "e_id",
+              "agg": "value_count",
+              "type": "int"
+            }
+          ],
+          "widget_id": "058d11cc"
         }
       ]
     }
   ],
   "pstream_dashboards": [
     {
-      "title": "User Activity",
+      "title": "Alerts",
       "show_filter": true,
+      "projects": [
+        "ACME"
+      ],
       "widgets": [
         {
-          "widget_type": "label",
-          "context_filter": "show_traces is 'yes'",
-          "max_width": 12,
-          "height": 0.5,
+          "title": "Alerts",
+          "widget_type": "tabular",
+          "stream": "oia-events-stream",
+          "ts_column": "e_updatedat",
+          "timebased": false,
           "min_width": 12,
-          "label": "<div style='text-align:center;width:100%;'><h1><a style='text-decoration:none;color:#0066ff;' target='_blank'>User Login Trend </a></h1></div>",
-          "widget_id": "33317e49"
-        },
-        {
-          "title": "Total Logins",
-          "widget_type": "custom_counter",
-          "label": "",
-          "min_width": 3,
-          "max_width": 3,
-          "height": 3,
-          "unit": "",
-          "stream": "rda_system_audit_logs",
-          "extra_filter": "artifact_type = 'UserActivity' and operation = 'LOGIN' ",
-          "ts_column": "timestamp",
-          "duration_hours": 10000000,
-          "column": "user_id",
-          "agg": "value_count",
-          "type": "str",
-          "style": {
-            "color-list": [
-              "#90CAF9"
-            ]
+          "height": 12,
+          "max_width": 12,
+          "paginated": true,
+          "resizableColumns": false,
+          "refreshRequired": true,
+          "remote_searchable": true,
+          "remote_searchable_cols": [
+            "e_processedeventid",
+            "e_label",
+            "e_severity",
+            "e_sourcesystemname",
+            "e_eventstate",
+            "e_status",
+            "e_message"
+          ],
+          "max_rows": 50,
+          "columns": {
+            "e_processedeventid": {
+              "title": "Alert ID",
+              "visible": false,
+              "key": true,
+              "defaultWidth": 150
+            },
+            "e_projectid": {
+              "title": "project Id",
+              "visible": false,
+              "key": true,
+              "defaultWidth": 150
+            },
+            "e_label": {
+              "title": "Message",
+              "formatter": "truncate",
+              "defaultWidth": 270
+            },
+            "e_id": {
+              "title": "Event Id",
+              "visible": false,
+              "key": true,
+              "defaultWidth": 150
+            },
+            "e_sourceeventid": {
+              "title": "Source Event ID",
+              "visible": false,
+              "key": true,
+              "defaultWidth": 150
+            },
+            "e_severity_color": {
+              "title": "Sev_2",
+              "type": "COLOR-MAP",
+              "source-column": "e_severity",
+              "color-map": {
+                "SEVERE": "#B71C1C",
+                "CRITICAL": "#E53935",
+                "MAJOR": "#F57C00",
+                "MINOR": "#FFA726",
+                "WARNING": "#FFD54F",
+                "NOTIFICATION": "#4DD0E1",
+                "INFORMATION": "#03A9F4"
+              }
+            },
+            "e_severity": {
+              "title": "Severity",
+              "htmlTemplateForRow": "<span class='badge' style='background-color: {{'{{ row.e_severity_color }}'}}' > {{'{{ row.e_severity }}'}} </span>",
+              "defaultWidth": 150
+            },
+            "e_sourcesystemname": {
+              "title": "Source",
+              "defaultWidth": 150
+            },
+            "e_createdat": {
+              "title": "Created At",
+              "type": "DATETIME",
+              "defaultWidth": 180
+            },
+            "e_updatedat": {
+              "title": "Updated At",
+              "type": "DATETIME",
+              "defaultWidth": 180
+            },
+            "e_eventstate": {
+              "title": "Phase",
+              "defaultWidth": 150
+            },
+            "e_status": {
+              "title": "Phase Status",
+              "defaultWidth": 150
+            },
+            "e_message": {
+              "title": "Comments",
+              "defaultWidth": 270
+            },
+            "e_triggeredevent": {
+              "title": "Event Type",
+              "visible": false,
+              "key": true,
+              "defaultWidth": 150
+            },
+            "e_eventkey": {
+              "title": "Alert Key",
+              "visible": false,
+              "key": true,
+              "defaultWidth": 150
+            }
           },
-          "widget_id": "d73e52ec"
-        },
-        {
-          "title": "Total Login - Unique Users",
-          "widget_type": "custom_counter",
-          "label": "",
-          "min_width": 3,
-          "max_width": 3,
-          "height": 3,
-          "unit": "",
-          "stream": "rda_system_audit_logs",
-          "extra_filter": "artifact_type = 'UserActivity' and operation = 'LOGIN' ",
-          "ts_column": "timestamp",
-          "duration_hours": 10000000,
-          "column": "user_id",
-          "agg": "cardinality",
-          "type": "str",
-          "style": {
-            "color-list": [
-              "#90CAF9"
-            ]
-          },
-          "widget_id": "cdc38ae1"
-        },
-        {
-          "title": "Total Users Login Trend (Daily)",
-          "widget_type": "timeseries",
-          "stream": "rda_system_audit_logs",
-          "ts_column": "timestamp",
-          "extra_filter": "artifact_type = 'UserActivity' and operation = 'LOGIN'",
-          "duration_hours": 1080,
-          "max_width": 8,
-          "height": 4,
-          "min_width": 6,
-          "gap_interval": "keep",
-          "chartProperties": {
-            "yAxisLabel": "Total Users",
-            "xAxisLabel": "Local Time",
-            "legendLocation": "bottom",
-            "isDownsamplingDisabled": true,
-            "mode": "selection",
-            "column-id": "timestamp",
-            "options": {
-              "axes": {
-                "display": false
+          "actions": [
+            {
+              "permission": "oia:alert:view",
+              "title": "Alert Details",
+              "type": "GO_TO_APP_STATE",
+              "stateName": "app.featureapp",
+              "appName": "user-dashboard/tracking-event-details-app",
+              "selectionType": "SINGLE",
+              "drillDownContext": "e_label",
+              "destinationContext": "e_label",
+              "displayLabelColumnId": "e_label",
+              "contextParamList": {
+                "contextParams": [
+                  {
+                    "paramKey": "e_projectid",
+                    "paramId": "projectId"
+                  },
+                  {
+                    "paramKey": "e_projectid",
+                    "paramId": "roomid"
+                  },
+                  {
+                    "paramKey": "e_projectid",
+                    "paramId": "projectid"
+                  },
+                  {
+                    "paramKey": "e_id",
+                    "paramId": "eventid"
+                  },
+                  {
+                    "paramKey": "e_sourceeventid",
+                    "paramId": "sourceeventid"
+                  },
+                  {
+                    "paramKey": "e_eventkey",
+                    "paramId": "eventkey"
+                  },
+                  {
+                    "paramKey": "e_processedeventid",
+                    "paramId": "processedeventid"
+                  }
+                ]
               }
             }
-          },
-          "interval": "1d",
-          "series_spec": [
-            {
-              "column": "count_",
-              "agg": "sum",
-              "type": "int",
-              "label": "Total"
-            },
-            {
-              "column": "user_id",
-              "agg": "cardinality",
-              "type": "cardinality",
-              "label": "Unique"
-            }
           ],
-          "widget_id": "ed5ca8c1"
-        },
+          "widget_id": "94a3fc11"
+        }
+      ]
+    },
+    {
+      "title": "Tracking Analytics",
+      "show_filter": true,
+      "projects": [
+        "ACME"
+      ],
+      "widgets": [
         {
-          "title": "User Activity Operations",
+          "title": "Consumed Alerts",
           "widget_type": "counter",
-          "label": "",
+          "stream": "oia-events-stream",
+          "ts_column": "e_updatedat",
+          "column": "e_id",
+          "agg": "value_count",
           "min_width": 6,
+          "height": 2.6,
           "max_width": 6,
-          "height": 4,
-          "unit": "",
-          "group_by": [
-            "operation"
-          ],
-          "stream": "rda_system_audit_logs",
-          "extra_filter": "artifact_type = 'UserActivity'",
-          "ts_column": "timestamp",
-          "duration_hours": 1080,
-          "column": "count_",
-          "agg": "sum",
-          "type": "int",
-          "widget_id": "ddfbf320"
+          "type": "str",
+          "widget_id": "02be1e20"
         },
         {
-          "title": "Top Users Login",
-          "widget_type": "tabular",
-          "duration_hours": 1080,
+          "title": "Deduped Alerts",
+          "widget_type": "counter",
+          "stream": "oia-events-stream",
+          "extra_filter": "e_status is 'Deduped'",
+          "ts_column": "e_updatedat",
+          "column": "e_id",
+          "agg": "value_count",
+          "min_width": 6,
+          "height": 2.6,
           "max_width": 6,
-          "max_rows": 10,
+          "type": "str",
+          "widget_id": "abbd680b"
+        },
+        {
+          "widget_type": "pie_chart",
+          "title": "Alerts By Phase Status",
+          "stream": "oia-events-stream",
+          "ts_column": "e_updatedat",
+          "min_width": 4,
+          "height": 4,
+          "max_width": 4,
+          "column": "e_id",
+          "agg": "value_count",
+          "group_by": [
+            "e_status"
+          ],
+          "type": "str",
+          "widget_id": "cb0706e6"
+        },
+        {
+          "widget_type": "pie_chart",
+          "title": "Alerts By Source",
+          "stream": "oia-events-stream",
+          "ts_column": "e_updatedat",
+          "min_width": 4,
+          "height": 4,
+          "max_width": 4,
+          "column": "e_id",
+          "agg": "value_count",
+          "group_by": [
+            "e_sourcesystemname"
+          ],
+          "type": "str",
+          "widget_id": "f2dc71c5"
+        },
+        {
+          "widget_type": "pie_chart",
+          "title": "Alerts By Phase",
+          "stream": "oia-events-stream",
+          "ts_column": "e_updatedat",
+          "min_width": 4,
+          "height": 4,
+          "max_width": 4,
+          "column": "e_id",
+          "agg": "value_count",
+          "group_by": [
+            "e_eventstate"
+          ],
+          "type": "str",
+          "widget_id": "89d660a9"
+        },
+        {
+          "title": "Alerts Status By Source",
+          "widget_type": "multi_bar_chart",
+          "stream": "oia-events-stream",
+          "ts_column": "e_updatedat",
+          "min_width": 4,
+          "height": 4,
+          "max_width": 4,
+          "chartProperties": {
+            "yAxisLabel": "Count",
+            "xAxisLabel": "Source",
+            "stacked": true,
+            "legendLocation": "right",
+            "orientation": "vertical"
+          },
+          "group_by": [
+            "e_status",
+            "e_sourcesystemname"
+          ],
+          "column": "e_id",
+          "agg": "value_count",
+          "type": "int",
+          "widget_id": "172919af"
+        },
+        {
+          "title": "Hourly Alerts by Source",
+          "widget_type": "timeseries",
+          "stream": "oia-events-stream",
+          "ts_column": "e_updatedat",
+          "max_width": 4,
           "height": 4,
           "min_width": 4,
-          "stream": "rda_system_audit_logs",
-          "ts_column": "timestamp",
-          "extra_filter": "artifact_type = 'UserActivity' and operation = 'LOGIN'",
-          "paginated": false,
-          "columns": {
-            "user_id": {
-              "title": "User ID",
-              "key": true
+          "chartProperties": {
+            "yAxisLabel": "Count",
+            "xAxisLabel": "Hourly Alerts",
+            "legendLocation": "top"
+          },
+          "interval": "60Min",
+          "group_by": [
+            "e_sourcesystemname"
+          ],
+          "series_spec": [
+            {
+              "column": "e_id",
+              "agg": "value_count",
+              "type": "int"
             }
-          },
-          "pivot": {
-            "pivot_type": "advanced",
-            "group_by": [
-              "user_id"
-            ],
-            "series": [
-              {
-                "column": "count_",
-                "agg": "sum",
-                "type": "int",
-                "label": "Login Count"
-              }
-            ]
-          },
-          "widget_id": "954ed85a"
+          ],
+          "widget_id": "c29bb685"
         },
         {
-          "title": "User Activity",
-          "widget_type": "tabular",
-          "duration_hours": 1080,
-          "max_width": 12,
-          "height": 8,
-          "min_width": 12,
-          "stream": "rda_system_audit_logs",
-          "ts_column": "timestamp",
-          "extra_filter": "user_id != 'SERVICE' ",
-          "columns": {
-            "artifact_type": {
-              "title": "Artifact Type",
-              "type": "TEXT"
-            },
-            "artifact_name": {
-              "title": "Artifact Name",
-              "type": "TEXT"
-            },
-            "operation": {
-              "title": "Operation",
-              "type": "TEXT"
-            },
-            "user_id": {
-              "title": "User",
-              "type": "TEXT"
-            },
-            "timestamp": {
-              "title": "Timestamp",
-              "type": "DATETIME",
-              "visible": true
-            }
+          "title": "Hourly Alerts by Severity",
+          "widget_type": "timeseries",
+          "stream": "oia-events-stream",
+          "ts_column": "e_updatedat",
+          "max_width": 4,
+          "height": 4,
+          "min_width": 4,
+          "chartProperties": {
+            "yAxisLabel": "Count",
+            "xAxisLabel": "Hourly Alerts",
+            "legendLocation": "top"
           },
-          "widget_id": "0877d31e"
+          "interval": "60Min",
+          "group_by": [
+            "e_severity"
+          ],
+          "series_spec": [
+            {
+              "column": "e_id",
+              "agg": "value_count",
+              "type": "int"
+            }
+          ],
+          "widget_id": "058d11cc"
         }
       ]
     }
