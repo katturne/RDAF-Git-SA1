@@ -1,353 +1,216 @@
 {
-  "name": "rda_system_snapshots_main",
-  "label": "Snapshots List",
-  "description": "Snapshots List",
-  "dashboard_folder": "System",
-  "version": "1.0.2",
+  "name": "incident-topology",
+  "label": "Incident Topology",
+  "description": "Incident Topology",
+  "dashboard_style": "auto",
+  "version": "22.8.20.1",
   "enabled": false,
-  "live_edit": true,
-  "stream": "rda_system_snapshots_main",
-  "dashboard_type": "dashboard",
+  "dashboard_type": "template",
+  "template_variables": {
+    "STACK_NAME": {
+      "default": "Online_Banking_Stack",
+      "contextId": "stack_name"
+    },
+    "INCIDENT_ID": {
+      "default": "CFX20220922543515",
+      "contextId": "incident_id"
+    },
+    "MY_TEMPLATE": {
+      "default": "<details><summary><b>{{row.alerttype}}</b></summary><div class='v-data-table v-data-table--dense theme--light'><div class='v-data-table__wrapper'><table style='width: 300px;'><tbody><tr><td>Source</td><td>{{row.sourcesystemname}}</td></tr><tr><td>Asset ID</td><td>{{row.assetid}}</td></tr><tr><td>Message</td><td>{{row.message}}</td></tr><tr><td>Assett IP</td><td>{{row.assetipaddress}}</td></tr><tr><td>Alert Status</td><td>{{row.sourcestatus}}</td></tr></tbody></table></div></div></details>",
+      "contextId": "MY_TEMPLATE"
+    }
+  },
+  "custom_context": {
+    "alert-context": true
+  },
   "dashboard_filters": {
     "time_filter": true,
-    "default_time_filter_labels": [
-      "All Time"
-    ],
-    "columns_filter": [
-      {
-        "id": "snapshot_name",
-        "label": "Snapshot Name",
-        "key": true,
-        "type": "TEXT"
-      },
-      {
-        "id": "snapshot_type",
-        "label": "Snapshot Type",
-        "type": "TEXT"
-      },
-      {
-        "id": "status",
-        "label": "Status",
-        "type": "TEXT"
-      }
-    ],
-    "group_filters": [
-      {
-        "stream": "rda_system_snapshots_main",
-        "title": "Snapshot Type",
-        "duration_hours": 87600,
-        "limit": 200,
-        "extra_filter": null,
-        "group_by": [
-          "snapshot_type"
-        ],
-        "ts_column": "timestamp",
-        "agg": "sum",
-        "column": "count_",
-        "type": "int"
-      }
-    ]
+    "columns_filter": []
   },
   "dashboard_sections": [
     {
-      "title": "rda_system_snapshots_main",
+      "title": "Topology",
       "show_filter": true,
       "widgets": [
         {
-          "title": "Snapshots",
+          "widget_type": "incident_kb_article",
+          "stream": "oia-incidents-stream",
+          "incidentid": "{{INCIDENT_ID}}",
+          "min_width": 12,
+          "height": 2,
+          "widget_id": "847e51a0"
+        },
+        {
+          "widget_type": "topology",
+          "title": "Topology",
+          "chartProperties": {
+            "hasToolbar": true,
+            "shortToolbar": true,
+            "userZoomingEnabled": false
+          },
+          "stack": "Online_Banking_Stack",
+          "max_width": 12,
+          "min_width": 7,
+          "height": 12,
+          "alert_source": {
+            "stream": "oia-alerts-stream",
+            "group_by": [
+              "a_asset_id",
+              "a_severity_label",
+              "a_source_status"
+            ],
+            "extra_filter": "incidentid is '{{INCIDENT_ID}}' ",
+            "ts_column": "timestamp",
+            "duration_hours": 1440,
+            "agg": "value_count",
+            "column": "_id",
+            "type": "int"
+          },
+          "widget_id": "9db5a36f"
+        },
+        {
+          "title": "Alerts",
           "widget_type": "tabular",
           "max_width": 12,
-          "height": 8,
-          "min_width": 12,
-          "stream": "rda_system_snapshots_main",
-          "ts_column": "timestamp",
-          "paginated": true,
-          "extra_filter": null,
-          "refreshOptions": {
-            "refreshType": "Periodic",
-            "refreshInterval": 30000
-          },
-          "columns": {
-            "snapshot_type": {
-              "title": "Snapshot Type",
-              "type": "TEXT",
-              "hidden": false
-            },
-            "snapshot_name": {
-              "title": "Snapshot Name",
-              "type": "TEXT",
-              "hidden": false,
-              "key": true
-            },
-            "description": {
-              "title": "Description",
-              "type": "TEXT",
-              "hidden": false
-            },
-            "status": {
-              "title": "Status",
-              "type": "TEXT"
-            },
-            "timestamp": {
-              "title": "Timestamp",
-              "type": "DATETIME"
-            }
-          },
-          "actions": [
+          "height": 12,
+          "min_width": 5,
+          "sorting": [
             {
-              "title": "Create",
-              "type": "POPUP_FORM",
-              "selectionType": "NONE",
-              "permission": "rda:dataset:add",
-              "identifier": "rda.snapshot.add",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.create.snapshot"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:dataset:import",
-              "title": "Import",
-              "type": "POPUP_FORM",
-              "selectionType": "NONE",
-              "identifier": "rda.snapshot.import",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.import.snapshot"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:dataset:view",
-              "appName": "user-dashboard/rda_system_single_snapshot_details",
-              "drillDownLinkField": "snapshot_name",
-              "identifier": "user.dashboard.view",
-              "selectionType": "SINGLE",
-              "stateName": "app.featureapp",
-              "title": "View Details",
-              "type": "GO_TO_APP_STATE"
-            },
-            {
-              "title": "Export",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "permission": "rda:dataset:export",
-              "identifier": "rda.snapshot.export",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.export.snapshot"
-                  }
-                ]
-              }
-            },
-            {
-              "title": "Review",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "permission": "rda:dataset:review",
-              "identifier": "rda.snapshot.review",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.review.snapshot"
-                  }
-                ]
-              }
-            },
-            {
-              "title": "Delete",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "permission": "rda:dataset:delete",
-              "identifier": "rda.snapshot.delete",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.delete.snapshot"
-                  }
-                ]
-              }
+              "a_raised_ts": "desc"
             }
           ],
-          "widget_id": "acfb36eb"
+          "stream": "oia-alerts-stream",
+          "extra_filter": "incident_id is '{{INCIDENT_ID}}' and a_source_system_name is not 'Alert Group' ",
+          "query": "*",
+          "duration_hours": 24,
+          "columns": {
+            "alerttype": {
+              "title": "Alert Type",
+              "type": "GROUPED",
+              "group": {
+                "a_source_system_name": "Source",
+                "a_asset_id": "Asset Id",
+                "a_message": "Message",
+                "a_asset_ip_address": "Asset IP Address",
+                "a_source_status": "Status",
+                "a_asset_name": "Asset Name",
+                "a_asset_type": "Asset Type"
+              },
+              "color-column": "state_color"
+            },
+            "state_color": {
+              "type": "COLOR-MAP",
+              "source-column": "sourcestatus",
+              "color-map": {
+                "ACTIVE": "#dd0000",
+                "CLEAR": "#00dd00",
+                "CLEARED": "#00dd00"
+              }
+            },
+            "a_raised_ts": {
+              "title": "Raised At",
+              "type": "DATETIME"
+            },
+            "a_severity_label": "Severity"
+          },
+          "severity_columns": [
+            "a_severity_label"
+          ],
+          "widget_id": "a7f6e486"
         }
       ]
     }
   ],
   "pstream_dashboards": [
     {
-      "title": "rda_system_snapshots_main",
+      "title": "Topology",
       "show_filter": true,
       "widgets": [
         {
-          "title": "Snapshots",
+          "widget_type": "incident_kb_article",
+          "stream": "oia-incidents-stream",
+          "incidentid": "{{INCIDENT_ID}}",
+          "min_width": 12,
+          "height": 2,
+          "widget_id": "847e51a0"
+        },
+        {
+          "widget_type": "topology",
+          "title": "Topology",
+          "chartProperties": {
+            "hasToolbar": true,
+            "shortToolbar": true,
+            "userZoomingEnabled": false
+          },
+          "stack": "Online_Banking_Stack",
+          "max_width": 12,
+          "min_width": 7,
+          "height": 12,
+          "alert_source": {
+            "stream": "oia-alerts-stream",
+            "group_by": [
+              "a_asset_id",
+              "a_severity_label",
+              "a_source_status"
+            ],
+            "extra_filter": "incidentid is '{{INCIDENT_ID}}' ",
+            "ts_column": "timestamp",
+            "duration_hours": 1440,
+            "agg": "value_count",
+            "column": "_id",
+            "type": "int"
+          },
+          "widget_id": "9db5a36f"
+        },
+        {
+          "title": "Alerts",
           "widget_type": "tabular",
           "max_width": 12,
-          "height": 8,
-          "min_width": 12,
-          "stream": "rda_system_snapshots_main",
-          "ts_column": "timestamp",
-          "paginated": true,
-          "extra_filter": null,
-          "refreshOptions": {
-            "refreshType": "Periodic",
-            "refreshInterval": 30000
-          },
-          "columns": {
-            "snapshot_type": {
-              "title": "Snapshot Type",
-              "type": "TEXT",
-              "hidden": false
-            },
-            "snapshot_name": {
-              "title": "Snapshot Name",
-              "type": "TEXT",
-              "hidden": false,
-              "key": true
-            },
-            "description": {
-              "title": "Description",
-              "type": "TEXT",
-              "hidden": false
-            },
-            "status": {
-              "title": "Status",
-              "type": "TEXT"
-            },
-            "timestamp": {
-              "title": "Timestamp",
-              "type": "DATETIME"
-            }
-          },
-          "actions": [
+          "height": 12,
+          "min_width": 5,
+          "sorting": [
             {
-              "title": "Create",
-              "type": "POPUP_FORM",
-              "selectionType": "NONE",
-              "permission": "rda:dataset:add",
-              "identifier": "rda.snapshot.add",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.create.snapshot"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:dataset:import",
-              "title": "Import",
-              "type": "POPUP_FORM",
-              "selectionType": "NONE",
-              "identifier": "rda.snapshot.import",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.import.snapshot"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:dataset:view",
-              "appName": "user-dashboard/rda_system_single_snapshot_details",
-              "drillDownLinkField": "snapshot_name",
-              "identifier": "user.dashboard.view",
-              "selectionType": "SINGLE",
-              "stateName": "app.featureapp",
-              "title": "View Details",
-              "type": "GO_TO_APP_STATE"
-            },
-            {
-              "title": "Export",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "permission": "rda:dataset:export",
-              "identifier": "rda.snapshot.export",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.export.snapshot"
-                  }
-                ]
-              }
-            },
-            {
-              "title": "Review",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "permission": "rda:dataset:review",
-              "identifier": "rda.snapshot.review",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.review.snapshot"
-                  }
-                ]
-              }
-            },
-            {
-              "title": "Delete",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "permission": "rda:dataset:delete",
-              "identifier": "rda.snapshot.delete",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.delete.snapshot"
-                  }
-                ]
-              }
+              "a_raised_ts": "desc"
             }
           ],
-          "widget_id": "acfb36eb"
+          "stream": "oia-alerts-stream",
+          "extra_filter": "incident_id is '{{INCIDENT_ID}}' and a_source_system_name is not 'Alert Group' ",
+          "query": "*",
+          "duration_hours": 24,
+          "columns": {
+            "alerttype": {
+              "title": "Alert Type",
+              "type": "GROUPED",
+              "group": {
+                "a_source_system_name": "Source",
+                "a_asset_id": "Asset Id",
+                "a_message": "Message",
+                "a_asset_ip_address": "Asset IP Address",
+                "a_source_status": "Status",
+                "a_asset_name": "Asset Name",
+                "a_asset_type": "Asset Type"
+              },
+              "color-column": "state_color"
+            },
+            "state_color": {
+              "type": "COLOR-MAP",
+              "source-column": "sourcestatus",
+              "color-map": {
+                "ACTIVE": "#dd0000",
+                "CLEAR": "#00dd00",
+                "CLEARED": "#00dd00"
+              }
+            },
+            "a_raised_ts": {
+              "title": "Raised At",
+              "type": "DATETIME"
+            },
+            "a_severity_label": "Severity"
+          },
+          "severity_columns": [
+            "a_severity_label"
+          ],
+          "widget_id": "a7f6e486"
         }
       ]
     }
