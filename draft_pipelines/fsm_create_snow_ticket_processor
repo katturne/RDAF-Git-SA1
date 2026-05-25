@@ -1,140 +1,146 @@
-@c:new-block
- --> @exec:get-input
- --> @dm:save name="ticket-create-input"
- --> @dm:save name="temp-create-input"
- --> @dm:save name="create-ticket-pipeline-input"
+@dm:empty
+ --> @dm:save name='oia-meapm-metrics-list'
+ ## filter metric selection rules
+
+ --> @c:new-block
+ --> @dm:recall name='oia-metric_selection_rules'
+ --> *dm:filter metric_source='me-apm'
+ --> @dm:selectcolumns include="^metric_filter$"
+ --> @dm:save name='temp-meapm-metric-selection-rules'
+ ## ME-APM Metric List Pipeline
+
+ --> @c:data-loop columns="metric_filter" and dataset='temp-meapm-metric-selection-rules'
+ --> *me-apm:metric-list
+ --> @dm:eval asset_id = 'RESOURCENAME if RESOURCENAME else PARENT_RESOURCENAME if PARENT_RESOURCENAME else None'
+ --> *dm:filter asset_id is not None and asset_id != ''
+ --> @dm:dns-name-to-ip from_cols = 'asset_id' and to_cols = 'asset_id' and keep_value = 'yes'
+ --> @dm:map to = '_tmp_metric_label' & from = 'DESCRIPTION: ,DISPLAYNAME' & func='join' & sep=' : '
+ --> @dm:map to = '_tmp_metric_label_child' & from = 'PARENT_DESCRIPTION: ,CHILDMONITORS_DISPLAYNAME,CHILDMONITORINFO_DISPLAYNAME' & func='join' & sep=' : '
+ --> @dm:eval metric_label = "_tmp_metric_label_child if _type == 'CHILD' else _tmp_metric_label"
+ --> *dm:filter ($metric_filter)
+ --> @dm:map to = 'metric_label' and from = 'metric_label,Units' and func='join' and sep=' '
+ --> @dm:map to = 'unit' & from = 'Units'
+ --> @dm:fixnull columns= 'unit' & value = 'Count' & apply_for_empty = 'yes'
+ --> @dm:manipulate-string func='strip' and to='unit' and from='unit'
+ --> @dm:eval unit = "unit if (unit != '') else 'Count'"
+ --> @dm:selectcolumns include="^asset_id$|^RESOURCEID$|^AttributeID$|^metric_label$|^unit$"
+ --> @dm:save name = 'oia-meapm-metrics-list'
+ ## Prometheus Metric List Pipeline
+
+ ## filter metric selection rules
+
+ --> @dm:empty
+ --> @dm:save name='oia-prometheus-metrics-list'
+ --> @c:new-block
+ --> @dm:recall name='oia-metric_selection_rules'
+ --> *dm:filter metric_source='prometheus'
+ --> @dm:selectcolumns include="^metric_filter$"
+ --> @dm:save name='temp-prometheus-metric-selection-rules'
+ --> @c:data-loop columns="metric_filter" and dataset='temp-prometheus-metric-selection-rules'
+ --> *prometheus:metric-metadata
+ --> *dm:filter ($metric_filter)
+ --> @dm:map from = 'help' and to = 'metric_label'
+ --> @dm:fixnull columns= 'unit' & value = 'Count' & apply_for_empty = 'yes'
+ --> @dm:save name is 'temp-prom-metric-meta'
+ --> @c:new-block
+ --> *prometheus:targets
+ --> @dm:save name is 'temp-prom-targets'
  --> @c:new-block
  --> @dm:empty
- --> @dm:save name="temp-incident-alerts"
- --> @dm:save name="temp-payload-snow-create"
- --> @dm:save name="temp-notes"
- --> @dm:save name="temp-incident-data"
- --> @c:data-loop dataset="temp-create-input" & columns="project_id,incident_id,customer_id"
- --> @dm:recall name="temp-create-input"
- --> *dm:filter incident_id == '$incident_id' and project_id == '$project_id'
- --> @dm:add-missing-columns columns = 'inc_data'
- --> @dm:fixnull columns = 'inc_data' & value='{}'
- --> *dm:filter inc_data != '{}' and inc_data != ''
- --> @dm:skip-block-if-shape row_count = 0
- --> @dm:eval inc_data="json_loads(inc_data)"
- --> @dm:explode-json column = 'inc_data'
- --> @dm:map to="incident_id" & func="fixed" & value="$incident_id"
- --> @dm:map to="project_id" & func="fixed" & value='$project_id'
- --> @dm:map to="customer_id" & func="fixed" & value="$customer_id"
- --> @dm:save name="temp-incident-data" & append="yes"
- ## Prepare worknotes using Alerts
+ --> @dm:save name is 'temp-oia-prometheus-metrics-list'
+ --> @c:data-loop dataset is 'temp-prom-targets' and columns is 'instance'
+ --> @dm:recall name is 'temp-prom-metric-meta'
+ --> @dm:eval asset_id = "'$instance'"
+ --> @dm:eval instance = "'$instance'"
+ --> @dm:map from = 'help' and to = 'metric_label'
+ --> @dm:map from = 'asset_id' and to = 'port' and func = 'split' and sep = ':'
+ --> @dm:eval asset_id = 'port[0]'
+ --> @dm:eval metric_id = 'metric'
+ --> @dm:selectcolumns include="^asset_id$|^instance$|^metric_id$|^metric_label$|^unit$"
+ --> @dm:save name is 'temp-oia-prometheus-metrics-list' and append is yes
+ --> @c:new-block
+ --> @dm:recall name='temp-oia-prometheus-metrics-list'
+ --> @dm:save name='oia-prometheus-metrics-list'
+ ## vRops Metric List Pipeline
 
- --> @c:data-loop dataset="temp-create-input" & columns="project_id,incident_id,customer_id"
- --> @dm:recall name="temp-create-input"
- --> *dm:filter incident_id == '$incident_id' and project_id == '$project_id'
- --> @dm:add-missing-columns columns = 'alerts'
- --> @dm:fixnull columns = 'alerts' & value='[]'
- --> *dm:filter alerts != '[]' and alerts != ''
- --> @dm:skip-block-if-shape row_count = 0
- --> @dm:eval alerts="json_loads(alerts)"
- --> @dm:explode-json column = 'alerts'
- ## Will create new dataset. Old will be replaced with this new one
+ --> @dm:empty
+ --> @dm:save name='oia-vrops-metrics-list'
+ ## vm summary
 
- ## Change-Here: make sure to find correct incident_id column
+ --> @c:new-block
+ --> *vrops:vm-summary
+ --> @dm:save name='temp-vm-summary'
+ ## filter metric selection rules
 
- --> @dm:map to="incident_id" & func="fixed" & value="$incident_id"
- --> @dm:map to="project_id" & func="fixed" & value="$project_id"
- --> @dm:map to="customer_id" & func="fixed" & value="$customer_id"
- --> @dm:map to="step" & func="fixed" & value="c1"
- --> @rn:write-stream compression="auto" & name="debug-fsm-att"
- ## Change-Here: Select columns
+ --> @c:new-block
+ --> @dm:recall name='oia-metric_selection_rules'
+ --> *dm:filter metric_source='vRops'
+ --> @dm:selectcolumns include="^metric_filter$"
+ --> @dm:save name='temp-vrops-metric-selection-rules'
+ ## metrics list
 
- --> @dm:selectcolumns include="a_message|a_raised_ts|a_created_ts|a_updated_ts|a_status|a_asset_name|a_repeat_count|incident|project|customer"
- --> @dm:add-missing-columns columns = 'a_message,a_raised_ts,a_created_ts,a_updated_ts,a_status,a_asset_name,a_repeat_count' & value=""
- --> @dm:fixnull columns = 'a_message,a_raised_ts,a_created_ts,a_updated_ts,a_status,a_asset_name,a_repeat_count' & value=""
- --> @dm:save name="temp-incident-alerts"
- ## Prepare notes based on Alerts
+ --> @c:data-loop columns="metric_filter" and dataset='temp-vrops-metric-selection-rules'
+ --> *vrops:metric-list
+ --> *dm:filter ($metric_filter)
+ --> @dm:eval metric_id='key' and metric_name='name'
+ --> @dm:save name='temp-vrops-metrics-list' and append='yes'
+ ## create metrics list for each resource
 
- --> @dm:save name="before-apply-template-for-create"
- --> @dm:apply-template-all-rows template_name = 'snow-notes-template' & output_col = 'concat_value'
- --> @dm:save name="after-apply-template-for-create"
- --> @dm:add-missing-columns columns = 'concat_value' & value=""
- --> @dm:eval work_notes="'[code] ' + concat_value + ' [/code]'"
- --> @dm:copy-columns to="notes" & from="work_notes"
- --> @dm:copy-columns to="comments" & from="work_notes"
- --> @dm:map to="incident_id" & func="fixed" & value="$incident_id"
- --> @dm:map to="project_id" & func="fixed" & value="$project_id"
- --> @dm:map to="customer_id" & func="fixed" & value="$customer_id"
- --> @dm:save name="temp-notes" & append="yes"
- --> @dm:map to="step" & func="fixed" & value="c2"
- --> @rn:write-stream compression="auto" & name="debug-fsm-att"
- ## Prepare Payload for Snow
+ --> @c:data-loop columns='metric_id,metric_name,unit' and dataset='temp-vrops-metrics-list'
+ --> @dm:recall name='temp-vm-summary'
+ --> @dm:eval metric_id="'$metric_id'" and metric_label="'$metric_name'" and unit="'$unit'"
+ --> @dm:map from='identifier' and to='resource_id'
+ --> *dm:filter guest_ip_adress is not empty
+ --> @dm:map from='guest_ip_adress' and to='asset_id'
+ --> @dm:map from='name' and to='asset_name'
+ --> @dm:fixnull columns= 'unit' & value = 'Count' & apply_for_empty = 'yes'
+ --> @dm:selectcolumns include='^asset_id$|^asset_name$|^resource_id$|^metric_id$|^metric_label$|^unit$'
+ --> @dm:save name='temp-oia-vrops-metrics-list' and append='yes'
+ ## create empty dataset for vrops metrics list
 
- --> @c:data-loop dataset="temp-create-input" & columns="project_id,incident_id,customer_id"
- --> @dm:recall name="temp-notes"
- --> *dm:filter incident_id == '$incident_id' and project_id == '$project_id'
- --> @dm:skip-block-if-shape row_count = 0
- ## Incident Data
+ --> @c:new-block
+ --> @dm:empty
+ --> @dm:save name='oia-vrops-metrics-list'
+ ## create final metrics list for all resources
 
- ## Join Alerts and Incident Data Records. One(Incident) to Many(Alerts).
+ --> @c:new-block
+ --> @dm:recall name='temp-oia-vrops-metrics-list'
+ --> @dm:save name='oia-vrops-metrics-list'
+ ## Dynatrace Metric List Pipeline
 
- --> @dm:enrich dict='temp-incident-data' & dict_key_cols='incident_id,project_id' & src_key_cols='incident_id,project_id' & enrich_cols='i_state,i_summary,i_description,i_priority'
- --> @dm:map to="account" & func="fixed" & value="CloudFabrix"
- --> @dm:map to="company" & func="fixed" & value="f5eab4f4070e1110187bf9fc7c1ed0ef"
- --> @dm:map to="category" & func="fixed" & value="Software"
- --> @dm:copy-columns to="shortDescription" & from="i_summary"
- --> @dm:copy-columns to="short_description" & from="i_summary"
- --> @dm:eval state="('New' if i_state == 'Open' else ('New' if i_state == 'Assigned' else ('On Hold' if i_state == 'On Hold' else ('Resolved' if i_state == 'Resolved' else ('Resolved' if i_state == 'Closed' else ('Canceled' if i_state == 'Cancelled' else ('New')))))))"
- --> @dm:fixnull columns = 'i_priority' & value='3.0'
- --> @dm:eval impact="('1 - High' if (str(i_priority) == '1.0') else ('2 - Medium' if (str(i_priority) == '2.0') else ('3 - Low')))"
- --> @dm:eval urgency="('1 - High' if (str(i_priority) == '1.0') else ('2 - Medium' if (str(i_priority) == '2.0') else ('3 - Low')))"
- --> @dm:eval severity="('1 - High' if (str(i_priority) == '1.0') else ('2 - Medium' if (str(i_priority) == '2.0') else ('3 - Low')))"
- --> @dm:apply-template-by-row template_name = 'snow-description-template' & output_col = 'description'
- --> @dm:map to="fsmInputEventName" & func="fixed" & value="save-ticket-id"
- --> @dm:map to="fsmModelName" & func="fixed" & value="at_n_t_incident"
- --> @dm:map to="incident_id" & func="fixed" & value="$incident_id"
- --> @dm:map to="project_id" & func="fixed" & value="$project_id"
- --> @dm:map to="customer_id" & func="fixed" & value="$customer_id"
- --> @dm:save name="temp-payload-snow-create" & append="yes"
- --> @dm:map to="step" & func="fixed" & value="c3"
- --> @dm:save name="create-ticket-save-ticket-id"
- --> @rn:write-stream compression="auto" & name="debug-fsm-att"
- ## Create Snow Ticket
+ --> @dm:empty
+ --> @dm:save name='oia-dynatrace-metrics-list'
+ --> @dm:save name='dynatrace-metrics-list'
+ --> @c:new-block
+ --> @dynatrace:dynatrace-entity-info
+ --> @dm:eval asset_id='entityId'
+ --> @dm:eval asset_label='displayName'
+ --> @dm:eval asset_type='type'
+ --> @dm:selectcolumns include="^asset_id$|^asset_label$|^asset_type$"
+ --> @dm:save name='dynatrace-entity-info'
+ --> @c:new-block
+ --> *dynatrace:dynatrace-metrics
+ --> @dm:eval metric_id='metricId'
+ --> @dm:eval metric_label='displayName'
+ --> @dm:eval metric_asset_type='entityType'
+ --> @dm:selectcolumns include="^metric_id$|^metric_label$|^metric_asset_type$|^unit$"
+ --> @dm:save name='dynatrace-metrics-list-raw'
+ --> @c:data-loop columns='asset_id,asset_label,asset_type' and dataset='dynatrace-entity-info'
+ --> @dm:recall name='dynatrace-metrics-list-raw'
+ --> *dm:filter metric_asset_type='[]' or metric_asset_type contains '$asset_type'
+ --> @dm:skip-block-if-shape row_count=0
+ --> @dm:eval asset_id="'$asset_id'"
+ --> @dm:eval asset_type="'$asset_type'"
+ --> @dm:save name='dynatrace-metrics-list'  and append='yes'
+ ## filter metric selection rules
 
- --> @c:data-loop dataset="temp-create-input" & columns="project_id,incident_id,customer_id"
- --> @dm:recall name="temp-payload-snow-create"
- --> *dm:filter incident_id == '$incident_id' and project_id == '$project_id'
- --> @dm:skip-block-if-shape row_count = 0
- --> @dm:selectcolumns include="account|company|category|description|short|state|urgency|impact|severity|notes|comments|work_notes|project_id|incident_id|customer_id|fsm"
- --> @dm:save name="temp-before-snow-create"
- --> @snowv2:create-incident mandatory_cols="short_description,urgency,state,impact,description,comments"
- --> @dm:check-columns must_contain="rda_row_id,number" & action="skip-block"
- --> @dm:fixnull columns = 'rda_row_id' & value=''
- --> *dm:filter rda_row_id != ''
- --> @dm:skip-block-if-shape row_count = 0
- --> @dm:map to="incident_id" & func="fixed" & value="$incident_id"
- --> @dm:map to="project_id" & func="fixed" & value="$project_id"
- --> @dm:map to="customer_id" & func="fixed" & value="$customer_id"
- --> @dm:eval itsm_link="'https://dev84819.service-now.com/nav_to.do?uri=%2Fincident.do%3Fsys_id%3D' + rda_row_id"
- --> @dm:map to="step" & func="fixed" & value="c4"
- --> @rn:write-stream compression="auto" & name="debug-fsm-att"
- --> @dm:save name="temp-after-snow-create"
- --> @dm:recall name="temp-before-snow-create"
- --> @dm:enrich dict='temp-after-snow-create' & dict_key_cols='incident_id,project_id' & src_key_cols='incident_id,project_id' & enrich_cols='rda_row_id,number,itsm_link'
- --> @dm:check-columns must_contain="rda_row_id,number" & action="skip-block"
- --> @dm:fixnull columns = 'rda_row_id' & value=''
- --> *dm:filter rda_row_id != ''
- --> @dm:skip-block-if-shape row_count = 0
- --> @dm:copy-columns to="itsm_ticket_number" & from="number"
- --> @dm:copy-columns to="itsm_ticket_id" & from="rda_row_id"
- --> @dm:save name="temp-merged-snow-create"
- --> @dm:map to="step" & func="fixed" & value="c5"
- --> @rn:write-stream compression="auto" & name="debug-fsm-att"
- --> @dm:copy-columns to="label" & from="number"
- --> @dm:copy-columns to="incidentid" & from="incident_id"
- --> @dm:copy-columns to="roomid" & from="project_id"
- --> @dm:copy-columns to="externalUrl" & from="itsm_link"
- --> @dm:eval attrs=' "[{\"name\":\"externalUrl\",\"value\":\"" + itsm_link + "\"}]" '
- --> @dm:eval attributes = "json_loads(attrs)"
- --> @dm:selectcolumns include="roomid|incidentid|label|attributes"
- --> @agent:agent-irm:irmagent:updateIncidents
- --> @dm:save name="temp-irm-result"
- --> @dm:map to="step" & func="fixed" & value="c6"
- --> @rn:write-stream compression="auto" & name="debug-fsm-att"
- --> @dm:recall name="temp-merged-snow-create"
- --> @rn:write-stream compression="auto" & name="rda_fsm_event_stream"
+ --> @c:new-block
+ --> @dm:recall name='oia-metric_selection_rules'
+ --> *dm:filter metric_source='dynatrace'
+ --> @dm:selectcolumns include="^metric_filter$"
+ --> @dm:save name='temp-dynatrace-metric-selection-rules'
+ --> @c:data-loop columns="metric_filter" and dataset='temp-dynatrace-metric-selection-rules'
+ --> @dm:recall name='dynatrace-metrics-list'
+ --> *dm:filter ($metric_filter)
+ --> @dm:selectcolumns include="^asset_id$|^asset_type$|^metric_id$|^metric_label$|^unit$"
+ --> @dm:save name = 'oia-dynatrace-metrics-list' and append='yes'
