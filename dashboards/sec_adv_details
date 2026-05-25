@@ -1,431 +1,1224 @@
 {
-  "name": "sec_adv_details",
-  "label": "Product Alerts - Security Advisories Details",
-  "description": "BCS Product Alerts Security Advisories dashboard",
-  "version": "2023-07-13-05",
-  "enabled": false,
-  "debug": false,
-  "stream": "edc_sec_adv_data_enriched",
+  "name": "oia-war-room",
+  "label": "War Room",
+  "description": "War Room",
+  "enabled": true,
+  "version": "2024.8.21",
   "live_edit": true,
-  "dashboard_folder": "Default",
-  "dashboard_style": "auto",
   "dashboard_type": "template",
-  "template_variables": {
-    "SEC_ADV_ID": {
-      "contextId": "securityAdvisoryId"
-    },
-    "STATUS": {
-      "contextId": "secAdv_matchConfidence"
-    },
-    "PsirtID": {
-      "contextId": "a_PsirtID"
-    },
-    "Bulletin_Title": {
-      "contextId": "a_bulletinTitle"
-    },
-    "BulletinURL1": {
-      "contextId": "a_BulletinURL"
-    }
-  },
-  "dashboard_pages": [],
   "dashboard_filters": {
-    "time_filter": true,
-    "default_time_filter_labels": [
-      "Last 12 months"
-    ],
-    "extra_filter": "securityAdvisoryId is '{{SEC_ADV_ID}}' and secAdv_matchConfidence is '{{STATUS}}'",
-    "columns_filter": [
-      {
-        "id": "deviceSN",
-        "label": "Serial Number",
-        "type": "TEXT"
-      },
-      {
-        "id": "product_id",
-        "label": "Product ID",
-        "type": "TEXT"
-      },
-      {
-        "id": "bulletinTitle",
-        "label": "Title",
-        "type": "TEXT"
-      },
-      {
-        "id": "BulletinURL",
-        "label": "URL",
-        "type": "TEXT"
-      },
-      {
-        "id": "cveId",
-        "label": "CveIds",
-        "type": "TEXT"
-      },
-      {
-        "id": "securityAdvisoryId",
-        "label": "Security Advisory ID",
-        "type": "TEXT",
-        "key": true
-      },
-      {
-        "id": "secAdv_securityImpactRating",
-        "label": "Security Advisory Severity",
-        "type": "TEXT"
-      },
-      {
-        "id": "secAdv_matchConfidence",
-        "label": "Security Advisory Status",
-        "type": "TEXT"
-      }
-    ],
-    "group_filters": [
-      {
-        "stream": "edc_sec_adv_data_enriched",
-        "title": "Equipment Type",
-        "extra_filter": "(`secAdv_matchConfidence` not in [\"Not Vulnerable\",\"Not Available\"])",
-        "group_by": [
-          "item_type"
-        ],
-        "ts_column": "timestamp",
-        "duration_hours": 1080,
-        "limit": 200,
-        "agg": "sum",
-        "column": "combination_count_sum",
-        "type": "int"
-      },
-      {
-        "stream": "edc_sec_adv_data_enriched",
-        "title": "SW Type",
-        "extra_filter": "(secAdv_matchConfidence is not 'Not Available')  and secAdv_securityImpactRating is not empty",
-        "group_by": [
-          "sw_os_type"
-        ],
-        "ts_column": "timestamp",
-        "duration_hours": 1080,
-        "limit": 200,
-        "agg": "sum",
-        "column": "combination_count_sum",
-        "type": "int"
-      },
-      {
-        "stream": "edc_sec_adv_data_enriched",
-        "title": "SW Version",
-        "extra_filter": "(`secAdv_matchConfidence` not in [\"Not Vulnerable\",\"Not Available\"])",
-        "group_by": [
-          "sw_version"
-        ],
-        "ts_column": "timestamp",
-        "duration_hours": 1080,
-        "limit": 200,
-        "agg": "sum",
-        "column": "combination_count_sum",
-        "type": "int"
-      },
-      {
-        "stream": "edc_sec_adv_data_enriched",
-        "title": "Product ID",
-        "extra_filter": "(`secAdv_matchConfidence` not in [\"Not Vulnerable\",\"Not Available\"])",
-        "group_by": [
-          "product_id"
-        ],
-        "ts_column": "timestamp",
-        "duration_hours": 1080,
-        "limit": 200,
-        "agg": "sum",
-        "column": "combination_count_sum",
-        "type": "int"
-      },
-      {
-        "stream": "edc_sec_adv_data_enriched",
-        "title": "Security Advisory Status",
-        "group_by": [
-          "secAdv_matchConfidence"
-        ],
-        "ts_column": "timestamp",
-        "duration_hours": 1080,
-        "limit": 200,
-        "agg": "sum",
-        "column": "combination_count_sum",
-        "type": "int"
-      },
-      {
-        "stream": "edc_sec_adv_data_enriched",
-        "title": "Security Advisory Severity",
-        "group_by": [
-          "secAdv_securityImpactRating"
-        ],
-        "ts_column": "timestamp",
-        "duration_hours": 1080,
-        "limit": 200,
-        "agg": "sum",
-        "column": "combination_count_sum",
-        "type": "int"
-      }
-    ]
+    "time_filter": true
+  },
+  "stream_query_mapping": {
+    "syslog_udp_event_stream_all": {
+      "i_cfx_incident_occurred": "rda_gw_timestamp"
+    },
+    "oia-alerts-stream": {
+      "i_cfx_incident_occurred": "a_created_ts"
+    },
+    "oia-ml-metrics-regression-output": {
+      "i_cfx_incident_occurred": "timestamp"
+    },
+    "change_requests_stream": {
+      "i_cfx_incident_occurred": "timestamp"
+    }
   },
   "dashboard_sections": [
     {
-      "title": "Security Advisories Details",
+      "title": "Application",
       "show_filter": true,
       "widgets": [
         {
-          "widget_type": "label",
-          "label": "<div style='text-align:center;width:100%;'><h2><a style='text-decoration:none;color:#0066ff;' target='_blank'>{{Bulletin_Title}} </a></h2></div>",
-          "min_width": 12,
-          "height": 0.3,
-          "max_width": 12,
-          "widget_id": "dd3ae8ae"
-        },
-        {
-          "widget_type": "label",
-          "max_width": 6,
+          "title": "Transaction Failure Alerts",
+          "widget_type": "counter",
+          "min_width": 2.4,
+          "max_width": 2.4,
           "height": 4,
-          "min_width": 6,
-          "label": "<div style='text-align:center;width:100%;'><br><br><br><br><p>PSirtID<br><b><a style='text-decoration:none;color:#90CAF9;font-size:35px' target='_blank'>{{PsirtID}}</a></p></div>",
-          "widget_id": "b0186542"
-        },
-        {
-          "title": "Total Device Count",
-          "widget_type": "custom_counter",
-          "max_width": 6,
-          "height": 4,
-          "min_width": 6,
-          "stream": "edc_sec_adv_data_enriched",
-          "ts_column": "timestamp",
-          "column": "combination_count_sum",
-          "style": {
-            "color-list": [
-              "#90CAF9"
-            ]
+          "stream": "oia-alerts-stream",
+          "ts_column": "a_created_ts",
+          "extra_filter": "a_message contains 'Transaction Failure'",
+          "sparkline": {
+            "interval": "1h"
           },
+          "column": "count_",
           "agg": "sum",
           "type": "int",
-          "widget_id": "de97a4e2"
+          "widget_id": "42b0d069"
         },
         {
-          "title": "Security Advisories Details",
-          "widget_type": "tabular",
+          "title": "Slow Query Alerts",
+          "widget_type": "counter",
+          "min_width": 2.4,
+          "max_width": 2.4,
+          "height": 4,
+          "stream": "oia-alerts-stream",
+          "ts_column": "a_created_ts",
+          "extra_filter": "a_message contains 'Slow'",
+          "sparkline": {
+            "interval": "1h"
+          },
+          "column": "count_",
+          "agg": "sum",
+          "type": "int",
+          "widget_id": "a175fbc0"
+        },
+        {
+          "title": "Slow Response Alerts",
+          "widget_type": "counter",
+          "min_width": 2.4,
+          "max_width": 2.4,
+          "height": 4,
+          "stream": "oia-alerts-stream",
+          "ts_column": "a_created_ts",
+          "extra_filter": "a_message contains 'Response'",
+          "sparkline": {
+            "interval": "1h"
+          },
+          "column": "count_",
+          "agg": "sum",
+          "type": "int",
+          "widget_id": "066e3d3e"
+        },
+        {
+          "title": "Patch Changes",
+          "widget_type": "counter",
+          "min_width": 2.4,
+          "max_width": 2.4,
+          "height": 4,
+          "stream": "change_requests_stream",
+          "ts_column": "timestamp",
+          "extra_filter": "message contains 'patch'",
+          "sparkline": {
+            "interval": "1h"
+          },
+          "column": "count_",
+          "agg": "sum",
+          "type": "int",
+          "widget_id": "fa2467c7"
+        },
+        {
+          "title": "Change Requests",
+          "widget_type": "counter",
+          "min_width": 2.4,
+          "max_width": 2.4,
+          "height": 4,
+          "stream": "change_requests_stream",
+          "ts_column": "timestamp",
+          "extra_filter0": "message contains 'config'",
+          "sparkline": {
+            "interval": "1h"
+          },
+          "column": "count_",
+          "agg": "sum",
+          "type": "int",
+          "widget_id": "651c0f51"
+        },
+        {
+          "title": "Events Timeline",
+          "widget_type": "timeseries",
+          "stream": "oia-alerts-stream",
+          "ts_column": "a_created_ts",
           "max_width": 12,
-          "height": 6,
+          "height": 8,
           "min_width": 12,
-          "stream": "edc_sec_adv_data_enriched",
-          "duration_hours": 10800000,
+          "fixTimeWindow": true,
+          "synchronized-group": 0,
+          "chartProperties": {
+            "yAxisLabel": "Alert Count",
+            "xAxisLabel": "Time",
+            "legendLocation": "none"
+          },
+          "alert_markers": [
+            {
+              "stream": "change_requests_stream",
+              "ts_column": "timestamp",
+              "type": "circle",
+              "message_column": "message",
+              "severity_column": "severity",
+              "annotation": "C"
+            },
+            {
+              "stream": "oia-alerts-stream",
+              "ts_column": "a_created_ts",
+              "type": "triangle",
+              "message_column": "a_message",
+              "severity_column": "a_severity",
+              "annotation": "!"
+            },
+            {
+              "stream": "oia-ml-metrics-regression-output",
+              "ts_column": "timestamp",
+              "type": "square",
+              "message_column": "marker_message",
+              "extra_filter": "anomalies_severity is 'High' and anomalies_type is 'Upper'",
+              "severity_column": "anomalies_severity",
+              "annotation": "M",
+              "columns": [
+                "asset_id",
+                "metric_id",
+                "metric_label",
+                "asset_name",
+                "metric_source",
+                "timestamp",
+                "job_name",
+                "unit",
+                "stream_name"
+              ],
+              "action": {
+                "appName": "user-dashboard/rca_regression_dashboard",
+                "permission": "ml:ml-jobs:viewSampledata",
+                "identifier": "ViewRegressionDashboard",
+                "selectionType": "SINGLE",
+                "stateName": "app.featureapp",
+                "title": "View Regression Dashboard",
+                "type": "GO_TO_APP_STATE"
+              }
+            },
+            {
+              "stream": "oia-logs-regression-output",
+              "ts_column": "timestamp",
+              "type": "circle",
+              "message_column": "asset_id",
+              "extra_filter": "anomalies_severity is 'High' and anomalies_type is 'Upper'",
+              "severity_column": "anomalies_severity",
+              "annotation": "L",
+              "columns": [
+                "asset_id",
+                "asset_name",
+                "timestamp",
+                "job_name",
+                "stream_name"
+              ],
+              "action": {
+                "appName": "user-dashboard/rca_regression_dashboard",
+                "permission": "ml:ml-jobs:viewSampledata",
+                "identifier": "ViewRegressionDashboard",
+                "selectionType": "SINGLE",
+                "stateName": "app.featureapp",
+                "title": "View Regression Dashboard",
+                "type": "GO_TO_APP_STATE"
+              }
+            }
+          ],
+          "interval": "1min",
+          "series_spec": [
+            {
+              "label": "Alerts",
+              "column": "a_id",
+              "agg": "value_count",
+              "type": "int"
+            }
+          ],
+          "widget_id": "121762cf"
+        },
+        {
+          "title": "Metric Anomalies",
+          "widget_type": "multi_bar_chart",
+          "stream": "oia-ml-metrics-regression-output",
+          "ts_column": "timestamp",
+          "chartProperties": {
+            "yAxisLabel": "Anomalies (%)",
+            "xAxisLabel": "Metric Name",
+            "stacked": false,
+            "legendLocation": "none",
+            "orientation": "vertical"
+          },
+          "group_by": [
+            "asset_id",
+            "metric_label"
+          ],
+          "descending_order": true,
+          "others_spec": {
+            "limit": 4,
+            "show_others": false
+          },
+          "column": "anomalies_percent",
+          "agg": "max",
+          "type": "float",
+          "widget_id": "f4786acb"
+        },
+        {
+          "title": "Change Requests",
+          "widget_type": "tabular",
+          "min_width": 6,
+          "max_width": 6,
+          "height": 5,
+          "timebased": false,
+          "stream": "change_requests_stream",
           "ts_column": "timestamp",
           "columns": {
-            "BulletinURL": {
-              "title": "URL",
-              "type": "TEXT",
-              "visible": false
+            "timestamp": {
+              "title": "Time",
+              "type": "DATETIME"
             },
-            "securityAdvisoryId": {
-              "title": "Security Advisory ID",
-              "type": "TEXT",
-              "htmlTemplateForRow": "{% raw %} <a href=\"{{row.BulletinURL}}\" target='_blank'>{{row.securityAdvisoryId}}</a>{% endraw %}"
-            },
-            "bulletinTitle": {
-              "title": "Title",
-              "visible": false
-            },
-            "secAdv_confidence_color": {
-              "type": "COLOR-MAP",
-              "source-column": "secAdv_matchConfidence",
-              "color-map": {
-                "Not Vulnerable": "#00BB00",
-                "Vulnerable": "#BB0000",
-                "Potentially Vulnerable": "#F6C309"
-              }
-            },
-            "secAdv_matchConfidence": {
-              "title": "Security Advisory Status",
-              "type": "TEXT",
-              "htmlTemplateForRow": "{% raw %} <span class='badge' style='background-color: {{ row.secAdv_confidence_color }}' > {{ row.secAdv_matchConfidence }} </span>{% endraw %}",
-              "visible": true
-            },
-            "secAdv_impact_rating_color": {
-              "type": "COLOR-MAP",
-              "source-column": "secAdv_securityImpactRating",
-              "color-map": {
-                "Critical": "#8B0000",
-                "High": "#FF4500",
-                "Medium": "#F6C309",
-                "Low": "#00BB00"
-              }
-            },
-            "secAdv_securityImpactRating": {
-              "title": "Security Advisory Severity",
-              "type": "TEXT",
-              "htmlTemplateForRow": "{% raw %}<span class='badge' style='background-color: {{ row.secAdv_impact_rating_color }}' > {{ row.secAdv_securityImpactRating }} </span>{% endraw %}",
-              "visible": true
-            },
-            "CveId": {
-              "title": "CVE IDs",
+            "message": {
+              "title": "Change Description",
               "type": "TEXT"
             },
-            "item_type": {
-              "title": "Equipment Type",
-              "type": "TEXT",
-              "key": true,
-              "visible": true
+            "severity": {
+              "title": "Severity",
+              "htmlTemplateForRow": "<span class='badge' style='background-color: {{'{{ row.severity_color }}'}}' > {{'{{ row.severity }}'}} </span>",
+              "defaultWidth": 150
             },
-            "product_id": {
-              "title": "Product ID",
-              "type": "TEXT",
-              "key": true,
-              "visible": true
-            },
-            "sw_os_type": {
-              "title": "SW OS Type",
-              "type": "TEXT",
-              "key": true,
-              "visible": true
-            },
-            "sw_version": {
-              "title": "SW Version",
-              "type": "TEXT",
-              "key": true,
-              "visible": true
-            },
-            "combination_count_sum": {
-              "title": "Total Qty",
-              "type": "TEXT",
-              "key": true,
-              "visible": true
+            "severity_color": {
+              "title": "Sev_2",
+              "type": "COLOR-MAP",
+              "source-column": "severity",
+              "color-map": {
+                "HIGH": "#E53935",
+                "MEDIUM": "#F57C00",
+                "LOW": "#FFA726"
+              }
             }
           },
-          "widget_id": "79c76f48"
+          "widget_id": "31e2f2ed"
+        },
+        {
+          "widget_type": "pie_chart",
+          "title": "Alerts by Severity",
+          "stream": "oia-alerts-stream",
+          "ts_column": "a_created_ts",
+          "min_width": 3,
+          "height": 4,
+          "max_width": 3,
+          "column": "a_id",
+          "agg": "value_count",
+          "group_by": [
+            "a_severity"
+          ],
+          "type": "str",
+          "style": {
+            "color-map": {
+              "SEVERE": [
+                "#B71C1C",
+                "#ffffff"
+              ],
+              "CRITICAL": [
+                "#E53935",
+                "#ffffff"
+              ],
+              "MAJOR": [
+                "#F57C00",
+                "#ffffff"
+              ],
+              "MINOR": [
+                "#FFA726",
+                "#ffffff"
+              ],
+              "WARNING": [
+                "#FFD54F",
+                "#ffffff"
+              ],
+              "NOTIFICATION": [
+                "#4DD0E1",
+                "#ffffff"
+              ],
+              "INFORMATION": [
+                "#03A9F4",
+                "#ffffff"
+              ]
+            }
+          },
+          "widget_id": "cb0706e6"
+        },
+        {
+          "title": "Alert Trend",
+          "widget_type": "timeseries",
+          "stream": "oia-alerts-stream",
+          "ts_column": "a_created_ts",
+          "max_width": 9,
+          "height": 4,
+          "min_width": 9,
+          "synchronized-group": 0,
+          "fixTimeWindow": true,
+          "chartProperties": {
+            "yAxisLabel": "Count",
+            "xAxisLabel": "Time",
+            "legendLocation": "top",
+            "mode": "zoom"
+          },
+          "interval": "1H",
+          "group_by": [
+            "a_severity"
+          ],
+          "series_spec": [
+            {
+              "column": "a_id",
+              "agg": "value_count",
+              "type": "int"
+            }
+          ],
+          "style": {
+            "color-map": {
+              "SEVERE": [
+                "#B71C1C",
+                "#ffffff"
+              ],
+              "CRITICAL": [
+                "#E53935",
+                "#ffffff"
+              ],
+              "MAJOR": [
+                "#F57C00",
+                "#ffffff"
+              ],
+              "MINOR": [
+                "#FFA726",
+                "#ffffff"
+              ],
+              "WARNING": [
+                "#FFD54F",
+                "#ffffff"
+              ],
+              "NOTIFICATION": [
+                "#4DD0E1",
+                "#ffffff"
+              ],
+              "INFORMATION": [
+                "#03A9F4",
+                "#ffffff"
+              ]
+            }
+          },
+          "widget_id": "c29bb686"
+        },
+        {
+          "widget_type": "pie_chart",
+          "title": "Incidents By Priority",
+          "stream": "oia-incidents-stream",
+          "ts_column": "i_created_ts",
+          "min_width": 3,
+          "height": 4,
+          "max_width": 3,
+          "column": "incident_id",
+          "agg": "value_count",
+          "group_by": [
+            "i_priority_label"
+          ],
+          "style": {
+            "color-map": {
+              "Critical": [
+                "#B71C1C",
+                "#ffffff"
+              ],
+              "High": [
+                "#FFA726",
+                "#ffffff"
+              ],
+              "Moderate": [
+                "#90CAF9",
+                "#ffffff"
+              ],
+              "Low": [
+                "#4DD0E1",
+                "#ffffff"
+              ],
+              "Planning": [
+                "#4FC3F7",
+                "#ffffff"
+              ]
+            }
+          },
+          "type": "str",
+          "widget_id": "18b584c9"
+        },
+        {
+          "title": "Incident Trend",
+          "widget_type": "timeseries",
+          "stream": "oia-incidents-stream",
+          "ts_column": "i_created_ts",
+          "max_width": 9,
+          "height": 4,
+          "min_width": 9,
+          "synchronized-group": 0,
+          "fixTimeWindow": true,
+          "chartProperties": {
+            "yAxisLabel": "Count",
+            "xAxisLabel": "Time",
+            "legendLocation": "top",
+            "mode": "zoom"
+          },
+          "interval": "1H",
+          "group_by": [
+            "i_priority_label"
+          ],
+          "series_spec": [
+            {
+              "column": "incident_id",
+              "agg": "value_count",
+              "type": "int"
+            }
+          ],
+          "style": {
+            "color-map": {
+              "Critical": [
+                "#B71C1C",
+                "#ffffff"
+              ],
+              "High": [
+                "#FFA726",
+                "#ffffff"
+              ],
+              "Moderate": [
+                "#FFD54F",
+                "#ffffff"
+              ],
+              "Low": [
+                "#90CAF9",
+                "#ffffff"
+              ],
+              "Planning": [
+                "#4FC3F7",
+                "#ffffff"
+              ]
+            }
+          },
+          "widget_id": "6b5b9615"
+        },
+        {
+          "widget_type": "pie_chart",
+          "title": "Syslogs By Severity",
+          "ts_column": "rda_gw_timestamp",
+          "stream": "syslog_udp_event_stream_all",
+          "min_width": 3,
+          "height": 4,
+          "max_width": 3,
+          "duration_hours": 100000,
+          "column": "count_",
+          "agg": "sum",
+          "group_by": [
+            "syslog_severity"
+          ],
+          "type": "int",
+          "style": {
+            "color-map": {
+              "SEVERE": [
+                "#B71C1C",
+                "#ffffff"
+              ],
+              "CRITICAL": [
+                "#E53935",
+                "#ffffff"
+              ],
+              "MAJOR": [
+                "#F57C00",
+                "#ffffff"
+              ],
+              "MINOR": [
+                "#FFA726",
+                "#ffffff"
+              ],
+              "WARNING": [
+                "#FFD54F",
+                "#ffffff"
+              ]
+            }
+          },
+          "widget_id": "ed85e796"
+        },
+        {
+          "title": "Syslogs",
+          "widget_type": "timeseries",
+          "max_width": 9,
+          "height": 4,
+          "min_width": 9,
+          "synchronized-group": 0,
+          "duration_hours": 100000,
+          "ts_column": "rda_gw_timestamp",
+          "show-markers": true,
+          "fixTimeWindow": true,
+          "stream": "syslog_udp_event_stream_all",
+          "group_by": [
+            "syslog_severity"
+          ],
+          "style": {
+            "color-map": {
+              "SEVERE": [
+                "#B71C1C",
+                "#ffffff"
+              ],
+              "CRITICAL": [
+                "#E53935",
+                "#ffffff"
+              ],
+              "MAJOR": [
+                "#F57C00",
+                "#ffffff"
+              ],
+              "MINOR": [
+                "#FFA726",
+                "#ffffff"
+              ],
+              "WARNING": [
+                "#FFD54F",
+                "#ffffff"
+              ]
+            }
+          },
+          "chartProperties": {
+            "xAxisLabel": "Timestamp",
+            "yAxisLabel": "Count",
+            "legendLocation": "top",
+            "xAxisTickOrientation": "STAGGERED",
+            "mode": "zoom",
+            "options": {
+              "elements": {
+                "line": {
+                  "borderWidth": 1
+                },
+                "point": {
+                  "radius": 2,
+                  "hitRadius": 3,
+                  "hoverRadius": 3
+                }
+              }
+            }
+          },
+          "series_spec": [
+            {
+              "column": "count_",
+              "agg": "sum",
+              "type": "int"
+            }
+          ],
+          "widget_id": "7ee88e42"
+        },
+        {
+          "title": "Syslogs",
+          "widget_type": "tabular",
+          "stream": "syslog_udp_event_stream_all",
+          "min_width": 12,
+          "height": 6,
+          "max_width": 12,
+          "ts_column": "rda_gw_timestamp",
+          "resizableColumns": true,
+          "duration_hours": 100000,
+          "remote_searchable": true,
+          "remote_searchable_cols": [
+            "message"
+          ],
+          "columns": {
+            "rda_gw_timestamp": {
+              "title": "Event Time",
+              "type": "DATETIME",
+              "key": true
+            },
+            "rda_gw_client_ip": "IP Address",
+            "hostname": "Host",
+            "message": "Message"
+          },
+          "actions": [
+            {
+              "appName": "user-dashboard/oia-logs-war-room-app",
+              "permission": "oia:alert:view",
+              "identifier": "GoToWarRoom",
+              "selectionType": "SINGLE",
+              "stateName": "app.featureapp",
+              "title": "Go to War Room",
+              "type": "GO_TO_APP_STATE"
+            }
+          ],
+          "widget_id": "3d7466a3"
         }
       ]
     }
   ],
   "pstream_dashboards": [
     {
-      "title": "Security Advisories Details",
+      "title": "Application",
       "show_filter": true,
       "widgets": [
         {
-          "widget_type": "label",
-          "label": "<div style='text-align:center;width:100%;'><h2><a style='text-decoration:none;color:#0066ff;' target='_blank'>{{Bulletin_Title}} </a></h2></div>",
-          "min_width": 12,
-          "height": 0.3,
-          "max_width": 12,
-          "widget_id": "dd3ae8ae"
-        },
-        {
-          "widget_type": "label",
-          "max_width": 6,
+          "title": "Transaction Failure Alerts",
+          "widget_type": "counter",
+          "min_width": 2.4,
+          "max_width": 2.4,
           "height": 4,
-          "min_width": 6,
-          "label": "<div style='text-align:center;width:100%;'><br><br><br><br><p>PSirtID<br><b><a style='text-decoration:none;color:#90CAF9;font-size:35px' target='_blank'>{{PsirtID}}</a></p></div>",
-          "widget_id": "b0186542"
-        },
-        {
-          "title": "Total Device Count",
-          "widget_type": "custom_counter",
-          "max_width": 6,
-          "height": 4,
-          "min_width": 6,
-          "stream": "edc_sec_adv_data_enriched",
-          "ts_column": "timestamp",
-          "column": "combination_count_sum",
-          "style": {
-            "color-list": [
-              "#90CAF9"
-            ]
+          "stream": "oia-alerts-stream",
+          "ts_column": "a_created_ts",
+          "extra_filter": "a_message contains 'Transaction Failure'",
+          "sparkline": {
+            "interval": "1h"
           },
+          "column": "count_",
           "agg": "sum",
           "type": "int",
-          "widget_id": "de97a4e2"
+          "widget_id": "42b0d069"
         },
         {
-          "title": "Security Advisories Details",
-          "widget_type": "tabular",
+          "title": "Slow Query Alerts",
+          "widget_type": "counter",
+          "min_width": 2.4,
+          "max_width": 2.4,
+          "height": 4,
+          "stream": "oia-alerts-stream",
+          "ts_column": "a_created_ts",
+          "extra_filter": "a_message contains 'Slow'",
+          "sparkline": {
+            "interval": "1h"
+          },
+          "column": "count_",
+          "agg": "sum",
+          "type": "int",
+          "widget_id": "a175fbc0"
+        },
+        {
+          "title": "Slow Response Alerts",
+          "widget_type": "counter",
+          "min_width": 2.4,
+          "max_width": 2.4,
+          "height": 4,
+          "stream": "oia-alerts-stream",
+          "ts_column": "a_created_ts",
+          "extra_filter": "a_message contains 'Response'",
+          "sparkline": {
+            "interval": "1h"
+          },
+          "column": "count_",
+          "agg": "sum",
+          "type": "int",
+          "widget_id": "066e3d3e"
+        },
+        {
+          "title": "Patch Changes",
+          "widget_type": "counter",
+          "min_width": 2.4,
+          "max_width": 2.4,
+          "height": 4,
+          "stream": "change_requests_stream",
+          "ts_column": "timestamp",
+          "extra_filter": "message contains 'patch'",
+          "sparkline": {
+            "interval": "1h"
+          },
+          "column": "count_",
+          "agg": "sum",
+          "type": "int",
+          "widget_id": "fa2467c7"
+        },
+        {
+          "title": "Change Requests",
+          "widget_type": "counter",
+          "min_width": 2.4,
+          "max_width": 2.4,
+          "height": 4,
+          "stream": "change_requests_stream",
+          "ts_column": "timestamp",
+          "extra_filter0": "message contains 'config'",
+          "sparkline": {
+            "interval": "1h"
+          },
+          "column": "count_",
+          "agg": "sum",
+          "type": "int",
+          "widget_id": "651c0f51"
+        },
+        {
+          "title": "Events Timeline",
+          "widget_type": "timeseries",
+          "stream": "oia-alerts-stream",
+          "ts_column": "a_created_ts",
           "max_width": 12,
-          "height": 6,
+          "height": 8,
           "min_width": 12,
-          "stream": "edc_sec_adv_data_enriched",
-          "duration_hours": 10800000,
+          "fixTimeWindow": true,
+          "synchronized-group": 0,
+          "chartProperties": {
+            "yAxisLabel": "Alert Count",
+            "xAxisLabel": "Time",
+            "legendLocation": "none"
+          },
+          "alert_markers": [
+            {
+              "stream": "change_requests_stream",
+              "ts_column": "timestamp",
+              "type": "circle",
+              "message_column": "message",
+              "severity_column": "severity",
+              "annotation": "C"
+            },
+            {
+              "stream": "oia-alerts-stream",
+              "ts_column": "a_created_ts",
+              "type": "triangle",
+              "message_column": "a_message",
+              "severity_column": "a_severity",
+              "annotation": "!"
+            },
+            {
+              "stream": "oia-ml-metrics-regression-output",
+              "ts_column": "timestamp",
+              "type": "square",
+              "message_column": "marker_message",
+              "extra_filter": "anomalies_severity is 'High' and anomalies_type is 'Upper'",
+              "severity_column": "anomalies_severity",
+              "annotation": "M",
+              "columns": [
+                "asset_id",
+                "metric_id",
+                "metric_label",
+                "asset_name",
+                "metric_source",
+                "timestamp",
+                "job_name",
+                "unit",
+                "stream_name"
+              ],
+              "action": {
+                "appName": "user-dashboard/rca_regression_dashboard",
+                "permission": "ml:ml-jobs:viewSampledata",
+                "identifier": "ViewRegressionDashboard",
+                "selectionType": "SINGLE",
+                "stateName": "app.featureapp",
+                "title": "View Regression Dashboard",
+                "type": "GO_TO_APP_STATE"
+              }
+            },
+            {
+              "stream": "oia-logs-regression-output",
+              "ts_column": "timestamp",
+              "type": "circle",
+              "message_column": "asset_id",
+              "extra_filter": "anomalies_severity is 'High' and anomalies_type is 'Upper'",
+              "severity_column": "anomalies_severity",
+              "annotation": "L",
+              "columns": [
+                "asset_id",
+                "asset_name",
+                "timestamp",
+                "job_name",
+                "stream_name"
+              ],
+              "action": {
+                "appName": "user-dashboard/rca_regression_dashboard",
+                "permission": "ml:ml-jobs:viewSampledata",
+                "identifier": "ViewRegressionDashboard",
+                "selectionType": "SINGLE",
+                "stateName": "app.featureapp",
+                "title": "View Regression Dashboard",
+                "type": "GO_TO_APP_STATE"
+              }
+            }
+          ],
+          "interval": "1min",
+          "series_spec": [
+            {
+              "label": "Alerts",
+              "column": "a_id",
+              "agg": "value_count",
+              "type": "int"
+            }
+          ],
+          "widget_id": "121762cf"
+        },
+        {
+          "title": "Metric Anomalies",
+          "widget_type": "multi_bar_chart",
+          "stream": "oia-ml-metrics-regression-output",
+          "ts_column": "timestamp",
+          "chartProperties": {
+            "yAxisLabel": "Anomalies (%)",
+            "xAxisLabel": "Metric Name",
+            "stacked": false,
+            "legendLocation": "none",
+            "orientation": "vertical"
+          },
+          "group_by": [
+            "asset_id",
+            "metric_label"
+          ],
+          "descending_order": true,
+          "others_spec": {
+            "limit": 4,
+            "show_others": false
+          },
+          "column": "anomalies_percent",
+          "agg": "max",
+          "type": "float",
+          "widget_id": "f4786acb"
+        },
+        {
+          "title": "Change Requests",
+          "widget_type": "tabular",
+          "min_width": 6,
+          "max_width": 6,
+          "height": 5,
+          "timebased": false,
+          "stream": "change_requests_stream",
           "ts_column": "timestamp",
           "columns": {
-            "BulletinURL": {
-              "title": "URL",
-              "type": "TEXT",
-              "visible": false
+            "timestamp": {
+              "title": "Time",
+              "type": "DATETIME"
             },
-            "securityAdvisoryId": {
-              "title": "Security Advisory ID",
-              "type": "TEXT",
-              "htmlTemplateForRow": "{% raw %} <a href=\"{{row.BulletinURL}}\" target='_blank'>{{row.securityAdvisoryId}}</a>{% endraw %}"
-            },
-            "bulletinTitle": {
-              "title": "Title",
-              "visible": false
-            },
-            "secAdv_confidence_color": {
-              "type": "COLOR-MAP",
-              "source-column": "secAdv_matchConfidence",
-              "color-map": {
-                "Not Vulnerable": "#00BB00",
-                "Vulnerable": "#BB0000",
-                "Potentially Vulnerable": "#F6C309"
-              }
-            },
-            "secAdv_matchConfidence": {
-              "title": "Security Advisory Status",
-              "type": "TEXT",
-              "htmlTemplateForRow": "{% raw %} <span class='badge' style='background-color: {{ row.secAdv_confidence_color }}' > {{ row.secAdv_matchConfidence }} </span>{% endraw %}",
-              "visible": true
-            },
-            "secAdv_impact_rating_color": {
-              "type": "COLOR-MAP",
-              "source-column": "secAdv_securityImpactRating",
-              "color-map": {
-                "Critical": "#8B0000",
-                "High": "#FF4500",
-                "Medium": "#F6C309",
-                "Low": "#00BB00"
-              }
-            },
-            "secAdv_securityImpactRating": {
-              "title": "Security Advisory Severity",
-              "type": "TEXT",
-              "htmlTemplateForRow": "{% raw %}<span class='badge' style='background-color: {{ row.secAdv_impact_rating_color }}' > {{ row.secAdv_securityImpactRating }} </span>{% endraw %}",
-              "visible": true
-            },
-            "CveId": {
-              "title": "CVE IDs",
+            "message": {
+              "title": "Change Description",
               "type": "TEXT"
             },
-            "item_type": {
-              "title": "Equipment Type",
-              "type": "TEXT",
-              "key": true,
-              "visible": true
+            "severity": {
+              "title": "Severity",
+              "htmlTemplateForRow": "<span class='badge' style='background-color: {{'{{ row.severity_color }}'}}' > {{'{{ row.severity }}'}} </span>",
+              "defaultWidth": 150
             },
-            "product_id": {
-              "title": "Product ID",
-              "type": "TEXT",
-              "key": true,
-              "visible": true
-            },
-            "sw_os_type": {
-              "title": "SW OS Type",
-              "type": "TEXT",
-              "key": true,
-              "visible": true
-            },
-            "sw_version": {
-              "title": "SW Version",
-              "type": "TEXT",
-              "key": true,
-              "visible": true
-            },
-            "combination_count_sum": {
-              "title": "Total Qty",
-              "type": "TEXT",
-              "key": true,
-              "visible": true
+            "severity_color": {
+              "title": "Sev_2",
+              "type": "COLOR-MAP",
+              "source-column": "severity",
+              "color-map": {
+                "HIGH": "#E53935",
+                "MEDIUM": "#F57C00",
+                "LOW": "#FFA726"
+              }
             }
           },
-          "widget_id": "79c76f48"
+          "widget_id": "31e2f2ed"
+        },
+        {
+          "widget_type": "pie_chart",
+          "title": "Alerts by Severity",
+          "stream": "oia-alerts-stream",
+          "ts_column": "a_created_ts",
+          "min_width": 3,
+          "height": 4,
+          "max_width": 3,
+          "column": "a_id",
+          "agg": "value_count",
+          "group_by": [
+            "a_severity"
+          ],
+          "type": "str",
+          "style": {
+            "color-map": {
+              "SEVERE": [
+                "#B71C1C",
+                "#ffffff"
+              ],
+              "CRITICAL": [
+                "#E53935",
+                "#ffffff"
+              ],
+              "MAJOR": [
+                "#F57C00",
+                "#ffffff"
+              ],
+              "MINOR": [
+                "#FFA726",
+                "#ffffff"
+              ],
+              "WARNING": [
+                "#FFD54F",
+                "#ffffff"
+              ],
+              "NOTIFICATION": [
+                "#4DD0E1",
+                "#ffffff"
+              ],
+              "INFORMATION": [
+                "#03A9F4",
+                "#ffffff"
+              ]
+            }
+          },
+          "widget_id": "cb0706e6"
+        },
+        {
+          "title": "Alert Trend",
+          "widget_type": "timeseries",
+          "stream": "oia-alerts-stream",
+          "ts_column": "a_created_ts",
+          "max_width": 9,
+          "height": 4,
+          "min_width": 9,
+          "synchronized-group": 0,
+          "fixTimeWindow": true,
+          "chartProperties": {
+            "yAxisLabel": "Count",
+            "xAxisLabel": "Time",
+            "legendLocation": "top",
+            "mode": "zoom"
+          },
+          "interval": "1H",
+          "group_by": [
+            "a_severity"
+          ],
+          "series_spec": [
+            {
+              "column": "a_id",
+              "agg": "value_count",
+              "type": "int"
+            }
+          ],
+          "style": {
+            "color-map": {
+              "SEVERE": [
+                "#B71C1C",
+                "#ffffff"
+              ],
+              "CRITICAL": [
+                "#E53935",
+                "#ffffff"
+              ],
+              "MAJOR": [
+                "#F57C00",
+                "#ffffff"
+              ],
+              "MINOR": [
+                "#FFA726",
+                "#ffffff"
+              ],
+              "WARNING": [
+                "#FFD54F",
+                "#ffffff"
+              ],
+              "NOTIFICATION": [
+                "#4DD0E1",
+                "#ffffff"
+              ],
+              "INFORMATION": [
+                "#03A9F4",
+                "#ffffff"
+              ]
+            }
+          },
+          "widget_id": "c29bb686"
+        },
+        {
+          "widget_type": "pie_chart",
+          "title": "Incidents By Priority",
+          "stream": "oia-incidents-stream",
+          "ts_column": "i_created_ts",
+          "min_width": 3,
+          "height": 4,
+          "max_width": 3,
+          "column": "incident_id",
+          "agg": "value_count",
+          "group_by": [
+            "i_priority_label"
+          ],
+          "style": {
+            "color-map": {
+              "Critical": [
+                "#B71C1C",
+                "#ffffff"
+              ],
+              "High": [
+                "#FFA726",
+                "#ffffff"
+              ],
+              "Moderate": [
+                "#90CAF9",
+                "#ffffff"
+              ],
+              "Low": [
+                "#4DD0E1",
+                "#ffffff"
+              ],
+              "Planning": [
+                "#4FC3F7",
+                "#ffffff"
+              ]
+            }
+          },
+          "type": "str",
+          "widget_id": "18b584c9"
+        },
+        {
+          "title": "Incident Trend",
+          "widget_type": "timeseries",
+          "stream": "oia-incidents-stream",
+          "ts_column": "i_created_ts",
+          "max_width": 9,
+          "height": 4,
+          "min_width": 9,
+          "synchronized-group": 0,
+          "fixTimeWindow": true,
+          "chartProperties": {
+            "yAxisLabel": "Count",
+            "xAxisLabel": "Time",
+            "legendLocation": "top",
+            "mode": "zoom"
+          },
+          "interval": "1H",
+          "group_by": [
+            "i_priority_label"
+          ],
+          "series_spec": [
+            {
+              "column": "incident_id",
+              "agg": "value_count",
+              "type": "int"
+            }
+          ],
+          "style": {
+            "color-map": {
+              "Critical": [
+                "#B71C1C",
+                "#ffffff"
+              ],
+              "High": [
+                "#FFA726",
+                "#ffffff"
+              ],
+              "Moderate": [
+                "#FFD54F",
+                "#ffffff"
+              ],
+              "Low": [
+                "#90CAF9",
+                "#ffffff"
+              ],
+              "Planning": [
+                "#4FC3F7",
+                "#ffffff"
+              ]
+            }
+          },
+          "widget_id": "6b5b9615"
+        },
+        {
+          "widget_type": "pie_chart",
+          "title": "Syslogs By Severity",
+          "ts_column": "rda_gw_timestamp",
+          "stream": "syslog_udp_event_stream_all",
+          "min_width": 3,
+          "height": 4,
+          "max_width": 3,
+          "duration_hours": 100000,
+          "column": "count_",
+          "agg": "sum",
+          "group_by": [
+            "syslog_severity"
+          ],
+          "type": "int",
+          "style": {
+            "color-map": {
+              "SEVERE": [
+                "#B71C1C",
+                "#ffffff"
+              ],
+              "CRITICAL": [
+                "#E53935",
+                "#ffffff"
+              ],
+              "MAJOR": [
+                "#F57C00",
+                "#ffffff"
+              ],
+              "MINOR": [
+                "#FFA726",
+                "#ffffff"
+              ],
+              "WARNING": [
+                "#FFD54F",
+                "#ffffff"
+              ]
+            }
+          },
+          "widget_id": "ed85e796"
+        },
+        {
+          "title": "Syslogs",
+          "widget_type": "timeseries",
+          "max_width": 9,
+          "height": 4,
+          "min_width": 9,
+          "synchronized-group": 0,
+          "duration_hours": 100000,
+          "ts_column": "rda_gw_timestamp",
+          "show-markers": true,
+          "fixTimeWindow": true,
+          "stream": "syslog_udp_event_stream_all",
+          "group_by": [
+            "syslog_severity"
+          ],
+          "style": {
+            "color-map": {
+              "SEVERE": [
+                "#B71C1C",
+                "#ffffff"
+              ],
+              "CRITICAL": [
+                "#E53935",
+                "#ffffff"
+              ],
+              "MAJOR": [
+                "#F57C00",
+                "#ffffff"
+              ],
+              "MINOR": [
+                "#FFA726",
+                "#ffffff"
+              ],
+              "WARNING": [
+                "#FFD54F",
+                "#ffffff"
+              ]
+            }
+          },
+          "chartProperties": {
+            "xAxisLabel": "Timestamp",
+            "yAxisLabel": "Count",
+            "legendLocation": "top",
+            "xAxisTickOrientation": "STAGGERED",
+            "mode": "zoom",
+            "options": {
+              "elements": {
+                "line": {
+                  "borderWidth": 1
+                },
+                "point": {
+                  "radius": 2,
+                  "hitRadius": 3,
+                  "hoverRadius": 3
+                }
+              }
+            }
+          },
+          "series_spec": [
+            {
+              "column": "count_",
+              "agg": "sum",
+              "type": "int"
+            }
+          ],
+          "widget_id": "7ee88e42"
+        },
+        {
+          "title": "Syslogs",
+          "widget_type": "tabular",
+          "stream": "syslog_udp_event_stream_all",
+          "min_width": 12,
+          "height": 6,
+          "max_width": 12,
+          "ts_column": "rda_gw_timestamp",
+          "resizableColumns": true,
+          "duration_hours": 100000,
+          "remote_searchable": true,
+          "remote_searchable_cols": [
+            "message"
+          ],
+          "columns": {
+            "rda_gw_timestamp": {
+              "title": "Event Time",
+              "type": "DATETIME",
+              "key": true
+            },
+            "rda_gw_client_ip": "IP Address",
+            "hostname": "Host",
+            "message": "Message"
+          },
+          "actions": [
+            {
+              "appName": "user-dashboard/oia-logs-war-room-app",
+              "permission": "oia:alert:view",
+              "identifier": "GoToWarRoom",
+              "selectionType": "SINGLE",
+              "stateName": "app.featureapp",
+              "title": "Go to War Room",
+              "type": "GO_TO_APP_STATE"
+            }
+          ],
+          "widget_id": "3d7466a3"
         }
       ]
     }
