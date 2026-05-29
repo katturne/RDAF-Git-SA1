@@ -1,13 +1,29 @@
-@c:new-block
- --> @dm:empty
- --> @exec:define-function name="generate_access_token"
- --> @exec:run-pipeline name ="edc_generate_token" & ignore_failures = "no"
- --> @dm:addrow key='key'
- --> @dm:eval current_time_ms="int(time_now_as_ms())"
- --> @dm:eval token_expiry_time='current_time_ms+3000000'
- --> @dm:save name='temp-expiry-time'
- --> @exec:end-function
+@exec:get-input
+ --> @dm:save name='temp-sw-input'
+ --> @dm:save name='cmd_ip'
+ ## --> @dm:replace-data columns="fileUpload" and expr="'" and replace='"'
+
+ ## --> @dm:eval fileUpload = "fileUpload.strip() if fileUpload else fileUpload"
+
+ ## --> @dm:eval orders="eval(fileUpload)"
+
+ --> @dm:eval fileUpload="json_dumps(fileUpload)"
+ --> @dm:explode-json column="fileUpload"
+ --> @dm:eval location="bucketName+'/'+objectName"
+ --> @dm:save name='objesct_path'
+ --> @dm:save name="temp-input-dataset"
  --> @c:new-block
  --> @dm:empty
- --> @exec:call-function name='generate_access_token'
- --> @dm:save name='temp-expiry-time'
+ --> @exec:define-function name="define_child_pipelines"
+ --> @exec:run-pipeline name ="edc_generate_token" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="test_get_sw_xor" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_sweol_enrich" & ignore_failures = "no"
+ --> @exec:end-function
+ --> @c:data-loop dataset="temp-input-dataset" and columns="objectName,location"
+ --> @dm:empty
+ --> @dm:get-from-location path='$location'
+ --> @dm:rename-columns customer='Customer' and sw_version='SW_Version' and sw_os_type='SW_OS_Type' and product_id='Product_ID' and contract_number='Contract_Number'
+ --> @dm:map from = 'contarct_number,customer,product_id' & to = 'ingestion_id' & func = 'join' & sep = '_'
+ --> @rn:write-stream name='edc_cust_pid_sw'
+ --> @dm:save name='added-minio-file'
+ --> @exec:run-pipeline name ="edc_sw_run_scan" & ignore_failures = "no"
