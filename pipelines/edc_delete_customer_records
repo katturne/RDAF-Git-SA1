@@ -1,38 +1,16 @@
-folder: Default
-name: edc_sw_reinvoke_scan
-description: test pipeline
-data_path: pipelines/data/edc_sw_reinvoke_scan/2025_07_07_01/data.json
-usecase: ''
-category: ''
-sources:
-  rn:
-    name: rn
-    type: rn
-artifacts:
-- artifact_type: pipeline
-  artifact_name: edc_generate_token
-  access: read
-- artifact_type: pipeline
-  artifact_name: edc_sw_get_data
-  access: read
-- artifact_type: pipeline
-  artifact_name: edc_sweol_enrich
-  access: read
-- artifact_type: pipeline
-  artifact_name: edc_processing_sw_data
-  access: read
-- artifact_type: dataset
-  artifact_name: added-minio-file
-  access: write
-- artifact_type: pipeline
-  artifact_name: edc_sw_run_scan
-  access: read
-- artifact_type: rda-network-stream
-  artifact_name: edc_sw_raw_data
-  access: write
-- artifact_type: pipeline
-  artifact_name: edc_sweol_enrich
-  access: read
-version: '2025_07_07_01'
-file_type: json
-checksum: 0ba93405
+
+ ## Get row input
+@c:new-block
+ --> @dm:empty
+ --> @exec:get-input
+ ## --> @dm:selectcolumns include='device_hostname|device_identifier|device_controller_id'
+
+ --> @dm:save name='temp-form-data'
+ --> @c:data-loop columns="customer_name" and dataset="temp-form-data"
+ --> @dm:empty
+ --> @dm:addrow name = "edc_oi_inventory_grouped" & conflicts = "proceed" & timeout = 1200
+ --> #dm:pstream-delete-data-by-query customer_name=="$customer_name"
+ --> @c:data-loop columns="customer_name" and dataset="temp-form-data"
+ --> @dm:empty
+ --> @dm:addrow name = "edc_oi_inventory_enriched" & conflicts = "proceed" & timeout = 1200
+ --> #dm:pstream-delete-data-by-query customer_name=="$customer_name"
