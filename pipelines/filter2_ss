@@ -1,6 +1,16 @@
-@dm:empty
- --> @dm:addrow name="edc_customer_inventory"
- --> #dm:query-persistent-stream *
- --> *dm:filter sw_os_type is null and serial_number is not null
- --> @dm:groupby columns="product_name"
- --> @dm:save name="filter2_sss"
+
+ ## Get row input
+@c:new-block
+ --> @dm:empty
+ --> @exec:get-input
+ ## --> @dm:selectcolumns include='device_hostname|device_identifier|device_controller_id'
+
+ --> @dm:save name='temp-form-data'
+ --> @c:data-loop columns="customer_name" and dataset="temp-form-data"
+ --> @dm:empty
+ --> @dm:addrow name = "edc_oi_inventory_grouped" & conflicts = "proceed" & timeout = 1200
+ --> #dm:pstream-delete-data-by-query customer_name=="$customer_name"
+ --> @c:data-loop columns="customer_name" and dataset="temp-form-data"
+ --> @dm:empty
+ --> @dm:addrow name = "edc_oi_inventory_enriched" & conflicts = "proceed" & timeout = 1200
+ --> #dm:pstream-delete-data-by-query customer_name=="$customer_name"
