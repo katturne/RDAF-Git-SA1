@@ -1,11 +1,31 @@
-folder: Default
-name: oia_tools_descriptor
-description: ''
-data_path: draft-pipelines/data/oia_tools_descriptor/2025_12_12_1/data.json
-usecase: ''
-category: null
-sources: []
-artifacts: []
-version: '2025_12_12_1'
-file_type: json
-checksum: feab238c
+
+ ## Updated by Bernie Wynia, Cisco Systems 2025 for AUTOX-422
+@c:new-block
+ --> @dm:recall name="alert_endpoint_details" & cache_refresh_seconds = 120
+ --> @dm:manipulate-string from = "alertEndpointName" and func = "strip" and to = "alertEndpointName"
+ --> *dm:filter alertEndpointName is 'Syslog' and webhookURL is not Empty
+ --> @dm:save name = "temp-syslog-webhook-url-details"
+ --> @c:new-block
+ ## --> @dm:empty
+
+ ## --> @rn:read-stream name = 'syslog_udp_event_stream' & group = 'syslog_udp_event_stream_group'
+
+ --> @dm:query-persistent-stream-from-bookmark name = "syslog_udp_event_stream" & bookmark = "syslog_event_stream_bkmrk"
+ --> @dm:enrich dict = "temp-syslog-webhook-url-details" & src_key_cols = "customerTag,projectId" & dict_key_cols="customerTag,projectId" & enrich_cols = "webhookURL" & cache_refresh_seconds = 120
+ --> @dm:eval raw = "raw.strip()"
+ --> @dm:extract columns = 'raw' & expr = "(?P<fault_code>[a-z]+\s[0-9]+\s[a-z]+)"
+ --> @dm:add-missing-columns columns = 'fault_code'
+ --> @dm:grok column = "raw" &
+pattern = "%{SYSLOGTIMESTAMP:syslog_timestamp}\s%{HOSTNAME:device}\s%{WORD:process_name}:\s\[%{DATA:local_timestamp}\]\s\[%{DATA:fault_code}\]\s\[%{DATA:event_module}\]\s\[%{DATA:event_reason}\]\s%{GREEDYDATA:message}|%{SYSLOGTIMESTAMP:syslog_timestamp}\s%{HOSTNAME:device}\s%{WORD:process_name}:\s\[%{DATA:local_timestamp}\]\s%{HOSTNAME:device1}\s\[%{DATA:fault_code}\]\s\[%{DATA:event_module}\]\s\[%{DATA:event_reason}\]\s%{DATA:cpu_info}:\s%{SYSLOGTIMESTAMP:timestamp2}\s%{WORD:cli}:\s%{HOSTNAME:device2}:\s%{GREEDYDATA:message}|\<%{DATA:facility}\>%{SYSLOGTIMESTAMP:syslog_timestamp}\s%{HOSTNAME:device}\s%{WORD:process_name}:\s\[%{DATA:local_timestamp}\]\s%{HOSTNAME:device}\s\[%{DATA:fault_code}\]\s\[%{DATA:event_module}\]\s\[%{DATA:event_reason}\]\s%{GREEDYDATA:message}"
+ --> @dm:selectcolumns exclude = 'device1|device2|timestamp2|cli|device_NEW'
+ --> @dm:enrich dict = "device_mapping" & src_key_cols="rda_gw_client_ip" & dict_key_cols = "ip_address" & enrich_cols = "zone,network_type,CLLI_code,city,region,network_code,image,device" & replace_values = "yes" & cache_refresh_seconds = "60"
+ --> @dm:enrich-using-rule-dict dict = "mobility_syslog_alert_rules_dict" & enrich_columns = "action,reason,state,severity"
+ --> *dm:filter action is 'KEEP'
+ --> @rn:write-stream name = 'syslog_enriched_events'
+ --> *exec:if-condition fault_code is not Empty
+ --> @dm:to-json exclude_columns = "RDA_Id|count" & output_column = "syslog_payload"
+ --> @dm:to-json output_column = 'syslog_payload'
+ --> @restclient:write url = '{{row.webhookURL}}' & envelope is "{{'{{syslog_payload}}'}}" & batch_size = 1
+ ## --> @restclient:write url  = 'https://10.122.127.176:443/webhooks/hookid/080056e0-59fc-4cae-b551-39827dd3e68d' & envelope is "{{'{{syslog_payload}}'}}" & batch_size = 1
+
+ --> @exec:end-if
