@@ -1,134 +1,236 @@
 {
-  "name": "customer_discovery_runs_details_duplicates",
-  "label": "Duplicates",
-  "description": "onboarded_devices: Insights",
-  "dashboard_folder": "NetworkDevicePack",
-  "version": "1.0.4",
-  "enabled": false,
-  "live_edi0t": true,
+  "name": "incident-details-topology",
+  "label": "Dynamic Incident Topology",
+  "description": "Dynamic Incident Topology",
+  "dashboard_style": "auto",
   "dashboard_type": "template",
+  "version": "22.10.7.1",
+  "enabled": false,
+  "exportable": false,
   "template_variables": {
-    "CUST_ID": {
-      "contextId": "customerId"
-    },
-    "PROJ_ID": {
+    "ROOM_ID": {
+      "default": "",
       "contextId": "project_id"
     },
-    "PROJ_ID_SINGLE": {
-      "contextId": "project_id"
+    "INCIDENT_ID": {
+      "default": "",
+      "contextId": "incident_id"
     },
-    "CUST_TAG": {
-      "contextId": "customerTag"
+    "A_INCIDENT_ID": {
+      "default": "",
+      "contextId": "a_incident_id"
     },
-    "JOB_ID": {
-      "contextId": "jobid"
+    "STACK_NAME": {
+      "default": "",
+      "contextId": "attrs_stack_name"
+    },
+    "MY_TEMPLATE": {
+      "default": "<details><summary><b>{{row.a_alert_type}}</b></summary><div class='v-data-table v-data-table--dense theme--light'><div class='v-data-table__wrapper'><table style='width: 300px;'><tbody><tr><td>Source</td><td>{{row.a_source_systemname}}</td></tr><tr><td>Message</td><td>{{row.a_message}}</td></tr><tr><td>Assett IP</td><td>{{row.a_asset_ip_address}}</td></tr><tr><td>Alert Status</td><td>{{row.a_status}}</td></tr></tbody></table></div></div></details>",
+      "contextId": "MY_TEMPLATE"
     }
   },
   "dashboard_filters": {
-    "time_filter": true,
-    "extra_filter0": "source contains 'Run Details' and ingestion_id is '{{FILENAME}}' and (customer_tag is '{{CUST_TAG}}' or customer_tag is empty)",
-    "default_time_filter_labels0": [
-      "Last 1 month"
-    ],
-    "columns_filter": [
-      {
-        "id": "timestamp",
-        "label": "Timestamp",
-        "type": "DATETIME"
-      }
-    ],
-    "group_filters": []
+    "time_filter": false,
+    "columns_filter": []
   },
   "dashboard_sections": [
     {
-      "title": "Onboarded Devices",
-      "show_filter": true,
+      "title": "Topology",
+      "show_filter": false,
       "widgets": [
         {
-          "title": "Discovery Details",
-          "widget_type": "tabular",
-          "stream": "asset_inventory_collection_status_stream",
-          "extra_filter": "(jobname contains '{{CUST_TAG}}' or jobname does not contains '{{CUST_TAG}}') and collection_status is 'Success' and target_type is 'DEVICE' and type_ is 'device_status' and jobid is '{{JOB_ID}}' and is_duplicate is 'true'",
-          "duration_hours": 1080,
-          "height": 4,
-          "max_width": 12,
-          "min_width": 12,
-          "columns": {
-            "asset_ip": "IP Address",
-            "collection_status": {
-              "title": "Collection Status",
-              "type": "DATETIME",
-              "visible": true
-            },
-            "collection_timestamp": {
-              "title": "Collection Timestamp",
-              "type": "DATETIME",
-              "visible": true
-            },
-            "jobname": {
-              "title": "Jobname",
-              "type": "TEXT",
-              "hidden": true
-            },
-            "jobid": {
-              "title": "Job Id",
-              "type": "TEXT",
-              "hidden": true
-            },
-            "is_duplicate": {
-              "title": "Duplicates",
-              "type": "TEXT",
-              "hidden": true
+          "widget_type": "topology",
+          "title": "Topology",
+          "register_search_endpoints": true,
+          "impact_action_details": {
+            "impact_distance": 5,
+            "impact_conditional_field": "alert_count"
+          },
+          "chartProperties": {
+            "hasToolbar": true,
+            "shortToolbar": true,
+            "userZoomingEnabled": false
+          },
+          "stack_type": "OIA",
+          "auto_group": false,
+          "oia_details": {
+            "oia_stream": "oia-incidents-stream",
+            "query": "timestamp later than -12 months",
+            "oia_id_attribute": "incident_id",
+            "node_id_attribute": "attrs_node_id",
+            "stack_name_attribute": "attrs_stack_name",
+            "stack_type": "OIA",
+            "stack": "{{STACK_NAME}}",
+            "alert_source": {
+              "stream": "oia-alerts-stream",
+              "group_by": [
+                "a_en_node_id",
+                "a_severity",
+                "a_status"
+              ],
+              "incident_id_attr": "a_incident_id",
+              "context_incident_id_attr": "incidentid",
+              "extra_filter": "a_source_systemname is not 'Alert Group' ",
+              "ts_column": "timestamp",
+              "duration_hours": 9000,
+              "agg": "value_count",
+              "column": "count_",
+              "type": "int"
             }
           },
-          "widget_id": "b2c8d81c"
+          "max_width": 12,
+          "min_width": 7,
+          "height": 12,
+          "widget_id": "0ff73e14"
+        },
+        {
+          "title": "Alerts",
+          "widget_type": "tabular",
+          "max_width": 12,
+          "height": 12,
+          "min_width": 5,
+          "sorting": [
+            {
+              "a_raised_ts": "desc"
+            }
+          ],
+          "stream": "oia-alerts-stream",
+          "extra_filter": "((a_incident_id is '{{INCIDENT_ID}}') or (a_incident_id is '{{A_INCIDENT_ID}}')) and a_source_systemname is not 'Alert Group' ",
+          "query": "*",
+          "duration_hours": 2160,
+          "columns": {
+            "a_alert_type": {
+              "title": "Alert Type",
+              "type": "GROUPED",
+              "group": {
+                "a_source_systemname": "Source",
+                "a_message": "Message",
+                "a_asset_ip_address": "Asset IP Address",
+                "a_status": "Status",
+                "a_asset_name": "Asset Name"
+              },
+              "color-column": "state_color"
+            },
+            "state_color": {
+              "type": "COLOR-MAP",
+              "source-column": "a_status",
+              "color-map": {
+                "ACTIVE": "#dd0000",
+                "CLEAR": "#00dd00",
+                "CLEARED": "#00dd00"
+              }
+            },
+            "a_raised_ts": {
+              "title": "Raised At",
+              "type": "DATETIME"
+            },
+            "a_severity": "Severity"
+          },
+          "severity_columns": [
+            "a_severity"
+          ],
+          "widget_id": "dc7103e1"
         }
       ]
     }
   ],
   "pstream_dashboards": [
     {
-      "title": "Onboarded Devices",
-      "show_filter": true,
+      "title": "Topology",
+      "show_filter": false,
       "widgets": [
         {
-          "title": "Discovery Details",
-          "widget_type": "tabular",
-          "stream": "asset_inventory_collection_status_stream",
-          "extra_filter": "(jobname contains '{{CUST_TAG}}' or jobname does not contains '{{CUST_TAG}}') and collection_status is 'Success' and target_type is 'DEVICE' and type_ is 'device_status' and jobid is '{{JOB_ID}}' and is_duplicate is 'true'",
-          "duration_hours": 1080,
-          "height": 4,
-          "max_width": 12,
-          "min_width": 12,
-          "columns": {
-            "asset_ip": "IP Address",
-            "collection_status": {
-              "title": "Collection Status",
-              "type": "DATETIME",
-              "visible": true
-            },
-            "collection_timestamp": {
-              "title": "Collection Timestamp",
-              "type": "DATETIME",
-              "visible": true
-            },
-            "jobname": {
-              "title": "Jobname",
-              "type": "TEXT",
-              "hidden": true
-            },
-            "jobid": {
-              "title": "Job Id",
-              "type": "TEXT",
-              "hidden": true
-            },
-            "is_duplicate": {
-              "title": "Duplicates",
-              "type": "TEXT",
-              "hidden": true
+          "widget_type": "topology",
+          "title": "Topology",
+          "register_search_endpoints": true,
+          "impact_action_details": {
+            "impact_distance": 5,
+            "impact_conditional_field": "alert_count"
+          },
+          "chartProperties": {
+            "hasToolbar": true,
+            "shortToolbar": true,
+            "userZoomingEnabled": false
+          },
+          "stack_type": "OIA",
+          "auto_group": false,
+          "oia_details": {
+            "oia_stream": "oia-incidents-stream",
+            "query": "timestamp later than -12 months",
+            "oia_id_attribute": "incident_id",
+            "node_id_attribute": "attrs_node_id",
+            "stack_name_attribute": "attrs_stack_name",
+            "stack_type": "OIA",
+            "stack": "{{STACK_NAME}}",
+            "alert_source": {
+              "stream": "oia-alerts-stream",
+              "group_by": [
+                "a_en_node_id",
+                "a_severity",
+                "a_status"
+              ],
+              "incident_id_attr": "a_incident_id",
+              "context_incident_id_attr": "incidentid",
+              "extra_filter": "a_source_systemname is not 'Alert Group' ",
+              "ts_column": "timestamp",
+              "duration_hours": 9000,
+              "agg": "value_count",
+              "column": "count_",
+              "type": "int"
             }
           },
-          "widget_id": "b2c8d81c"
+          "max_width": 12,
+          "min_width": 7,
+          "height": 12,
+          "widget_id": "0ff73e14"
+        },
+        {
+          "title": "Alerts",
+          "widget_type": "tabular",
+          "max_width": 12,
+          "height": 12,
+          "min_width": 5,
+          "sorting": [
+            {
+              "a_raised_ts": "desc"
+            }
+          ],
+          "stream": "oia-alerts-stream",
+          "extra_filter": "((a_incident_id is '{{INCIDENT_ID}}') or (a_incident_id is '{{A_INCIDENT_ID}}')) and a_source_systemname is not 'Alert Group' ",
+          "query": "*",
+          "duration_hours": 2160,
+          "columns": {
+            "a_alert_type": {
+              "title": "Alert Type",
+              "type": "GROUPED",
+              "group": {
+                "a_source_systemname": "Source",
+                "a_message": "Message",
+                "a_asset_ip_address": "Asset IP Address",
+                "a_status": "Status",
+                "a_asset_name": "Asset Name"
+              },
+              "color-column": "state_color"
+            },
+            "state_color": {
+              "type": "COLOR-MAP",
+              "source-column": "a_status",
+              "color-map": {
+                "ACTIVE": "#dd0000",
+                "CLEAR": "#00dd00",
+                "CLEARED": "#00dd00"
+              }
+            },
+            "a_raised_ts": {
+              "title": "Raised At",
+              "type": "DATETIME"
+            },
+            "a_severity": "Severity"
+          },
+          "severity_columns": [
+            "a_severity"
+          ],
+          "widget_id": "dc7103e1"
         }
       ]
     }
