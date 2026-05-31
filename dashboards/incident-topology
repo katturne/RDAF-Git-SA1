@@ -1,216 +1,274 @@
 {
-  "name": "incident-topology",
-  "label": "Incident Topology",
-  "description": "Incident Topology",
+  "name": "alert-details-v2",
+  "label": "Alert Details V2",
+  "description": "OIA Alert Details",
+  "version": "23.2.13",
+  "enabled": true,
+  "exportable": false,
   "dashboard_style": "auto",
-  "version": "22.8.20.1",
-  "enabled": false,
   "dashboard_type": "template",
   "template_variables": {
-    "STACK_NAME": {
-      "default": "Online_Banking_Stack",
-      "contextId": "stack_name"
+    "PROJECT_ID": {
+      "default": null,
+      "contextId": "projectid"
     },
     "INCIDENT_ID": {
-      "default": "CFX20220922543515",
-      "contextId": "incident_id"
+      "default": null,
+      "contextId": "incidentid"
     },
-    "MY_TEMPLATE": {
-      "default": "<details><summary><b>{{row.alerttype}}</b></summary><div class='v-data-table v-data-table--dense theme--light'><div class='v-data-table__wrapper'><table style='width: 300px;'><tbody><tr><td>Source</td><td>{{row.sourcesystemname}}</td></tr><tr><td>Asset ID</td><td>{{row.assetid}}</td></tr><tr><td>Message</td><td>{{row.message}}</td></tr><tr><td>Assett IP</td><td>{{row.assetipaddress}}</td></tr><tr><td>Alert Status</td><td>{{row.sourcestatus}}</td></tr></tbody></table></div></div></details>",
-      "contextId": "MY_TEMPLATE"
+    "SOURCE_DASHBOARD_ID": {
+      "default": "user-dashboard-incident-details-alerts",
+      "contextId": "sourceDashboardId"
     }
   },
   "custom_context": {
     "alert-context": true
   },
   "dashboard_filters": {
-    "time_filter": true,
-    "columns_filter": []
+    "time_filter": false,
+    "default_time_filter_non_removable": false,
+    "show_default_time_filter": false
   },
+  "import": [
+    {
+      "from": "oia-alerts-os",
+      "as": "alerts"
+    }
+  ],
   "dashboard_sections": [
     {
-      "title": "Topology",
-      "show_filter": true,
+      "title": "Alert Payload",
+      "show_filter": false,
       "widgets": [
         {
-          "widget_type": "incident_kb_article",
-          "stream": "oia-incidents-stream",
-          "incidentid": "{{INCIDENT_ID}}",
+          "title": "Alert Payload",
+          "widget_type": "summary",
           "min_width": 12,
-          "height": 2,
-          "widget_id": "847e51a0"
-        },
-        {
-          "widget_type": "topology",
-          "title": "Topology",
-          "chartProperties": {
-            "hasToolbar": true,
-            "shortToolbar": true,
-            "userZoomingEnabled": false
+          "height": 10,
+          "refreshRequired": false,
+          "timebased": false,
+          "api-endpoint": {
+            "service-name": "alert-processor",
+            "namespace": "io.cfx.dimensions.app",
+            "version": "*",
+            "methodName": "invokeAppApi:viewAlertData",
+            "stringified-params": true,
+            "parse-output": false,
+            "params": [
+              {}
+            ]
           },
-          "stack": "Online_Banking_Stack",
-          "max_width": 12,
-          "min_width": 7,
-          "height": 12,
-          "alert_source": {
-            "stream": "oia-alerts-stream",
-            "group_by": [
-              "a_asset_id",
-              "a_severity_label",
-              "a_source_status"
-            ],
-            "extra_filter": "incidentid is '{{INCIDENT_ID}}' ",
-            "ts_column": "timestamp",
-            "duration_hours": 1440,
-            "agg": "value_count",
-            "column": "_id",
-            "type": "int"
-          },
-          "widget_id": "9db5a36f"
-        },
+          "widget_id": "alert_payload"
+        }
+      ]
+    },
+    {
+      "title": "Enrichments",
+      "show_filter": true,
+      "projects": [
+        "ACME"
+      ],
+      "widgets": [
         {
-          "title": "Alerts",
-          "widget_type": "tabular",
-          "max_width": 12,
-          "height": 12,
-          "min_width": 5,
-          "sorting": [
-            {
-              "a_raised_ts": "desc"
-            }
-          ],
-          "stream": "oia-alerts-stream",
-          "extra_filter": "incident_id is '{{INCIDENT_ID}}' and a_source_system_name is not 'Alert Group' ",
-          "query": "*",
-          "duration_hours": 24,
-          "columns": {
-            "alerttype": {
-              "title": "Alert Type",
-              "type": "GROUPED",
-              "group": {
-                "a_source_system_name": "Source",
-                "a_asset_id": "Asset Id",
-                "a_message": "Message",
-                "a_asset_ip_address": "Asset IP Address",
-                "a_source_status": "Status",
-                "a_asset_name": "Asset Name",
-                "a_asset_type": "Asset Type"
-              },
-              "color-column": "state_color"
-            },
-            "state_color": {
-              "type": "COLOR-MAP",
-              "source-column": "sourcestatus",
-              "color-map": {
-                "ACTIVE": "#dd0000",
-                "CLEAR": "#00dd00",
-                "CLEARED": "#00dd00"
+          "title": "Enrichments",
+          "widget_type": "summary",
+          "min_width": 12,
+          "height": 10,
+          "refreshRequired": false,
+          "timebased": false,
+          "api-endpoint": {
+            "service-name": "alert-processor",
+            "namespace": "io.cfx.dimensions.app",
+            "version": "*",
+            "methodName": "invokeAppApi:getAlertAttributes",
+            "stringified-params": true,
+            "parse-output": false,
+            "params": [
+              {}
+            ]
+          },
+          "widget_id": "ede761bf"
+        }
+      ]
+    },
+    {
+      "title": "Key Alert Attributes",
+      "show_filter": true,
+      "projects": [
+        "ACME"
+      ],
+      "widgets": [
+        {
+          "title": "Key Alert Attributes",
+          "widget_type": "summary",
+          "min_width": 12,
+          "height": 10,
+          "refreshRequired": false,
+          "timebased": false,
+          "api-endpoint": {
+            "service-name": "alert-processor",
+            "namespace": "io.cfx.dimensions.app",
+            "version": "*",
+            "methodName": "invokeAppApi:getAlertModel",
+            "stringified-params": true,
+            "parse-output": false,
+            "params": [
+              {}
+            ]
+          },
+          "widget_id": "aa914a77"
+        }
+      ]
+    },
+    {
+      "title": "Alert Mapping",
+      "show_filter": false,
+      "widgets": [
+        {
+          "widget_type": "codeblock",
+          "title": "Alert Mapping",
+          "min_width": 12,
+          "height": 10,
+          "lang": "json",
+          "contextParamList": {
+            "contextParams": [
+              {
+                "paramKey": "a_en_mapper_id",
+                "paramId": "mappingid"
               }
-            },
-            "a_raised_ts": {
-              "title": "Raised At",
-              "type": "DATETIME"
-            },
-            "a_severity_label": "Severity"
+            ]
           },
-          "severity_columns": [
-            "a_severity_label"
-          ],
-          "widget_id": "a7f6e486"
+          "api-endpoint": {
+            "service-name": "configuration-service",
+            "namespace": "io.cfx.dimensions.app",
+            "version": "*",
+            "methodName": "invokeAppApi:getMappingScriptForMappingId",
+            "stringified-params": true,
+            "parse-output": false,
+            "params": [
+              {}
+            ]
+          },
+          "widget_id": "bf9ed9bd"
         }
       ]
     }
   ],
   "pstream_dashboards": [
     {
-      "title": "Topology",
-      "show_filter": true,
+      "title": "Alert Payload",
+      "show_filter": false,
       "widgets": [
         {
-          "widget_type": "incident_kb_article",
-          "stream": "oia-incidents-stream",
-          "incidentid": "{{INCIDENT_ID}}",
+          "title": "Alert Payload",
+          "widget_type": "summary",
           "min_width": 12,
-          "height": 2,
-          "widget_id": "847e51a0"
-        },
-        {
-          "widget_type": "topology",
-          "title": "Topology",
-          "chartProperties": {
-            "hasToolbar": true,
-            "shortToolbar": true,
-            "userZoomingEnabled": false
+          "height": 10,
+          "refreshRequired": false,
+          "timebased": false,
+          "api-endpoint": {
+            "service-name": "alert-processor",
+            "namespace": "io.cfx.dimensions.app",
+            "version": "*",
+            "methodName": "invokeAppApi:viewAlertData",
+            "stringified-params": true,
+            "parse-output": false,
+            "params": [
+              {}
+            ]
           },
-          "stack": "Online_Banking_Stack",
-          "max_width": 12,
-          "min_width": 7,
-          "height": 12,
-          "alert_source": {
-            "stream": "oia-alerts-stream",
-            "group_by": [
-              "a_asset_id",
-              "a_severity_label",
-              "a_source_status"
-            ],
-            "extra_filter": "incidentid is '{{INCIDENT_ID}}' ",
-            "ts_column": "timestamp",
-            "duration_hours": 1440,
-            "agg": "value_count",
-            "column": "_id",
-            "type": "int"
-          },
-          "widget_id": "9db5a36f"
-        },
+          "widget_id": "alert_payload"
+        }
+      ]
+    },
+    {
+      "title": "Enrichments",
+      "show_filter": true,
+      "projects": [
+        "ACME"
+      ],
+      "widgets": [
         {
-          "title": "Alerts",
-          "widget_type": "tabular",
-          "max_width": 12,
-          "height": 12,
-          "min_width": 5,
-          "sorting": [
-            {
-              "a_raised_ts": "desc"
-            }
-          ],
-          "stream": "oia-alerts-stream",
-          "extra_filter": "incident_id is '{{INCIDENT_ID}}' and a_source_system_name is not 'Alert Group' ",
-          "query": "*",
-          "duration_hours": 24,
-          "columns": {
-            "alerttype": {
-              "title": "Alert Type",
-              "type": "GROUPED",
-              "group": {
-                "a_source_system_name": "Source",
-                "a_asset_id": "Asset Id",
-                "a_message": "Message",
-                "a_asset_ip_address": "Asset IP Address",
-                "a_source_status": "Status",
-                "a_asset_name": "Asset Name",
-                "a_asset_type": "Asset Type"
-              },
-              "color-column": "state_color"
-            },
-            "state_color": {
-              "type": "COLOR-MAP",
-              "source-column": "sourcestatus",
-              "color-map": {
-                "ACTIVE": "#dd0000",
-                "CLEAR": "#00dd00",
-                "CLEARED": "#00dd00"
+          "title": "Enrichments",
+          "widget_type": "summary",
+          "min_width": 12,
+          "height": 10,
+          "refreshRequired": false,
+          "timebased": false,
+          "api-endpoint": {
+            "service-name": "alert-processor",
+            "namespace": "io.cfx.dimensions.app",
+            "version": "*",
+            "methodName": "invokeAppApi:getAlertAttributes",
+            "stringified-params": true,
+            "parse-output": false,
+            "params": [
+              {}
+            ]
+          },
+          "widget_id": "ede761bf"
+        }
+      ]
+    },
+    {
+      "title": "Key Alert Attributes",
+      "show_filter": true,
+      "projects": [
+        "ACME"
+      ],
+      "widgets": [
+        {
+          "title": "Key Alert Attributes",
+          "widget_type": "summary",
+          "min_width": 12,
+          "height": 10,
+          "refreshRequired": false,
+          "timebased": false,
+          "api-endpoint": {
+            "service-name": "alert-processor",
+            "namespace": "io.cfx.dimensions.app",
+            "version": "*",
+            "methodName": "invokeAppApi:getAlertModel",
+            "stringified-params": true,
+            "parse-output": false,
+            "params": [
+              {}
+            ]
+          },
+          "widget_id": "aa914a77"
+        }
+      ]
+    },
+    {
+      "title": "Alert Mapping",
+      "show_filter": false,
+      "widgets": [
+        {
+          "widget_type": "codeblock",
+          "title": "Alert Mapping",
+          "min_width": 12,
+          "height": 10,
+          "lang": "json",
+          "contextParamList": {
+            "contextParams": [
+              {
+                "paramKey": "a_en_mapper_id",
+                "paramId": "mappingid"
               }
-            },
-            "a_raised_ts": {
-              "title": "Raised At",
-              "type": "DATETIME"
-            },
-            "a_severity_label": "Severity"
+            ]
           },
-          "severity_columns": [
-            "a_severity_label"
-          ],
-          "widget_id": "a7f6e486"
+          "api-endpoint": {
+            "service-name": "configuration-service",
+            "namespace": "io.cfx.dimensions.app",
+            "version": "*",
+            "methodName": "invokeAppApi:getMappingScriptForMappingId",
+            "stringified-params": true,
+            "parse-output": false,
+            "params": [
+              {}
+            ]
+          },
+          "widget_id": "bf9ed9bd"
         }
       ]
     }
