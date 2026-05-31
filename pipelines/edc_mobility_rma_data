@@ -1,14 +1,195 @@
-@dm:empty
- --> @dm:recall name='att_mobility_rma'
- --> @dm:fixcolumns
- --> @dm:to-type columns="product_total_rma_2024_count,product_total_rma_2025_count,product_total_stock_forecast" and type="int"
- --> @dm:save name="temp-rma-devices"
+@c:new-block
+ --> @dm:recall name="edc_pid_ostype_dict"
+ --> @dm:rename-columns sw_os_type_dict="sw_os_type"
+ --> @dm:save name='temp-pid-ostype'
+ ## To fix incorrect SW EOL data provided by Ironbank and NP
+
  --> @c:new-block
  --> @dm:empty
- --> @dm:addrow name="edc_customer_inventory" & limit = '0' and sort_by_col='timestamp' and sort_type='desc'
- --> #dm:query-persistent-stream project_name = 'ATT-Mobility'
- --> @dm:selectcolumns exclude ="product_total_rma_2024_count|product_total_rma_2025_count|product_total_stock_forecast|product_id_rma_2025|product_id_rma_2024"
- --> @dm:enrich dict="temp-rma-devices" and src_key_cols="product_id" and dict_key_cols="product_id" and enrich_cols="product_total_rma_2024_count,product_total_rma_2025_count,product_total_stock_forecast" and case_insensitive="yes"
- --> @dm:fixnull columns="product_total_rma_2024_count,product_total_rma_2025_count,product_total_stock_forecast" and value=0 and apply_for_empty="yes"
- --> @dm:save name="temp-devices"
- --> @rn:write-stream name='edc_customer_inventory' and direct_to_opensearch="yes"
+ --> @dm:addrow rule_id = "A1" & rule = "sw_version contains '12\.2\(18\)SXF' " & sw_status_f="Expired"
+ --> @dm:addrow rule_id = "A2" & rule = "sw_version contains '6\.2\(' and sw_os_type is 'NX-OS' " & sw_status_f="Expired"
+ --> @dm:addrow rule_id = "A3" & rule = "sw_version contains '15\.1\(1\)S'" & sw_status_f="Expired"
+ --> @dm:addrow rule_id = "A4" & rule = "sw_version contains '12\.2\(14\)Z'" & sw_status_f="Expired"
+ --> @dm:save name='temp-sweox-errs-dict'
+ --> @c:new-block
+ --> @dm:recall name="contract_data_IB"
+ --> *dm:filter match_inv contains 'Network'
+ --> *dm:filter sw_os_type == 'Not Available'
+ --> @dm:selectcolumns exclude="sw_status|^swEOL|^secAdv|product_id"
+ ## enrich with OS Type
+
+ --> @dm:enrich dict="temp-pid-ostype" and src_key_cols="product_name" and dict_key_cols="PID" and enrich_cols="sw_os_type_dict" and case_insensitive="yes"
+ --> @cfxaia:conditional-statement condition_column="sw_os_type" and operator="=" and check_value="yes" and value ="Not Available" and return_if="sw_os_type_dict" and return_else="sw_os_type"
+ --> @dm:fixnull columns="sw_os_type" and value="Not Available" and apply_for_empty="yes"
+ ## new column product_id to simplify product is during sw scan
+
+ --> @dm:copy-columns from="product_name" and to="product_id"
+ --> @dm:eval product_id = "product_id.replace('=', '')"
+ --> @dm:eval tokens = "product_id.rsplit('-', 1)"
+ --> @dm:eval product_id = "tokens[0] if len(tokens) > 1 and tokens[1] in ['RF'] else product_id"
+ --> @dm:selectcolumns exclude = "tokens|PID"
+ --> @dm:save name="temp-contract_data" and append='yes'
+ ## Generate unique list of PID-SW version to process
+
+ --> @c:new-block
+ --> @dm:recall name="temp-contract_data"
+ --> *dm:filter sw_version!='Not Available'
+ --> *dm:filter sw_os_type is not null
+ --> *dm:filter product_name is not in ['null','Unknown']
+ --> @dm:selectcolumns include="customer|^product_id|sw_os_type|sw_version|instance_id"
+ --> @dm:groupby columns ="customer,product_id,sw_os_type,sw_version"
+ --> @dm:rename-columns total="instance_id"
+ --> @dm:eval unique_key = "str(product_id) + str(sw_os_type) + str(sw_version)"
+ --> @dm:save name="temp-input-dataset"
+ ## ################################
+
+ ## Process SW EOL
+
+ ## declaring thrid level child pipelines
+
+ --> @c:new-block
+ --> @dm:empty
+ --> @exec:define-function name="define_child_pipelines"
+ --> @exec:run-pipeline name ="edc_oi_get_product_alerts" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_oi_product_alerts_raw" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_oi_product_alerts_run_scan" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_oi_generate_token" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_oi_process_sw_data" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_oi_get_sweol_data" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_oi_get_security_advisories_data" & ignore_failures = "no"
+ --> @exec:end-function
+ ## collecting the file and storing it in edc_cust_pid_sw stream, collecting the API data and adding the processed data to edc_sw_raw_data
+
+ --> @c:new-block
+ --> @dm:recall name='temp-input-dataset'
+ --> @dm:save name="temp-cust_pid_sw"
+ --> @dm:save name="customer_pid_sw"
+ --> @dm:eval source="'software'"
+ --> @exec:run-pipeline name ="edc_oi_product_alerts_raw" & ignore_failures = "no"
+ --> @dm:save name='temp-enriched-sweol-values'
+ ## #Temporary bypass to use already process data from dataset api-response. Above section needs to be commended out
+
+ ## --> @c:new-block
+
+ ## --> @dm:recall name='api-response'
+
+ ## --> @dm:save name='temp-enriched-sweol-values'
+
+ ## Process SWEoL
+
+ --> @c:new-block
+ --> @dm:recall name='temp-enriched-sweol-values'
+ --> @dm:save name='temp-sweol-data'
+ ## creates a list of unique customers
+
+ --> @c:new-block
+ --> @dm:recall name='temp-sweol-data'
+ --> @dm:groupby columns='customer'
+ --> @dm:save name='temp-unique-cust-name'
+ ## Queries data for the customer from edc_customer inventory
+
+ --> @c:data-loop dataset='temp-unique-cust-name' and columns='customer'
+ --> @dm:recall name='temp-contract_data'
+ --> *dm:filter customer == '$customer'
+ --> @dm:save name='temp-hw-eol-details' and append='yes'
+ ## processes the software columns for the customer
+
+ --> @c:data-loop columns='customer' and dataset='temp-unique-cust-name'
+ --> @dm:recall name='temp-sweol-data'
+ --> *dm:filter customer == '$customer'
+ --> @exec:run-pipeline name='edc_oi_process_sw_data'
+ --> @dm:save name='temp-sw-eol-details'
+ ## enriches the processed columns to  edc_customer inventory
+
+ --> @c:new-block
+ --> @dm:recall name='temp-hw-eol-details'
+ ## --> @dm:selectcolumns exclude='sw_status_x|sw_expiring_qtr_x|sw_expiring_year_x'
+
+ --> @dm:enrich dict='temp-sw-eol-details' and src_key_cols='product_id,sw_version' and dict_key_cols='product_id,sw_version' and enrich_cols='SoftwareEOXId,BulletinNumber,BulletinHeadline,BulletinURL,EndOfSaleDate,EndOfEngineeringDate,EndOfLifeDate,PostDate,EndOfLifeInternalAnnouncementDate,EndOfLifeExternalAnnouncementDate,EndOfLastHardwareShipDate,EndOfHardwareNewServiceAttachmentDate,EndOfHardwareRoutineFailureAnalysisDate,EndOfBUEngineeringSupportTACDate,EndOfHardwareServiceContractRenewalDate,EndOfSignatureReleasesDate,EndOfSoftwareAvailabilityDate,EndOfSoftwareLicenseAvailabilityDate,EndOfSoftwareVulnerabilityOrSecuritySupportDate,created,customerVisible,external_text,external_title,firstIcAlertId,groups,icIssueId,icProblemId,ignored,lastIcAlertId,eoXAlertType,name,openedOn,resultType,severity,severityText,state,updated,deviceSN,runType,filename,icType,atticaStatus,cdetsList,retry,associatedGroups,sw_expiring_qtr,sw_expiring_year,sw_status' and replace_values='yes'
+ --> @dm:save name='final-enrich'
+ --> @dm:rename-columns EndOfLifeDate='EndOfLifeDate_y'
+ --> @dm:fixnull columns='SoftwareEOXId,BulletinNumber,BulletinHeadline,BulletinURL,EndOfSaleDate,EndOfEngineeringDate,EndOfLifeDate,PostDate,EndOfLifeInternalAnnouncementDate,EndOfLifeExternalAnnouncementDate,EndOfLastHardwareShipDate,EndOfHardwareNewServiceAttachmentDate,EndOfHardwareRoutineFailureAnalysisDate,EndOfBUEngineeringSupportTACDate,EndOfHardwareServiceContractRenewalDate,EndOfSignatureReleasesDate,EndOfSoftwareAvailabilityDate,EndOfSoftwareLicenseAvailabilityDate,EndOfSoftwareVulnerabilityOrSecuritySupportDate,created,customerVisible,external_text,external_title,firstIcAlertId,groups,icIssueId,icProblemId,ignored,lastIcAlertId,eoXAlertType,name,openedOn,resultType,severity,severityText,state,updated,deviceSN,runType,filename,icType,atticaStatus,cdetsList,retry,associatedGroups,sw_expiring_qtr,sw_expiring_year,sw_status' and value="Not Available"  and apply_for_empty="yes"
+ --> @dm:rename-columns swEOL_softwareEOXId='SoftwareEOXId' and swEOL_bulletinNumber='BulletinNumber' and swEOL_bulletinTitle='BulletinHeadline' and swEOL_bulletinUrl='BulletinURL' and swEOL_endOfSaleDate='EndOfSaleDate' and
+swEOL_endOfSoftwareMaintenanceReleasesDate='EndOfEngineeringDate' and swEOL_lastDayOfSupportDate='EndOfLifeDate' and
+swEOL_endOfVulnerabilitySecuritySupportDate='EndOfSoftwareVulnerabilityOrSecuritySupportDate' and swEOL_endOfLifeAnnouncementDate='EndOfLifeExternalAnnouncementDate'
+ --> @dm:selectcolumns exclude='^(EndOfLifeInternalAnnouncementDate|EndOfLastHardwareShipDate|EndOfHardwareNewServiceAttachmentDate|EndOfHardwareRoutineFailureAnalysisDate|EndOfBUEngineeringSupportTACDate|EndOfHardwareServiceContractRenewalDate|EndOfSignatureReleasesDate|EndOfSoftwareAvailabilityDate|EndOfSoftwareLicenseAvailabilityDate|created|customerVisible|external_text|external_title|firstIcAlertId|groups|icIssueId|icProblemId|ignored|lastIcAlertId|eoXAlertType|name|openedOn|resultType|severity|severityText|state|updated|deviceSN|runType|filename|icType|atticaStatus|cdetsList|retry|associatedGroups)$'
+ ## --> @dm:save name='test-contract_data'
+
+ --> @dm:save name='temp-contract_data'
+ ## #Process Security Advisories
+
+ ## collecting the file and storing it in edc_cust_pid_sw stream, collecting the API data
+
+ --> @c:new-block
+ --> @dm:recall name='temp-input-dataset'
+ --> @dm:save name="temp-cust_pid_sec"
+ --> @dm:eval source="'security_advisory'"
+ --> @exec:run-pipeline name ="edc_oi_product_alerts_raw" & ignore_failures = "no"
+ --> @dm:save name='temp-enriched-secadv-values'
+ ## Process SecAdv
+
+ --> @c:new-block
+ --> @dm:recall name='temp-enriched-secadv-values'
+ --> @dm:save name='temp-secadv-data'
+ ## creates a list of unique customers
+
+ --> @c:new-block
+ --> @dm:recall name='temp-secadv-data'
+ --> @dm:groupby columns='customer'
+ --> @dm:save name='temp-unique-cust-name'
+ ## Queries data for the customer from edc_customer inventory
+
+ --> @c:data-loop dataset='temp-unique-cust-name' and columns='customer'
+ --> @dm:recall name='temp-contract_data'
+ --> *dm:filter customer == '$customer'
+ --> @dm:save name='temp-secadv-details' and append='yes'
+ --> @c:new-block
+ --> @dm:recall name='temp-secadv-data'
+ --> @dm:to-type columns='advisoryId,PsirtID' and type='str'
+ --> @dm:add-missing-columns columns="PsirtID,MatchConfidence,MatchReason,MatchDefinition,HeadlineName,AdvisoryId,BulletinURL,Summary,Details,RevisedDate,RevisionNumber,PublishedDate,SeverityLevelName,CvssScore,CveId,_id,advisoryId,created,customerVisible,external_text,external_title,firstIcAlertId,groups,icIssueId,icProblemId,ignored,lastIcAlertId,matchDefinition,matchInfo,matchConfidence,missingInfo,moreInfo,name,openedOn,resultType,resultSubType,severity,severityText,state,updated,deviceSN,source,runType,filename,icType,atticaStatus,cdetsList,retry,associatedGroups,key,current_time_ms_loop,token_expiry_time,access_token,expires_in,token_type,sw_version,sw_os_type,product_id,transaction_id,eoXAlert,eoXAlertType,DocumentId"
+ --> @dm:eval matchConfidence = "'Potentially Vulnerable' if matchConfidence == 'POTVUL' else 'Vulnerable' if matchConfidence == 'VUL' else matchConfidence"
+ --> @dm:eval secAdv_confidence_score = "100 if matchConfidence == 'Vulnerable' else 99 if matchConfidence == 'Potentially Vulnerable' else 98 if matchConfidence == 'Not Vulnerable' else 0"
+ --> @dm:eval secAdv_impact_score = "100 if SeverityLevelName == 'Critical' else 99 if SeverityLevelName == 'High' else 98 if SeverityLevelName == 'Medium' else 97 if SeverityLevelName == 'Low' else 0"
+ --> @dm:fixnull columns="PsirtID,MatchConfidence,MatchReason,MatchDefinition,HeadlineName,AdvisoryId,BulletinURL,Summary,Details,RevisedDate,RevisionNumber,PublishedDate,SeverityLevelName,CvssScore,CveId,_id,advisoryId,created,customerVisible,external_text,external_title,firstIcAlertId,groups,icIssueId,icProblemId,ignored,lastIcAlertId,matchDefinition,matchInfo,matchConfidence,missingInfo,moreInfo,name,openedOn,resultType,resultSubType,severity,severityText,state,updated,deviceSN,source,runType,filename,icType,atticaStatus,cdetsList,retry,associatedGroups,key,current_time_ms_loop,token_expiry_time,expires_in,token_type,sw_version,sw_os_type,product_id,transaction_id,eoXAlert,eoXAlertType,DocumentId,secAdv_confidence_score" and value="Not Available" and apply_for_empty="yes"
+ --> @dm:rename-columns secAdv_match_confidence ='matchConfidence' and secAdv_securityImpactRating='SeverityLevelName' and secAdv_bulletinTitle='external_title' and secAdv_psirtAdvisoryId='advisoryId' and ID = '_id' and secAdv_bulletinUrl ='BulletinURL' and secAdv_bulletinSummary ='Summary' and secAdv_cveId='CveId' and secAdv_cvssBase='CvssScore' and secAdv_match_confidence_reason='MatchReason' and secAdv_psirtColdId ='PsirtID' and secAdv_bulletinFirstPublished ='PublishedDate' and secAdv_bulletinVersion='RevisionNumber' and secAdv_bulletinLastUpdated='RevisedDate'
+ --> @dm:gc
+ ## --> @dm:manipulate-string from="customer_name,project_name,secAdv_psirtColdId,serial_number" and func="concat_columns" and to="unique_key" and value="_"
+
+ --> @dm:save name='temp-secadv-data'
+ --> @dm:save name='conract-secadv-data'
+ ## Deduping Security Advisories based on matchConfidence priority
+
+ --> @c:new-block
+ --> @dm:recall name="temp-secadv-data"
+ --> @dm:skip-block-if-shape row_count="0"
+ --> @dm:sort columns='secAdv_confidence_score,secAdv_impact_score' and order='descending'
+ --> @dm:dedup columns='product_id,sw_version,sw_os_type'
+ --> @dm:save name="temp-secadv-data-dedups"
+ --> @c:new-block
+ --> @dm:recall name='temp-secadv-details'
+ --> @dm:enrich dict='temp-secadv-data-dedups' and src_key_cols='product_id,sw_version' and dict_key_cols='product_id,sw_version' and enrich_cols='secAdv_match_confidence,secAdv_securityImpactRating' and replace_values="yes"
+ --> @dm:add-missing-columns columns="secAdv_match_confidence,secAdv_securityImpactRating"
+ --> @dm:fixnull columns="secAdv_match_confidence,secAdv_securityImpactRating" and value="Not Available" and apply_for_empty="yes"
+ --> @dm:gc
+ --> @dm:save name='temp-contract_data'
+ ## Enrich with sw recommendation and evaluate compliance
+
+ --> @c:new-block
+ --> @dm:recall name="temp-contract_data"
+ ## --> @dm:enrich-using-rule-dict dict = "temp-recommended_release" & enrich_columns = "recommended_sw_version" and cache="yes"
+
+ ## --> @dm:eval sw_release_compliance="'Yes' if ((recommended_sw_version==sw_version) and recommended_sw_version and sw_version)  else 'No' if ((recommended_sw_version!=sw_version) and recommended_sw_version and sw_version) else 'Unknown' if (sw_version) else 'NA'"
+
+ ## --> @dm:save name='test-contract_data'
+
+ ## To fix incorrect SW EOL data provided by Ironbank and NP
+
+ --> @dm:enrich-using-rule-dict dict = "temp-sweox-errs-dict" & enrich_columns = "sw_status_f" and cache="no"
+ --> @cfxaia:conditional-statement condition_column="sw_status_f" and return_if="sw_status_f" and return_else="sw_status"
+ --> @dm:copy-columns from="sw_status_f" and to="sw_status"
+ --> @dm:selectcolumns exclude="sw_status_f"
+ ## Re-evaluate product_id to be able to keep '-RF'
+
+ --> @dm:copy-columns from="product_name" and to="product_id"
+ --> @dm:eval product_id = "product_id.replace('=', '')"
+ --> @dm:save name = "contract_data_IB_1"
