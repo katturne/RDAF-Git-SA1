@@ -1,265 +1,318 @@
 {
-  "name": "rda-operations-page-jobs",
-  "label": "Jobs",
-  "description": "Jobs Page",
+  "name": "topology-details-with-second-col-pivot-report",
+  "label": "X-Leaf Workflow Results",
+  "description": "X-Leaf EVT Workflow Results",
   "enabled": true,
-  "dashboard_type": "dashboard",
-  "dashboard_folder": "System",
   "dashboard_style": "auto",
-  "stream": "rda_system_job_tracker",
-  "dashboard_filters": {
-    "time_filter": false,
-    "columns_filter": [
-      {
-        "id": "jobid",
-        "label": "Job Id",
-        "type": "TEXT"
-      },
-      {
-        "id": "pid",
-        "label": "PID",
-        "type": "DOUBLE"
-      },
-      {
-        "id": "pod_id",
-        "label": "Pod ID",
-        "type": "TEXT"
-      },
-      {
-        "id": "pipeline-name",
-        "label": "Pipeline",
-        "type": "TEXT"
-      },
-      {
-        "id": "attributes_org_name",
-        "label": "Org Name",
-        "type": "TEXT"
-      },
-      {
-        "id": "attributes_file_name",
-        "label": "File Name",
-        "type": "TEXT"
-      },
-      {
-        "id": "attributes_pipeline_version",
-        "label": "Pipeline Version",
-        "type": "TEXT"
-      },
-      {
-        "id": "status",
-        "label": "Status",
-        "type": "TEXT"
-      },
-      {
-        "id": "reason",
-        "label": "Reason",
-        "type": "TEXT"
-      },
-      {
-        "id": "created",
-        "label": "Job Created",
-        "type": "DATETIME"
-      },
-      {
-        "id": "ended_time",
-        "label": "Job Ended",
-        "type": "DATETIME"
-      },
-      {
-        "id": "age",
-        "label": "Duration",
-        "type": "TEXT"
+  "dashboard_type": "template",
+  "dashboard_folder": "X-Leaf",
+  "version": "23.8.21.1",
+  "short_label": "X-Leaf EVT Workflow",
+  "dashboard_filters": {},
+  "template_variables": {
+    "NODE_ID": {
+      "contextId": [
+        "navigatorSelectionContexts",
+        "secondaryListSelection",
+        "device_ip"
+      ]
+    },
+    "PRECHECK_NAME": {
+      "contextId": [
+        "navigatorSelectionContexts",
+        "secondaryListSelection",
+        "evt_check_name"
+      ]
+    },
+    "COMMAND": {
+      "contextId": [
+        "navigatorSelectionContexts",
+        "secondaryListSelection",
+        "command"
+      ]
+    }
+  },
+  "navigation_dashboards": {
+    "tree_data": {
+      "column_name": "device_ip",
+      "pstream_name": "xleaf_evt_results_summary",
+      "cfxql_query": "timestamp is after -30d",
+      "show_counts": false
+    },
+    "tree_detail": {
+      "display_column": "evt_check_name",
+      "pstream_name": "xleaf_evt_results_summary",
+      "cfxql_query": "timestamp is after -30d",
+      "htmlTemplate": "<div style='overflow:hidden;'><div class='d-flex'><div style='flex-grow: 1' class='label1 text-truncate'><b>{{data.label1}}</b></div><div class='label2 text-truncate badge' :style='{backgroundColor: data.color}'>{{data.label2}}</div></div><div class='cfx-list-item-end-label'>{{data.label3}}</div></div>",
+      "report_definition": {
+        "title": "Validation Checks",
+        "widget_type": "tabular",
+        "stream": "xleaf_evt_results_summary",
+        "ts_column": "timestamp",
+        "timebased": false,
+        "columns": {
+          "evt_check_name": "evt_check_name",
+          "device_ip": "device_ip",
+          "status": "status",
+          "command": "command"
+        },
+        "sorting": [
+          {
+            "result_int_max": "desc"
+          }
+        ],
+        "cfxql_query": "device_ip is '{{NODE_ID}}' and timestamp is after -30d",
+        "pivot": {
+          "pivot_type": "advanced",
+          "series": [
+            {
+              "column": "evt_check_name",
+              "agg": "cardinality"
+            },
+            {
+              "column": "result_int",
+              "agg": "max"
+            }
+          ],
+          "group_by": [
+            "evt_check_name",
+            "device_ip",
+            "status",
+            "command"
+          ]
+        },
+        "paginated": true,
+        "enableVirtualScrolling": false,
+        "custom_columns": [
+          {
+            "id": "label1",
+            "expr": "str(evt_check_name)"
+          },
+          {
+            "id": "label2",
+            "expr": "'Pass' if int(result_int_max) == 0 else 'Fail' if int(result_int_max) == 1 else 'Run'"
+          },
+          {
+            "id": "label3",
+            "expr": "str(status)"
+          },
+          {
+            "id": "color",
+            "expr": "'#4caf50' if int(result_int_max) == 0 else '#E53935' if int(result_int_max) == 1 else '#FFD54F'"
+          }
+        ],
+        "widget_id": "5afc2391"
       }
-    ]
+    },
+    "showNodeIcon": false,
+    "showSearchBox": true
   },
   "dashboard_sections": [
     {
-      "title": "Active Jobs",
-      "show_filter": true,
+      "title": "Passed",
       "widgets": [
         {
-          "title": "Worker Nodes",
-          "widget_type": "portal_counter",
-          "reportId": "registry.workers.counter",
-          "height": 2,
-          "min_width": 2,
-          "widget_id": "41d076c1"
-        },
-        {
-          "title": "Sites",
-          "widget_type": "portal_counter",
-          "reportId": "registry.sites.counter",
-          "height": 2,
-          "min_width": 2,
-          "widget_id": "c159bbb8"
-        },
-        {
-          "title": "Total CPUs",
-          "widget_type": "portal_counter",
-          "reportId": "registry.sites_cpu.counter",
-          "height": 2,
-          "min_width": 2,
-          "widget_id": "59a12b3c"
-        },
-        {
-          "title": "Total Memory GB",
-          "widget_type": "portal_counter",
-          "reportId": "registry.sites_mem.counter",
-          "height": 2,
-          "min_width": 2,
-          "widget_id": "d9c0327e"
-        },
-        {
-          "title": "Agents",
-          "widget_type": "portal_counter",
-          "reportId": "registry.agents.counter",
-          "height": 2,
-          "min_width": 2,
-          "widget_id": "65e7c70f"
-        },
-        {
-          "title": "Active Jobs",
-          "widget_type": "portal_counter",
-          "reportId": "jobs.active.counter",
-          "height": 2,
-          "min_width": 2,
-          "widget_id": "875f9e64"
-        },
-        {
-          "title": "Jobs By Pipeline",
-          "widget_type": "portal_pie_chart",
-          "reportId": "jobs.by-pipeline.ringpie",
-          "height": 4,
-          "min_width": 4,
-          "widget_id": "bgf6b5b9"
-        },
-        {
-          "title": "Jobs By Pod",
-          "widget_type": "portal_pie_chart",
-          "reportId": "jobs.by-pod.ringpie",
-          "height": 4,
-          "min_width": 4,
-          "widget_id": "abc6b5b9"
-        },
-        {
-          "title": "Jobs",
-          "widget_type": "portal_tabular",
-          "reportId": "jobs.list.tabular",
-          "height": 10,
-          "min_width": 12,
+          "title": "Summary",
+          "widget_type": "tabular",
+          "stream": "xleaf_evt_results",
+          "ts_column": "timestamp",
+          "timebased": false,
           "paginated": true,
-          "widget_id": "bbc6b5f6"
+          "hide_columns": [
+            "collection_status",
+            "device_ip",
+            "evt_check_name",
+            "key",
+            "iconURL",
+            "timestamp",
+            "count_",
+            "_RDA_Id",
+            "jobid",
+            "result_int"
+          ],
+          "custom_columns": [
+            {
+              "id": "label1",
+              "expr": "str(evt_check_name)",
+              "hidden": true
+            }
+          ],
+          "ui_widget_type": "TABULAR",
+          "max_width": 4,
+          "height": 5,
+          "min_width": 4,
+          "widget_id": "182229d8",
+          "query": "device_ip is '{{NODE_ID}}' and evt_check_name is '{{PRECHECK_NAME}}' and result is 'Passed'"
         }
       ]
     },
     {
-      "title": "All Jobs",
-      "show_filter": true,
+      "title": "Failed",
       "widgets": [
         {
-          "title": "All Jobs",
-          "widget_type": "portal_tabular",
-          "reportId": "jobs.historical.list.tabular",
-          "height": 10,
-          "min_width": 12,
+          "title": "Summary",
+          "widget_type": "tabular",
+          "stream": "xleaf_evt_results",
+          "ts_column": "timestamp",
+          "timebased": false,
           "paginated": true,
-          "widget_id": "bbc6b5g6"
+          "hide_columns": [
+            "collection_status",
+            "device_ip",
+            "evt_check_name",
+            "key",
+            "iconURL",
+            "timestamp",
+            "count_",
+            "_RDA_Id",
+            "jobid",
+            "result_int"
+          ],
+          "custom_columns": [
+            {
+              "id": "label1",
+              "expr": "str(evt_check_name)",
+              "hidden": true
+            }
+          ],
+          "ui_widget_type": "TABULAR",
+          "max_width": 4,
+          "height": 5,
+          "min_width": 4,
+          "widget_id": "79890b84",
+          "query": "device_ip is '{{NODE_ID}}'and evt_check_name is '{{PRECHECK_NAME}}' and result is 'Failed'"
+        }
+      ]
+    },
+    {
+      "title": "Command output",
+      "widgets": [
+        {
+          "title": "Raw Output",
+          "widget_type": "tabular",
+          "stream": "xleaf_raw_outputs",
+          "ts_column": "timestamp",
+          "timebased": false,
+          "paginated": true,
+          "columns": {
+            "command": "command",
+            "raw_output": {
+              "title": "Output",
+              "htmlTemplateForRow": "{{'{%raw%}<pre>{{row.raw_output}}</pre>{%endraw%}'}}"
+            }
+          },
+          "ui_widget_type": "TABULAR",
+          "max_width": 4,
+          "height": 5,
+          "min_width": 4,
+          "widget_id": "182229d9",
+          "max_rows": 1,
+          "query": "device_ip is '{{NODE_ID}}' and command is '{{COMMAND}}'"
         }
       ]
     }
   ],
   "pstream_dashboards": [
     {
-      "title": "Active Jobs",
-      "show_filter": true,
+      "title": "Passed",
       "widgets": [
         {
-          "title": "Worker Nodes",
-          "widget_type": "portal_counter",
-          "reportId": "registry.workers.counter",
-          "height": 2,
-          "min_width": 2,
-          "widget_id": "41d076c1"
-        },
-        {
-          "title": "Sites",
-          "widget_type": "portal_counter",
-          "reportId": "registry.sites.counter",
-          "height": 2,
-          "min_width": 2,
-          "widget_id": "c159bbb8"
-        },
-        {
-          "title": "Total CPUs",
-          "widget_type": "portal_counter",
-          "reportId": "registry.sites_cpu.counter",
-          "height": 2,
-          "min_width": 2,
-          "widget_id": "59a12b3c"
-        },
-        {
-          "title": "Total Memory GB",
-          "widget_type": "portal_counter",
-          "reportId": "registry.sites_mem.counter",
-          "height": 2,
-          "min_width": 2,
-          "widget_id": "d9c0327e"
-        },
-        {
-          "title": "Agents",
-          "widget_type": "portal_counter",
-          "reportId": "registry.agents.counter",
-          "height": 2,
-          "min_width": 2,
-          "widget_id": "65e7c70f"
-        },
-        {
-          "title": "Active Jobs",
-          "widget_type": "portal_counter",
-          "reportId": "jobs.active.counter",
-          "height": 2,
-          "min_width": 2,
-          "widget_id": "875f9e64"
-        },
-        {
-          "title": "Jobs By Pipeline",
-          "widget_type": "portal_pie_chart",
-          "reportId": "jobs.by-pipeline.ringpie",
-          "height": 4,
-          "min_width": 4,
-          "widget_id": "bgf6b5b9"
-        },
-        {
-          "title": "Jobs By Pod",
-          "widget_type": "portal_pie_chart",
-          "reportId": "jobs.by-pod.ringpie",
-          "height": 4,
-          "min_width": 4,
-          "widget_id": "abc6b5b9"
-        },
-        {
-          "title": "Jobs",
-          "widget_type": "portal_tabular",
-          "reportId": "jobs.list.tabular",
-          "height": 10,
-          "min_width": 12,
+          "title": "Summary",
+          "widget_type": "tabular",
+          "stream": "xleaf_evt_results",
+          "ts_column": "timestamp",
+          "timebased": false,
           "paginated": true,
-          "widget_id": "bbc6b5f6"
+          "hide_columns": [
+            "collection_status",
+            "device_ip",
+            "evt_check_name",
+            "key",
+            "iconURL",
+            "timestamp",
+            "count_",
+            "_RDA_Id",
+            "jobid",
+            "result_int"
+          ],
+          "custom_columns": [
+            {
+              "id": "label1",
+              "expr": "str(evt_check_name)",
+              "hidden": true
+            }
+          ],
+          "ui_widget_type": "TABULAR",
+          "max_width": 4,
+          "height": 5,
+          "min_width": 4,
+          "widget_id": "182229d8",
+          "query": "device_ip is '{{NODE_ID}}' and evt_check_name is '{{PRECHECK_NAME}}' and result is 'Passed'"
         }
       ]
     },
     {
-      "title": "All Jobs",
-      "show_filter": true,
+      "title": "Failed",
       "widgets": [
         {
-          "title": "All Jobs",
-          "widget_type": "portal_tabular",
-          "reportId": "jobs.historical.list.tabular",
-          "height": 10,
-          "min_width": 12,
+          "title": "Summary",
+          "widget_type": "tabular",
+          "stream": "xleaf_evt_results",
+          "ts_column": "timestamp",
+          "timebased": false,
           "paginated": true,
-          "widget_id": "bbc6b5g6"
+          "hide_columns": [
+            "collection_status",
+            "device_ip",
+            "evt_check_name",
+            "key",
+            "iconURL",
+            "timestamp",
+            "count_",
+            "_RDA_Id",
+            "jobid",
+            "result_int"
+          ],
+          "custom_columns": [
+            {
+              "id": "label1",
+              "expr": "str(evt_check_name)",
+              "hidden": true
+            }
+          ],
+          "ui_widget_type": "TABULAR",
+          "max_width": 4,
+          "height": 5,
+          "min_width": 4,
+          "widget_id": "79890b84",
+          "query": "device_ip is '{{NODE_ID}}'and evt_check_name is '{{PRECHECK_NAME}}' and result is 'Failed'"
+        }
+      ]
+    },
+    {
+      "title": "Command output",
+      "widgets": [
+        {
+          "title": "Raw Output",
+          "widget_type": "tabular",
+          "stream": "xleaf_raw_outputs",
+          "ts_column": "timestamp",
+          "timebased": false,
+          "paginated": true,
+          "columns": {
+            "command": "command",
+            "raw_output": {
+              "title": "Output",
+              "htmlTemplateForRow": "{{'{%raw%}<pre>{{row.raw_output}}</pre>{%endraw%}'}}"
+            }
+          },
+          "ui_widget_type": "TABULAR",
+          "max_width": 4,
+          "height": 5,
+          "min_width": 4,
+          "widget_id": "182229d9",
+          "max_rows": 1,
+          "query": "device_ip is '{{NODE_ID}}' and command is '{{COMMAND}}'"
         }
       ]
     }
