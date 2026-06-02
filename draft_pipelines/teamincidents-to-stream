@@ -1,10 +1,16 @@
-
- ## One time Migration
-
- ## teamincidents-to-stream
-@c:new-block
+@dm:empty
+ --> @dm:addrow name='edc_cust_pid_sw' and limit=0
+ --> #dm:query-persistent-stream
+ --> @dm:dedup columns='product_id,sw_os_type,sw_version'
+ --> @dm:save name='temp-pid'
+ --> @c:new-block
  --> @dm:empty
- --> @dm:addrow table is 'teamincident' and dbname is '335b7f8cb56d46419c3e7c70286c4b19_cfxdimensions_app_collaboratio'
- --> #mysqlv2:read order by shared_time desc
- --> @dm:change-time-format columns="shared_time" & from_format="datetimestr" & to_format="ms"
- --> @rn:write-stream name="oia-incidents-external-tickets-stream"
+ --> @dm:addrow name='edc_oi_inventory_enriched' and limit=0
+ --> #dm:query-persistent-stream customer_name equals 'ATT'
+ --> @dm:save name='temp-source'
+ --> @c:new-block
+ --> @dm:recall name='temp-source'
+ --> @dm:enrich dict='temp-pid' and src_key_cols='product_name,contract_number,customer_name' and dict_key_cols='product_id,contract_number,customer' and enrich_cols='_id'
+ --> @dm:save name='before-output'
+ --> @dm:dedup columns='product_name,contract_number,customer_name'
+ --> @dm:save name='after-output'
