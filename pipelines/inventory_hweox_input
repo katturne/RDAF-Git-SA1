@@ -1,14 +1,21 @@
-folder: Default
-name: testting
-description: test pipeline
-data_path: pipelines/data/testting/1.1/data.json
-usecase: ''
-category: ''
-sources: {}
-artifacts:
-- artifact_type: dataset
-  artifact_name: testt
-  access: read
-version: '1.1'
-file_type: json
-checksum: de5ae328
+@c:new-block
+ --> @dm:empty
+ ## Get submitted form fields
+
+ --> @exec:get-input
+ ## Exclude label as it contains unneeded info that should not be written to stream later
+
+ --> @dm:selectcolumns exclude='.*_label'
+ --> @dm:save name='temp-input_data'
+ --> @dm:save name='check-input_data'
+ --> @dm:selectcolumns include="hweox_csv"
+ --> @dm:explode-json column="hweox_csv"
+ --> @dm:save name="input11-dataset"
+ --> @dm:save name="temp-input-dataset"
+ --> @c:data-loop dataset="temp-input-dataset" and columns="bucketName,objectName"
+ --> @dm:recall name="temp-input-dataset"
+ --> @dm:skip-block-if-shape row_count=0
+ --> @dm:get-from-location path="$bucketName/$objectName"
+ --> @dm:save name="temp-uploaded-file-data"
+ --> @dm:save name="uploaded-hweox-data"
+ --> @rn:write-stream name="test0-stream-input"
