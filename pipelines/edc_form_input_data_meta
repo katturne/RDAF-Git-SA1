@@ -1,17 +1,112 @@
-folder: OI
-name: edc_form_input_data
-description: test pipeline
-data_path: pipelines/data/edc_form_input_data/2025-09-18_1/data.json
-usecase: ''
-category: ''
-sources:
-  rn:
-    name: rn
-    type: rn
-artifacts:
-- artifact_type: rda-network-stream
-  artifact_name: edc_cust_pid_sw
-  access: write
-version: 2025-09-18_1
-file_type: json
-checksum: c6aea6b9
+
+ ## declaring child pipelines
+@c:new-block
+ --> @dm:empty
+ --> @exec:define-function name="define_child_pipelines"
+ --> @exec:run-pipeline name ="edc_oi_get_product_alerts" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_oi_product_alerts_raw" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_oi_product_alerts_run_scan" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_oi_generate_token" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_oi_process_sw_data" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_oi_get_sweol_data" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_oi_get_security_advisories_data" & ignore_failures = "no"
+ --> @exec:end-function
+ --> @c:new-block
+ --> @dm:recall name='sw-raw-data'
+ --> @dm:save name='temp-sw-data'
+ ## creates a list of unique customers
+
+ --> @c:new-block
+ --> @dm:recall name='temp-sw-data'
+ --> @dm:groupby columns='customer'
+ --> @dm:save name='temp-unique-cust-name'
+ ## processes the software columns for the customer
+
+ --> @c:data-loop columns='customer' and dataset='temp-unique-cust-name'
+ --> @dm:recall name='temp-sw-data'
+ --> *dm:filter customer == '$customer'
+ --> @exec:run-pipeline name='edc_oi_process_sw_data'
+ --> @dm:to-type columns='contract_number' and type='int'
+ --> @dm:rename-columns swEOL_softwareEOXId='SoftwareEOXId' and swEOL_bulletinNumber='BulletinNumber' and swEOL_bulletinTitle='BulletinHeadline' and swEOL_bulletinUrl='BulletinURL' and swEOL_endOfSaleDate='EndOfSaleDate' and
+swEOL_endOfSoftwareMaintenanceReleasesDate='EndOfEngineeringDate' and swEOL_lastDayOfSupportDate='EndOfLifeDate' and
+swEOL_endOfVulnerabilitySecuritySupportDate='EndOfSoftwareVulnerabilityOrSecuritySupportDate' and swEOL_endOfLifeAnnouncementDate='EndOfLifeExternalAnnouncementDate'
+ --> @dm:save name='temp-sw-eol-details'
+ ## Queries data for the customer from edc_oi_enriched_stream
+
+ --> @c:data-loop columns='customer' and dataset='temp-unique-cust-name'
+ --> @dm:empty
+ --> @dm:addrow name='edc_oi_inventory_enriched' and limit=0
+ --> #dm:query-persistent-stream customer_name=='$customer' and coverage=='COVERED'
+ --> @dm:save name='temp-inv-details' and append='yes'
+ --> @c:new-block
+ --> @dm:recall name='temp-inv-details'
+ --> @dm:to-type columns="contract_number" and type='int'
+ --> @dm:save name='temp-inv-details'
+ ## ## Queries data for the customer from edc_oi_enriched_stream
+
+ ## --> @c:data-loop columns='customer' and dataset='temp-unique-cust-name'
+
+ ## --> @dm:empty
+
+ ## --> @dm:addrow name='edc_oi_inventory_enriched' and limit=0 and groupby='contract_number,customer_name,product_name,product_id' and aggs='sum:combination_count'
+
+ ## --> #dm:query-persistent-stream coverage=='COVERED' and customer_name == '$customer'
+
+ ## --> @dm:save name='details-grouped-sw-data' and append='yes'
+
+ ## --> @dm:save name='details-grouped-sw-data' and append='yes'
+
+ --> @c:new-block
+ --> @dm:recall name='details-grouped-sw-data'
+ --> @dm:to-type columns='contract_number' and type='int'
+ --> @dm:save name='details-grouped-sw-data'
+ ## enriches the processed columns to edc_oi_inventory_enriched
+
+ --> @c:new-block
+ --> @dm:recall name='temp-sw-eol-details'
+ ## --> @dm:eval product_name="product_id if product_name is 'Not Available' else product_name"
+
+ --> @dm:enrich dict='details-grouped-sw-data' and dict_key_cols='contract_number,customer_name,product_name' and src_key_cols='contract_number,customer,product_name' and enrich_cols='combination_count_sum' and how_type='left'
+ --> @dm:save name='temp-inv-grouped-op'
+ --> @c:new-block
+ --> @dm:recall name='temp-inv-details'
+ --> @dm:selectcolumns exclude='^(swEOL_endOfLifeAnnouncementDate|swEOL_endOfVulnerabilitySecuritySupportDate|swEOL_lastDayOfSupportDate|swEOL_endOfSoftwareMaintenanceReleasesDate|swEOL_endOfSaleDate|swEOL_bulletinUrl|swEOL_bulletinTitle|swEOL_bulletinNumber|swEOL_softwareEOXId|sw_status|sw_expiring_qtr|sw_expiring_year|match|customer|product_id)$'
+ --> @dm:save name='temp-hw-eol-details-grouped-excluded'
+ --> @c:new-block
+ --> @dm:recall name='temp-inv-grouped-op'
+ --> @dm:enrich dict='temp-hw-eol-details-grouped-excluded'  and dict_key_cols='contract_number,customer_name,product_name' and src_key_cols='contract_number,customer,product_name' and enrich_cols='item_type,product_family'
+ --> @dm:eval unique_key='str(customer) + str(sw_os_type) + str(sw_version) + str(contract_number) + str(product_id) + str(product_name)'
+ --> @dm:to-type columns='combination_count_sum' and type='int'
+ --> @dm:dropnull columns='sw_status'
+ --> @dm:eval customer_name='customer_name_x'
+ --> @dm:selectcolumns exclude='^(key|Unique_id|_RDA_Id|count_|timestamp|customer_name_y|customer_name_x)'
+ ## --> @dm:save name='final-enrich-1'
+
+ --> @dm:save name='edc-sweol-data'
+ ## dedup the data based on sw_status priority
+
+ --> @c:new-block
+ --> @dm:recall name='temp-sw-eol-details'
+ ## --> @dm:save name='sw-before-dedup-data'
+
+ --> @dm:eval sw_status_score = "100 if sw_status == 'Expired' else 99 if sw_status == 'Expiring in 4 Quarters' else 98 if sw_status == 'Expiring in 8 Quarters' else 97 if sw_status == 'Expiring after 8 Quarters' else 0"
+ --> @dm:skip-block-if-shape row_count="0"
+ --> @dm:sort columns='sw_status_score' and order='descending'
+ ## -->@dm:copy-columns from='sw_version,' and to=''
+
+ ## -->@dm:to-type columns=''
+
+ --> @dm:dedup columns='product_id,sw_version,sw_os_type,contract_number,customer'
+ --> @dm:eval match="'yes'"
+ --> @dm:save name="temp-sw-dedups"
+ --> @c:new-block
+ --> @dm:recall name='temp-inv-details'
+ --> @dm:enrich dict='temp-sw-dedups' and dict_key_cols='contract_number,customer,product_id' and src_key_cols='contract_number,customer_name,product_id' and enrich_cols='match'
+ --> @dm:dropnull columns='match'
+ --> @dm:selectcolumns exclude='^(swEOL_endOfLifeAnnouncementDate|swEOL_endOfVulnerabilitySecuritySupportDate|swEOL_lastDayOfSupportDate|swEOL_endOfSoftwareMaintenanceReleasesDate|swEOL_endOfSaleDate|swEOL_bulletinUrl|swEOL_bulletinTitle|swEOL_bulletinNumber|swEOL_softwareEOXId|sw_status|sw_expiring_qtr|sw_expiring_year|match|customer)$'
+ --> @dm:save name='temp-matched-inv'
+ --> @c:new-block
+ --> @dm:recall name='temp-matched-inv'
+ --> @dm:enrich dict='temp-sw-dedups' and dict_key_cols='contract_number,customer,product_id' and src_key_cols='contract_number,customer_name,product_id' and enrich_cols='swEOL_endOfLifeAnnouncementDate,swEOL_endOfVulnerabilitySecuritySupportDate,swEOL_lastDayOfSupportDate,swEOL_endOfSoftwareMaintenanceReleasesDate,swEOL_endOfSaleDate,swEOL_bulletinUrl,swEOL_bulletinTitle,swEOL_bulletinNumber,swEOL_softwareEOXId,sw_status,sw_expiring_qtr,sw_expiring_year' and how_type='inner'
+ --> @dm:selectcolumns exclude="^(customer_x|customer_y|deviceSN|source)"
+ --> @dm:save name='sw-final-enrich'
