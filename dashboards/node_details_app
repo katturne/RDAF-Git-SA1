@@ -1,99 +1,92 @@
 {
-  "name": "msp_administration",
-  "label": "MSP Administration",
-  "description": " App",
-  "version": "24.12.22",
-  "dashboard_folder": "Onboarding",
+  "name": "node_details_app",
+  "label": "Node Details App",
+  "description": "Node Details App",
+  "dashboard_folder": "NetworkDevicePack",
+  "context_label_id": "a_asset_name",
+  "version": "24.1.13.2",
+  "debug": true,
   "enabled": true,
-  "dashboard_filters": {
-    "time_filter": true,
-    "columns_filter": []
-  },
-  "dashboard_type": "app",
-  "dashboard_generator": {
-    "attachment": "add_dynamic_pages_for_admin"
-  },
   "custom_context": {
     "rda-dashboard-live-edit": true
   },
+  "context_enrichment": [
+    {
+      "stream": "cfx_rdaf_topology_nodes",
+      "stream0": "mp_nodes",
+      "enrich_columns": [
+        "node_type",
+        "host_name",
+        "node_label",
+        "device_hostname_short"
+      ],
+      "query_template0": "project_id = '$project_id' and customer_tag = '$customer_tag' and (device_ip = '$device_ip' or edge_ip is '$edge_ip')",
+      "query_template": "(device_ip = '$device_ip' or edge_ip is '$edge_ip')",
+      "defaultValues": {}
+    },
+    {
+      "stream": "rda_packs_meta",
+      "enrich_columns": [
+        "name",
+        "publisher",
+        "id",
+        "customers",
+        "status"
+      ],
+      "query_template": "id contains 'Fault' & status contains 'ACTIVATED'"
+    }
+  ],
+  "dashboard_sections": [
+    {
+      "title": "Org Ops"
+    }
+  ],
+  "dashboard_type": "app",
   "dashboard_groups": {
-    "customers": {
-      "icon": "hands.svg",
-      "label": "Customers"
+    "from_to": {
+      "icon": "alert.svg",
+      "label": "Alerts"
     },
-    "SNMP": {
-      "icon": "clambdaJobs.svg",
-      "label": "SNMP Profiles"
-    },
-    "accessMgmt": {
-      "icon": "customer.svg",
-      "label": "Access Management"
-    },
-    "packs": {
-      "icon": "library.svg",
-      "label": "Packs"
-    },
-    "artifacts": {
-      "icon": "blueprint.svg",
-      "label": "Artifacts"
-    },
-    "configuration": {
-      "icon": "settings.svg",
-      "label": "Common Policies"
+    "topo": {
+      "icon": "topology.svg",
+      "label": "Topology"
     }
   },
   "dashboard_pages": [
     {
-      "name": "onboarded_customer_list",
-      "label": "Manage Customers",
-      "group": "customers",
-      "icon": "hands.svg"
+      "name": "device_inventory_from_alerts",
+      "label": "Inventory",
+      "icon": "alert.svg",
+      "context_filter": "node_type is 'CHASSIS'"
     },
     {
-      "name": "rda-mgmt-page-dashboardgroups",
-      "label": "Dashboard Groups",
-      "group": "accessMgmt"
+      "name": "topology_geomap_dashboard",
+      "label": "Topology",
+      "icon": "stack.svg",
+      "context_filter": "node_type is 'CHASSIS'"
     },
     {
-      "name": "rda-packs-all",
-      "label": "RDA Packs",
-      "icon": "library.svg",
-      "group": "packs"
+      "name": "device_alerts_from_alert_fault",
+      "label": "Alerts",
+      "icon": "alert.svg",
+      "context_filter": "id contains 'Fault'"
     },
     {
-      "name": "rda-mgmt-page-datasets",
-      "label": "Datasets",
-      "icon": "datasource.svg",
-      "group": "artifacts"
+      "name": "device_syslog_from_alert_fault",
+      "label": "Syslogs",
+      "icon": "trace.svg",
+      "context_filter": "id contains 'Fault'"
     },
     {
-      "name": "rda-mgmt-page-pstreams",
-      "label": "Persistent Streams",
-      "icon": "gateway.svg",
-      "group": "artifacts"
-    },
-    {
-      "name": "rda-mgmt-page-pipelines",
-      "label": "Published Pipelines",
-      "icon": "pipeline.svg",
-      "group": "artifacts"
-    },
-    {
-      "name": "rda-mgmt-page-draftpipelines",
-      "label": "Draft Pipelines",
-      "icon": "pipeline.svg",
-      "group": "artifacts"
-    },
-    {
-      "name": "rda-mgmt-page-blueprints",
-      "label": "Service Blueprints",
-      "group": "artifacts"
+      "name": "device_SNMP_Traps_from_alerts_fault",
+      "label": "SNMP Traps",
+      "icon": "trace.svg",
+      "context_filter": "id contains 'Fault'"
     }
   ],
-  "attachments": [
+  "pstream_dashboards": [
     {
-      "name": "add_dynamic_pages_for_admin",
-      "value": "{%- set existing_groups = dashboard[\"dashboard_groups\"] -%}\n{%- set d_pages = [] -%}\n{%- set d_groups = [] -%}\n\n{%- set dlist = engine.query_stream_data(stream=\"rda_packs_dynamic_groups_and_pages\", cfxql_query=\"customer_tag is empty\") or [] -%}\n\n{%- if dlist -%}\n    {# Process the dlist to populate dashboard groups and pages #}\n    {%- for i in dlist -%}\n        {%- set dgroup_ = {\n            \"g_name\": i[\"dashboard_group_name\"],\n            \"g_label\": i[\"dashboard_group_label\"],\n            \"g_icon\": i[\"dashboard_group_icon\"]\n        } -%}\n        {{ d_groups.append(dgroup_) }}\n\n        {%- set dpage_ = {\n            \"name\": i[\"dashboard_page_name\"],\n            \"label\": i[\"dashboard_page_label\"],\n            \"icon\": i[\"dashboard_page_icon\"],\n            \"group\": i[\"dashboard_page_group\"]\n        } -%}\n        {{ d_pages.append(dpage_) }}\n    {%- endfor -%}\n\n    {# Update dashboard groups #}\n    {%- for group in d_groups -%}\n        {%- if group.g_name not in existing_groups | map(attribute='g_name') | list -%}\n            {%- set _ = dashboard[\"dashboard_groups\"].update({\n                group.g_name: {\n                    \"icon\": group.g_icon,\n                    \"label\": group.g_label\n                }\n            }) -%}\n        {%- endif -%}\n\n    {%- endfor -%}\n\n    {# Update dashboard pages #}\n    {%- for page in d_pages -%}\n        {%- set _ = dashboard[\"dashboard_pages\"].append({\n            \"name\": page.name,\n            \"label\": page.label,\n            \"icon\": page.icon,\n            \"group\": page.group\n        }) -%}\n    {%- endfor -%}\n\n{%- endif -%}"
+      "title": "Org Ops"
     }
   ]
 }
