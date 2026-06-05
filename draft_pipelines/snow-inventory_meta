@@ -1,23 +1,523 @@
-folder: Default
-name: snow-inventory
-description: test pipeline
-data_path: draft-pipelines/data/snow-inventory/2025_03_03_1/data.json
-usecase: ''
-category: ''
-sources:
-  snow_v2:
-    name: snow_v2
-    type: servicenow_v2
-  rn:
-    name: rn
-    type: rn
-artifacts:
-- artifact_type: dataset
-  artifact_name: snow_table
-  access: write
-- artifact_type: rda-network-stream
-  artifact_name: snowinventory
-  access: write
-version: '2025_03_03_1'
-file_type: json
-checksum: c7f702d5
+
+ ## the network inventory dataset has to have columns: product_name, serial_number,sw_version. Any other columns should be
+
+ ## It is expected network data has following columns: product_name|serial_number|sw_version|sw_os_type
+
+ ## 09/24-Added BOARD as filter in snowflake query
+@dm:empty
+ --> @exec:get-input
+ ## @c:new-block
+
+ ## --> @dm:recall name='final_input_dataset'
+
+ ## --> @dm:eval sw_dataset="'uploaded-file-data'"
+
+ --> @dm:save name = "temp-data-input"
+ --> @c:new-block
+ --> @dm:empty
+ --> @dm:save name="temp-recommended_release"
+ ## To fix incorrect SW EOL data provided by Ironbank and NP
+
+ --> @c:new-block
+ --> @dm:empty
+ --> @dm:addrow rule_id = "A1" & rule = "sw_version contains '12\.2\(18\)SXF' " & sw_status_f="Expired"
+ --> @dm:addrow rule_id = "A2" & rule = "sw_version contains '6\.2\(' and sw_os_type is 'NX-OS' " & sw_status_f="Expired"
+ --> @dm:addrow rule_id = "A3" & rule = "sw_version contains '15\.1\(1\)S'" & sw_status_f="Expired"
+ --> @dm:addrow rule_id = "A4" & rule = "sw_version contains '12\.2\(14\)Z'" & sw_status_f="Expired"
+ --> @dm:save name='temp-sweox-errs-dict'
+ ## --> @c:new-block
+
+ ## --> @dm:recall name='att-mobility-project'
+
+ ## --> @dm:eval sw_dataset="'att-mobility-inventory'"
+
+ ## --> @dm:save name = "temp-data-input"
+
+ ## --> @c:new-block
+
+ ## --> @dm:empty
+
+ ## --> @dm:addrow name='cnc_device_inventory' and limit=0
+
+ ## --> #dm:query-persistent-stream item_type is 'CHASSIS'
+
+ ## --> @dm:save name='cnc_device_inventory'
+
+ ## Normalize network data - Explode serial number column (RDAF inv have comma separated for WLC)
+
+ --> @c:data-loop columns='sw_dataset,project_name,customer,customer_name' and dataset='temp-data-input'
+ --> @dm:recall name="$sw_dataset"
+ ## normalize columns from customer data.
+
+ --> @dm:rename-columns sw_version="device_fw_version"
+ --> @dm:rename-columns sw_os_type="device_fw_type"
+ --> @dm:rename-columns serial_number="device_serial_number"
+ --> @dm:rename-columns product_name="device_model"
+ ## Remove device w/serial number
+
+ --> *dm:filter serial_number is not null
+ ## --> @dm:fixnull columns="serial_number" and value="Not Available"  and apply_for_empty="yes"
+
+ --> @dm:explode column = "serial_number" & sep = ","
+ ## remove unnecessary characters from product_name and SN
+
+ --> @dm:eval product_name = "str(product_name).strip()"
+ --> @dm:eval serial_number = "str(serial_number).strip()"
+ ## Clean up Serial Numbers (i.e 'JAE07310B1C (196781738)')
+
+ --> @dm:eval serial_number=" 'Not Available' if serial_number=='Not Available'  else serial_number.split(' ')[0] if serial_number and serial_number!='Not Available' else serial_number"
+ ## Normalize values for sw_version and sw_type
+
+ --> @dm:eval sw_os_type=" 'Not Available' if sw_os_type in ['Not Found','Missing'] else sw_os_type"
+ --> @dm:eval sw_version=" 'Not Available' if sw_version in ['Not Found','Missing'] else sw_version"
+ --> @dm:fixnull columns="sw_version,sw_os_type" and value="Not Available" and apply_for_empty="yes"
+ --> @dm:fixnull columns="product_name" and value="No PID" and apply_for_empty="yes"
+ --> @dm:manipulate-string to="project_name" and func="eval" and value="'$project_name'"
+ --> @dm:manipulate-string to="customer" and func="eval" and value="'$customer'"
+ --> @dm:manipulate-string to="customer_name" and func="eval" and value="'$customer_name'"
+ --> @dm:save name ="temp-network_inv"
+ --> @c:new-block
+ --> @dm:recall name="edc_pid_ostype_dict"
+ --> @dm:rename-columns sw_os_type_dict="sw_os_type"
+ --> @dm:save name='temp-pid-ostype'
+ ## If SW recommended is neeed. Add if condition if requested in input form
+
+ ## --> @c:new-block
+
+ ## --> @dm:recall name="edc_customer_recommended_release"
+
+ ## --> @dm:save name='temp-recommended_release'
+
+ --> @c:data-loop columns='project_name,savm_sales_level,customer,customer_name,input_type,input_values' and dataset='temp-data-input'
+ --> @snowflake:native-query dbname is "CX_DB" and warehouse is "CX_DMP_RPT_WH" and query is "WITH ranked_rows AS (SELECT INSTANCE_ID, GU_NAME, SAVM_SALES_LEVEL_3_NAME, SAVM_SALES_LEVEL_4_NAME, SAVM_SALES_LEVEL_5_NAME, SAVM_SALES_LEVEL_6_NAME, SAVM_GROUP_NAME, CONTRACT_NUMBER, SERIAL_NUMBER, PRODUCT_NAME, COVERAGE, COVERED_LINE_STATUS, BUSINESS_ENTITY, BUSINESS_SUB_ENTITY, BK_END_OF_LIFE_REQUEST_NUM, BK_EOL_BULLETIN_PRODUCT_TYP_CD, END_OF_NEW_SVC_ATTACHMENT_DT, END_OF_ROUTINE_FAIL_ANLYSYS_DT, END_OF_SOFTWARE_MAINTENANCE_DT, END_OF_SVC_CONTRACT_RNWL_DT, EOL_EXTERNAL_ANNOUNCE_DT, END_OF_SECURITY_VULN_SUPPORT_DT, EOL_PRODUCT_NAME, ITEM_TYPE, LAST_DATE_OF_SALE, LAST_DATE_OF_SUPPORT, PRODUCT_DESCRIPTION, PRODUCT_FAMILY, PRODUCT_FAMILY_DESCRIPTION, PRODUCT_TYPE, PRODUCT_LIST_PRICE, PORTFOLIO_DESC, USAGE_CODE, SHIPPED_DATE, CONTRACT_LINE_END_DATE, ROW_NUMBER() OVER (PARTITION BY INSTANCE_ID ORDER BY COVERAGE ASC) AS row_num FROM CX_DB.CX_DMP_BR.PV_DMP_ASSET WHERE $savm_sales_level  IN ('$customer') AND $input_type in ($input_values) AND ASSET_TYPE = 'Hardware' AND ITEM_TYPE IN ('CHASSIS','CARD') AND product_type in ('BOARD','ASSEMBLY','ROUTER','SWITCH','FUNCSYSTM','MULTIPROD','SERVER')) SELECT INSTANCE_ID, GU_NAME, SAVM_SALES_LEVEL_3_NAME, SAVM_SALES_LEVEL_4_NAME, SAVM_SALES_LEVEL_5_NAME, SAVM_SALES_LEVEL_6_NAME, SAVM_GROUP_NAME, CONTRACT_NUMBER, SERIAL_NUMBER, PRODUCT_NAME, COVERAGE, COVERED_LINE_STATUS, BUSINESS_ENTITY, BUSINESS_SUB_ENTITY, BK_END_OF_LIFE_REQUEST_NUM, BK_EOL_BULLETIN_PRODUCT_TYP_CD, END_OF_NEW_SVC_ATTACHMENT_DT, END_OF_ROUTINE_FAIL_ANLYSYS_DT, END_OF_SOFTWARE_MAINTENANCE_DT, END_OF_SVC_CONTRACT_RNWL_DT, EOL_EXTERNAL_ANNOUNCE_DT, END_OF_SECURITY_VULN_SUPPORT_DT, EOL_PRODUCT_NAME, ITEM_TYPE, LAST_DATE_OF_SALE, LAST_DATE_OF_SUPPORT, PRODUCT_DESCRIPTION, PRODUCT_FAMILY, PRODUCT_FAMILY_DESCRIPTION, PRODUCT_TYPE, PRODUCT_LIST_PRICE, PORTFOLIO_DESC, USAGE_CODE, SHIPPED_DATE, CONTRACT_LINE_END_DATE FROM ranked_rows WHERE row_num = 1;"
+ --> @dm:add-missing-columns columns="execution_status"
+ --> *dm:filter execution_status =="Success"
+ --> @dm:skip-block-if-shape column_count = 3
+ ## #automate this later
+
+ ## --> *dm:filter savm_sales_level_4_name='STR_ASP ATT'
+
+ --> @dm:to_type columns = 'product_list_price' & type  = 'int'
+ --> @dm:fixnull columns="product_list_price" and value="0" and apply_for_empty="yes"
+ --> @dm:fixnull columns="product_name,covered_line_status,coverage,portfolio_desc,usage_code" and value="Not Available" and apply_for_empty="yes"
+ --> @dm:change-time-format columns="contract_line_end_date,end_of_new_svc_attachment_dt,end_of_routine_fail_anlysys_dt,end_of_software_maintenance_dt,end_of_svc_contract_rnwl_dt,eol_external_announce_dt,last_date_of_sale,last_date_of_support,end_of_security_vuln_support_dt" and from_format="datetimestr" and to_format="%Y-%m-%d"
+ --> @dm:manipulate-string to="project_name" and func="eval" and value="'$project_name'"
+ --> @dm:manipulate-string to="customer" and func="eval" and value="'$customer'"
+ --> @dm:manipulate-string to="customer_name" and func="eval" and value="'$customer_name'"
+ --> @dm:eval unique_key = "str(customer) + str(project_name) + str(serial_number)"
+ --> @dm:save name = "temp-contract_data" and append="yes"
+ ## Separate devices with null serial number
+
+ --> @c:new-block
+ --> @dm:recall name="temp-contract_data"
+ --> *dm:filter serial_number is null
+ --> @dm:save name='temp-contract_data_null'
+ --> @c:new-block
+ --> @dm:recall name="temp-contract_data"
+ --> *dm:filter serial_number is not null
+ --> @dm:save name='temp-contract_data_not_null'
+ ## Deduplicate
+
+ --> @c:new-block
+ --> @dm:recall name="temp-contract_data_not_null"
+ ## deduplicate by Instance ID (when device is in an ACTIVE and SIGNED contract - keep the one in ACTIVE contract
+
+ --> @dm:sort columns="instance_id,covered_line_status" and order="asc"
+ --> @dm:dedup columns = 'instance_id'and keep="first"
+ ## deduplicate by serial_number (workaroung of EDW issue not to untag old contracts to uncovered devices - keep the one with latest shipped date)
+
+ --> @dm:sort columns="shipped_date,contract_line_end_date" and order="desc"
+ --> @dm:dedup columns = 'serial_number'and keep="first"
+ --> @dm:save name = "temp-contract_data"
+ ## concatenate --> NOT NEEDED. Only working with assets that have a serial number
+
+ ## --> @c:new-block
+
+ ## --> @dm:recall name="temp-contract_data_null"
+
+ ## --> @dm:save name = "temp-contract_data" and append="yes"
+
+ ## Enrich master contract_data with SW version and OS Type from network data
+
+ --> @c:new-block
+ --> @dm:recall name="temp-contract_data"
+ ## Make sure EDW data does not have null cells
+
+ --> @dm:fixnull columns="serial_number" and value="Not Available"  and apply_for_empty="yes"
+ --> @dm:enrich dict="temp-network_inv" and src_key_cols="serial_number" and dict_key_cols="serial_number" and enrich_cols="sw_version,sw_os_type,product_name" and enrich_cols_as="sw_version,sw_os_type,PID"
+ --> @dm:fixnull columns='PID' and value="Not Available"  and apply_for_empty="yes"
+ --> @dm:eval match_inv=" 'IB Only' if PID=='Not Available' else 'IB + In Network' "
+ --> @dm:selectcolumns exclude="^PID$"
+ ## new column product_id to simplify product is during sw scan
+
+ --> @dm:copy-columns from="product_name" and to="product_id"
+ --> @dm:eval product_id = "product_id.replace('=', '')"
+ --> @dm:eval tokens = "product_id.rsplit('-', 1)"
+ --> @dm:eval product_id = "tokens[0] if len(tokens) > 1 and tokens[1] in ['RF'] else product_id"
+ --> @dm:selectcolumns exclude = "tokens"
+ --> @dm:save name = "temp-contract_data_IB"
+ --> @dm:save name = "temp-contract_data"
+ ## Find devices in network that are not in IB
+
+ --> @c:new-block
+ --> @dm:recall name="temp-network_inv"
+ --> @dm:selectcolumns include="^product_name|serial_number|sw_version|sw_os_type|customer|customer_name|project_name"
+ --> @dm:enrich dict="temp-contract_data" and src_key_cols="serial_number" and dict_key_cols="serial_number" and enrich_cols="contract_number,instance_id"
+ --> *dm:filter instance_id is null
+ ## new column product_id to simplify product is during sw scan
+
+ --> @dm:copy-columns from="product_name" and to="product_id"
+ --> @dm:eval product_id = "product_id.replace('=', '')"
+ --> @dm:eval tokens = "product_id.rsplit('-', 1)"
+ --> @dm:eval product_id = "tokens[0] if len(tokens) > 1 and tokens[1] in ['RF'] else product_id"
+ --> @dm:selectcolumns exclude = "tokens"
+ ## enrich hwEOL for devices in-network only
+
+ --> @dm:enrich dict="temp-contract_data" and src_key_cols="product_id" and dict_key_cols="product_id" and enrich_cols="bk_end_of_life_request_num,bk_eol_bulletin_product_typ_cd,end_of_new_svc_attachment_dt,end_of_routine_fail_anlysys_dt,end_of_software_maintenance_dt,end_of_svc_contract_rnwl_dt,eol_external_announce_dt,eol_product_name,last_date_of_sale,last_date_of_support,end_of_security_vuln_support_dt,product_description,product_family,product_family_description,product_type,item_type"
+ --> @dm:manipulate-string to="match_inv" and func="eval" and value="'Only in Network'"
+ --> @dm:eval unique_key = "str(customer) + str(project_name) + str(serial_number)"
+ --> @dm:save name = "temp-contract_data_network_only"
+ ## --> @dm:save name = "temp-contract_data" and append="yes"
+
+ ## Section to get HW data from device only-in-network.
+
+ ## This has to be reviewed. Concat all values in a single cell can exceed size limit. If expected large number of products in-network only
+
+ --> @c:new-block
+ --> @dm:recall name="temp-contract_data_network_only"
+ --> @dm:skip-block-if-shape row_count = 0
+ --> @dm:selectcolumns include="product_name|product_id"
+ --> @dm:dedup columns = "product_id"
+ --> @dm:map from = "product_id" & to = "product_id_new" & func = "concat" & prefix = "'" & suffix = "'"
+ --> @dm:selectcolumns include="product_id_new"
+ --> @dm:save name = "temp-contract_data_network_only_pids"
+ --> @exec:for-loop num_rows=50
+ --> @dm:eval dummy="'dummy'"
+ --> @dm:implode key_columns='dummy' & merge_columns='product_id_new' & merge_sep = ','
+ --> @snowflake:native-query dbname is "CX_DB" and warehouse is "CX_DMP_RPT_WH" and query is "SELECT PRODUCT_NAME, COVERAGE, BUSINESS_ENTITY, BUSINESS_SUB_ENTITY, BK_END_OF_LIFE_REQUEST_NUM, BK_EOL_BULLETIN_PRODUCT_TYP_CD, END_OF_NEW_SVC_ATTACHMENT_DT, END_OF_ROUTINE_FAIL_ANLYSYS_DT, END_OF_SOFTWARE_MAINTENANCE_DT, END_OF_SVC_CONTRACT_RNWL_DT, EOL_EXTERNAL_ANNOUNCE_DT, END_OF_SECURITY_VULN_SUPPORT_DT, EOL_PRODUCT_NAME, ITEM_TYPE, LAST_DATE_OF_SALE, LAST_DATE_OF_SUPPORT, PRODUCT_DESCRIPTION, PRODUCT_FAMILY, PRODUCT_FAMILY_DESCRIPTION, PRODUCT_TYPE, PRODUCT_LIST_PRICE FROM CX_DB.CX_DMP_EBV.BV_ASSET WHERE product_name IN ('$product_id_new') LIMIT 1;"
+ --> @dm:selectcolumns exclude="dummy"
+ --> @dm:save name="temp-inv_only_hw_data" and append='yes'
+ --> @exec:end-loop
+ ## --> @dm:save name = "temp-device_only_network"
+
+ ## concatenate both datasets. Keep only devices part of network
+
+ --> @c:new-block
+ ## --> @dm:concat names="^temp-contract_data$|^temp-device_only_network$"
+
+ --> @dm:recall name="temp-contract_data"
+ --> *dm:filter match_inv contains 'Network'
+ --> @dm:add-missing-columns columns="sw_os_type"
+ --> @dm:fixnull columns="contract_number,instance_id,serial_number,sw_version,portfolio_desc" and value="Not Available"  and apply_for_empty="yes"
+ --> @dm:fixnull columns="product_list_price" and value="0" and apply_for_empty="yes"
+ --> @dm:save name = "temp-contract_data"
+ ## Enrich with SW Type
+
+ --> @c:new-block
+ --> @dm:recall name="temp-contract_data"
+ --> @dm:enrich dict="temp-pid-ostype" and src_key_cols="product_name" and dict_key_cols="PID" and enrich_cols="sw_os_type_dict" and case_insensitive="yes"
+ --> @cfxaia:conditional-statement condition_column="sw_os_type" and return_if="sw_os_type" and return_else="sw_os_type_dict"
+ --> @dm:selectcolumns exclude="^PID$|sw_os_type_dict"
+ ## remove unnecessary characters from sw_version
+
+ --> @dm:eval sw_version = "sw_version.replace('Copyright', '') if sw_version else sw_version"
+ --> @dm:eval sw_version = "sw_version.replace('[Default]', '') if sw_version else sw_version"
+ --> @dm:eval sw_version = "str(sw_version).strip()"
+ --> @dm:save name = "temp-contract_data"
+ ## Generate unique list of PID-SW version to process
+
+ --> @c:new-block
+ --> @dm:recall name="temp-contract_data"
+ --> *dm:filter sw_version!='Not Available'
+ --> *dm:filter sw_os_type is not null
+ --> @dm:selectcolumns include="customer|^product_id|sw_os_type|sw_version|instance_id"
+ --> @dm:groupby columns ="customer,product_id,sw_os_type,sw_version"
+ --> @dm:rename-columns total="instance_id"
+ --> @dm:eval unique_key = "str(product_id) + str(sw_os_type) + str(sw_version)"
+ --> @dm:save name="temp-input-dataset"
+ ## ################################
+
+ ## Process HW EOL
+
+ --> @c:new-block
+ --> @dm:recall name="temp-contract_data"
+ --> @dm:add-missing-columns columns="bk_end_of_life_request_num,bk_eol_bulletin_product_typ_cd,end_of_new_svc_attachment_dt,end_of_routine_fail_anlysys_dt,end_of_software_maintenance_dt,end_of_svc_contract_rnwl_dt,eol_external_announce_dt,eol_product_name,last_date_of_sale,last_date_of_support,end_of_security_vuln_support_dt,product_description,product_family,product_family_description,product_type,item_type"
+ ## adding not available to null values and creating a unique key
+
+ --> @dm:fixnull columns='contract_number,product_name,coverage,covered_line_status,business_entity,business_sub_entity,bk_end_of_life_request_num,bk_eol_bulletin_product_typ_cd,end_of_new_svc_attachment_dt,end_of_routine_fail_anlysys_dt,end_of_software_maintenance_dt,end_of_svc_contract_rnwl_dt,eol_external_announce_dt,end_of_security_vuln_support_dt,eol_product_name,gu_name,item_type,last_date_of_sale,last_date_of_support,product_description,product_family,product_family_description,product_type' and value="Not Available"  and apply_for_empty="yes"
+ ## --> @dm:manipulate-string from="gu_name,__uuid" and func="concat_columns" and to="unique_gu_name" and value="_"
+
+ --> @dm:save name='temp-hw-sw-eol-details'
+ ## Procressing Data of HW Status and SW Status from Inventory Data
+
+ ## ldos dataset for creating hw_status and sw_status
+
+ --> @dm:addrow key="dummy"
+ --> @dm:eval-multi-proc today='int(time_now_as_ms())' and _max_procs=4
+ --> @dm:copy-columns from="today,today,today" and to="t_date,t_month,t_year"
+ --> @dm:change-time-format columns = 't_date' & from_format = 'ms' & to_format = '%d'
+ --> @dm:change-time-format columns = 't_month' & from_format = 'ms' & to_format ='%m'
+ --> @dm:change-time-format columns = 't_year' & from_format = 'ms' & to_format ='%y'
+ --> @dm:to-type columns="t_month,t_year" and type="int"
+ --> @dm:manipulate-string to="major_unit" and value="t_month -1 + 24" and func="eval"
+ --> @dm:manipulate-string to="major_unit_year" and value="t_year + major_unit//12" and func="eval"
+ --> @dm:manipulate-string to="major_unit_month" and value="major_unit % 12 + 1" and func="eval"
+ --> @dm:to_type columns="major_unit_month,t_date,major_unit_year" and type="str"
+ --> @dm:manipulate-string to="major_eol_date" and value="/" and func="concat_columns" and from="major_unit_month,t_date,major_unit_year"
+ --> @dm:manipulate-string to="semi_critical" and value="t_month - 1 + 12" and func="eval"
+ --> @dm:manipulate-string to="semi_critical_unit_year" and value="t_year + semi_critical//12" and func="eval"
+ --> @dm:manipulate-string to="semi_critical_month" and value="semi_critical % 12 + 1" and func="eval"
+ --> @dm:to_type columns="semi_critical_month,t_date,semi_critical_unit_year" and type="str"
+ --> @dm:manipulate-string to="semi_critical_date" and value="/" and func="concat_columns" and from="semi_critical_month,t_date,semi_critical_unit_year"
+ --> @dm:manipulate-string to="very_critical" and value="t_month - 1 + 3" and func="eval"
+ --> @dm:manipulate-string to="very_critical_unit_year" and value="t_year + very_critical//12" and func="eval"
+ --> @dm:manipulate-string to="very_critical_month" and value="very_critical % 12 + 1" and func="eval"
+ --> @dm:to_type columns="very_critical_month,t_date,very_critical_unit_year" and type="str"
+ --> @dm:manipulate-string to="very_critical_date" and value="/" and func="concat_columns" and from="very_critical_month,t_date,very_critical_unit_year"
+ --> @dm:change-time-format columns="major_eol_date,semi_critical_date,very_critical_date" & from_format="datetimestr" and to_format="ms"
+ --> @dm:gc
+ --> @dm:save name="temp-ldos"
+ ## calculating hw_status
+
+ --> @dm:recall name="temp-hw-sw-eol-details"
+ --> *dm:filter last_date_of_support is not null
+ --> @dm:skip-block-if-shape row_count='0'
+ --> @dm:recall name="temp-hw-sw-eol-details"
+ --> @dm:dedup columns="last_date_of_support"
+ --> @dm:manipulate-string to="key" and value="'dummy'" and func="eval"
+ --> @dm:selectcolumns include="last_date_of_support|key"
+ --> @dm:enrich dict="temp-ldos" and src_key_cols="key" and dict_key_cols="key" and enrich_cols="today,very_critical_date,semi_critical_date,major_eol_date"
+ --> @dm:copy-columns from="last_date_of_support" and to="ldos"
+ --> @dm:change-time-format columns='ldos' & from_format="datetimestr" and to_format="ms"
+ --> @cfxaia:conditional-statement condition_column="ldos" and operator=">"  and check_value="yes" and value="0" and return_if="ldos"
+ --> @dm:to-type columns="ldos" and type="int"
+ --> @dm:gc
+ --> @dm:selectcolumns exclude="^t_date$|^t_month$|^t_year$|^major_unit$|^major_unit_year$|^major_unit_month$|^semi_critical$|^semi_critical_unit_year$|^semi_critical_month$|^very_critical_unit_year$|^very_critical_month$|^very_critical$"
+ ## hw_status column: is 'Expired' if ldos is < today(current time in ms)
+
+ ## 'Expiring in a Quarter' if ldos > today(current time in ms) & <=very_critical_date
+
+ ## 'Expiring in 8 Quarters' if ldos > today(current time in ms) & <=semi_critical_date
+
+ ## 'Expiring after 8 Quarters' if ldos > today(current time in ms) & <=major_eol_date
+
+ --> @dm:manipulate-string to="hw_status" and func="eval" and value="None"
+ --> @cfxaia:conditional-statement condition_column="ldos,today" and operator="<" and return_if="Expired" and return_else="hw_status" and to_column="hw_status"
+ --> @cfxaia:conditional-statement condition_column="ldos,today" and operator=">" and return_if="yes" and to_column="hw_status1" and return_else="no"
+ --> @cfxaia:conditional-statement condition_column="ldos,very_critical_date" and operator="<=" and return_if="yes" and to_column="hw_status2" and  return_else="no"
+ --> @cfxaia:conditional-statement condition_column="hw_status1,hw_status2" and operator="=" and check_value="yes" and value="yes,yes" and return_if="Expiring in a Quarter" and return_else="hw_status" and to_column="hw_status"
+ --> @cfxaia:conditional-statement condition_column="ldos,semi_critical_date" and operator="<=" and return_if="yes" and to_column="hw_status2" and  return_else="no"
+ --> @cfxaia:conditional-statement condition_column="hw_status1,hw_status2" and operator="=" and check_value="yes" and value="yes,yes" and return_if="Expiring in 4 Quarters" and return_else="hw_status" and to_column="hw_status" and replace_if_null=True
+ --> @cfxaia:conditional-statement condition_column="ldos,major_eol_date" and operator="<=" and return_if="yes" and to_column="hw_status2" and return_else="no"
+ --> @cfxaia:conditional-statement condition_column="hw_status1,hw_status2" and operator="=" and check_value="yes" and value="yes,yes" and return_if="Expiring in 8 Quarters" and return_else="hw_status" and to_column="hw_status" and replace_if_null=True
+ --> @cfxaia:conditional-statement condition_column="ldos,major_eol_date" and operator=">" and return_if="yes" and to_column="hw_status2" and  return_else="no"
+ --> @cfxaia:conditional-statement condition_column="hw_status1,hw_status2" and operator="=" and check_value="yes" and value="yes,yes" and return_if="Expiring after 8 Quarters" and return_else="hw_status" and to_column="hw_status" and replace_if_null=True
+ --> @dm:selectcolumns exclude="hw_status1|hw_status2|^lods$"
+ --> @dm:fixnull columns="hw_status" and value="No EOL"
+ --> @dm:save name="temp-hwldos"
+ ## compute hw_expiring_year,hw_expiring_qtr
+
+ --> @dm:set-tracing-context __block__="compute-hw-ldos-additional-cols"
+ --> @dm:recall name="temp-hw-sw-eol-details"
+ --> *dm:filter last_date_of_support is not null
+ --> @dm:skip-block-if-shape row_count='0'
+ --> @dm:recall name="temp-hw-sw-eol-details"
+ --> @dm:dedup columns="last_date_of_support"
+ --> @dm:manipulate-string to="key" and value="'dummy'" and func="eval"
+ --> @dm:selectcolumns include="last_date_of_support|key"
+ --> @dm:enrich dict="temp-ldos" and src_key_cols="key" and dict_key_cols="key" and enrich_cols="today,very_critical_date,semi_critical_date,major_eol_date"
+ --> @dm:copy-columns from="last_date_of_support,last_date_of_support" and to="ldos,YEAR"
+ --> @dm:change-time-format columns='ldos' & from_format="datetimestr" and to_format="ms"
+ --> @cfxaia:conditional-statement condition_column="ldos" and operator=">"  and check_value="yes" and value="0" and return_if="ldos"
+ --> @dm:to-type columns="ldos" and type="int"
+ --> @dm:gc
+ --> @dm:selectcolumns exclude="^t_date$|^t_month$|^t_year$|^major_unit$|^major_unit_year$|^major_unit_month$|^semi_critical$|^semi_critical_unit_year$|^semi_critical_month$|^very_critical_unit_year$|^very_critical_month$|^very_critical$"
+ ## hw_status column: is 'Expired' if ldos is < today(current time in ms)
+
+ ## 'Expiring in a Quarter' if ldos > today(current time in ms) & <=very_critical_date
+
+ ## 'Expiring in 8 Quarters' if ldos > today(current time in ms) & <=semi_critical_date
+
+ ## 'Expiring after 8 Quarters' if ldos > today(current time in ms) & <=major_eol_date
+
+ --> @dm:manipulate-string to="hw_status" and func="eval" and value="None"
+ --> @cfxaia:conditional-statement condition_column="ldos,today" and operator="<" and return_if="Expired" and return_else="hw_status" and to_column="hw_status"
+ --> @cfxaia:conditional-statement condition_column="ldos,today" and operator=">" and return_if="yes" and to_column="hw_status1" and return_else="no"
+ --> @cfxaia:conditional-statement condition_column="ldos,very_critical_date" and operator="<=" and return_if="yes" and to_column="hw_status2" and  return_else="no"
+ --> @cfxaia:conditional-statement condition_column="hw_status1,hw_status2" and operator="=" and check_value="yes" and value="yes,yes" and return_if="Expiring in a Quarter" and return_else="hw_status" and to_column="hw_status"
+ --> @cfxaia:conditional-statement condition_column="ldos,semi_critical_date" and operator="<=" and return_if="yes" and to_column="hw_status2" and  return_else="no"
+ --> @cfxaia:conditional-statement condition_column="hw_status1,hw_status2" and operator="=" and check_value="yes" and value="yes,yes" and return_if="Expiring in 4 Quarters" and return_else="hw_status" and to_column="hw_status" and replace_if_null=True
+ --> @cfxaia:conditional-statement condition_column="ldos,major_eol_date" and operator="<=" and return_if="yes" and to_column="hw_status2" and return_else="no"
+ --> @cfxaia:conditional-statement condition_column="hw_status1,hw_status2" and operator="=" and check_value="yes" and value="yes,yes" and return_if="Expiring in 8 Quarters" and return_else="hw_status" and to_column="hw_status" and replace_if_null=True
+ --> @cfxaia:conditional-statement condition_column="ldos,major_eol_date" and operator=">" and return_if="yes" and to_column="hw_status2" and  return_else="no"
+ --> @cfxaia:conditional-statement condition_column="hw_status1,hw_status2" and operator="=" and check_value="yes" and value="yes,yes" and return_if="Expiring after 8 Quarters" and return_else="hw_status" and to_column="hw_status" and replace_if_null=True
+ --> @dm:selectcolumns exclude="hw_status1|hw_status2"
+ --> @dm:fixnull columns="hw_status" and value="No EOL"
+ --> @dm:rename-columns ldos_month="ldos"
+ --> @dm:change-time-format columns = 'ldos_month' & from_format = 'ms' & to_format ='%m'
+ --> @dm:manipulate-string from="YEAR" and value="[0-9]{4,7}" and func="match" and to="YEAR"
+ --> @dm:manipulate-string from="ldos_month" and value="0" and func="lstrip" and to="ldos_month"
+ --> @dm:fixnull columns="ldos_month" and value=0
+ --> @dm:to-type columns="ldos_month" and type="int"
+ --> @dm:manipulate-string to="qtr" and func="eval" and value="((ldos_month - 1) // 3 ) + 1"
+ --> @cfxaia:conditional-statement condition_column="ldos_month" and operator="<=" and check_value="yes" and value="0" and return_if="" and return_else="qtr" and to_column="qtr"
+ --> @dm:copy-columns from="qtr" and to="qtr" and prefix="Q" and func="append"
+ ## --> @dm:fixnull columns="YEAR" and value="Not Available"
+
+ --> @dm:manipulate-string to="hw_expiring_qtr" and func="concat_columns" and from="YEAR,qtr" and value=" "
+ ## --> @dm:manipulate-string from="hw_expiring_qtr" and func="replace" and value="Not Available  Q,Not Available" and to="hw_expiring_qtr"
+
+ --> @dm:copy-columns from="YEAR" and to="hw_expiring_year"
+ ## --> @dm:selectcolumns include="$column|^today$|^very_critical_date$|^semi_critical_date$|^major_eol_date$"
+
+ --> @dm:gc
+ --> @dm:save name="temp-hwldos-yr"
+ ## compute hw_announced_year,hw_announced_qtr
+
+ --> @dm:set-tracing-context __block__="compute-hw-ldos-additional-cols"
+ --> @dm:recall name="temp-hw-sw-eol-details"
+ --> *dm:filter eol_external_announce_dt is not null
+ --> @dm:skip-block-if-shape row_count='0'
+ --> @dm:recall name="temp-hw-sw-eol-details"
+ --> @dm:dedup columns="eol_external_announce_dt"
+ --> @dm:manipulate-string to="key" and value="'dummy'" and func="eval"
+ --> @dm:selectcolumns include="eol_external_announce_dt|key"
+ --> @dm:enrich dict="temp-ldos" and src_key_cols="key" and dict_key_cols="key" and enrich_cols="today,very_critical_date,semi_critical_date,major_eol_date"
+ --> @dm:copy-columns from="eol_external_announce_dt,eol_external_announce_dt" and to="ldos,YEAR"
+ --> @dm:change-time-format columns='ldos' & from_format="datetimestr" and to_format="ms"
+ --> @cfxaia:conditional-statement condition_column="ldos" and operator=">"  and check_value="yes" and value="0" and return_if="ldos"
+ --> @dm:to-type columns="ldos" and type="int"
+ --> @dm:gc
+ --> @dm:selectcolumns exclude="^t_date$|^t_month$|^t_year$|^major_unit$|^major_unit_year$|^major_unit_month$|^semi_critical$|^semi_critical_unit_year$|^semi_critical_month$|^very_critical_unit_year$|^very_critical_month$|^very_critical$"
+ --> @dm:rename-columns ldos_month="ldos"
+ --> @dm:change-time-format columns = 'ldos_month' & from_format = 'ms' & to_format ='%m'
+ --> @dm:manipulate-string from="YEAR" and value="[0-9]{4,7}" and func="match" and to="YEAR"
+ --> @dm:manipulate-string from="ldos_month" and value="0" and func="lstrip" and to="ldos_month"
+ --> @dm:fixnull columns="ldos_month" and value=0
+ --> @dm:to-type columns="ldos_month" and type="int"
+ --> @dm:manipulate-string to="qtr" and func="eval" and value="((ldos_month - 1) // 3 ) + 1"
+ --> @cfxaia:conditional-statement condition_column="ldos_month" and operator="<=" and check_value="yes" and value="0" and return_if="" and return_else="qtr" and to_column="qtr"
+ --> @dm:copy-columns from="qtr" and to="qtr" and prefix="Q" and func="append"
+ --> @dm:manipulate-string to="hw_announced_qtr" and func="concat_columns" and from="YEAR,qtr" and value=" "
+ --> @dm:copy-columns from="YEAR" and to="hw_announced_year"
+ --> @dm:gc
+ --> @dm:save name="temp-hwannounced-yr"
+ ## Enrich the new columns with inventory data and write to the stream
+
+ --> @dm:recall name="temp-hw-sw-eol-details"
+ --> @dm:enrich dict="temp-hwldos" and replace_values="yes" and src_key_cols="last_date_of_support" and dict_key_cols="last_date_of_support" and enrich_cols="hw_status"
+ --> @dm:enrich dict="temp-hwldos-yr" and replace_values="yes" and src_key_cols="last_date_of_support" and dict_key_cols="last_date_of_support" and enrich_cols="hw_expiring_qtr,hw_expiring_year"
+ --> @dm:enrich dict="temp-hwannounced-yr" and replace_values="yes" and src_key_cols="eol_external_announce_dt" and dict_key_cols="eol_external_announce_dt" and enrich_cols="hw_announced_qtr,hw_announced_year"
+ --> @dm:fixnull columns="hw_status,hw_expiring_qtr,hw_expiring_year" and value="Not Available"  and apply_for_empty="yes"
+ --> @dm:add-missing-columns columns='sw_status,sw_expiring_qtr,sw_expiring_year,hw_announced_qtr,hw_announced_year' and value="Not Available"
+ --> @dm:rename-columns hwEOL_endOfLifeAnnouncementDate='eol_external_announce_dt' and  hwEOL_endOfNewServiceAttachmentDate= 'end_of_new_svc_attachment_dt' and
+hwEOL_endOfRoutineFailureAnalysisDate = 'end_of_routine_fail_anlysys_dt' and
+hwEOL_endOfSaleDate = 'last_date_of_sale' and
+hwEOL_endOfServiceContractRenewalDate = 'end_of_svc_contract_rnwl_dt' and
+hwEOL_endOfSoftwareMaintenanceReleasesDate = 'end_of_software_maintenance_dt' and
+hwEOL_lastDayOfSupportDate = 'last_date_of_support' and
+hwEOL_endOfSecurityVulnSupportDate = 'end_of_security_vuln_support_dt'
+ ## --> @dm:save name='productAlerts-sw-eol-details'
+
+ ## --> @dm:add-missing-columns columns='source' and value='inventory'
+
+ --> @dm:eval timestamp = "utc_time_now_as_isoformat()"
+ --> @dm:copy-columns from='timestamp' and to='last_updated_time'
+ --> @dm:replace-data columns='last_updated_time' and expr='T' and replace=' '
+ --> @dm:to-type columns= "last_updated_time" & type="str"
+ --> @dm:eval last_updated_time="last_updated_time.split('.')[0]"
+ --> @dm:save name='temp-hw-sw-eol-details-$loop_index'
+ --> @dm:save name = "temp-contract_data"
+ ## ################################
+
+ ## Process SW EOL
+
+ ## declaring thrid level child pipelines
+
+ --> @c:new-block
+ --> @dm:empty
+ --> @exec:define-function name="define_child_pipelines"
+ --> @exec:run-pipeline name ="edc_oi_get_product_alerts" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_oi_product_alerts_raw" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_oi_product_alerts_run_scan" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_oi_generate_token" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_oi_process_sw_data" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_oi_get_sweol_data" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_oi_get_security_advisories_data" & ignore_failures = "no"
+ --> @exec:end-function
+ ## collecting the file and storing it in edc_cust_pid_sw stream, collecting the API data and adding the processed data to edc_sw_raw_data
+
+ --> @c:new-block
+ --> @dm:recall name='temp-input-dataset'
+ --> @dm:save name="temp-cust_pid_sw"
+ --> @dm:save name="customer_pid_sw"
+ --> @dm:eval source="'software'"
+ --> @exec:run-pipeline name ="edc_oi_product_alerts_raw" & ignore_failures = "no"
+ --> @dm:save name='temp-enriched-sweol-values'
+ ## #Temporary bypass to use already process data from dataset api-response. Above section needs to be commended out
+
+ ## --> @c:new-block
+
+ ## --> @dm:recall name='api-response'
+
+ ## --> @dm:save name='temp-enriched-sweol-values'
+
+ ## Process SWEoL
+
+ --> @c:new-block
+ --> @dm:recall name='temp-enriched-sweol-values'
+ --> @dm:save name='temp-sweol-data'
+ ## creates a list of unique customers
+
+ --> @c:new-block
+ --> @dm:recall name='temp-sweol-data'
+ --> @dm:groupby columns='customer'
+ --> @dm:save name='temp-unique-cust-name'
+ ## Queries data for the customer from edc_customer inventory
+
+ --> @c:data-loop dataset='temp-unique-cust-name' and columns='customer'
+ --> @dm:recall name='temp-contract_data'
+ --> *dm:filter customer == '$customer'
+ --> @dm:save name='temp-hw-eol-details' and append='yes'
+ ## processes the software columns for the customer
+
+ --> @c:data-loop columns='customer' and dataset='temp-unique-cust-name'
+ --> @dm:recall name='temp-sweol-data'
+ --> *dm:filter customer == '$customer'
+ --> @exec:run-pipeline name='edc_oi_process_sw_data'
+ --> @dm:save name='temp-sw-eol-details'
+ ## enriches the processed columns to  edc_customer inventory
+
+ --> @c:new-block
+ --> @dm:recall name='temp-hw-eol-details'
+ ## --> @dm:selectcolumns exclude='sw_status_x|sw_expiring_qtr_x|sw_expiring_year_x'
+
+ --> @dm:enrich dict='temp-sw-eol-details' and src_key_cols='product_id,sw_version' and dict_key_cols='product_id,sw_version' and enrich_cols='SoftwareEOXId,BulletinNumber,BulletinHeadline,BulletinURL,EndOfSaleDate,EndOfEngineeringDate,EndOfLifeDate,PostDate,EndOfLifeInternalAnnouncementDate,EndOfLifeExternalAnnouncementDate,EndOfLastHardwareShipDate,EndOfHardwareNewServiceAttachmentDate,EndOfHardwareRoutineFailureAnalysisDate,EndOfBUEngineeringSupportTACDate,EndOfHardwareServiceContractRenewalDate,EndOfSignatureReleasesDate,EndOfSoftwareAvailabilityDate,EndOfSoftwareLicenseAvailabilityDate,EndOfSoftwareVulnerabilityOrSecuritySupportDate,created,customerVisible,external_text,external_title,firstIcAlertId,groups,icIssueId,icProblemId,ignored,lastIcAlertId,eoXAlertType,name,openedOn,resultType,severity,severityText,state,updated,deviceSN,runType,filename,icType,atticaStatus,cdetsList,retry,associatedGroups,sw_expiring_qtr,sw_expiring_year,sw_status' and replace_values='yes'
+ --> @dm:save name='final-enrich'
+ --> @dm:rename-columns EndOfLifeDate='EndOfLifeDate_y'
+ --> @dm:fixnull columns='SoftwareEOXId,BulletinNumber,BulletinHeadline,BulletinURL,EndOfSaleDate,EndOfEngineeringDate,EndOfLifeDate,PostDate,EndOfLifeInternalAnnouncementDate,EndOfLifeExternalAnnouncementDate,EndOfLastHardwareShipDate,EndOfHardwareNewServiceAttachmentDate,EndOfHardwareRoutineFailureAnalysisDate,EndOfBUEngineeringSupportTACDate,EndOfHardwareServiceContractRenewalDate,EndOfSignatureReleasesDate,EndOfSoftwareAvailabilityDate,EndOfSoftwareLicenseAvailabilityDate,EndOfSoftwareVulnerabilityOrSecuritySupportDate,created,customerVisible,external_text,external_title,firstIcAlertId,groups,icIssueId,icProblemId,ignored,lastIcAlertId,eoXAlertType,name,openedOn,resultType,severity,severityText,state,updated,deviceSN,runType,filename,icType,atticaStatus,cdetsList,retry,associatedGroups,sw_expiring_qtr,sw_expiring_year,sw_status' and value="Not Available"  and apply_for_empty="yes"
+ --> @dm:rename-columns swEOL_softwareEOXId='SoftwareEOXId' and swEOL_bulletinNumber='BulletinNumber' and swEOL_bulletinTitle='BulletinHeadline' and swEOL_bulletinUrl='BulletinURL' and swEOL_endOfSaleDate='EndOfSaleDate' and
+swEOL_endOfSoftwareMaintenanceReleasesDate='EndOfEngineeringDate' and swEOL_lastDayOfSupportDate='EndOfLifeDate' and
+swEOL_endOfVulnerabilitySecuritySupportDate='EndOfSoftwareVulnerabilityOrSecuritySupportDate' and swEOL_endOfLifeAnnouncementDate='EndOfLifeExternalAnnouncementDate'
+ --> @dm:selectcolumns exclude='^(EndOfLifeInternalAnnouncementDate|EndOfLastHardwareShipDate|EndOfHardwareNewServiceAttachmentDate|EndOfHardwareRoutineFailureAnalysisDate|EndOfBUEngineeringSupportTACDate|EndOfHardwareServiceContractRenewalDate|EndOfSignatureReleasesDate|EndOfSoftwareAvailabilityDate|EndOfSoftwareLicenseAvailabilityDate|created|customerVisible|external_text|external_title|firstIcAlertId|groups|icIssueId|icProblemId|ignored|lastIcAlertId|eoXAlertType|name|openedOn|resultType|severity|severityText|state|updated|deviceSN|runType|filename|icType|atticaStatus|cdetsList|retry|associatedGroups)$'
+ ## --> @dm:save name='test-contract_data'
+
+ --> @dm:save name='temp-contract_data'
+ ## Enrich with sw recommendation and evaluate compliance
+
+ --> @c:new-block
+ --> @dm:recall name="temp-contract_data"
+ ## --> @dm:enrich-using-rule-dict dict = "temp-recommended_release" & enrich_columns = "recommended_sw_version" and cache="yes"
+
+ ## --> @dm:eval sw_release_compliance="'Yes' if ((recommended_sw_version==sw_version) and recommended_sw_version and sw_version)  else 'No' if ((recommended_sw_version!=sw_version) and recommended_sw_version and sw_version) else 'Unknown' if (sw_version) else 'NA'"
+
+ ## --> @dm:save name='test-contract_data'
+
+ ## To fix incorrect SW EOL data provided by Ironbank and NP
+
+ --> @dm:enrich-using-rule-dict dict = "temp-sweox-errs-dict" & enrich_columns = "sw_status_f" and cache="no"
+ --> @cfxaia:conditional-statement condition_column="sw_status_f" and return_if="sw_status_f" and return_else="sw_status"
+ --> @dm:copy-columns from="sw_status_f" and to="sw_status"
+ --> @dm:selectcolumns exclude="sw_status_f"
+ --> @dm:save name = "contract_data_IB"
+ --> @rn:write-stream name='edc_customer_inventory' and direct_to_opensearch="yes"
