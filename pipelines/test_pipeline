@@ -1,26 +1,19 @@
-folder: Default
-name: run_dashboard_export_email
-description: test pipeline
-data_path: pipelines/data/run_dashboard_export_email/2024_08_05_1/data.json
-usecase: ''
-category: ''
-sources:
-  rn:
-    name: rn
-    type: rn
-  email:
-    name: email
-    type: email_sender
-artifacts:
-- artifact_type: rda-network-stream
-  artifact_name: rda_dashboard_schedule_logs
-  access: write
-- artifact_type: rda-network-stream
-  artifact_name: dashboard_export_email_status
-  access: write
-- artifact_type: rda-network-stream
-  artifact_name: rda_dashboard_schedule_logs
-  access: write
-version: '2024_08_05_1'
-file_type: json
-checksum: ba479e5e
+@dm:empty
+ --> @exec:get-input
+ ## Save text input
+
+ --> @dm:save name="test_data_add"
+ --> @rn:write-stream name="test_data"
+ ## Uploaded file processing
+
+ --> @dm:save name="test_upload1"
+ --> @dm:selectcolumns include="fileUpload"
+ --> @dm:explode-json column="fileUpload"
+ --> @dm:save name="temp-test-upload2"
+ --> @dm:save name="test_upload2"
+ ## Loop over uploaded file info
+
+ --> @c:data-loop dataset="temp-test-upload2" and columns="bucketName,objectName,displayName"
+ --> @dm:get-from-location path="$bucketName/$objectName"
+ --> @dm:save name="test_upload3"
+ --> @rn:write-stream name="test_data"
