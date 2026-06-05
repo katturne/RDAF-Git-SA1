@@ -1,11 +1,68 @@
-folder: OI
-name: edc_delete_customer_records
-description: test pipeline
-data_path: pipelines/data/edc_delete_customer_records/2025-04-14_01/data.json
-usecase: Delete OI data from 2 streams
-category: ''
-sources: {}
-artifacts: []
-version: 2025-04-14_01
-file_type: json
-checksum: c65ecebb
+@dm:empty
+ --> @exec:get-input
+ --> @dm:save name="temp-file_upload0"
+ --> @dm:selectcolumns include="fileUpload"
+ --> @dm:explode-json column="fileUpload"
+ --> @dm:save name="temp-input-dataset"
+ ## declaring child pipelines
+
+ --> @c:new-block
+ --> @dm:empty
+ --> @exec:define-function name="define_child_pipelines"
+ --> @exec:run-pipeline name ="edc_customer_inventory" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_oi_get_product_alerts" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_oi_product_alerts_raw" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_oi_product_alerts_run_scan" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_oi_generate_token" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_oi_process_sw_data" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_oi_get_sweol_data" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_oi_get_security_advisories_data" & ignore_failures = "no"
+ --> @exec:end-function
+ --> @c:data-loop dataset="temp-input-dataset" and columns="bucketName,objectName"
+ --> @dm:recall name="temp-input-dataset"
+ --> @dm:skip-block-if-shape row_count=0
+ --> @dm:get-from-location path="$bucketName/$objectName"
+ --> @dm:save name="temp-uploaded-file-data"
+ --> @dm:save name="uploaded-file-data"
+ --> @c:new-block
+ --> @dm:recall name="temp-file_upload0"
+ --> *exec:if-condition portfolio_or_contract=='portfolio_desc'
+ --> @dm:rename-columns input_type = 'portfolio_or_contract'
+ --> @dm:rename-columns project_name = 'proj_name'
+ --> @dm:explode-json column = "portfolio1"
+ --> @dm:grok column = "portfolio1" &
+pattern = "portfolio_desc': '%{DATA:portfolio_desc}'"
+ --> @dm:rename-columns input_values = 'portfolio_desc'
+ --> @dm:selectcolumns include="input_values|input_type|project_name|customer_name|need_os_type|need_sw_compliance"
+ --> @dm:save name="temp-portfolio"
+ --> @exec:end-if
+ --> *exec:if-condition portfolio_or_contract=='contract_number'
+ --> @dm:rename-columns input_type = 'portfolio_or_contract'
+ --> @dm:rename-columns project_name = 'proj_name'
+ --> @dm:explode-json column = "contract1"
+ --> @dm:grok column = "contract1" &
+pattern = "contract_number': '%{DATA:contract_number}'"
+ --> @dm:rename-columns input_values = 'contract_number'
+ --> @dm:selectcolumns include="input_values|input_type|project_name|customer_name|need_os_type|need_sw_compliance"
+ --> @dm:save name="temp-portfolio"
+ --> @exec:end-if
+ --> @c:new-block
+ --> @dm:recall name="temp-portfolio"
+ --> @dm:enrich-using-pstream dict="edc_customer_names" &
+src_key_cols="customer_name" &
+dict_key_cols="customer" &
+enrich_cols="savm_name,savm_level"
+ --> @dm:implode key_columns="input_type,project_name,customer_name,need_os_type,need_sw_compliance,savm_name,savm_level" and         merge_columns="input_values"
+ --> @dm:rename-columns customer = 'savm_name' &
+savm_sales_level = 'savm_level'
+ --> @dm:add-missing-columns columns = 'sw_dataset' &
+value = 'uploaded-file-data'
+ --> @dm:map from = "input_values" & to = "input_values" & func = "concat" & prefix = "'" & suffix = "'"
+ --> @dm:replace-data columns = 'input_values' &
+expr = ',' &
+replace = "','"
+ --> @dm:save name="temp_input_dataset"
+ --> @dm:save name="final_input_dataset"
+ --> @c:new-block
+ --> @dm:recall name='temp_input_dataset'
+ --> @exec:run-pipeline name='edc_customer_inventory' and ignore_failures = "no"
