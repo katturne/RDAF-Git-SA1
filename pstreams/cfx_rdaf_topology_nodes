@@ -1,82 +1,23 @@
-
- ## declaring child pipelines
-@c:new-block
- --> @dm:empty
- --> @exec:define-function name="define_child_pipelines"
- --> @exec:run-pipeline name ="edc_oi_get_product_alerts" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_oi_product_alerts_raw" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_oi_product_alerts_run_scan" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_oi_generate_token" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_oi_process_sw_data" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_oi_get_sweol_data" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_oi_get_security_advisories_data" & ignore_failures = "no"
- --> @exec:end-function
- --> @c:new-block
- --> @dm:empty
- --> @dm:addrow name='edc_cust_pid_sw' and limit=0
- --> #dm:query-persistent-stream
- --> *dm:filter product_id is not null and sw_version is not null and sw_os_type is not null and contract_number is not null
- --> @dm:save name='temp-user-uploaded-input'
- --> @c:new-block
- --> @dm:recall name='temp-user-uploaded-input'
- --> @dm:eval source="'software'"
- --> @exec:run-pipeline name ="edc_oi_product_alerts_raw" & ignore_failures = "no"
- --> @dm:save name='temp-edc-raw-op-exploded-sw'
- --> @c:new-block
- --> @dm:recall name='temp-edc-raw-op-exploded-sw'
- --> *exec:if-condition source=='software'
- --> @dm:recall name='temp-edc-raw-op-exploded-sw'
- ## --> @dm:eval key="'key'"
-
- ## --> @dm:enrich dict="temp-ingestion_id" and src_key_cols="key" and dict_key_cols="key" and enrich_cols="ingestion_id"
-
- ## --> @dm:selectcolumns exclude="^key$"
-
- --> @dm:to-type columns='contract_number,customer,product_id,sw_version,sw_os_type' and type='str'
- --> @dm:to-type columns='contract_number,product_id,customer,product_name,sw_version,sw_os_type' and type='str'
- --> @dm:map from = 'contract_number,customer,product_name,product_id,sw_version,sw_os_type' & to = 'unique_key' & func = 'join' & sep = '_'
- --> @dm:save name='temp-edc-raw-op-exploded-sw-raw'
- --> @dm:selectcolumns exclude='^timestamp$'
- ## --> @dm:save name='sw-raw-data'
-
- --> @rn:write-stream name='edc_sw_raw_data'
- --> @exec:end-if
- ## addingt the software and security advisories data
-
- --> @c:new-block
- --> @dm:recall name='temp-edc-raw-op-exploded-sw-raw'
- --> @dm:selectcolumns exclude='^(unique_key)$'
- --> @dm:save name='temp-edc-sw-raw-op-exploded'
- --> @exec:run-pipeline name='edc_oi_get_sweol_data' and ignore_failures = "no"
- --> @c:new-block
- --> @dm:recall name='temp-user-uploaded-input'
- --> @dm:eval source="'security_advisory'"
- --> @exec:run-pipeline name ="edc_oi_product_alerts_raw" & ignore_failures = "no"
- --> @dm:save name='temp-edc-raw-op-exploded-sa'
- --> @c:new-block
- --> @dm:recall name='temp-edc-raw-op-exploded-sa'
- --> *exec:if-condition source=='security_advisory'
- --> @dm:recall name='temp-edc-raw-op-exploded-sa'
- ## --> @dm:eval key="'key'"
-
- ## --> @dm:enrich dict="temp-ingestion_id" and src_key_cols="key" and dict_key_cols="key" and enrich_cols="ingestion_id"
-
- ## --> @dm:selectcolumns exclude="^key$"
-
- ## --> @dm:to-type columns='customer,product_id,sw_version,sw_os_type,advisoryId,PsirtID' and type='str'
-
- ## --> @dm:map from = 'advisoryId,PsirtID,customer,product_id,sw_version,sw_os_type' & to = 'unique_key' & func = 'join' & sep = ##'_'
-
- --> @dm:to-type columns='customer,product_name,product_id,sw_version,sw_os_type,advisoryId,PsirtID,contract_number' and type='str'
- --> @dm:map from = 'advisoryId,PsirtID,customer,product_name,product_id,sw_version,sw_os_type,contract_number' & to = 'unique_key' & func = 'join' & sep = '_'
- --> @dm:save name='temp-edc-raw-op-exploded-sa-raw'
- --> @dm:selectcolumns exclude='^timestamp$'
- ## --> @dm:save name='sa-raw-data'
-
- --> @rn:write-stream name='edc_sec_adv_data_raw'
- --> @exec:end-if
- --> @c:new-block
- --> @dm:recall name='temp-edc-raw-op-exploded-sa-raw'
- --> @dm:selectcolumns exclude='^(unique_key)$'
- --> @dm:save name='temp-edc-sa-raw-op-exploded'
- --> @exec:run-pipeline name='edc_oi_get_security_advisories_data' and ignore_failures = "no"
+{
+  "name": "cfx_rdaf_topology_nodes",
+  "datastore_type": "OS",
+  "read_only": false,
+  "attrs": {
+    "unique_keys": [
+      "node_id"
+    ],
+    "default_values": {
+      "iconURL": "Not Available"
+    },
+    "search_case_insensitive": true,
+    "_settings": {
+      "number_of_shards": 3,
+      "number_of_replicas": 1,
+      "refresh_interval": "1s"
+    },
+    "system_defined": "no",
+    "retention_days": 7
+  },
+  "status": "Running",
+  "index_name": "bea456ce553246dd8f34a2383a70787f-stream-f87721dc-cfx_rdaf_topology_nodes"
+}
