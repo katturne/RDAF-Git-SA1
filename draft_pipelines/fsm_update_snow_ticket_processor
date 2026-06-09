@@ -1,135 +1,553 @@
-@c:new-block
- --> @exec:get-input
- --> @dm:save name="temp-update-input"
- --> @c:new-block
- --> @dm:empty
- --> @dm:save name="temp-incident-data"
- --> @dm:save name="temp-updated-alert-data"
- --> @dm:save name="temp-new-alert-data"
- --> @dm:save name="temp-all-alerts-input"
- --> @dm:save name="temp-push-new-alerts"
- --> @dm:save name="temp-push-updated-alerts"
- --> @dm:save name="temp-final-push-alerts"
- --> @c:data-loop dataset="temp-update-input" & columns="project_id,incident_id,customer_id"
- --> @dm:recall name="temp-update-input"
- --> *dm:filter incident_id == '$incident_id' and project_id == '$project_id'
- --> @dm:add-missing-columns columns = 'inc_data'
- --> @dm:selectcolumns include="^inc_data$|^itsm_ticket_id$|^itsm_ticket_number$"
- --> @dm:fixnull columns = 'inc_data' & value='{}'
- --> *dm:filter inc_data != '{}' and inc_data != ''
- --> @dm:skip-block-if-shape row_count = 0
- --> @dm:eval inc_data="json_loads(inc_data)"
- --> @dm:explode-json column = 'inc_data'
- --> @dm:save name="temp-incident-input-$project_id-$incident_id"
- --> @dm:map to="step" & func="fixed" & value="u1"
- --> @rn:write-stream compression="auto" & name="debug-fsm-att"
- --> @c:new-block
- --> @dm:concat names = 'temp-incident-input-*'
- --> @dm:save name = "temp-incident-data"
- --> @c:data-loop dataset="temp-update-input" & columns="project_id,incident_id,customer_id"
- --> @dm:recall name="temp-update-input"
- --> *dm:filter incident_id == '$incident_id' and project_id == '$project_id'
- --> @dm:selectcolumns include="^updated_alerts$"
- --> @dm:add-missing-columns columns = 'updated_alerts'
- --> @dm:fixnull columns = 'updated_alerts' & value='[]'
- --> *dm:filter updated_alerts != '[]' and updated_alerts != ''
- --> @dm:skip-block-if-shape row_count = 0
- --> @dm:eval updated_alerts="json_loads(updated_alerts)"
- --> @dm:explode-json column = 'updated_alerts'
- --> @dm:eval project_id ="'$project_id'"
- --> @dm:eval incident_id ="'$incident_id'"
- --> @dm:eval customer_id ="'$customer_id'"
- --> @dm:save name="temp-updated-alert-input-$project_id-$incident_id"
- --> @c:new-block
- --> @dm:concat names = 'temp-updated-alert-input-*'
- --> @dm:skip-block-if-shape row_count = 0
- --> @dm:eval update_match = "'YES'"
- --> @dm:save name = "temp-updated-alert-data"
- --> @c:data-loop dataset="temp-update-input" & columns="project_id,incident_id,customer_id"
- --> @dm:recall name="temp-update-input"
- --> *dm:filter incident_id == '$incident_id' and project_id == '$project_id'
- --> @dm:selectcolumns include="^new_alerts$"
- --> @dm:add-missing-columns columns = 'new_alerts'
- ## --> @dm:eval     new_alerts='"[\"58f43b2f-b69a-45db-b7d4-977bcb290e50\", \"11a8214d-ad58-4d62-b655-594f610ab491\"]"'
-
- ## --> @dm:fixnull     columns = 'new_alerts' & value='["abc", "def"]'
-
- --> *dm:filter new_alerts != '[]' and new_alerts != ''
- --> @dm:skip-block-if-shape row_count = 0
- --> @dm:eval a_id="json_loads(new_alerts)"
- --> @dm:selectcolumns exclude="^new_alerts$"
- --> @dm:explode-json column = 'a_id'
- --> @dm:eval project_id ="'$project_id'"
- --> @dm:eval incident_id ="'$incident_id'"
- --> @dm:eval customer_id ="'$customer_id'"
- --> @dm:save name="temp-new-alert-input-$project_id-$incident_id"
- --> @c:new-block
- --> @dm:concat names = 'temp-new-alert-input-*'
- --> @dm:skip-block-if-shape row_count = 0
- --> @dm:eval new_match = "'YES'"
- --> @dm:save name = "temp-new-alert-data"
- --> @c:data-loop dataset="temp-update-input" & columns="project_id,incident_id,customer_id"
- --> @dm:empty
- --> @dm:addrow name="oia-alerts-stream" & max_rows="1000"
- --> #dm:query-persistent-stream a_incident_id in ['$incident_id'] and a_created_by not in ['CORRELATION']
- --> @dm:eval project_id ="'$project_id'"
- --> @dm:eval incident_id ="'$incident_id'"
- --> @dm:eval customer_id ="'$customer_id'"
- --> @dm:save name="temp-all-alerts-input-$project_id-$incident_id"
- --> @c:new-block
- --> @dm:concat names = 'temp-all-alerts-input-*'
- --> @dm:save name = "temp-all-alerts-input"
- --> @c:new-block
- --> @dm:recall name="temp-new-alert-data"
- --> @dm:skip-block-if-shape row_count = 0
- --> @dm:recall name = "temp-all-alerts-input"
- --> @dm:enrich dict="temp-new-alert-data" and src_key_cols="a_id" and dict_key_cols="a_id" and enrich_cols='new_match'
- --> *dm:filter new_match  is 'YES'
- --> @dm:selectcolumns exclude="^new_match$"
- --> @dm:save name="temp-push-new-alerts"
- --> @dm:save name = "temp-all-alerts-input"
- --> @c:new-block
- --> @dm:recall name="temp-updated-alert-data"
- --> @dm:skip-block-if-shape row_count = 0
- --> @dm:recall name = "temp-all-alerts-input"
- --> @dm:enrich dict="temp-updated-alert-data" and src_key_cols="a_id" and dict_key_cols="a_id" and enrich_cols='update_match'
- --> *dm:filter update_match  is 'YES'
- --> @dm:selectcolumns exclude="^update_match$"
- --> @dm:save name="temp-push-updated-alerts"
- --> @dm:save name = "temp-all-alerts-input"
- --> @c:data-loop dataset="temp-all-alerts-input" & columns="project_id,incident_id,customer_id"
- --> @dm:recall name="temp-all-alerts-input"
- --> *dm:filter incident_id == '$incident_id' and project_id == '$project_id'
- --> @dm:apply-template-all-rows template_name = 'snow-notes-template' & output_col = 'concat_value'
- --> @dm:add-missing-columns columns = 'concat_value' & value=""
- --> @dm:eval work_notes="'[code] ' + concat_value + ' [/code]'"
- --> @dm:copy-columns to="notes" & from="work_notes"
- --> @dm:copy-columns to="comments" & from="work_notes"
- --> @dm:map to="incident_id" & func="fixed" & value="$incident_id"
- --> @dm:map to="project_id" & func="fixed" & value="$project_id"
- --> @dm:map to="customer_id" & func="fixed" & value="$customer_id"
- --> @dm:enrich dict='temp-incident-data' & dict_key_cols='incident_id,project_id' & src_key_cols='incident_id,project_id' & enrich_cols='i_state,i_summary,i_description,itsm_ticket_id,itsm_ticket_number,i_priority'
- --> @dm:map to="account" & func="fixed" & value="CloudFabrix"
- --> @dm:map to="company" & func="fixed" & value="f5eab4f4070e1110187bf9fc7c1ed0ef"
- --> @dm:map to="category" & func="fixed" & value="Software"
- --> @dm:copy-columns to="shortDescription" & from="i_summary"
- --> @dm:copy-columns to="short_description" & from="i_summary"
- --> @dm:copy-columns to="sys_id" & from="itsm_ticket_id"
- --> @dm:eval state="('New' if i_state == 'Open' else ('New' if i_state == 'Assigned' else ('On Hold' if i_state == 'On Hold' else ('Resolved' if i_state == 'Resolved' else ('Resolved' if i_state == 'Closed' else ('Canceled' if i_state == 'Cancelled' else ('New')))))))"
- --> @dm:fixnull columns = 'i_priority' & value='3.0'
- --> @dm:eval impact="('1 - High' if (str(i_priority) == '1.0') else ('2 - Medium' if (str(i_priority) == '2.0') else ('3 - Low')))"
- --> @dm:eval urgency="('1 - High' if (str(i_priority) == '1.0') else ('2 - Medium' if (str(i_priority) == '2.0') else ('3 - Low')))"
- --> @dm:eval severity="('1 - High' if (str(i_priority) == '1.0') else ('2 - Medium' if (str(i_priority) == '2.0') else ('3 - Low')))"
- --> @dm:apply-template-by-row template_name = 'snow-description-template' & output_col = 'description'
- --> @dm:eval close_code="'Solution provided' if (state == 'Resolved' or state == 'Closed') else None"
- --> @dm:eval close_notes="comments if (state == 'Resolved' or state == 'Closed') else None"
- --> @dm:map to="caller_id" & func="fixed" & value="643b55211b592510e33b42edee4bcb9f"
- --> @dm:selectcolumns include="account|company|category|description|short|state|urgency|impact|severity|notes|comments|work_notes|project_id|incident_id|customer_id|itsm|sys_id|close|caller"
- --> @dm:map to="step" & func="fixed" & value="u6"
- --> @rn:write-stream compression="auto" & name="debug-fsm-att"
- --> @snowv2:update-incident id_cols="sys_id" & data_cols="urgency,state,impact,work_notes,close_code,close_notes,caller_id"
- --> @dm:map to="incident_id" & func="fixed" & value="$incident_id"
- --> @dm:map to="project_id" & func="fixed" & value="$project_id"
- --> @dm:map to="customer_id" & func="fixed" & value="$customer_id"
- --> @dm:map to="step" & func="fixed" & value="u7"
- --> @rn:write-stream compression="auto" & name="debug-fsm-att"
+{
+  "name": "smart_licence_summary_consolidate",
+  "label": "Smart License Summary",
+  "description": "smart_license_summary_consolidate: Insights",
+  "dashboard_folder": "gaurav",
+  "version": "1.0.0",
+  "enabled": false,
+  "live_edit": true,
+  "stream": "smart_license_summary_consolidate",
+  "dashboard_type": "dashboard",
+  "dashboard_filters": {
+    "time_filter": true,
+    "default_time_filter_labels": [
+      "Last 12 months"
+    ],
+    "columns_filter": [
+      {
+        "id": "timestamp",
+        "label": "Timestamp",
+        "type": "DATETIME"
+      },
+      {
+        "id": "source",
+        "label": "Source",
+        "type": "TEXT"
+      },
+      {
+        "id": "exp_status",
+        "label": "Valid License Status",
+        "type": "TEXT"
+      },
+      {
+        "id": "messageType",
+        "label": "Alerts",
+        "type": "TEXT"
+      },
+      {
+        "id": "license",
+        "label": "License Group",
+        "type": "TEXT"
+      },
+      {
+        "id": "virtualAccount",
+        "label": "Virtualaccount",
+        "type": "TEXT"
+      }
+    ],
+    "group_filters": [
+      {
+        "stream": "smart_license_summary_consolidate",
+        "title": "Valid License Status",
+        "duration_hours": 1080,
+        "limit": 200,
+        "extra_filter": null,
+        "group_by": [
+          "exp_status"
+        ],
+        "ts_column": "timestamp",
+        "agg": "sum",
+        "column": "count_",
+        "type": "int"
+      },
+      {
+        "stream": "smart_license_summary_consolidate",
+        "title": "Alerts",
+        "duration_hours": 1080,
+        "limit": 200,
+        "extra_filter": null,
+        "group_by": [
+          "messageType"
+        ],
+        "ts_column": "timestamp",
+        "agg": "sum",
+        "column": "count_",
+        "type": "int"
+      },
+      {
+        "stream": "smart_license_summary_consolidate",
+        "title": "License Group",
+        "duration_hours": 1080,
+        "limit": 200,
+        "extra_filter": null,
+        "group_by": [
+          "license"
+        ],
+        "ts_column": "timestamp",
+        "agg": "sum",
+        "column": "count_",
+        "type": "int"
+      },
+      {
+        "stream": "smart_license_summary_consolidate",
+        "title": "Virtual Account",
+        "duration_hours": 1080,
+        "limit": 200,
+        "extra_filter": null,
+        "group_by": [
+          "virtualAccount"
+        ],
+        "ts_column": "timestamp",
+        "agg": "sum",
+        "column": "count_",
+        "type": "int"
+      }
+    ]
+  },
+  "dashboard_sections": [
+    {
+      "title": "Smart License",
+      "show_filter": true,
+      "widgets": [
+        {
+          "widget_type": "pie_chart",
+          "title": "Valid License Status",
+          "duration_hours": 1080,
+          "stream": "smart_license_summary_consolidate",
+          "ts_column": "timestamp",
+          "extra_filter": null,
+          "column": "count_",
+          "agg": "sum",
+          "group_by": [
+            "exp_status"
+          ],
+          "style": {
+            "color-map": {
+              "Valid Indefinitely": "#79BAEC",
+              "One or more Expired Licenses": "#BB0000",
+              "Expiring within 90 days": "#BB0000",
+              "Expiring after 90 days": "#00BB00"
+            }
+          },
+          "type": "int",
+          "min_width": 2,
+          "height": 3,
+          "max_width": 4,
+          "widget_id": "04d52ddb"
+        },
+        {
+          "widget_type": "pie_chart",
+          "title": "Alerts",
+          "duration_hours": 1080,
+          "stream": "smart_license_summary_consolidate",
+          "ts_column": "timestamp",
+          "extra_filter": null,
+          "min_width": 2,
+          "height": 3,
+          "max_width": 4,
+          "column": "count_",
+          "agg": "sum",
+          "group_by": [
+            "messageType"
+          ],
+          "style": {
+            "color-map": {
+              "Insufficient Licenses": "#FFA500",
+              "Licenses Expired": "#FF0000",
+              "Licenses Expiring": "#F4C430",
+              "Product Instance Failed To Renew": "#8B0000"
+            }
+          },
+          "widget_id": "55740e87"
+        },
+        {
+          "widget_type": "label",
+          "min_width": 2,
+          "height": 3,
+          "max_width": 4,
+          "sorting": [
+            {
+              "endTime": "desc"
+            }
+          ],
+          "label": "{% set all_latest_data = {} %}\r\n{% for latest in latest_end_time %}\r\n    {% set last_updated_time = latest.get(\"label\") %}\r\n    {% set _ = all_latest_data.update({ \"latest\": last_updated_time }) or \"\" %}\r\n{% endfor %}\r\n\r\n<br><br> <center><h4> Last Collected at </h4></center><br><center><h3>{{all_latest_data.get(\"latest\")}}</h3></center>",
+          "segments": [
+            {
+              "stream": "smart_license_summary_consolidate",
+              "variable": "latest_end_time",
+              "ts_column": "timestamp",
+              "agg": "value_count",
+              "group_by": "endTime",
+              "column": "source"
+            }
+          ],
+          "widget_id": "0991e641"
+        },
+        {
+          "title": "Smart License Summary",
+          "widget_type": "tabular",
+          "duration_hours": 1080,
+          "max_width": 12,
+          "height": 8,
+          "min_width": 12,
+          "stream": "smart_license_summary_consolidate",
+          "ts_column": "timestamp",
+          "extra_filter": null,
+          "remote_searchable": true,
+          "remote_searchable_cols": [
+            "license"
+          ],
+          "sorting": [
+            {
+              "sort_number": "asc"
+            }
+          ],
+          "columns": {
+            "license": {
+              "title": "License Group",
+              "type": "TEXT",
+              "key": true,
+              "hidden": false
+            },
+            "virtualAccount": {
+              "title": "Virtual Account",
+              "key": true,
+              "type": "TEXT",
+              "hidden": false
+            },
+            "available": {
+              "title": "Available",
+              "type": "DOUBLE",
+              "hidden": false
+            },
+            "inUse": {
+              "title": "Inuse",
+              "type": "DOUBLE",
+              "hidden": false
+            },
+            "pendingQuantity": {
+              "title": "Pending Quantity",
+              "type": "DOUBLE",
+              "hidden": false
+            },
+            "quantity": {
+              "title": "Quantity",
+              "type": "DOUBLE",
+              "hidden": false
+            },
+            "reserved": {
+              "title": "Reserved",
+              "type": "DOUBLE",
+              "hidden": false
+            },
+            "totalRecords": {
+              "title": "Total Records",
+              "type": "DOUBLE",
+              "hidden": true
+            },
+            "displayName": {
+              "title": "Total Records",
+              "type": "DOUBLE",
+              "hidden": true
+            },
+            "exp_status": {
+              "title": "Valid License Status",
+              "type": "TEXT",
+              "hidden": false,
+              "htmlTemplateForRow": "<span class='badge' style='background-color: {{ row.expiration_color }}' > {{ row.exp_status }} </span>"
+            },
+            "messageType": {
+              "title": "Alerts",
+              "type": "TEXT",
+              "key": true,
+              "hidden": false,
+              "htmlTemplateForRow": "<span class='badge' style='background-color: {{ row.alert_color }}' > {{ row.messageType }} </span>"
+            },
+            "timestamp": {
+              "title": "Timestamp",
+              "type": "DATETIME",
+              "hidden": false
+            }
+          },
+          "actions": [
+            {
+              "permission": "rda:user_dashboard:view",
+              "appName": "user-dashboard/smart_licence_details_grv",
+              "drillDownLinkField": "license",
+              "identifier": "launch.dashboard.license_details",
+              "selectionType": "SINGLE",
+              "title": "Smart License Details",
+              "type": "GO_TO_APP_STATE"
+            },
+            {
+              "permission": "rda:user_dashboard:view",
+              "appName": "user-dashboard/smart_licence__device_details_grv",
+              "identifier": "launch.dashboard.license_device_details",
+              "selectionType": "SINGLE",
+              "title": "Smart License Device Details",
+              "type": "GO_TO_APP_STATE",
+              "actionCondition": {
+                "actionControl": "SHOW_IF",
+                "operator": "OR",
+                "conditionalField": [
+                  {
+                    "conditionType": "NOT_EQUAL",
+                    "conditionValue": [
+                      "NA"
+                    ],
+                    "fieldId": "displayName"
+                  }
+                ]
+              }
+            },
+            {
+              "permission": "oia:alert:view",
+              "title": "Alert Details",
+              "type": "GO_TO_APP_STATE",
+              "stateName": "app.featureapp",
+              "appName": "user-dashboard/smart_license_alerts",
+              "selectionType": "SINGLE",
+              "actionCondition": {
+                "actionControl": "SHOW_IF",
+                "operator": "OR",
+                "conditionalField": [
+                  {
+                    "conditionType": "NOT_EQUAL",
+                    "conditionValue": [
+                      "NA"
+                    ],
+                    "fieldId": "messageType"
+                  }
+                ]
+              }
+            }
+          ],
+          "widget_id": "93f0deb7"
+        }
+      ]
+    }
+  ],
+  "pstream_dashboards": [
+    {
+      "title": "Smart License",
+      "show_filter": true,
+      "widgets": [
+        {
+          "widget_type": "pie_chart",
+          "title": "Valid License Status",
+          "duration_hours": 1080,
+          "stream": "smart_license_summary_consolidate",
+          "ts_column": "timestamp",
+          "extra_filter": null,
+          "column": "count_",
+          "agg": "sum",
+          "group_by": [
+            "exp_status"
+          ],
+          "style": {
+            "color-map": {
+              "Valid Indefinitely": "#79BAEC",
+              "One or more Expired Licenses": "#BB0000",
+              "Expiring within 90 days": "#BB0000",
+              "Expiring after 90 days": "#00BB00"
+            }
+          },
+          "type": "int",
+          "min_width": 2,
+          "height": 3,
+          "max_width": 4,
+          "widget_id": "04d52ddb"
+        },
+        {
+          "widget_type": "pie_chart",
+          "title": "Alerts",
+          "duration_hours": 1080,
+          "stream": "smart_license_summary_consolidate",
+          "ts_column": "timestamp",
+          "extra_filter": null,
+          "min_width": 2,
+          "height": 3,
+          "max_width": 4,
+          "column": "count_",
+          "agg": "sum",
+          "group_by": [
+            "messageType"
+          ],
+          "style": {
+            "color-map": {
+              "Insufficient Licenses": "#FFA500",
+              "Licenses Expired": "#FF0000",
+              "Licenses Expiring": "#F4C430",
+              "Product Instance Failed To Renew": "#8B0000"
+            }
+          },
+          "widget_id": "55740e87"
+        },
+        {
+          "widget_type": "label",
+          "min_width": 2,
+          "height": 3,
+          "max_width": 4,
+          "sorting": [
+            {
+              "endTime": "desc"
+            }
+          ],
+          "label": "{% set all_latest_data = {} %}\r\n{% for latest in latest_end_time %}\r\n    {% set last_updated_time = latest.get(\"label\") %}\r\n    {% set _ = all_latest_data.update({ \"latest\": last_updated_time }) or \"\" %}\r\n{% endfor %}\r\n\r\n<br><br> <center><h4> Last Collected at </h4></center><br><center><h3>{{all_latest_data.get(\"latest\")}}</h3></center>",
+          "segments": [
+            {
+              "stream": "smart_license_summary_consolidate",
+              "variable": "latest_end_time",
+              "ts_column": "timestamp",
+              "agg": "value_count",
+              "group_by": "endTime",
+              "column": "source"
+            }
+          ],
+          "widget_id": "0991e641"
+        },
+        {
+          "title": "Smart License Summary",
+          "widget_type": "tabular",
+          "duration_hours": 1080,
+          "max_width": 12,
+          "height": 8,
+          "min_width": 12,
+          "stream": "smart_license_summary_consolidate",
+          "ts_column": "timestamp",
+          "extra_filter": null,
+          "remote_searchable": true,
+          "remote_searchable_cols": [
+            "license"
+          ],
+          "sorting": [
+            {
+              "sort_number": "asc"
+            }
+          ],
+          "columns": {
+            "license": {
+              "title": "License Group",
+              "type": "TEXT",
+              "key": true,
+              "hidden": false
+            },
+            "virtualAccount": {
+              "title": "Virtual Account",
+              "key": true,
+              "type": "TEXT",
+              "hidden": false
+            },
+            "available": {
+              "title": "Available",
+              "type": "DOUBLE",
+              "hidden": false
+            },
+            "inUse": {
+              "title": "Inuse",
+              "type": "DOUBLE",
+              "hidden": false
+            },
+            "pendingQuantity": {
+              "title": "Pending Quantity",
+              "type": "DOUBLE",
+              "hidden": false
+            },
+            "quantity": {
+              "title": "Quantity",
+              "type": "DOUBLE",
+              "hidden": false
+            },
+            "reserved": {
+              "title": "Reserved",
+              "type": "DOUBLE",
+              "hidden": false
+            },
+            "totalRecords": {
+              "title": "Total Records",
+              "type": "DOUBLE",
+              "hidden": true
+            },
+            "displayName": {
+              "title": "Total Records",
+              "type": "DOUBLE",
+              "hidden": true
+            },
+            "exp_status": {
+              "title": "Valid License Status",
+              "type": "TEXT",
+              "hidden": false,
+              "htmlTemplateForRow": "<span class='badge' style='background-color: {{ row.expiration_color }}' > {{ row.exp_status }} </span>"
+            },
+            "messageType": {
+              "title": "Alerts",
+              "type": "TEXT",
+              "key": true,
+              "hidden": false,
+              "htmlTemplateForRow": "<span class='badge' style='background-color: {{ row.alert_color }}' > {{ row.messageType }} </span>"
+            },
+            "timestamp": {
+              "title": "Timestamp",
+              "type": "DATETIME",
+              "hidden": false
+            }
+          },
+          "actions": [
+            {
+              "permission": "rda:user_dashboard:view",
+              "appName": "user-dashboard/smart_licence_details_grv",
+              "drillDownLinkField": "license",
+              "identifier": "launch.dashboard.license_details",
+              "selectionType": "SINGLE",
+              "title": "Smart License Details",
+              "type": "GO_TO_APP_STATE"
+            },
+            {
+              "permission": "rda:user_dashboard:view",
+              "appName": "user-dashboard/smart_licence__device_details_grv",
+              "identifier": "launch.dashboard.license_device_details",
+              "selectionType": "SINGLE",
+              "title": "Smart License Device Details",
+              "type": "GO_TO_APP_STATE",
+              "actionCondition": {
+                "actionControl": "SHOW_IF",
+                "operator": "OR",
+                "conditionalField": [
+                  {
+                    "conditionType": "NOT_EQUAL",
+                    "conditionValue": [
+                      "NA"
+                    ],
+                    "fieldId": "displayName"
+                  }
+                ]
+              }
+            },
+            {
+              "permission": "oia:alert:view",
+              "title": "Alert Details",
+              "type": "GO_TO_APP_STATE",
+              "stateName": "app.featureapp",
+              "appName": "user-dashboard/smart_license_alerts",
+              "selectionType": "SINGLE",
+              "actionCondition": {
+                "actionControl": "SHOW_IF",
+                "operator": "OR",
+                "conditionalField": [
+                  {
+                    "conditionType": "NOT_EQUAL",
+                    "conditionValue": [
+                      "NA"
+                    ],
+                    "fieldId": "messageType"
+                  }
+                ]
+              }
+            }
+          ],
+          "widget_id": "93f0deb7"
+        }
+      ]
+    }
+  ]
+}
