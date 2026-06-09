@@ -1,87 +1,28 @@
-
- ## Collecting selected metrics
 @c:new-block
- --> @dm:empty
- --> @dm:addrow name='oia-selected-metrics' and limit=0 and max_rows=10000
- --> #dm:query-persistent-stream
- --> @dm:save name='temp-oia-selected-metrics'
- ## Saving only de duped asset_ids from selected metrics
+ --> @dm:recall name="edc_customer_names"
+ --> *dm:filter savm_level =="SAVM_SALES_LEVEL_6_NAME"
+ --> *dm:filter customer =="CSpire"
+ --> @dm:save name='temp-level6-name'
+ ## Process customer names with LEVEL_6
 
- --> @dm:dedup columns='asset_id'
- --> @dm:save name='temp-oia-selected-metrics-assetid'
- ## Collecting all metrics data for the selected asset_id
+ --> @c:data-loop columns='savm_name,customer' and dataset='temp-level6-name'
+ --> @snowflake:native-query dbname is "CX_DB" and warehouse is "CX_DMP_RPT_WH" and query is "WITH UniqueCombinations AS (    SELECT GU_NAME, SAVM_SALES_LEVEL_3_NAME, SAVM_SALES_LEVEL_4_NAME, SAVM_SALES_LEVEL_5_NAME, SAVM_SALES_LEVEL_6_NAME, CONTRACT_NUMBER, PRODUCT_NAME, COVERAGE, COVERED_LINE_STATUS, BUSINESS_ENTITY, BUSINESS_SUB_ENTITY, PRODUCT_LIST_PRICE, COALESCE(CONTRACT_NUMBER, COVERED_LINE_STATUS, PRODUCT_LIST_PRICE), COUNT(*) AS combination_count    FROM CX_DB.CX_DMP_EBV.BV_ASSET    WHERE SAVM_SALES_LEVEL_6_NAME = '$savm_name'      AND ASSET_TYPE = 'Hardware'    GROUP BY GU_NAME, SAVM_SALES_LEVEL_3_NAME, SAVM_SALES_LEVEL_4_NAME, SAVM_SALES_LEVEL_5_NAME, SAVM_SALES_LEVEL_6_NAME, CONTRACT_NUMBER, PRODUCT_NAME, COVERAGE, COVERED_LINE_STATUS, BUSINESS_ENTITY, BUSINESS_SUB_ENTITY, PRODUCT_LIST_PRICE) SELECT DISTINCT a.GU_NAME, a.SAVM_SALES_LEVEL_3_NAME, a.SAVM_SALES_LEVEL_4_NAME, a.SAVM_SALES_LEVEL_5_NAME, a.SAVM_SALES_LEVEL_6_NAME, a.CONTRACT_NUMBER, a.PRODUCT_NAME, a.COVERAGE, a.COVERED_LINE_STATUS, a.BUSINESS_ENTITY, a.BUSINESS_SUB_ENTITY, a.BK_END_OF_LIFE_REQUEST_NUM, a.BK_EOL_BULLETIN_PRODUCT_TYP_CD, a.END_OF_NEW_SVC_ATTACHMENT_DT, a.END_OF_ROUTINE_FAIL_ANLYSYS_DT, a.END_OF_SOFTWARE_MAINTENANCE_DT, a.END_OF_SVC_CONTRACT_RNWL_DT, a.EOL_EXTERNAL_ANNOUNCE_DT, a.EOL_PRODUCT_NAME, a.ITEM_TYPE, a.LAST_DATE_OF_SALE, a.LAST_DATE_OF_SUPPORT, a.PRODUCT_DESCRIPTION, a.PRODUCT_FAMILY, a.PRODUCT_FAMILY_DESCRIPTION, a.PRODUCT_TYPE,  a.PRODUCT_LIST_PRICE , u.combination_count FROM CX_DB.CX_DMP_EBV.BV_ASSET a LEFT JOIN UniqueCombinations u ON a.GU_NAME = u.GU_NAME AND a.SAVM_SALES_LEVEL_3_NAME = u.SAVM_SALES_LEVEL_3_NAME AND a.SAVM_SALES_LEVEL_4_NAME = u.SAVM_SALES_LEVEL_4_NAME AND a.SAVM_SALES_LEVEL_5_NAME = u.SAVM_SALES_LEVEL_5_NAME AND a.SAVM_SALES_LEVEL_6_NAME = u.SAVM_SALES_LEVEL_6_NAME AND COALESCE(a.CONTRACT_NUMBER, 'NULL') = COALESCE(u.CONTRACT_NUMBER, 'NULL') AND a.PRODUCT_NAME = u.PRODUCT_NAME AND a.COVERAGE = u.COVERAGE AND COALESCE(a.COVERED_LINE_STATUS, 'NULL') = COALESCE(u.COVERED_LINE_STATUS, 'NULL') AND a.BUSINESS_ENTITY = u.BUSINESS_ENTITY AND a.BUSINESS_SUB_ENTITY = u.BUSINESS_SUB_ENTITY AND COALESCE(a.PRODUCT_LIST_PRICE, 0) = COALESCE(u.PRODUCT_LIST_PRICE, 0) WHERE a.SAVM_SALES_LEVEL_6_NAME = '$savm_name'  AND a.ASSET_TYPE = 'Hardware';"
+ --> @dm:add-missing-columns columns="execution_status"
+ --> *dm:filter execution_status =="Success"
+ --> @dm:skip-block-if-shape column_count = 3
+ --> @dm:to_type columns = 'product_list_price,combination_count' & type  = 'int'
+ --> @dm:fixnull columns="product_list_price" and value="0" and apply_for_empty="yes"
+ --> @dm:save name="edc_inventory"
+ --> @dm:fixnull columns="covered_line_status,coverage" and value="Not Available" and apply_for_empty="yes"
+ --> @dm:eval total_product_list_price = "(product_list_price * combination_count)"
+ ## create column for unique customer
 
- --> @c:data-loop dataset="temp-oia-selected-metrics-assetid" & columns="asset_id"
- --> @dm:empty
- --> @dm:addrow name='oia-metrics-data' and limit=0 and max_rows=10000
- --> #dm:query-persistent-stream asset_id is '$asset_id' and metric_timestamp is after -1 week
- ## 1. Metric correlation for all metrics per asset_id
+ --> @dm:manipulate-string to="customer_name" and func="eval" and value="'$customer'"
+ --> @dm:eval unique_key = "str(gu_name) + str(savm_sales_level_3_name) + str(savm_sales_level_4_name) + str(savm_sales_level_5_name) + str(savm_sales_level_6_name) + str(contract_number) + str(product_name) + str(coverage) + str (covered_line_status) + str(business_entity) + str (business_sub_entity) + str (product_list_price)"
+ --> @dm:change-time-format columns="end_of_new_svc_attachment_dt,end_of_routine_fail_anlysys_dt,end_of_software_maintenance_dt,end_of_svc_contract_rnwl_dt,eol_external_announce_dt,last_date_of_sale,last_date_of_support" and from_format="datetimestr" and to_format="%Y-%m-%d"
+ --> @dm:save name="edc_inventory"
+ ## --> @dm:selectcolumns include="contract_number|product_name|coverage|covered_line_status|business_entity|business_sub_entity	bk_end_of_life_request_num|bk_eol_bulletin_product_typ_cd|end_of_new_svc_attachment_dt"
 
- --> @dm:eval-multi-proc value = "round(value, 0)"
- --> @dm:change-time-format columns='metric_timestamp' &
-from_format='ms' &            to_format='%Y-%m-%dT%H:%M:%S'
- --> @dm:metric-correlator metric_label='metric_id' & timestamp_column='metric_timestamp' & value_column='value' & correlation_threshold=0.9
- ## Checking if there are any correlations
+ ## --> @rn:write-stream name="edc_oi_inventory_grouped"
 
- --> *exec:if-shape num_rows>0
- ## Getting Unique metrics from correlated metrics
-
- --> @dm:eval output="str(Metric1) + ',' + str(Metric2)"
- --> @dm:explode column='output' and sep=','
- --> @dm:selectcolumns include='output'
- --> @dm:dedup columns='output'
- --> @dm:add-missing-columns columns="asset_id" and value="$asset_id"
- --> @dm:save name='temp-metric-correlation-output' and append='yes'
- --> @rn:write-stream name='oia-metric-correlation-output'
- --> @exec:end-if
- ## If Metric Correlation output is empty adding any one metric per asset for regression
-
- --> *exec:if-shape num_rows=0
- --> @dm:recall-query name = 'temp-oia-selected-metrics-assetid' and query="asset_id is '$asset_id'"
- --> @dm:selectcolumns include='asset_id|metric_id'
- --> @dm:eval output='metric_id'
- --> @dm:save name='temp-metric-correlation-output' and append='yes'
- --> @rn:write-stream name='oia-metric-correlation-output'
- --> @exec:end-if
- --> @c:new-block
- --> @dm:recall name='temp-metric-correlation-output'
- --> @dm:save name='metric-correlation-output'
- ## Regression
-
- --> @c:data-loop columns = 'output,asset_id' &
-dataset = 'metric-correlation-output'
- --> @dm:empty
- --> @dm:addrow name='oia-metrics-data' and limit=0
- --> #dm:query-persistent-stream asset_id is '$asset_id' and metric_id is '$output' and metric_timestamp is after -1 week
- --> @cfxml:regression ts_column='metric_timestamp' &
-value_column='value' &            agg_func='mean' &            action='train' &            frequency='1H' &            prediction_duration='1H' &            skip_errors='yes' & job_name="$asset_id-$output"
- --> @dm:add-missing-columns columns='anomalies_type,anomaly_score,anomalies,predicted,baseline,upperBound,lowerBound,timestamp,anomalies_severity'
- --> @dm:eval anomalies_type = "'upper' if anomalies_type == 1 else 'lower' if anomalies_type == -1 else None"
- --> @dm:add-missing-columns columns="asset_id" and value="$asset_id"
- --> @dm:add-missing-columns columns="metric_id" and value="$output"
- --> @dm:enrich dict='temp-oia-selected-metrics' and
-src_key_cols='metric_id,asset_id' and            dict_key_cols='metric_id,asset_id' and            enrich_cols='metric_label,metric_source,unit,asset_name'
- --> @dm:change-time-format columns='timestamp' &
-from_format='datetimestr' &            to_format='%Y-%m-%dT%H:%M:%S'
- --> @dm:add-missing-columns columns='stream_name' and value='oia-ml-metrics-regression-output'
- --> @dm:map from='asset_id,metric_label' and to='marker_message' and func='join' and sep=' - '
- ## sending the regression output to stream for chart consumption
-
- --> @rn:write-stream name='oia-ml-metrics-regression-output'
- --> *dm:filter anomalies_type is 'upper' and anomalies_severity is 'High'
- --> @dm:eval anomaly_score = "round(anomalies/upperBound,2) if upperBound and anomalies_type == 'upper' else round(lowerBound/anomalies,2) if anomalies and anomalies_type == 'lower' else 0"
- --> @dm:resample-timeseries ts_column='timestamp' and
-value_column='anomaly_score' and            interval='1H' and agg='max'
- ## Enriching and eval columns again as resample-timeseries bot filters all the columns
-
- --> @dm:add-missing-columns columns="asset_id" and value="$asset_id"
- --> @dm:add-missing-columns columns="metric_id" and value="$output"
- --> @dm:enrich dict='temp-oia-selected-metrics' and
-src_key_cols='metric_id,asset_id' and            dict_key_cols='metric_id,asset_id' and            enrich_cols='metric_label,metric_source,unit,asset_name'
- --> @dm:change-time-format columns='timestamp' &
-from_format='datetimestr' &            to_format='%Y-%m-%dT%H:00:00'
- --> @dm:fixnull columns='anomaly_score' and value=0
- --> @dm:to-type columns='anomaly_score' and type='float'
- --> *dm:filter anomaly_score is greater than 0
- --> @dm:eval anomaly_score = "round(anomaly_score,2)"
- --> @rn:write-stream name='oia-ml-metrics-meta-output'
+ --> @rn:write-stream name="edc_oi_inventory_grouped" and direct_to_opensearch="yes"
