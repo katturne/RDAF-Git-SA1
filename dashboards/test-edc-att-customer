@@ -1,236 +1,280 @@
 {
-  "name": "incident-details-topology",
-  "label": "Dynamic Incident Topology",
-  "description": "Dynamic Incident Topology",
-  "dashboard_style": "auto",
-  "dashboard_type": "template",
-  "version": "22.10.7.1",
+  "name": "test-edc-att-customer",
+  "label": "Customers",
+  "description": "ASP Customers",
+  "version": "2025-04-01-1",
+  "stream": "edc_customer_names",
   "enabled": false,
-  "exportable": false,
-  "template_variables": {
-    "ROOM_ID": {
-      "default": "",
-      "contextId": "project_id"
-    },
-    "INCIDENT_ID": {
-      "default": "",
-      "contextId": "incident_id"
-    },
-    "A_INCIDENT_ID": {
-      "default": "",
-      "contextId": "a_incident_id"
-    },
-    "STACK_NAME": {
-      "default": "",
-      "contextId": "attrs_stack_name"
-    },
-    "MY_TEMPLATE": {
-      "default": "<details><summary><b>{{row.a_alert_type}}</b></summary><div class='v-data-table v-data-table--dense theme--light'><div class='v-data-table__wrapper'><table style='width: 300px;'><tbody><tr><td>Source</td><td>{{row.a_source_systemname}}</td></tr><tr><td>Message</td><td>{{row.a_message}}</td></tr><tr><td>Assett IP</td><td>{{row.a_asset_ip_address}}</td></tr><tr><td>Alert Status</td><td>{{row.a_status}}</td></tr></tbody></table></div></div></details>",
-      "contextId": "MY_TEMPLATE"
-    }
-  },
+  "dashboard_folder": "OI",
+  "live_edit": true,
+  "dashboard_style": "auto",
+  "dashboard_type": "dashboard",
+  "dashboard_pages": [],
   "dashboard_filters": {
-    "time_filter": false,
-    "columns_filter": []
+    "time_filter": true,
+    "default_time_filter_labels": [
+      "Last 12 months"
+    ],
+    "extra_filter": "(customer_name is 'ATT') ",
+    "columns_filter": [
+      {
+        "id": "customer",
+        "label": "Customer",
+        "type": "TEXT"
+      }
+    ],
+    "group_filters": [
+      {
+        "stream": "edc_customer_names",
+        "title": "Customer Name",
+        "group_by": [
+          "customer"
+        ],
+        "ts_column": "timestamp",
+        "duration_hours": 1080,
+        "limit": 200,
+        "agg": "value_count",
+        "column": "count_",
+        "type": "int"
+      }
+    ]
   },
   "dashboard_sections": [
     {
-      "title": "Topology",
-      "show_filter": false,
+      "title": "Inventory",
+      "show_filter": true,
       "widgets": [
         {
-          "widget_type": "topology",
-          "title": "Topology",
-          "register_search_endpoints": true,
-          "impact_action_details": {
-            "impact_distance": 5,
-            "impact_conditional_field": "alert_count"
-          },
-          "chartProperties": {
-            "hasToolbar": true,
-            "shortToolbar": true,
-            "userZoomingEnabled": false
-          },
-          "stack_type": "OIA",
-          "auto_group": false,
-          "oia_details": {
-            "oia_stream": "oia-incidents-stream",
-            "query": "timestamp later than -12 months",
-            "oia_id_attribute": "incident_id",
-            "node_id_attribute": "attrs_node_id",
-            "stack_name_attribute": "attrs_stack_name",
-            "stack_type": "OIA",
-            "stack": "{{STACK_NAME}}",
-            "alert_source": {
-              "stream": "oia-alerts-stream",
-              "group_by": [
-                "a_en_node_id",
-                "a_severity",
-                "a_status"
-              ],
-              "incident_id_attr": "a_incident_id",
-              "context_incident_id_attr": "incidentid",
-              "extra_filter": "a_source_systemname is not 'Alert Group' ",
-              "ts_column": "timestamp",
-              "duration_hours": 9000,
-              "agg": "value_count",
-              "column": "count_",
-              "type": "int"
-            }
-          },
+          "widget_type": "label",
+          "label": "<div style=' padding: 12px; display: flex; align-items: center; justify-content: space-between;'><h1 style='margin: 0; color: #0066ff; text-align: center; flex-grow: 1;'> Inventory </h1></div>",
+          "min_width": 12,
+          "height": 0.8,
           "max_width": 12,
-          "min_width": 7,
-          "height": 12,
-          "widget_id": "0ff73e14"
+          "widget_id": "dd3ae8ae"
         },
         {
-          "title": "Alerts",
+          "title": "Customer Record Summary (raw data)",
           "widget_type": "tabular",
-          "max_width": 12,
-          "height": 12,
-          "min_width": 5,
+          "stream": "edc_oi_inventory_grouped",
+          "duration_hours": 10800,
+          "extra_filter": "(coverage is 'COVERED') ",
+          "ts_column": "timestamp",
+          "paginated": true,
+          "height": 8,
+          "min_width": 6,
+          "remote_searchable": true,
           "sorting": [
             {
-              "a_raised_ts": "desc"
+              "created_time": "desc"
             }
           ],
-          "stream": "oia-alerts-stream",
-          "extra_filter": "((a_incident_id is '{{INCIDENT_ID}}') or (a_incident_id is '{{A_INCIDENT_ID}}')) and a_source_systemname is not 'Alert Group' ",
-          "query": "*",
-          "duration_hours": 2160,
           "columns": {
-            "a_alert_type": {
-              "title": "Alert Type",
-              "type": "GROUPED",
-              "group": {
-                "a_source_systemname": "Source",
-                "a_message": "Message",
-                "a_asset_ip_address": "Asset IP Address",
-                "a_status": "Status",
-                "a_asset_name": "Asset Name"
-              },
-              "color-column": "state_color"
+            "customer_name": {
+              "title": "Customer Name",
+              "type": "TEXT",
+              "visible": true,
+              "key": true
             },
-            "state_color": {
-              "type": "COLOR-MAP",
-              "source-column": "a_status",
-              "color-map": {
-                "ACTIVE": "#dd0000",
-                "CLEAR": "#00dd00",
-                "CLEARED": "#00dd00"
-              }
+            "contract_number": {
+              "title": "Contract",
+              "type": "TEXT",
+              "visible": true
             },
-            "a_raised_ts": {
-              "title": "Raised At",
-              "type": "DATETIME"
-            },
-            "a_severity": "Severity"
+            "count_": {
+              "title": "count",
+              "type": "TEXT",
+              "visible": false
+            }
           },
-          "severity_columns": [
-            "a_severity"
+          "pivot": {
+            "pivot_type": "advanced",
+            "group_by": [
+              "customer_name",
+              "contract_number",
+              "count_"
+            ],
+            "series": [
+              {
+                "column": "_RDA_Id",
+                "agg": "value_count",
+                "type": "int",
+                "label": "Total Count"
+              }
+            ]
+          },
+          "widget_id": "25cbbfd3"
+        },
+        {
+          "title": "Customer Record Summary (enriched data)",
+          "widget_type": "tabular",
+          "stream": "edc_oi_inventory_enriched",
+          "duration_hours": 10800,
+          "extra_filter": "(coverage is 'COVERED') ",
+          "ts_column": "timestamp",
+          "paginated": true,
+          "height": 8,
+          "min_width": 6,
+          "remote_searchable": true,
+          "sorting": [
+            {
+              "created_time": "desc"
+            }
           ],
-          "widget_id": "dc7103e1"
+          "columns": {
+            "customer_name": {
+              "title": "Customer Name",
+              "type": "TEXT",
+              "visible": true,
+              "key": true
+            },
+            "contract_number": {
+              "title": "Contract",
+              "type": "TEXT",
+              "visible": true
+            },
+            "count_": {
+              "title": "count",
+              "type": "TEXT",
+              "visible": false
+            }
+          },
+          "pivot": {
+            "pivot_type": "advanced",
+            "group_by": [
+              "customer_name",
+              "contract_number",
+              "count_"
+            ],
+            "series": [
+              {
+                "column": "_RDA_Id",
+                "agg": "value_count",
+                "type": "int",
+                "label": "Total Count"
+              }
+            ]
+          },
+          "widget_id": "a69be2eb"
         }
       ]
     }
   ],
   "pstream_dashboards": [
     {
-      "title": "Topology",
-      "show_filter": false,
+      "title": "Inventory",
+      "show_filter": true,
       "widgets": [
         {
-          "widget_type": "topology",
-          "title": "Topology",
-          "register_search_endpoints": true,
-          "impact_action_details": {
-            "impact_distance": 5,
-            "impact_conditional_field": "alert_count"
-          },
-          "chartProperties": {
-            "hasToolbar": true,
-            "shortToolbar": true,
-            "userZoomingEnabled": false
-          },
-          "stack_type": "OIA",
-          "auto_group": false,
-          "oia_details": {
-            "oia_stream": "oia-incidents-stream",
-            "query": "timestamp later than -12 months",
-            "oia_id_attribute": "incident_id",
-            "node_id_attribute": "attrs_node_id",
-            "stack_name_attribute": "attrs_stack_name",
-            "stack_type": "OIA",
-            "stack": "{{STACK_NAME}}",
-            "alert_source": {
-              "stream": "oia-alerts-stream",
-              "group_by": [
-                "a_en_node_id",
-                "a_severity",
-                "a_status"
-              ],
-              "incident_id_attr": "a_incident_id",
-              "context_incident_id_attr": "incidentid",
-              "extra_filter": "a_source_systemname is not 'Alert Group' ",
-              "ts_column": "timestamp",
-              "duration_hours": 9000,
-              "agg": "value_count",
-              "column": "count_",
-              "type": "int"
-            }
-          },
+          "widget_type": "label",
+          "label": "<div style=' padding: 12px; display: flex; align-items: center; justify-content: space-between;'><h1 style='margin: 0; color: #0066ff; text-align: center; flex-grow: 1;'> Inventory </h1></div>",
+          "min_width": 12,
+          "height": 0.8,
           "max_width": 12,
-          "min_width": 7,
-          "height": 12,
-          "widget_id": "0ff73e14"
+          "widget_id": "dd3ae8ae"
         },
         {
-          "title": "Alerts",
+          "title": "Customer Record Summary (raw data)",
           "widget_type": "tabular",
-          "max_width": 12,
-          "height": 12,
-          "min_width": 5,
+          "stream": "edc_oi_inventory_grouped",
+          "duration_hours": 10800,
+          "extra_filter": "(coverage is 'COVERED') ",
+          "ts_column": "timestamp",
+          "paginated": true,
+          "height": 8,
+          "min_width": 6,
+          "remote_searchable": true,
           "sorting": [
             {
-              "a_raised_ts": "desc"
+              "created_time": "desc"
             }
           ],
-          "stream": "oia-alerts-stream",
-          "extra_filter": "((a_incident_id is '{{INCIDENT_ID}}') or (a_incident_id is '{{A_INCIDENT_ID}}')) and a_source_systemname is not 'Alert Group' ",
-          "query": "*",
-          "duration_hours": 2160,
           "columns": {
-            "a_alert_type": {
-              "title": "Alert Type",
-              "type": "GROUPED",
-              "group": {
-                "a_source_systemname": "Source",
-                "a_message": "Message",
-                "a_asset_ip_address": "Asset IP Address",
-                "a_status": "Status",
-                "a_asset_name": "Asset Name"
-              },
-              "color-column": "state_color"
+            "customer_name": {
+              "title": "Customer Name",
+              "type": "TEXT",
+              "visible": true,
+              "key": true
             },
-            "state_color": {
-              "type": "COLOR-MAP",
-              "source-column": "a_status",
-              "color-map": {
-                "ACTIVE": "#dd0000",
-                "CLEAR": "#00dd00",
-                "CLEARED": "#00dd00"
-              }
+            "contract_number": {
+              "title": "Contract",
+              "type": "TEXT",
+              "visible": true
             },
-            "a_raised_ts": {
-              "title": "Raised At",
-              "type": "DATETIME"
-            },
-            "a_severity": "Severity"
+            "count_": {
+              "title": "count",
+              "type": "TEXT",
+              "visible": false
+            }
           },
-          "severity_columns": [
-            "a_severity"
+          "pivot": {
+            "pivot_type": "advanced",
+            "group_by": [
+              "customer_name",
+              "contract_number",
+              "count_"
+            ],
+            "series": [
+              {
+                "column": "_RDA_Id",
+                "agg": "value_count",
+                "type": "int",
+                "label": "Total Count"
+              }
+            ]
+          },
+          "widget_id": "25cbbfd3"
+        },
+        {
+          "title": "Customer Record Summary (enriched data)",
+          "widget_type": "tabular",
+          "stream": "edc_oi_inventory_enriched",
+          "duration_hours": 10800,
+          "extra_filter": "(coverage is 'COVERED') ",
+          "ts_column": "timestamp",
+          "paginated": true,
+          "height": 8,
+          "min_width": 6,
+          "remote_searchable": true,
+          "sorting": [
+            {
+              "created_time": "desc"
+            }
           ],
-          "widget_id": "dc7103e1"
+          "columns": {
+            "customer_name": {
+              "title": "Customer Name",
+              "type": "TEXT",
+              "visible": true,
+              "key": true
+            },
+            "contract_number": {
+              "title": "Contract",
+              "type": "TEXT",
+              "visible": true
+            },
+            "count_": {
+              "title": "count",
+              "type": "TEXT",
+              "visible": false
+            }
+          },
+          "pivot": {
+            "pivot_type": "advanced",
+            "group_by": [
+              "customer_name",
+              "contract_number",
+              "count_"
+            ],
+            "series": [
+              {
+                "column": "_RDA_Id",
+                "agg": "value_count",
+                "type": "int",
+                "label": "Total Count"
+              }
+            ]
+          },
+          "widget_id": "a69be2eb"
         }
       ]
     }
