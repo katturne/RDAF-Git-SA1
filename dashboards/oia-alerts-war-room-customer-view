@@ -1,447 +1,1191 @@
 {
-  "name": "cnc-network-devices",
-  "label": "Network Devices",
-  "description": "Network Devices",
-  "dashboard_folder": "MOW",
-  "version": "2023-03-18_2",
-  "enabled": false,
-  "debug": true,
-  "live_edit": true,
-  "stream": "cnc_device_inventory",
+  "name": "oia-alerts-war-room-customer-view",
+  "label": "War Room - Customer View",
+  "description": "War Room - Customer View",
+  "enabled": true,
   "dashboard_type": "template",
+  "template_variables": {
+    "ALERT_CT": {
+      "contextId": "a_created_ts",
+      "default": "2024-04-10T09:39:36.265000"
+    },
+    "CUSTOMER_ID": {
+      "contextId": "customer_id"
+    },
+    "ASSET_ID": {
+      "contextId": "a_asset_ip_address"
+    }
+  },
   "dashboard_filters": {
     "time_filter": true,
-    "default_time_filter_labels": [
-      "Last 12 months"
-    ],
-    "extra_filter": "`item_type` is  \"CHASSIS\"",
-    "columns_filter": [
-      {
-        "id": "device_ip",
-        "label": "IP Address",
-        "type": "TEXT"
-      },
-      {
-        "id": "device_family",
-        "label": "Device Family",
-        "type": "TEXT"
-      },
-      {
-        "id": "device_serial_number",
-        "label": "Serial Number",
-        "type": "TEXT"
-      },
-      {
-        "id": "device_fw_version",
-        "label": "Software Version",
-        "type": "TEXT"
-      },
-      {
-        "id": "clli_code",
-        "label": "CLLI Code",
-        "type": "TEXT"
-      }
-    ],
-    "group_filters": [
-      {
-        "stream": "cnc_device_inventory",
-        "title": "Manufacturer",
-        "duration_hours": 1080,
-        "extra_filter": "`item_type` is  \"CHASSIS\"",
-        "group_by": [
-          "manufacturer"
-        ],
-        "ts_column": "timestamp",
-        "agg": "value_count",
-        "column": "_RDA_Id",
-        "type": "str"
-      },
-      {
-        "stream": "cnc_device_inventory",
-        "title": "Model",
-        "duration_hours": 1080,
-        "extra_filter": "`item_type` is  \"CHASSIS\"",
-        "group_by": [
-          "device_model"
-        ],
-        "ts_column": "timestamp",
-        "agg": "value_count",
-        "column": "_RDA_Id",
-        "type": "str"
-      },
-      {
-        "stream": "cnc_device_inventory",
-        "title": "SW Versions",
-        "duration_hours": 1080,
-        "extra_filter": "`item_type` is  \"CHASSIS\"",
-        "group_by": [
-          "device_fw_version"
-        ],
-        "ts_column": "timestamp",
-        "agg": "value_count",
-        "column": "_RDA_Id",
-        "type": "str"
-      }
-    ]
+    "default_time_range": {
+      "from_time": "{{ALERT_CT}}",
+      "from_time_delta_hours": -24,
+      "to_time": "{{ALERT_CT}}",
+      "to_time_delta_hours": 24,
+      "label": "{{INCIDENT_ID}} Time Range"
+    }
+  },
+  "stream_query_mapping": {
+    "syslog_udp_event_stream_all": {
+      "a_created_ts": "rda_gw_timestamp"
+    },
+    "oia-incidents-stream": {
+      "a_created_ts": "i_created_ts"
+    },
+    "oia-ml-metrics-regression-output": {
+      "a_created_ts": "timestamp"
+    },
+    "change_requests_stream": {
+      "a_created_ts": "timestamp"
+    }
   },
   "dashboard_sections": [
     {
-      "title": "Network Devices",
+      "title": "Customer View",
       "show_filter": true,
       "widgets": [
         {
           "widget_type": "label",
-          "label": "<div style='text-align:center;width:100%;'><h1><a style='text-decoration:none;color:#0066ff;' target='_blank'> Network Devices </a></h1></div>",
+          "label": "<h3 style='text-align: center;'>Alert Created: {%raw%} {{' {{ '}} {%endraw%} toDateTimeString({{ ALERT_CT }}) {%raw%} {{ '}}' }} {%endraw%} </h3>",
+          "advanced": true,
           "min_width": 12,
-          "height": 0.4,
           "max_width": 12,
-          "widget_id": "dd3ae8ae"
+          "height": 1,
+          "widget_id": "5ae002f1"
         },
         {
-          "title": "Total Devices",
-          "widget_type": "custom_counter",
-          "duration_hours": 1080,
-          "stream": "cnc_device_inventory",
-          "ts_column": "timestamp",
-          "column": "_RDA_Id",
-          "agg": "value_count",
+          "title": "Link Up/Down Alerts",
+          "widget_type": "counter",
+          "min_width": 2.4,
+          "max_width": 2.4,
+          "height": 4,
+          "stream": "oia-alerts-stream",
+          "ts_column": "a_created_ts",
+          "extra_filter": "a_message contains 'link'",
+          "sparkline": {
+            "interval": "1h"
+          },
+          "column": "count_",
+          "agg": "sum",
           "type": "int",
-          "min_width": 4,
+          "widget_id": "42b0d069"
+        },
+        {
+          "title": "BGP Alerts",
+          "widget_type": "counter",
+          "min_width": 2.4,
+          "max_width": 2.4,
           "height": 4,
-          "max_width": 4,
-          "style": {
-            "color-list": [
-              "#90CAF9"
-            ]
+          "stream": "oia-alerts-stream",
+          "ts_column": "a_created_ts",
+          "extra_filter": "a_message contains 'BGP'",
+          "sparkline": {
+            "interval": "1h"
           },
-          "widget_id": "f0ehB7He"
+          "column": "count_",
+          "agg": "sum",
+          "type": "int",
+          "widget_id": "5f6517c3"
         },
         {
-          "widget_type": "pie_chart",
-          "title": "Devices by Model",
-          "stream": "cnc_device_inventory",
-          "ts_column": "timestamp",
-          "extra_filter": "`item_type` is  \"CHASSIS\"",
-          "duration_hours": 1080,
-          "column": "_RDA_Id",
-          "agg": "value_count",
-          "group_by": [
-            "device_model"
-          ],
-          "type": "str",
-          "min_width": 4,
+          "title": "OSPF Alerts",
+          "widget_type": "counter",
+          "min_width": 2.4,
+          "max_width": 2.4,
           "height": 4,
-          "max_width": 4,
-          "widget_id": "45ecc884"
-        },
-        {
-          "widget_type": "pie_chart",
-          "title": "Devices by SW Versions",
-          "stream": "cnc_device_inventory",
-          "extra_filter": "`item_type` is  \"CHASSIS\"",
-          "ts_column": "timestamp",
-          "duration_hours": 1080,
-          "column": "_RDA_Id",
-          "agg": "value_count",
-          "group_by": [
-            "device_fw_version"
-          ],
-          "type": "str",
-          "min_width": 4,
-          "height": 4,
-          "max_width": 4,
-          "widget_id": "00a5203d"
-        },
-        {
-          "title": "Devices by Model and Version",
-          "widget_type": "multi_bar_chart",
-          "stream": "cnc_device_inventory",
-          "ts_column": "timestamp",
-          "extra_filter": "`item_type` is  \"CHASSIS\"",
-          "duration_hours": 1080,
-          "group_by": [
-            "device_fw_version",
-            "device_model"
-          ],
-          "chartProperties": {
-            "yAxisLabel": "Count",
-            "xAxisLabel": "Model",
-            "stacked": true,
-            "legendLocation": "right",
-            "orientation": "vertical"
+          "stream": "oia-alerts-stream",
+          "ts_column": "a_created_ts",
+          "extra_filter": "a_message contains 'OSPF'",
+          "sparkline": {
+            "interval": "1h"
           },
-          "min_width": 12,
-          "height": 4,
-          "max_width": 12,
-          "column": "_RDA_Id",
-          "agg": "value_count",
-          "widget_id": "2O4VqY3d"
+          "column": "count_",
+          "agg": "sum",
+          "type": "int",
+          "widget_id": "2fee8031"
         },
         {
-          "title": "Network Devices",
-          "widget_type": "tabular",
-          "duration_hours": 1080,
-          "showRowSummary": true,
-          "query": "*",
+          "title": "Patch Changes",
+          "widget_type": "counter",
+          "min_width": 2.4,
+          "max_width": 2.4,
+          "height": 4,
+          "stream": "change_requests_stream",
+          "ts_column": "timestamp",
+          "extra_filter": "message contains 'patch'",
+          "sparkline": {
+            "interval": "1h"
+          },
+          "column": "count_",
+          "agg": "sum",
+          "type": "int",
+          "widget_id": "0c90f99a"
+        },
+        {
+          "title": "Change Requests",
+          "widget_type": "counter",
+          "min_width": 2.4,
+          "max_width": 2.4,
+          "height": 4,
+          "stream": "change_requests_stream",
+          "ts_column": "timestamp",
+          "sparkline": {
+            "interval": "1h"
+          },
+          "column": "count_",
+          "agg": "sum",
+          "type": "int",
+          "widget_id": "0b7d3407"
+        },
+        {
+          "title": "Events Timeline",
+          "widget_type": "timeseries",
+          "stream": "oia-alerts-stream",
+          "ts_column": "a_created_ts",
           "max_width": 12,
           "height": 8,
           "min_width": 12,
-          "stream": "cnc_device_inventory",
-          "ts_column": "timestamp",
-          "remote_searchable": true,
-          "remote_searchable_cols": [
-            "device_ip",
-            "device_serial_number",
-            "device_family",
-            "device_fw_version"
+          "fixTimeWindow": true,
+          "chartProperties": {
+            "yAxisLabel": "Alert Count",
+            "xAxisLabel": "Time",
+            "legendLocation": "none"
+          },
+          "static_markers": [
+            {
+              "timestamp": "{{ALERT_CT}}",
+              "message": "Alert Created",
+              "color": "#B71C1C"
+            }
           ],
+          "alert_markers": [
+            {
+              "stream": "change_requests_stream",
+              "ts_column": "timestamp",
+              "type": "circle",
+              "message_column": "message",
+              "severity_column": "severity"
+            },
+            {
+              "stream": "oia-alerts-stream",
+              "ts_column": "a_created_ts",
+              "type": "triangle",
+              "message_column": "a_message",
+              "severity_column": "a_severity"
+            },
+            {
+              "stream": "oia-ml-metrics-regression-output",
+              "ts_column": "timestamp",
+              "type": "square",
+              "message_column": "marker_message",
+              "extra_filter": "anomalies_severity is 'High' and anomalies_type is 'Upper'",
+              "severity_column": "anomalies_severity",
+              "columns": [
+                "asset_id",
+                "metric_id",
+                "metric_label",
+                "asset_name",
+                "metric_source",
+                "timestamp",
+                "job_name",
+                "unit",
+                "stream_name"
+              ],
+              "action": {
+                "appName": "user-dashboard/rca_regression_dashboard",
+                "permission": "ml:ml-jobs:viewSampledata",
+                "identifier": "ViewRegressionDashboard",
+                "selectionType": "SINGLE",
+                "stateName": "app.featureapp",
+                "title": "View Regression Dashboard",
+                "type": "GO_TO_APP_STATE"
+              }
+            },
+            {
+              "stream": "oia-logs-regression-output",
+              "ts_column": "timestamp",
+              "type": "circle",
+              "message_column": "asset_id",
+              "extra_filter": "anomalies_severity is 'High' and anomalies_type is 'Upper'",
+              "severity_column": "anomalies_severity",
+              "columns": [
+                "asset_id",
+                "asset_name",
+                "timestamp",
+                "job_name",
+                "stream_name"
+              ],
+              "action": {
+                "appName": "user-dashboard/rca_regression_dashboard",
+                "permission": "ml:ml-jobs:viewSampledata",
+                "identifier": "ViewRegressionDashboard",
+                "selectionType": "SINGLE",
+                "stateName": "app.featureapp",
+                "title": "View Regression Dashboard",
+                "type": "GO_TO_APP_STATE"
+              }
+            }
+          ],
+          "interval": "1min",
+          "series_spec": [
+            {
+              "label": "Alerts",
+              "column": "a_id",
+              "agg": "value_count",
+              "type": "int"
+            }
+          ],
+          "widget_id": "121762cf"
+        },
+        {
+          "title": "Metric Anomalies",
+          "widget_type": "multi_bar_chart",
+          "stream": "oia-ml-metrics-regression-output",
+          "ts_column": "timestamp",
+          "chartProperties": {
+            "yAxisLabel": "Anomalies (%)",
+            "xAxisLabel": "Metric Name",
+            "stacked": false,
+            "legendLocation": "none",
+            "orientation": "vertical"
+          },
+          "group_by": [
+            "asset_id",
+            "metric_label"
+          ],
+          "descending_order": true,
+          "others_spec": {
+            "limit": 4,
+            "show_others": false
+          },
+          "column": "anomalies_percent",
+          "agg": "max",
+          "type": "float",
+          "widget_id": "f4786acb"
+        },
+        {
+          "title": "Change Requests",
+          "widget_type": "tabular",
+          "min_width": 6,
+          "max_width": 6,
+          "height": 5,
+          "timebased": false,
+          "stream": "change_requests_stream",
+          "ts_column": "timestamp",
           "columns": {
-            "device_hostname": {
-              "title": "Device Name",
-              "type": "TEXT",
-              "key": true
+            "timestamp": {
+              "title": "Time",
+              "type": "DATETIME"
             },
-            "device_ip": {
-              "title": "IP Address",
-              "type": "TEXT",
-              "key": true
-            },
-            "device_model": {
-              "title": "Model",
-              "type": "TEXT",
-              "key": true
-            },
-            "clli_code": {
-              "title": "CLLI Code",
-              "type": "TEXT",
-              "key": true
-            },
-            "product_type": {
-              "title": "Product Type",
-              "type": "TEXT",
-              "visible": true
-            },
-            "device_family": {
-              "title": "Family",
-              "type": "TEXT",
-              "visible": true
-            },
-            "device_fw_version": {
-              "title": "SW Version",
-              "type": "TEXT",
-              "visible": true
-            },
-            "device_fw_type": {
-              "title": "OS Type",
-              "type": "TEXT",
-              "visible": true
+            "message": {
+              "title": "Change Description",
+              "type": "TEXT"
             }
           },
-          "actions": [
+          "widget_id": "31e2f2ed"
+        },
+        {
+          "widget_type": "pie_chart",
+          "title": "Alerts by Severity",
+          "stream": "oia-alerts-stream",
+          "extra_filter": "customer_id is '{{CUSTOMER_ID}}'",
+          "ts_column": "timestamp",
+          "min_width": 3,
+          "height": 4,
+          "max_width": 3,
+          "column": "a_id",
+          "agg": "value_count",
+          "group_by": [
+            "a_severity"
+          ],
+          "type": "str",
+          "style": {
+            "color-map": {
+              "SEVERE": [
+                "#B71C1C",
+                "#ffffff"
+              ],
+              "CRITICAL": [
+                "#E53935",
+                "#ffffff"
+              ],
+              "MAJOR": [
+                "#F57C00",
+                "#ffffff"
+              ],
+              "MINOR": [
+                "#FFA726",
+                "#ffffff"
+              ],
+              "WARNING": [
+                "#FFD54F",
+                "#ffffff"
+              ],
+              "NOTIFICATION": [
+                "#4DD0E1",
+                "#ffffff"
+              ],
+              "INFORMATION": [
+                "#03A9F4",
+                "#ffffff"
+              ]
+            }
+          },
+          "widget_id": "cb0706e6"
+        },
+        {
+          "title": "Alert Trend",
+          "widget_type": "timeseries",
+          "stream": "oia-alerts-stream",
+          "ts_column": "a_created_ts",
+          "max_width": 9,
+          "height": 4,
+          "min_width": 9,
+          "fixTimeWindow": true,
+          "extra_filter": "customer_id is '{{CUSTOMER_ID}}'",
+          "chartProperties": {
+            "yAxisLabel": "Count",
+            "xAxisLabel": "Time",
+            "legendLocation": "top"
+          },
+          "interval": "1H",
+          "group_by": [
+            "a_severity"
+          ],
+          "static_markers": [
             {
-              "permission": "rda:user_dashboard:view",
-              "appName": "user-dashboard/device_inventory",
-              "drillDownLinkField": "device_hostname",
-              "identifier": "launch.dashboard.device_inventory",
-              "selectionType": "SINGLE",
-              "title": "Node Details",
-              "contextParamList": {
-                "contextParams": [
-                  {
-                    "paramKey": "device_ip",
-                    "paramId": "a_asset_ip_address"
-                  },
-                  {
-                    "paramKey": "device_hostname",
-                    "paramId": "a_device_hostname"
-                  }
-                ]
-              },
-              "type": "GO_TO_APP_STATE"
+              "timestamp": "{{ALERT_CT}}",
+              "message": "Alert Created",
+              "color": "#B71C1C"
             }
           ],
-          "widget_id": "fac6548b"
+          "series_spec": [
+            {
+              "column": "a_id",
+              "agg": "value_count",
+              "type": "int"
+            }
+          ],
+          "style": {
+            "color-map": {
+              "SEVERE": [
+                "#B71C1C",
+                "#ffffff"
+              ],
+              "CRITICAL": [
+                "#E53935",
+                "#ffffff"
+              ],
+              "MAJOR": [
+                "#F57C00",
+                "#ffffff"
+              ],
+              "MINOR": [
+                "#FFA726",
+                "#ffffff"
+              ],
+              "WARNING": [
+                "#FFD54F",
+                "#ffffff"
+              ],
+              "NOTIFICATION": [
+                "#4DD0E1",
+                "#ffffff"
+              ],
+              "INFORMATION": [
+                "#03A9F4",
+                "#ffffff"
+              ]
+            }
+          },
+          "widget_id": "c29bb686"
+        },
+        {
+          "widget_type": "pie_chart",
+          "title": "Incidents By Priority",
+          "stream": "oia-incidents-stream",
+          "extra_filter": "customer_id is '{{CUSTOMER_ID}}'",
+          "ts_column": "timestamp",
+          "min_width": 3,
+          "height": 4,
+          "max_width": 3,
+          "column": "incident_id",
+          "agg": "value_count",
+          "group_by": [
+            "i_priority_label"
+          ],
+          "style": {
+            "color-map": {
+              "Critical": [
+                "#B71C1C",
+                "#ffffff"
+              ],
+              "High": [
+                "#FFA726",
+                "#ffffff"
+              ],
+              "Moderate": [
+                "#90CAF9",
+                "#ffffff"
+              ],
+              "Low": [
+                "#4DD0E1",
+                "#ffffff"
+              ],
+              "Planning": [
+                "#4FC3F7",
+                "#ffffff"
+              ]
+            }
+          },
+          "type": "str",
+          "widget_id": "7dce82c8"
+        },
+        {
+          "title": "Incident Trend",
+          "widget_type": "timeseries",
+          "stream": "oia-incidents-stream",
+          "ts_column": "i_created_ts",
+          "max_width": 9,
+          "height": 4,
+          "min_width": 9,
+          "fixTimeWindow": true,
+          "extra_filter": "customer_id is '{{CUSTOMER_ID}}'",
+          "chartProperties": {
+            "yAxisLabel": "Count",
+            "xAxisLabel": "Time",
+            "legendLocation": "top"
+          },
+          "interval": "1H",
+          "group_by": [
+            "i_priority_label"
+          ],
+          "static_markers": [
+            {
+              "timestamp": "{{ALERT_CT}}",
+              "message": "Alert Created",
+              "color": "#B71C1C"
+            }
+          ],
+          "series_spec": [
+            {
+              "column": "incident_id",
+              "agg": "value_count",
+              "type": "int"
+            }
+          ],
+          "style": {
+            "color-map": {
+              "Critical": [
+                "#B71C1C",
+                "#ffffff"
+              ],
+              "High": [
+                "#FFA726",
+                "#ffffff"
+              ],
+              "Moderate": [
+                "#FFD54F",
+                "#ffffff"
+              ],
+              "Low": [
+                "#90CAF9",
+                "#ffffff"
+              ],
+              "Planning": [
+                "#4FC3F7",
+                "#ffffff"
+              ]
+            }
+          },
+          "widget_id": "a3d7ef3c"
+        },
+        {
+          "widget_type": "pie_chart",
+          "title": "Syslogs By Severity",
+          "ts_column": "rda_gw_timestamp",
+          "stream": "syslog_udp_event_stream_all",
+          "min_width": 3,
+          "height": 4,
+          "max_width": 3,
+          "duration_hours0": 10000,
+          "column": "count_",
+          "agg": "sum",
+          "group_by": [
+            "syslog_severity"
+          ],
+          "type": "int",
+          "style": {
+            "color-map": {
+              "SEVERE": [
+                "#B71C1C",
+                "#ffffff"
+              ],
+              "CRITICAL": [
+                "#E53935",
+                "#ffffff"
+              ],
+              "MAJOR": [
+                "#F57C00",
+                "#ffffff"
+              ],
+              "MINOR": [
+                "#FFA726",
+                "#ffffff"
+              ],
+              "WARNING": [
+                "#FFD54F",
+                "#ffffff"
+              ]
+            }
+          },
+          "widget_id": "ed85e796"
+        },
+        {
+          "title": "Syslogs",
+          "widget_type": "timeseries",
+          "max_width": 9,
+          "height": 4,
+          "min_width": 9,
+          "ts_column": "rda_gw_timestamp",
+          "show-markers": true,
+          "fixTimeWindow": true,
+          "stream": "syslog_udp_event_stream_all",
+          "extra_filter0": "log_category is 'syslog'",
+          "chartProperties": {
+            "xAxisLabel": "Timestamp",
+            "yAxisLabel": "Count",
+            "legendLocation": "none",
+            "xAxisTickOrientation": "STAGGERED",
+            "options": {
+              "elements": {
+                "line": {
+                  "borderWidth": 1
+                },
+                "point": {
+                  "radius": 2,
+                  "hitRadius": 3,
+                  "hoverRadius": 3
+                }
+              }
+            }
+          },
+          "static_markers": [
+            {
+              "timestamp": "{{ALERT_CT}}",
+              "message": "Alert Created",
+              "color": "#B71C1C"
+            }
+          ],
+          "series_spec": [
+            {
+              "column": "count_",
+              "agg": "sum",
+              "type": "int"
+            }
+          ],
+          "widget_id": "7ee88e42"
+        },
+        {
+          "title": "Syslogs",
+          "widget_type": "tabular",
+          "stream": "syslog_udp_event_stream_all",
+          "min_width": 12,
+          "height": 6,
+          "max_width": 12,
+          "extra_filter0": "log_category is 'syslog'",
+          "ts_column": "rda_gw_timestamp",
+          "resizableColumns": true,
+          "remote_searchable": true,
+          "remote_searchable_cols": [
+            "message"
+          ],
+          "columns": {
+            "rda_gw_timestamp": {
+              "title": "Event Time",
+              "type": "DATETIME"
+            },
+            "rda_gw_client_ip": "Host",
+            "raw": "Message",
+            "syslog_severity": "Severity"
+          },
+          "widget_id": "3d7466a3"
         }
       ]
     }
   ],
   "pstream_dashboards": [
     {
-      "title": "Network Devices",
+      "title": "Customer View",
       "show_filter": true,
       "widgets": [
         {
           "widget_type": "label",
-          "label": "<div style='text-align:center;width:100%;'><h1><a style='text-decoration:none;color:#0066ff;' target='_blank'> Network Devices </a></h1></div>",
+          "label": "<h3 style='text-align: center;'>Alert Created: {%raw%} {{' {{ '}} {%endraw%} toDateTimeString({{ ALERT_CT }}) {%raw%} {{ '}}' }} {%endraw%} </h3>",
+          "advanced": true,
           "min_width": 12,
-          "height": 0.4,
           "max_width": 12,
-          "widget_id": "dd3ae8ae"
+          "height": 1,
+          "widget_id": "5ae002f1"
         },
         {
-          "title": "Total Devices",
-          "widget_type": "custom_counter",
-          "duration_hours": 1080,
-          "stream": "cnc_device_inventory",
-          "ts_column": "timestamp",
-          "column": "_RDA_Id",
-          "agg": "value_count",
+          "title": "Link Up/Down Alerts",
+          "widget_type": "counter",
+          "min_width": 2.4,
+          "max_width": 2.4,
+          "height": 4,
+          "stream": "oia-alerts-stream",
+          "ts_column": "a_created_ts",
+          "extra_filter": "a_message contains 'link'",
+          "sparkline": {
+            "interval": "1h"
+          },
+          "column": "count_",
+          "agg": "sum",
           "type": "int",
-          "min_width": 4,
+          "widget_id": "42b0d069"
+        },
+        {
+          "title": "BGP Alerts",
+          "widget_type": "counter",
+          "min_width": 2.4,
+          "max_width": 2.4,
           "height": 4,
-          "max_width": 4,
-          "style": {
-            "color-list": [
-              "#90CAF9"
-            ]
+          "stream": "oia-alerts-stream",
+          "ts_column": "a_created_ts",
+          "extra_filter": "a_message contains 'BGP'",
+          "sparkline": {
+            "interval": "1h"
           },
-          "widget_id": "f0ehB7He"
+          "column": "count_",
+          "agg": "sum",
+          "type": "int",
+          "widget_id": "5f6517c3"
         },
         {
-          "widget_type": "pie_chart",
-          "title": "Devices by Model",
-          "stream": "cnc_device_inventory",
-          "ts_column": "timestamp",
-          "extra_filter": "`item_type` is  \"CHASSIS\"",
-          "duration_hours": 1080,
-          "column": "_RDA_Id",
-          "agg": "value_count",
-          "group_by": [
-            "device_model"
-          ],
-          "type": "str",
-          "min_width": 4,
+          "title": "OSPF Alerts",
+          "widget_type": "counter",
+          "min_width": 2.4,
+          "max_width": 2.4,
           "height": 4,
-          "max_width": 4,
-          "widget_id": "45ecc884"
-        },
-        {
-          "widget_type": "pie_chart",
-          "title": "Devices by SW Versions",
-          "stream": "cnc_device_inventory",
-          "extra_filter": "`item_type` is  \"CHASSIS\"",
-          "ts_column": "timestamp",
-          "duration_hours": 1080,
-          "column": "_RDA_Id",
-          "agg": "value_count",
-          "group_by": [
-            "device_fw_version"
-          ],
-          "type": "str",
-          "min_width": 4,
-          "height": 4,
-          "max_width": 4,
-          "widget_id": "00a5203d"
-        },
-        {
-          "title": "Devices by Model and Version",
-          "widget_type": "multi_bar_chart",
-          "stream": "cnc_device_inventory",
-          "ts_column": "timestamp",
-          "extra_filter": "`item_type` is  \"CHASSIS\"",
-          "duration_hours": 1080,
-          "group_by": [
-            "device_fw_version",
-            "device_model"
-          ],
-          "chartProperties": {
-            "yAxisLabel": "Count",
-            "xAxisLabel": "Model",
-            "stacked": true,
-            "legendLocation": "right",
-            "orientation": "vertical"
+          "stream": "oia-alerts-stream",
+          "ts_column": "a_created_ts",
+          "extra_filter": "a_message contains 'OSPF'",
+          "sparkline": {
+            "interval": "1h"
           },
-          "min_width": 12,
-          "height": 4,
-          "max_width": 12,
-          "column": "_RDA_Id",
-          "agg": "value_count",
-          "widget_id": "2O4VqY3d"
+          "column": "count_",
+          "agg": "sum",
+          "type": "int",
+          "widget_id": "2fee8031"
         },
         {
-          "title": "Network Devices",
-          "widget_type": "tabular",
-          "duration_hours": 1080,
-          "showRowSummary": true,
-          "query": "*",
+          "title": "Patch Changes",
+          "widget_type": "counter",
+          "min_width": 2.4,
+          "max_width": 2.4,
+          "height": 4,
+          "stream": "change_requests_stream",
+          "ts_column": "timestamp",
+          "extra_filter": "message contains 'patch'",
+          "sparkline": {
+            "interval": "1h"
+          },
+          "column": "count_",
+          "agg": "sum",
+          "type": "int",
+          "widget_id": "0c90f99a"
+        },
+        {
+          "title": "Change Requests",
+          "widget_type": "counter",
+          "min_width": 2.4,
+          "max_width": 2.4,
+          "height": 4,
+          "stream": "change_requests_stream",
+          "ts_column": "timestamp",
+          "sparkline": {
+            "interval": "1h"
+          },
+          "column": "count_",
+          "agg": "sum",
+          "type": "int",
+          "widget_id": "0b7d3407"
+        },
+        {
+          "title": "Events Timeline",
+          "widget_type": "timeseries",
+          "stream": "oia-alerts-stream",
+          "ts_column": "a_created_ts",
           "max_width": 12,
           "height": 8,
           "min_width": 12,
-          "stream": "cnc_device_inventory",
-          "ts_column": "timestamp",
-          "remote_searchable": true,
-          "remote_searchable_cols": [
-            "device_ip",
-            "device_serial_number",
-            "device_family",
-            "device_fw_version"
+          "fixTimeWindow": true,
+          "chartProperties": {
+            "yAxisLabel": "Alert Count",
+            "xAxisLabel": "Time",
+            "legendLocation": "none"
+          },
+          "static_markers": [
+            {
+              "timestamp": "{{ALERT_CT}}",
+              "message": "Alert Created",
+              "color": "#B71C1C"
+            }
           ],
+          "alert_markers": [
+            {
+              "stream": "change_requests_stream",
+              "ts_column": "timestamp",
+              "type": "circle",
+              "message_column": "message",
+              "severity_column": "severity"
+            },
+            {
+              "stream": "oia-alerts-stream",
+              "ts_column": "a_created_ts",
+              "type": "triangle",
+              "message_column": "a_message",
+              "severity_column": "a_severity"
+            },
+            {
+              "stream": "oia-ml-metrics-regression-output",
+              "ts_column": "timestamp",
+              "type": "square",
+              "message_column": "marker_message",
+              "extra_filter": "anomalies_severity is 'High' and anomalies_type is 'Upper'",
+              "severity_column": "anomalies_severity",
+              "columns": [
+                "asset_id",
+                "metric_id",
+                "metric_label",
+                "asset_name",
+                "metric_source",
+                "timestamp",
+                "job_name",
+                "unit",
+                "stream_name"
+              ],
+              "action": {
+                "appName": "user-dashboard/rca_regression_dashboard",
+                "permission": "ml:ml-jobs:viewSampledata",
+                "identifier": "ViewRegressionDashboard",
+                "selectionType": "SINGLE",
+                "stateName": "app.featureapp",
+                "title": "View Regression Dashboard",
+                "type": "GO_TO_APP_STATE"
+              }
+            },
+            {
+              "stream": "oia-logs-regression-output",
+              "ts_column": "timestamp",
+              "type": "circle",
+              "message_column": "asset_id",
+              "extra_filter": "anomalies_severity is 'High' and anomalies_type is 'Upper'",
+              "severity_column": "anomalies_severity",
+              "columns": [
+                "asset_id",
+                "asset_name",
+                "timestamp",
+                "job_name",
+                "stream_name"
+              ],
+              "action": {
+                "appName": "user-dashboard/rca_regression_dashboard",
+                "permission": "ml:ml-jobs:viewSampledata",
+                "identifier": "ViewRegressionDashboard",
+                "selectionType": "SINGLE",
+                "stateName": "app.featureapp",
+                "title": "View Regression Dashboard",
+                "type": "GO_TO_APP_STATE"
+              }
+            }
+          ],
+          "interval": "1min",
+          "series_spec": [
+            {
+              "label": "Alerts",
+              "column": "a_id",
+              "agg": "value_count",
+              "type": "int"
+            }
+          ],
+          "widget_id": "121762cf"
+        },
+        {
+          "title": "Metric Anomalies",
+          "widget_type": "multi_bar_chart",
+          "stream": "oia-ml-metrics-regression-output",
+          "ts_column": "timestamp",
+          "chartProperties": {
+            "yAxisLabel": "Anomalies (%)",
+            "xAxisLabel": "Metric Name",
+            "stacked": false,
+            "legendLocation": "none",
+            "orientation": "vertical"
+          },
+          "group_by": [
+            "asset_id",
+            "metric_label"
+          ],
+          "descending_order": true,
+          "others_spec": {
+            "limit": 4,
+            "show_others": false
+          },
+          "column": "anomalies_percent",
+          "agg": "max",
+          "type": "float",
+          "widget_id": "f4786acb"
+        },
+        {
+          "title": "Change Requests",
+          "widget_type": "tabular",
+          "min_width": 6,
+          "max_width": 6,
+          "height": 5,
+          "timebased": false,
+          "stream": "change_requests_stream",
+          "ts_column": "timestamp",
           "columns": {
-            "device_hostname": {
-              "title": "Device Name",
-              "type": "TEXT",
-              "key": true
+            "timestamp": {
+              "title": "Time",
+              "type": "DATETIME"
             },
-            "device_ip": {
-              "title": "IP Address",
-              "type": "TEXT",
-              "key": true
-            },
-            "device_model": {
-              "title": "Model",
-              "type": "TEXT",
-              "key": true
-            },
-            "clli_code": {
-              "title": "CLLI Code",
-              "type": "TEXT",
-              "key": true
-            },
-            "product_type": {
-              "title": "Product Type",
-              "type": "TEXT",
-              "visible": true
-            },
-            "device_family": {
-              "title": "Family",
-              "type": "TEXT",
-              "visible": true
-            },
-            "device_fw_version": {
-              "title": "SW Version",
-              "type": "TEXT",
-              "visible": true
-            },
-            "device_fw_type": {
-              "title": "OS Type",
-              "type": "TEXT",
-              "visible": true
+            "message": {
+              "title": "Change Description",
+              "type": "TEXT"
             }
           },
-          "actions": [
+          "widget_id": "31e2f2ed"
+        },
+        {
+          "widget_type": "pie_chart",
+          "title": "Alerts by Severity",
+          "stream": "oia-alerts-stream",
+          "extra_filter": "customer_id is '{{CUSTOMER_ID}}'",
+          "ts_column": "timestamp",
+          "min_width": 3,
+          "height": 4,
+          "max_width": 3,
+          "column": "a_id",
+          "agg": "value_count",
+          "group_by": [
+            "a_severity"
+          ],
+          "type": "str",
+          "style": {
+            "color-map": {
+              "SEVERE": [
+                "#B71C1C",
+                "#ffffff"
+              ],
+              "CRITICAL": [
+                "#E53935",
+                "#ffffff"
+              ],
+              "MAJOR": [
+                "#F57C00",
+                "#ffffff"
+              ],
+              "MINOR": [
+                "#FFA726",
+                "#ffffff"
+              ],
+              "WARNING": [
+                "#FFD54F",
+                "#ffffff"
+              ],
+              "NOTIFICATION": [
+                "#4DD0E1",
+                "#ffffff"
+              ],
+              "INFORMATION": [
+                "#03A9F4",
+                "#ffffff"
+              ]
+            }
+          },
+          "widget_id": "cb0706e6"
+        },
+        {
+          "title": "Alert Trend",
+          "widget_type": "timeseries",
+          "stream": "oia-alerts-stream",
+          "ts_column": "a_created_ts",
+          "max_width": 9,
+          "height": 4,
+          "min_width": 9,
+          "fixTimeWindow": true,
+          "extra_filter": "customer_id is '{{CUSTOMER_ID}}'",
+          "chartProperties": {
+            "yAxisLabel": "Count",
+            "xAxisLabel": "Time",
+            "legendLocation": "top"
+          },
+          "interval": "1H",
+          "group_by": [
+            "a_severity"
+          ],
+          "static_markers": [
             {
-              "permission": "rda:user_dashboard:view",
-              "appName": "user-dashboard/device_inventory",
-              "drillDownLinkField": "device_hostname",
-              "identifier": "launch.dashboard.device_inventory",
-              "selectionType": "SINGLE",
-              "title": "Node Details",
-              "contextParamList": {
-                "contextParams": [
-                  {
-                    "paramKey": "device_ip",
-                    "paramId": "a_asset_ip_address"
-                  },
-                  {
-                    "paramKey": "device_hostname",
-                    "paramId": "a_device_hostname"
-                  }
-                ]
-              },
-              "type": "GO_TO_APP_STATE"
+              "timestamp": "{{ALERT_CT}}",
+              "message": "Alert Created",
+              "color": "#B71C1C"
             }
           ],
-          "widget_id": "fac6548b"
+          "series_spec": [
+            {
+              "column": "a_id",
+              "agg": "value_count",
+              "type": "int"
+            }
+          ],
+          "style": {
+            "color-map": {
+              "SEVERE": [
+                "#B71C1C",
+                "#ffffff"
+              ],
+              "CRITICAL": [
+                "#E53935",
+                "#ffffff"
+              ],
+              "MAJOR": [
+                "#F57C00",
+                "#ffffff"
+              ],
+              "MINOR": [
+                "#FFA726",
+                "#ffffff"
+              ],
+              "WARNING": [
+                "#FFD54F",
+                "#ffffff"
+              ],
+              "NOTIFICATION": [
+                "#4DD0E1",
+                "#ffffff"
+              ],
+              "INFORMATION": [
+                "#03A9F4",
+                "#ffffff"
+              ]
+            }
+          },
+          "widget_id": "c29bb686"
+        },
+        {
+          "widget_type": "pie_chart",
+          "title": "Incidents By Priority",
+          "stream": "oia-incidents-stream",
+          "extra_filter": "customer_id is '{{CUSTOMER_ID}}'",
+          "ts_column": "timestamp",
+          "min_width": 3,
+          "height": 4,
+          "max_width": 3,
+          "column": "incident_id",
+          "agg": "value_count",
+          "group_by": [
+            "i_priority_label"
+          ],
+          "style": {
+            "color-map": {
+              "Critical": [
+                "#B71C1C",
+                "#ffffff"
+              ],
+              "High": [
+                "#FFA726",
+                "#ffffff"
+              ],
+              "Moderate": [
+                "#90CAF9",
+                "#ffffff"
+              ],
+              "Low": [
+                "#4DD0E1",
+                "#ffffff"
+              ],
+              "Planning": [
+                "#4FC3F7",
+                "#ffffff"
+              ]
+            }
+          },
+          "type": "str",
+          "widget_id": "7dce82c8"
+        },
+        {
+          "title": "Incident Trend",
+          "widget_type": "timeseries",
+          "stream": "oia-incidents-stream",
+          "ts_column": "i_created_ts",
+          "max_width": 9,
+          "height": 4,
+          "min_width": 9,
+          "fixTimeWindow": true,
+          "extra_filter": "customer_id is '{{CUSTOMER_ID}}'",
+          "chartProperties": {
+            "yAxisLabel": "Count",
+            "xAxisLabel": "Time",
+            "legendLocation": "top"
+          },
+          "interval": "1H",
+          "group_by": [
+            "i_priority_label"
+          ],
+          "static_markers": [
+            {
+              "timestamp": "{{ALERT_CT}}",
+              "message": "Alert Created",
+              "color": "#B71C1C"
+            }
+          ],
+          "series_spec": [
+            {
+              "column": "incident_id",
+              "agg": "value_count",
+              "type": "int"
+            }
+          ],
+          "style": {
+            "color-map": {
+              "Critical": [
+                "#B71C1C",
+                "#ffffff"
+              ],
+              "High": [
+                "#FFA726",
+                "#ffffff"
+              ],
+              "Moderate": [
+                "#FFD54F",
+                "#ffffff"
+              ],
+              "Low": [
+                "#90CAF9",
+                "#ffffff"
+              ],
+              "Planning": [
+                "#4FC3F7",
+                "#ffffff"
+              ]
+            }
+          },
+          "widget_id": "a3d7ef3c"
+        },
+        {
+          "widget_type": "pie_chart",
+          "title": "Syslogs By Severity",
+          "ts_column": "rda_gw_timestamp",
+          "stream": "syslog_udp_event_stream_all",
+          "min_width": 3,
+          "height": 4,
+          "max_width": 3,
+          "duration_hours0": 10000,
+          "column": "count_",
+          "agg": "sum",
+          "group_by": [
+            "syslog_severity"
+          ],
+          "type": "int",
+          "style": {
+            "color-map": {
+              "SEVERE": [
+                "#B71C1C",
+                "#ffffff"
+              ],
+              "CRITICAL": [
+                "#E53935",
+                "#ffffff"
+              ],
+              "MAJOR": [
+                "#F57C00",
+                "#ffffff"
+              ],
+              "MINOR": [
+                "#FFA726",
+                "#ffffff"
+              ],
+              "WARNING": [
+                "#FFD54F",
+                "#ffffff"
+              ]
+            }
+          },
+          "widget_id": "ed85e796"
+        },
+        {
+          "title": "Syslogs",
+          "widget_type": "timeseries",
+          "max_width": 9,
+          "height": 4,
+          "min_width": 9,
+          "ts_column": "rda_gw_timestamp",
+          "show-markers": true,
+          "fixTimeWindow": true,
+          "stream": "syslog_udp_event_stream_all",
+          "extra_filter0": "log_category is 'syslog'",
+          "chartProperties": {
+            "xAxisLabel": "Timestamp",
+            "yAxisLabel": "Count",
+            "legendLocation": "none",
+            "xAxisTickOrientation": "STAGGERED",
+            "options": {
+              "elements": {
+                "line": {
+                  "borderWidth": 1
+                },
+                "point": {
+                  "radius": 2,
+                  "hitRadius": 3,
+                  "hoverRadius": 3
+                }
+              }
+            }
+          },
+          "static_markers": [
+            {
+              "timestamp": "{{ALERT_CT}}",
+              "message": "Alert Created",
+              "color": "#B71C1C"
+            }
+          ],
+          "series_spec": [
+            {
+              "column": "count_",
+              "agg": "sum",
+              "type": "int"
+            }
+          ],
+          "widget_id": "7ee88e42"
+        },
+        {
+          "title": "Syslogs",
+          "widget_type": "tabular",
+          "stream": "syslog_udp_event_stream_all",
+          "min_width": 12,
+          "height": 6,
+          "max_width": 12,
+          "extra_filter0": "log_category is 'syslog'",
+          "ts_column": "rda_gw_timestamp",
+          "resizableColumns": true,
+          "remote_searchable": true,
+          "remote_searchable_cols": [
+            "message"
+          ],
+          "columns": {
+            "rda_gw_timestamp": {
+              "title": "Event Time",
+              "type": "DATETIME"
+            },
+            "rda_gw_client_ip": "Host",
+            "raw": "Message",
+            "syslog_severity": "Severity"
+          },
+          "widget_id": "3d7466a3"
         }
       ]
     }
