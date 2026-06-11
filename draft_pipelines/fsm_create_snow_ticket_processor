@@ -1,85 +1,140 @@
-@dm:empty
- --> @dm:addrow name = 'edc_customer_inventory' and limit=0
- --> #dm:query-persistent-stream project_name='CRS' and sw_version!='Not Available'
- --> @dm:selectcolumns exclude='PID'
- --> @dm:manipulate-string to="customer" and func="eval" and value="'ATT'"
- --> @dm:save name='temp-contract_data'
- --> @dm:empty
- --> @dm:empty
- --> @dm:save name = "project-enriched-sweol-values"
- ## Generate unique list of PID-SW version to process
-
- --> @c:new-block
- --> @dm:recall name="temp-contract_data"
- --> *dm:filter sw_version!='Not Available'
- --> *dm:filter sw_os_type is not null
- --> @dm:selectcolumns include="customer|^product_id|sw_os_type|sw_version|instance_id"
- --> @dm:groupby columns ="customer,product_id,sw_os_type,sw_version"
- --> @dm:rename-columns instance_id="total"
- --> @dm:eval unique_key = "str(product_id) + str(sw_os_type) + str(sw_version)"
- --> @dm:save name="temp-input-dataset"
- ## Process SW EoL
-
- ## declaring thrid level child pipelines
-
+@c:new-block
+ --> @exec:get-input
+ --> @dm:save name="ticket-create-input"
+ --> @dm:save name="temp-create-input"
+ --> @dm:save name="create-ticket-pipeline-input"
  --> @c:new-block
  --> @dm:empty
- --> @exec:define-function name="define_child_pipelines"
- --> @exec:run-pipeline name ="edc_generate_token" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_sw_get_data" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_sweol_enrich" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_processing_sw_data" & ignore_failures = "no"
- --> @exec:end-function
- ## collecting the file and storing it in edc_cust_pid_sw stream, collecting the API data and adding the processed data to edc_sw_raw_data
+ --> @dm:save name="temp-incident-alerts"
+ --> @dm:save name="temp-payload-snow-create"
+ --> @dm:save name="temp-notes"
+ --> @dm:save name="temp-incident-data"
+ --> @c:data-loop dataset="temp-create-input" & columns="project_id,incident_id,customer_id"
+ --> @dm:recall name="temp-create-input"
+ --> *dm:filter incident_id == '$incident_id' and project_id == '$project_id'
+ --> @dm:add-missing-columns columns = 'inc_data'
+ --> @dm:fixnull columns = 'inc_data' & value='{}'
+ --> *dm:filter inc_data != '{}' and inc_data != ''
+ --> @dm:skip-block-if-shape row_count = 0
+ --> @dm:eval inc_data="json_loads(inc_data)"
+ --> @dm:explode-json column = 'inc_data'
+ --> @dm:map to="incident_id" & func="fixed" & value="$incident_id"
+ --> @dm:map to="project_id" & func="fixed" & value='$project_id'
+ --> @dm:map to="customer_id" & func="fixed" & value="$customer_id"
+ --> @dm:save name="temp-incident-data" & append="yes"
+ ## Prepare worknotes using Alerts
 
- --> @c:new-block
- --> @dm:recall name='temp-input-dataset'
- ## --> @rn:write-stream name='edc_cust_pid_sw'
+ --> @c:data-loop dataset="temp-create-input" & columns="project_id,incident_id,customer_id"
+ --> @dm:recall name="temp-create-input"
+ --> *dm:filter incident_id == '$incident_id' and project_id == '$project_id'
+ --> @dm:add-missing-columns columns = 'alerts'
+ --> @dm:fixnull columns = 'alerts' & value='[]'
+ --> *dm:filter alerts != '[]' and alerts != ''
+ --> @dm:skip-block-if-shape row_count = 0
+ --> @dm:eval alerts="json_loads(alerts)"
+ --> @dm:explode-json column = 'alerts'
+ ## Will create new dataset. Old will be replaced with this new one
 
- --> @dm:save name="temp-cust_pid_sw"
- --> @exec:run-pipeline name ="edc_sw_run_scan" & ignore_failures = "no"
- --> @dm:save name='project-enriched-sweol-values'
- --> @dm:save name='temp-enriched-sweol-values'
- ## Process SWEoL
+ ## Change-Here: make sure to find correct incident_id column
 
- --> @c:new-block
- --> @dm:recall name='temp-enriched-sweol-values'
- --> @dm:save name='temp-sweol-data'
- ## creates a list of unique customers
+ --> @dm:map to="incident_id" & func="fixed" & value="$incident_id"
+ --> @dm:map to="project_id" & func="fixed" & value="$project_id"
+ --> @dm:map to="customer_id" & func="fixed" & value="$customer_id"
+ --> @dm:map to="step" & func="fixed" & value="c1"
+ --> @rn:write-stream compression="auto" & name="debug-fsm-att"
+ ## Change-Here: Select columns
 
- --> @c:new-block
- --> @dm:recall name='temp-sweol-data'
- --> @dm:groupby columns='customer'
- --> @dm:save name='temp-unique-cust-name'
- ## Queries data for the customer from edc_customer inventory
+ --> @dm:selectcolumns include="a_message|a_raised_ts|a_created_ts|a_updated_ts|a_status|a_asset_name|a_repeat_count|incident|project|customer"
+ --> @dm:add-missing-columns columns = 'a_message,a_raised_ts,a_created_ts,a_updated_ts,a_status,a_asset_name,a_repeat_count' & value=""
+ --> @dm:fixnull columns = 'a_message,a_raised_ts,a_created_ts,a_updated_ts,a_status,a_asset_name,a_repeat_count' & value=""
+ --> @dm:save name="temp-incident-alerts"
+ ## Prepare notes based on Alerts
 
- --> @c:data-loop dataset='temp-unique-cust-name' and columns='customer'
- --> @dm:recall name='temp-contract_data'
- --> *dm:filter customer == '$customer'
- --> @dm:save name='temp-hw-eol-details' and append='yes'
- ## processes the software columns for the customer
+ --> @dm:save name="before-apply-template-for-create"
+ --> @dm:apply-template-all-rows template_name = 'snow-notes-template' & output_col = 'concat_value'
+ --> @dm:save name="after-apply-template-for-create"
+ --> @dm:add-missing-columns columns = 'concat_value' & value=""
+ --> @dm:eval work_notes="'[code] ' + concat_value + ' [/code]'"
+ --> @dm:copy-columns to="notes" & from="work_notes"
+ --> @dm:copy-columns to="comments" & from="work_notes"
+ --> @dm:map to="incident_id" & func="fixed" & value="$incident_id"
+ --> @dm:map to="project_id" & func="fixed" & value="$project_id"
+ --> @dm:map to="customer_id" & func="fixed" & value="$customer_id"
+ --> @dm:save name="temp-notes" & append="yes"
+ --> @dm:map to="step" & func="fixed" & value="c2"
+ --> @rn:write-stream compression="auto" & name="debug-fsm-att"
+ ## Prepare Payload for Snow
 
- --> @c:data-loop columns='customer' and dataset='temp-unique-cust-name'
- --> @dm:recall name='temp-sweol-data'
- --> *dm:filter customer == '$customer'
- --> @exec:run-pipeline name='edc_processing_sw_data'
- --> @dm:save name='temp-sw-eol-details'
- --> @dm:save name='test-sw-eol-details'
- ## enriches the processed columns to  edc_customer inventory
+ --> @c:data-loop dataset="temp-create-input" & columns="project_id,incident_id,customer_id"
+ --> @dm:recall name="temp-notes"
+ --> *dm:filter incident_id == '$incident_id' and project_id == '$project_id'
+ --> @dm:skip-block-if-shape row_count = 0
+ ## Incident Data
 
- --> @c:new-block
- --> @dm:recall name='temp-hw-eol-details'
- ## --> @dm:selectcolumns exclude='sw_status_x|sw_expiring_qtr_x|sw_expiring_year_x'
+ ## Join Alerts and Incident Data Records. One(Incident) to Many(Alerts).
 
- --> @dm:enrich dict='temp-sw-eol-details' and src_key_cols='contract_number,customer,product_id' and dict_key_cols='contract_number_str,customer,product_id' and enrich_cols='SoftwareEOXId,BulletinNumber,BulletinHeadline,BulletinURL,EndOfSaleDate,EndOfEngineeringDate,EndOfLifeDate,PostDate,EndOfLifeInternalAnnouncementDate,EndOfLifeExternalAnnouncementDate,EndOfLastHardwareShipDate,EndOfHardwareNewServiceAttachmentDate,EndOfHardwareRoutineFailureAnalysisDate,EndOfBUEngineeringSupportTACDate,EndOfHardwareServiceContractRenewalDate,EndOfSignatureReleasesDate,EndOfSoftwareAvailabilityDate,EndOfSoftwareLicenseAvailabilityDate,EndOfSoftwareVulnerabilityOrSecuritySupportDate,created,customerVisible,external_text,external_title,firstIcAlertId,groups,icIssueId,icProblemId,ignored,lastIcAlertId,eoXAlertType,name,openedOn,resultType,severity,severityText,state,updated,deviceSN,runType,filename,icType,atticaStatus,cdetsList,retry,associatedGroups,sw_expiring_qtr,sw_expiring_year,sw_status' and replace_values='yes'
- --> @dm:save name='final-enrich'
- --> @dm:rename-columns EndOfLifeDate='EndOfLifeDate_y'
- --> @dm:fixnull columns='SoftwareEOXId,BulletinNumber,BulletinHeadline,BulletinURL,EndOfSaleDate,EndOfEngineeringDate,EndOfLifeDate,PostDate,EndOfLifeInternalAnnouncementDate,EndOfLifeExternalAnnouncementDate,EndOfLastHardwareShipDate,EndOfHardwareNewServiceAttachmentDate,EndOfHardwareRoutineFailureAnalysisDate,EndOfBUEngineeringSupportTACDate,EndOfHardwareServiceContractRenewalDate,EndOfSignatureReleasesDate,EndOfSoftwareAvailabilityDate,EndOfSoftwareLicenseAvailabilityDate,EndOfSoftwareVulnerabilityOrSecuritySupportDate,created,customerVisible,external_text,external_title,firstIcAlertId,groups,icIssueId,icProblemId,ignored,lastIcAlertId,eoXAlertType,name,openedOn,resultType,severity,severityText,state,updated,deviceSN,runType,filename,icType,atticaStatus,cdetsList,retry,associatedGroups,sw_expiring_qtr,sw_expiring_year,sw_status' and value="Not Available"  and apply_for_empty="yes"
- --> @dm:rename-columns swEOL_softwareEOXId='SoftwareEOXId' and swEOL_bulletinNumber='BulletinNumber' and swEOL_bulletinTitle='BulletinHeadline' and swEOL_bulletinUrl='BulletinURL' and swEOL_endOfSaleDate='EndOfSaleDate' and
-swEOL_endOfSoftwareMaintenanceReleasesDate='EndOfEngineeringDate' and swEOL_lastDayOfSupportDate='EndOfLifeDate' and
-swEOL_endOfVulnerabilitySecuritySupportDate='EndOfSoftwareVulnerabilityOrSecuritySupportDate' and swEOL_endOfLifeAnnouncementDate='EndOfLifeExternalAnnouncementDate'
- --> @rn:write-stream name='edc_sweol_data'
- --> @dm:selectcolumns exclude='^(EndOfLifeInternalAnnouncementDate|EndOfLastHardwareShipDate|EndOfHardwareNewServiceAttachmentDate|EndOfHardwareRoutineFailureAnalysisDate|EndOfBUEngineeringSupportTACDate|EndOfHardwareServiceContractRenewalDate|EndOfSignatureReleasesDate|EndOfSoftwareAvailabilityDate|EndOfSoftwareLicenseAvailabilityDate|created|customerVisible|external_text|external_title|firstIcAlertId|groups|icIssueId|icProblemId|ignored|lastIcAlertId|eoXAlertType|name|openedOn|resultType|severity|severityText|state|updated|deviceSN|runType|filename|icType|atticaStatus|cdetsList|retry|associatedGroups)$'
- --> @dm:save name='temp-enriched-data'
- --> @dm:save name='test-contract_data'
- --> *dm:filter sw_version!='Not Available'
+ --> @dm:enrich dict='temp-incident-data' & dict_key_cols='incident_id,project_id' & src_key_cols='incident_id,project_id' & enrich_cols='i_state,i_summary,i_description,i_priority'
+ --> @dm:map to="account" & func="fixed" & value="CloudFabrix"
+ --> @dm:map to="company" & func="fixed" & value="f5eab4f4070e1110187bf9fc7c1ed0ef"
+ --> @dm:map to="category" & func="fixed" & value="Software"
+ --> @dm:copy-columns to="shortDescription" & from="i_summary"
+ --> @dm:copy-columns to="short_description" & from="i_summary"
+ --> @dm:eval state="('New' if i_state == 'Open' else ('New' if i_state == 'Assigned' else ('On Hold' if i_state == 'On Hold' else ('Resolved' if i_state == 'Resolved' else ('Resolved' if i_state == 'Closed' else ('Canceled' if i_state == 'Cancelled' else ('New')))))))"
+ --> @dm:fixnull columns = 'i_priority' & value='3.0'
+ --> @dm:eval impact="('1 - High' if (str(i_priority) == '1.0') else ('2 - Medium' if (str(i_priority) == '2.0') else ('3 - Low')))"
+ --> @dm:eval urgency="('1 - High' if (str(i_priority) == '1.0') else ('2 - Medium' if (str(i_priority) == '2.0') else ('3 - Low')))"
+ --> @dm:eval severity="('1 - High' if (str(i_priority) == '1.0') else ('2 - Medium' if (str(i_priority) == '2.0') else ('3 - Low')))"
+ --> @dm:apply-template-by-row template_name = 'snow-description-template' & output_col = 'description'
+ --> @dm:map to="fsmInputEventName" & func="fixed" & value="save-ticket-id"
+ --> @dm:map to="fsmModelName" & func="fixed" & value="at_n_t_incident"
+ --> @dm:map to="incident_id" & func="fixed" & value="$incident_id"
+ --> @dm:map to="project_id" & func="fixed" & value="$project_id"
+ --> @dm:map to="customer_id" & func="fixed" & value="$customer_id"
+ --> @dm:save name="temp-payload-snow-create" & append="yes"
+ --> @dm:map to="step" & func="fixed" & value="c3"
+ --> @dm:save name="create-ticket-save-ticket-id"
+ --> @rn:write-stream compression="auto" & name="debug-fsm-att"
+ ## Create Snow Ticket
+
+ --> @c:data-loop dataset="temp-create-input" & columns="project_id,incident_id,customer_id"
+ --> @dm:recall name="temp-payload-snow-create"
+ --> *dm:filter incident_id == '$incident_id' and project_id == '$project_id'
+ --> @dm:skip-block-if-shape row_count = 0
+ --> @dm:selectcolumns include="account|company|category|description|short|state|urgency|impact|severity|notes|comments|work_notes|project_id|incident_id|customer_id|fsm"
+ --> @dm:save name="temp-before-snow-create"
+ --> @snowv2:create-incident mandatory_cols="short_description,urgency,state,impact,description,comments"
+ --> @dm:check-columns must_contain="rda_row_id,number" & action="skip-block"
+ --> @dm:fixnull columns = 'rda_row_id' & value=''
+ --> *dm:filter rda_row_id != ''
+ --> @dm:skip-block-if-shape row_count = 0
+ --> @dm:map to="incident_id" & func="fixed" & value="$incident_id"
+ --> @dm:map to="project_id" & func="fixed" & value="$project_id"
+ --> @dm:map to="customer_id" & func="fixed" & value="$customer_id"
+ --> @dm:eval itsm_link="'https://dev84819.service-now.com/nav_to.do?uri=%2Fincident.do%3Fsys_id%3D' + rda_row_id"
+ --> @dm:map to="step" & func="fixed" & value="c4"
+ --> @rn:write-stream compression="auto" & name="debug-fsm-att"
+ --> @dm:save name="temp-after-snow-create"
+ --> @dm:recall name="temp-before-snow-create"
+ --> @dm:enrich dict='temp-after-snow-create' & dict_key_cols='incident_id,project_id' & src_key_cols='incident_id,project_id' & enrich_cols='rda_row_id,number,itsm_link'
+ --> @dm:check-columns must_contain="rda_row_id,number" & action="skip-block"
+ --> @dm:fixnull columns = 'rda_row_id' & value=''
+ --> *dm:filter rda_row_id != ''
+ --> @dm:skip-block-if-shape row_count = 0
+ --> @dm:copy-columns to="itsm_ticket_number" & from="number"
+ --> @dm:copy-columns to="itsm_ticket_id" & from="rda_row_id"
+ --> @dm:save name="temp-merged-snow-create"
+ --> @dm:map to="step" & func="fixed" & value="c5"
+ --> @rn:write-stream compression="auto" & name="debug-fsm-att"
+ --> @dm:copy-columns to="label" & from="number"
+ --> @dm:copy-columns to="incidentid" & from="incident_id"
+ --> @dm:copy-columns to="roomid" & from="project_id"
+ --> @dm:copy-columns to="externalUrl" & from="itsm_link"
+ --> @dm:eval attrs=' "[{\"name\":\"externalUrl\",\"value\":\"" + itsm_link + "\"}]" '
+ --> @dm:eval attributes = "json_loads(attrs)"
+ --> @dm:selectcolumns include="roomid|incidentid|label|attributes"
+ --> @agent:agent-irm:irmagent:updateIncidents
+ --> @dm:save name="temp-irm-result"
+ --> @dm:map to="step" & func="fixed" & value="c6"
+ --> @rn:write-stream compression="auto" & name="debug-fsm-att"
+ --> @dm:recall name="temp-merged-snow-create"
+ --> @rn:write-stream compression="auto" & name="rda_fsm_event_stream"
