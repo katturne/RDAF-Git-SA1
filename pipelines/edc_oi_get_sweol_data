@@ -1,101 +1,144 @@
-@dm:empty
+
+ ## get the uploaded sw data
+@c:new-block
  --> @exec:get-input
+ --> @dm:add-missing-columns columns="key" and value='key'
+ --> @dm:add-missing-columns columns="source" and value='software'
+ --> @dm:eval sw_os_type="('IOS XR' if sw_os_type=='IOS-XR' else sw_os_type)"
  --> @dm:save name='temp-sw-data'
- ## creates a list of unique customers
+ --> @dm:save name='added-sw-data'
+ ## declaring thrid level child pipelines
+
+ --> @c:new-block
+ --> @dm:empty
+ --> @exec:define-function name="define_child_pipelines"
+ --> @exec:run-pipeline name ="edc_generate_token" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_sw_get_data" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_sweol_enrich" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_processing_sw_data" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_get_sw_sa_details" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_sw_run_scan" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_sa_run_scan" & ignore_failures = "no"
+ --> @exec:end-function
+ ## function to generate the access token
+
+ --> @c:new-block
+ --> @dm:empty
+ --> @exec:define-function name="generate_access_token"
+ --> @dm:recall name='generate_token_creds'
+ ## --> @dm:empty
+
+ --> @exec:run-pipeline name ="edc_generate_token" & ignore_failures = "no"
+ --> @dm:addrow key='key'
+ --> @dm:eval current_time_ms="int(time_now_as_ms())"
+ --> @dm:eval token_expiry_time='current_time_ms+3000000'
+ --> @dm:save name='temp-expiry-time'
+ --> @exec:end-function
+ ## get the dataset with unique sw_version,sw_os_type,product_id combinations to make the API call
 
  --> @c:new-block
  --> @dm:recall name='temp-sw-data'
- --> @dm:groupby columns='customer'
- --> @dm:save name='temp-unique-cust-name'
- ## processes the software columns for the customer
+ --> @dm:add-missing-columns columns="key" and value='key'
+ --> @dm:manipulate-string from="sw_version,sw_os_type,product_id" and func="concat_columns" and to="unique_payload_inputs"
+ --> @dm:dedup columns ='unique_payload_inputs'
+ --> @dm:save name='temp-unique-sw-data'
+ --> @dm:save name='unique-added-sw-data'
+ ## gneerate the access token
 
- --> @c:data-loop columns='customer' and dataset='temp-unique-cust-name'
+ --> @c:new-block
+ --> @dm:empty
+ --> @exec:call-function name='generate_access_token'
+ ## get the API output for the above created dataset
+
+ --> @c:data-loop columns='sw_version,sw_os_type,product_id,source' and dataset='temp-unique-sw-data'
+ ## --> @dm:recall name='temp-unique-sw-data'
+
+ --> @dm:empty
+ --> @dm:addrow key='key'
+ --> @dm:eval current_time_ms_loop="int(time_now_as_ms())"
+ --> @dm:save name='temp-loop-time'
+ --> @dm:enrich dict='temp-expiry-time' and src_key_cols='key' and dict_key_cols='key' and enrich_cols='token_expiry_time,access_token,expires_in,token_type'
+ --> *exec:if-condition token_expiry_time is null or current_time_ms_loop  is greater than or equal to token_expiry_time
+ --> @exec:call-function name='generate_access_token'
+ --> @exec:end-if
+ --> @dm:dropnull columns='access_token'
+ --> @dm:add-missing-columns columns='sw_version' and value='$sw_version'
+ --> @dm:add-missing-columns columns='sw_os_type' and value='$sw_os_type'
+ --> @dm:add-missing-columns columns='product_id' and value='$product_id'
+ --> @dm:add-missing-columns columns='source' and value='$source'
+ ## --> *dm:filter sw_os_type is not null and product_id is not null and sw_version is not null
+
+ --> *exec:if-condition sw_version is not null and sw_os_type is not null and product_id is not null
+ --> @exec:run-pipeline name ="edc_sw_get_data" & ignore_failures = "yes"
+ --> @dm:save name='temp-sw-token'
+ --> @dm:save name='temp-sweol-before-explode' and append='yes'
+ ## --> @rn:write-stream name='dummy_sweol_enriched'
+
+ --> @dm:save name='sweol-data-run-scan-op-1' and append='yes'
+ --> @exec:end-if
+ ## filter out the rows whose API output is not empty
+
+ --> @c:new-block
+ --> @dm:recall name='temp-sweol-before-explode'
+ --> @dm:dedup columns='product_id,sw_os_type,sw_version'
+ --> @dm:copy-columns from='issues' and to='issues_str'
+ --> @dm:to-type columns='issues_str' and type='str'
+ --> *dm:filter issues_str is not '[]'
+ --> @dm:selectcolumns exclude='^issues_str$'
+ --> @dm:save name='temp-sweol-before-explode-dedup'
+ --> @dm:save name='sweol-data-run-scan-op-dedup'
+ ## enrich to add API output to rows with same sw_version,sw_os_type,product_id combination but different contract_number
+
+ --> @c:new-block
  --> @dm:recall name='temp-sw-data'
- --> *dm:filter customer == '$customer'
- --> @exec:run-pipeline name='edc_oi_process_sw_data'
- --> @dm:to-type columns='contract_number' and type='int'
- --> @dm:rename-columns swEOL_softwareEOXId='SoftwareEOXId' and swEOL_bulletinNumber='BulletinNumber' and swEOL_bulletinTitle='BulletinHeadline' and swEOL_bulletinUrl='BulletinURL' and swEOL_endOfSaleDate='EndOfSaleDate' and
-swEOL_endOfSoftwareMaintenanceReleasesDate='EndOfEngineeringDate' and swEOL_lastDayOfSupportDate='EndOfLifeDate' and
-swEOL_endOfVulnerabilitySecuritySupportDate='EndOfSoftwareVulnerabilityOrSecuritySupportDate' and swEOL_endOfLifeAnnouncementDate='EndOfLifeExternalAnnouncementDate'
- --> @dm:save name='temp-sw-eol-details' and append='yes'
- ## Queries data for the customer from edc_oi_enriched_stream
+ --> @dm:enrich dict='temp-sweol-before-explode-dedup' and src_key_cols='product_id,sw_os_type,sw_version' and dict_key_cols='product_id,sw_os_type,sw_version' and enrich_cols='issues,transaction_id,id' and how_type='inner' and dedup_dict='no'
+ ## --> @dm:save name='test-sweol_cn_enriched'
 
- --> @c:data-loop columns='customer' and dataset='temp-unique-cust-name'
- --> @dm:empty
- --> @dm:addrow name='edc_oi_inventory_enriched' and limit=0
- --> #dm:query-persistent-stream customer_name=='$customer' and coverage=='COVERED'
- --> @dm:save name='temp-inv-details' and append='yes'
+ --> @dm:save name='temp-edc-sw-run-scan-op-not-exploded'
  --> @c:new-block
- --> @dm:recall name='temp-inv-details'
- --> @dm:to-type columns="contract_number" and type='int'
- --> @dm:save name='temp-inv-details'
- ## Queries data for the customer from edc_oi_enriched_stream
+ --> @dm:recall name='temp-edc-sw-run-scan-op-not-exploded'
+ --> *exec:if-condition source=='software'
+ --> @dm:recall name='temp-edc-sw-run-scan-op-not-exploded'
+ ## --> @dm:eval issues='eval(issues)'
 
- --> @c:data-loop columns='customer' and dataset='temp-unique-cust-name'
- --> @dm:empty
- --> @dm:addrow name='edc_oi_inventory_enriched' and limit=0 and groupby='contract_number,customer_name,product_name,product_id,portfolio_desc' and aggs='sum:combination_count'
- --> #dm:query-persistent-stream coverage=='COVERED' and customer_name=='$customer'
- --> @dm:save name='temp-hw-eol-details-grouped' and append='yes'
- ## --> @dm:save name='details-grouped-sw-data' and append='yes'
+ --> @dm:eval issues='json_dumps(issues)'
+ --> @dm:explode-json column="issues"
+ --> @dm:eval eoXAlert='json_dumps(eoXAlert)'
+ --> @dm:explode-json column="eoXAlert"
+ --> @dm:save name='temp-sweol-exploded'
+ --> @dm:save name='exploded-sweol'
+ --> @exec:end-if
+ ## Logging the repeated counts of the data from run scan api
 
  --> @c:new-block
- --> @dm:recall name='temp-hw-eol-details-grouped'
- --> @dm:to-type columns='contract_number' and type='int'
- --> @dm:save name='temp-hw-eol-details-grouped'
- ## enriches the processed columns to edc_oi_inventory_enriched
-
+ --> @dm:recall name='temp-edc-sw-run-scan-op-not-exploded'
+ --> *exec:if-condition source=='software'
+ --> @dm:recall name="temp-sweol-exploded"
+ --> @dm:to-type columns="BulletinNumber" and type="str"
+ --> @dm:implode key_columns='product_id,sw_version,sw_os_type' and merge_columns='BulletinNumber' and dedup_merge_values='no' and keep_columns='id,transaction_id'
+ --> @dm:eval BulletinNumber="str(BulletinNumber).split(',')"
+ --> @dm:eval total_records = "len(BulletinNumber)"
+ --> *dm:filter total_records > 1
+ --> @dm:skip-block-if-shape row_count=0
+ --> @dm:eval duplicate_record_count="total_records-1"
+ --> @dm:eval unique_key="str(product_id)+'_'+str(sw_version)+'_'+str(sw_os_type)"
+ --> @rn:write-stream name="edc_run_scan_duplicate_records"
+ --> @exec:end-if
  --> @c:new-block
- --> @dm:recall name='temp-sw-eol-details'
- ## --> @dm:eval product_name="product_id if product_name is 'Not Available' else product_name"
+ --> @dm:recall name='temp-edc-sw-run-scan-op-not-exploded'
+ --> *exec:if-condition source=='security_advisory'
+ --> @dm:recall name='temp-edc-sw-run-scan-op-not-exploded'
+ --> @dm:dedup columns='product_id'
+ --> @dm:eval issues='json_dumps(issues)'
+ --> @dm:explode-json column="issues"
+ --> @dm:eval psirtAlert='json_dumps(psirtAlert)'
+ --> @dm:explode-json column="psirtAlert"
+ ## --> @dm:to-type columns='contract_number,customer,product_id,advisoryId,PsirtID' and type='str'
 
- --> @dm:enrich dict='temp-hw-eol-details-grouped' and dict_key_cols='contract_number,customer_name,product_name' and src_key_cols='contract_number,customer,product_name' and enrich_cols='combination_count_sum,portfolio_desc' and how_type='left'
- --> @dm:add-missing-columns columns="combination_count_sum"
- --> @dm:save name='temp-inv-grouped-op'
+ ## --> @dm:map from = 'contract_number,customer,product_id,advisoryId,PsirtID' & to = 'unique_key' & func = 'join' & sep = '_'
+
+ --> @dm:save name='temp-sweol-exploded'
+ --> @dm:save name='exploded-sa-output'
+ --> @exec:end-if
  --> @c:new-block
- --> @dm:recall name='temp-inv-details'
- --> @dm:selectcolumns exclude='^(swEOL_endOfLifeAnnouncementDate|swEOL_endOfVulnerabilitySecuritySupportDate|swEOL_lastDayOfSupportDate|swEOL_endOfSoftwareMaintenanceReleasesDate|swEOL_endOfSaleDate|swEOL_bulletinUrl|swEOL_bulletinTitle|swEOL_bulletinNumber|swEOL_softwareEOXId|sw_status|sw_expiring_qtr|sw_expiring_year|match|customer|product_id)$'
- --> @dm:save name='temp-hw-eol-details-grouped-excluded'
- --> @c:new-block
- --> @dm:recall name='temp-inv-grouped-op'
- --> @dm:enrich dict='temp-hw-eol-details-grouped-excluded'  and dict_key_cols='contract_number,customer_name,product_name' and src_key_cols='contract_number,customer,product_name' and enrich_cols='item_type,product_family'
- --> @dm:eval unique_key='str(customer) + str(sw_os_type) + str(sw_version) + str(contract_number) + str(product_id) + str(product_name)'
- --> @dm:to-type columns='combination_count_sum' and type='int'
- --> @dm:dropnull columns='sw_status'
- --> @dm:selectcolumns exclude='^(key|Unique_id|_RDA_Id|count_|timestamp|customer_name_y)'
- --> @dm:eval customer_name='customer_name_x'
- ## --> @dm:save name='final-enrich-1'
-
- --> @dm:save name='temp-edc-sweol-data'
- --> @rn:write-stream name='edc_sweol_data'
- ## dedup the data based on sw_status priority
-
- --> @c:new-block
- --> @dm:recall name='temp-sw-eol-details'
- ## --> @dm:save name='sw-before-dedup-data'
-
- --> @dm:eval sw_status_score = "100 if sw_status == 'Expired' else 99 if sw_status == 'Expiring in 4 Quarters' else 98 if sw_status == 'Expiring in 8 Quarters' else 97 if sw_status == 'Expiring after 8 Quarters' else 0"
- --> @dm:skip-block-if-shape row_count="0"
- --> @dm:sort columns='sw_status_score' and order='descending'
- ## -->@dm:copy-columns from='sw_version,' and to=''
-
- ## -->@dm:to-type columns=''
-
- --> @dm:dedup columns='product_id,sw_version,sw_os_type,contract_number,customer'
- --> @dm:eval match="'yes'"
- --> @dm:save name="temp-sw-dedups"
- --> @c:new-block
- --> @dm:recall name='temp-inv-details'
- --> @dm:enrich dict='temp-sw-dedups' and dict_key_cols='contract_number,customer,product_id' and src_key_cols='contract_number,customer_name,product_id' and enrich_cols='match'
- --> @dm:dropnull columns='match'
- --> @dm:selectcolumns exclude='^(swEOL_endOfLifeAnnouncementDate|swEOL_endOfVulnerabilitySecuritySupportDate|swEOL_lastDayOfSupportDate|swEOL_endOfSoftwareMaintenanceReleasesDate|swEOL_endOfSaleDate|swEOL_bulletinUrl|swEOL_bulletinTitle|swEOL_bulletinNumber|swEOL_softwareEOXId|sw_status|sw_expiring_qtr|sw_expiring_year|match|customer)$'
- --> @dm:save name='temp-matched-inv'
- --> @c:new-block
- --> @dm:recall name='temp-matched-inv'
- --> @dm:enrich dict='temp-sw-dedups' and dict_key_cols='contract_number,customer,product_id' and src_key_cols='contract_number,customer_name,product_id' and enrich_cols='swEOL_endOfLifeAnnouncementDate,swEOL_endOfVulnerabilitySecuritySupportDate,swEOL_lastDayOfSupportDate,swEOL_endOfSoftwareMaintenanceReleasesDate,swEOL_endOfSaleDate,swEOL_bulletinUrl,swEOL_bulletinTitle,swEOL_bulletinNumber,swEOL_softwareEOXId,sw_status,sw_expiring_qtr,sw_expiring_year' and how_type='inner'
- --> @dm:selectcolumns exclude="^(customer_x|customer_y|deviceSN|source)"
- --> @dm:save name='temp-final-enrich'
- ## --> @dm:save name='sw-final-enrich'
-
- ## --> @rn:write-stream name='edc_oi_inventory_enriched'
-
- --> @rn:write-stream name='edc_oi_inventory_enriched'
+ --> @dm:recall name="temp-sweol-exploded"
