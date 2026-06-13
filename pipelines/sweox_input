@@ -1,15 +1,20 @@
-@dm:empty
+@c:new-block
+ --> @dm:empty
+ ## Get submitted form fields
+
  --> @exec:get-input
- ## --> @dm:save name='stream-input'
+ ## Exclude label as it contains unneeded info that should not be written to stream later
 
- --> @dm:save name='temp-generate_token_creds'
- ## Generate token
-
- --> @c:data-loop columns='content_type,client_secret,client_id,grant_type' and dataset='temp-generate_token_creds'
- --> @restclient:read url="https://int-id.cisco.com/oauth2/aussduh26AoUqMpmQ1d6/v1/token?grant_type=$grant_type&client_id=$client_id&client_secret=$client_secret" and
-`method`="POST" and
-`Content-Type`='$content_type' and
-`Accept`='*/*'
- --> @dm:eval key="'key'"
- --> @dm:save name="temp-token"
- --> @dm:save name='test-token'
+ --> @dm:selectcolumns exclude='.*_label'
+ --> @dm:save name='temp-input_data'
+ --> @dm:selectcolumns include="sweox_csv"
+ --> @dm:explode-json column="sweox_csv"
+ --> @dm:save name="temp-input-dataset"
+ --> @c:new-block
+ --> @c:data-loop dataset="temp-input-dataset" and columns="bucketName,objectName"
+ --> @dm:recall name="temp-input-dataset"
+ --> @dm:skip-block-if-shape row_count=0
+ --> @dm:get-from-location path="$bucketName/$objectName"
+ --> @dm:save name="temp-uploaded-file-data"
+ --> @dm:save name="uploaded-sweox-data"
+ --> @rn:write-stream name="test1-stream-input"
