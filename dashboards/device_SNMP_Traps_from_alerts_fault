@@ -1,275 +1,307 @@
 {
-  "name": "rda-artifact-dependencies-app",
-  "label": "Artifact: {{ARTIFACT_NAME}}",
-  "is_template": true,
-  "description": "Artifact Dependencies",
-  "version": "23.10.26.1",
+  "name": "device_SNMP_Traps_from_alerts_fault",
+  "label": "SNMP Traps",
+  "description": "SNMP traps dashboard",
+  "version": "2023-06-13-02",
   "enabled": true,
+  "dashboard_folder": "NetworkDevicePack",
+  "dashboard_style": "auto",
   "template_variables": {
-    "ARTIFACT_NAME": {
-      "contextId": "artifact_name"
+    "CUST_ID": {
+      "contextId": "customer_id"
     },
-    "ARTIFACT_TYPE": {
-      "contextId": "artifact_type"
+    "PROJ_ID": {
+      "contextId": "project_id"
+    },
+    "CUST_TAG": {
+      "contextId": "customer_tag"
+    },
+    "DEVICE_IP": {
+      "contextId": "device_ip"
     }
   },
-  "dashboard_filters": {
-    "time_filter": false,
-    "columns_filter": []
+  "status_poller": {
+    "stream": "snmp_trap_event_stream_all",
+    "frequency": 10,
+    "columns": [
+      "timestamp"
+    ],
+    "sorting": [
+      {
+        "timestamp": "desc"
+      }
+    ],
+    "query": "timestamp is after '${timestamp}'",
+    "defaults": {
+      "timestamp": "$UTCNOW"
+    },
+    "action": "refresh"
   },
-  "dashboard_type": "template",
+  "dashboard_filters": {
+    "default_time_filter_labels": [
+      "Last 1 month"
+    ],
+    "extra_filter1": "(customer_tag is '{{CUST_TAG}}')",
+    "time_filter": true,
+    "columns_filter": [],
+    "group_filters": []
+  },
   "dashboard_sections": [
     {
-      "title": "Using this artifact",
+      "title": "snmp details",
+      "show_filter": true,
       "widgets": [
         {
-          "title": "Using this artifact",
-          "widget_type": "tabular",
-          "stream": "rda_artifact_dependencies",
-          "timebased": false,
-          "remote_searchable": true,
-          "remote_searchable_cols": [
-            "from_artifact_type",
-            "from_artifact_name"
-          ],
-          "ts_column": "timestamp",
-          "paginated": true,
-          "height": 10,
-          "min_wdith": 12,
-          "columns": {
-            "from_artifact_type": {
-              "title": "Artifact Type"
-            },
-            "from_artifact_name": {
-              "title": "Artifact Name"
-            }
-          },
-          "custom_columns": [
-            {
-              "id": "artifact_name",
-              "label": "Artifact Name",
-              "expr": "from_artifact_name",
-              "key": true,
-              "visible": false,
-              "hidden": true,
-              "sortable": false
-            },
-            {
-              "id": "artifact_type",
-              "label": "Artifact Type",
-              "expr": "from_artifact_type",
-              "key": true,
-              "visible": false,
-              "hidden": true,
-              "sortable": false
-            }
-          ],
-          "actions": [
-            {
-              "permission": "rda:pipeline:view",
-              "appName": "user-dashboard/rda-artifact-dependencies-app",
-              "displayLabelColumnId": "name",
-              "drillDownLinkField": "name",
-              "identifier": "launch.url.dashboard",
-              "selectionType": "SINGLE",
-              "stateName": "app.featureapp",
-              "title": "View Dependencies",
-              "type": "GO_TO_APP_STATE"
-            }
-          ],
-          "widget_id": "01dc3a55",
-          "extra_filter": "to_artifact_type is '{{ARTIFACT_TYPE}}' and to_artifact_name is '{{ARTIFACT_NAME}}'"
-        }
-      ]
-    },
-    {
-      "title": "Used by this artifact",
-      "widgets": [
+          "widget_type": "label",
+          "max_width": 12,
+          "height": 0.5,
+          "min_width": 12,
+          "label": "<div style='text-align:center;width:100%;'><h1><a style='text-decoration:none;color:#0066ff;' target='_blank'>Device SNMP Traps</a></h1></div>",
+          "widget_id": "33317e49"
+        },
         {
-          "title": "Used by this artifact",
+          "title": "Total Traps",
+          "widget_type": "custom_counter",
+          "formatter": "DescriptiveCountFormatter",
+          "stream": "snmp_trap_event_stream_all",
+          "ts_column": "timestamp",
+          "column": "_id",
+          "agg": "value_count",
+          "type": "int",
+          "max_width": 2,
+          "height": 4,
+          "min_width": 2,
+          "style": {
+            "color-list": [
+              "#215CC3"
+            ]
+          },
+          "widget_id": "df82078f"
+        },
+        {
+          "title": "Unique Traps by OID",
+          "widget_type": "custom_counter",
+          "formatter": "DescriptiveCountFormatter",
+          "stream": "snmp_trap_event_stream_all",
+          "ts_column": "timestamp",
+          "column": "snmpTrapOID",
+          "agg": "cardinality",
+          "type": "int",
+          "max_width": 2,
+          "height": 4,
+          "min_width": 2,
+          "style": {
+            "color-list": [
+              "#21C374"
+            ]
+          },
+          "widget_id": "ed5e8ee0"
+        },
+        {
+          "title": "Distribution by OID",
+          "widget_type": "bar_chart",
+          "stream": "snmp_trap_event_stream_all",
+          "ts_column": "timestamp",
+          "chartProperties": {
+            "yAxisLabel": "Count",
+            "xAxisLabel": "OID",
+            "stacked": true,
+            "legendLocation": "none",
+            "orientation": "vertical"
+          },
+          "group_by": [
+            "snmpTrapOID"
+          ],
+          "column": "_id",
+          "agg": "cardinality",
+          "type": "int",
+          "min_width": 4,
+          "height": 4,
+          "max_width": 4,
+          "widget_id": "43799fef"
+        },
+        {
+          "title": "Traps by IP",
+          "widget_type": "pie_chart",
+          "stream": "snmp_trap_event_stream_all",
+          "ts_column": "timestamp",
+          "column": "rda_gw_client_ip",
+          "agg": "value_count",
+          "group_by": [
+            "rda_gw_client_ip"
+          ],
+          "type": "str",
+          "min_width": 4,
+          "height": 4,
+          "max_width": 4,
+          "widget_id": "5d627f3e"
+        },
+        {
+          "title": "SNMP Traps",
           "widget_type": "tabular",
-          "stream": "rda_artifact_dependencies",
-          "timebased": false,
+          "max_width": 12,
+          "height": 8,
+          "min_width": 12,
+          "stream": "snmp_trap_event_stream_all",
+          "ts_column": "timestamp",
+          "resizableColumns": true,
+          "max_rows": 100,
+          "showRowSummary": true,
+          "sorting": [
+            {
+              "timestamp": "desc"
+            }
+          ],
           "remote_searchable": true,
           "remote_searchable_cols": [
-            "to_artifact_type",
-            "to_artifact_name"
+            "rda_gw_client_ip",
+            "snmpTrapName",
+            "snmpTrapOID"
           ],
-          "ts_column": "timestamp",
-          "paginated": true,
-          "height": 10,
-          "min_wdith": 12,
           "columns": {
-            "to_artifact_type": {
-              "title": "Artifact Type"
-            },
-            "to_artifact_name": {
-              "title": "Artifact Name"
-            }
+            "timestamp": "Timestamp",
+            "rda_gw_client_ip": "Device",
+            "snmpTrapOID": "SNMP Trap OID",
+            "snmpTrapName": "SNMP Trap Name",
+            "snmpTrapDescription": "SNMP Trap Description",
+            "message": "Message",
+            "vb_oid_1": "SNMP OID 1",
+            "vb_value_1": "SNMP Value 1",
+            "vb_oid_2": "SNMP OID 2",
+            "vb_value_2": "SNMP Value 2"
           },
-          "custom_columns": [
-            {
-              "id": "artifact_name",
-              "label": "Artifact Name",
-              "expr": "to_artifact_name",
-              "key": true,
-              "visible": false,
-              "hidden": true,
-              "sortable": false
-            },
-            {
-              "id": "artifact_type",
-              "label": "Artifact Type",
-              "expr": "to_artifact_type",
-              "key": true,
-              "visible": false,
-              "hidden": true,
-              "sortable": false
-            }
-          ],
-          "actions": [
-            {
-              "permission": "rda:pipeline:view",
-              "appName": "user-dashboard/rda-artifact-dependencies-app",
-              "displayLabelColumnId": "name",
-              "drillDownLinkField": "name",
-              "identifier": "launch.url.dashboard",
-              "selectionType": "SINGLE",
-              "stateName": "app.featureapp",
-              "title": "View Dependencies",
-              "type": "GO_TO_APP_STATE"
-            }
-          ],
-          "widget_id": "1b7b32f7",
-          "extra_filter": "from_artifact_type is '{{ARTIFACT_TYPE}}' and from_artifact_name is '{{ARTIFACT_NAME}}'"
+          "widget_id": "46a6b5b6"
         }
       ]
     }
   ],
+  "dashboard_type": "template",
+  "dashboard_pages": [],
   "pstream_dashboards": [
     {
-      "title": "Using this artifact",
+      "title": "snmp details",
+      "show_filter": true,
       "widgets": [
         {
-          "title": "Using this artifact",
-          "widget_type": "tabular",
-          "stream": "rda_artifact_dependencies",
-          "timebased": false,
-          "remote_searchable": true,
-          "remote_searchable_cols": [
-            "from_artifact_type",
-            "from_artifact_name"
-          ],
-          "ts_column": "timestamp",
-          "paginated": true,
-          "height": 10,
-          "min_wdith": 12,
-          "columns": {
-            "from_artifact_type": {
-              "title": "Artifact Type"
-            },
-            "from_artifact_name": {
-              "title": "Artifact Name"
-            }
-          },
-          "custom_columns": [
-            {
-              "id": "artifact_name",
-              "label": "Artifact Name",
-              "expr": "from_artifact_name",
-              "key": true,
-              "visible": false,
-              "hidden": true,
-              "sortable": false
-            },
-            {
-              "id": "artifact_type",
-              "label": "Artifact Type",
-              "expr": "from_artifact_type",
-              "key": true,
-              "visible": false,
-              "hidden": true,
-              "sortable": false
-            }
-          ],
-          "actions": [
-            {
-              "permission": "rda:pipeline:view",
-              "appName": "user-dashboard/rda-artifact-dependencies-app",
-              "displayLabelColumnId": "name",
-              "drillDownLinkField": "name",
-              "identifier": "launch.url.dashboard",
-              "selectionType": "SINGLE",
-              "stateName": "app.featureapp",
-              "title": "View Dependencies",
-              "type": "GO_TO_APP_STATE"
-            }
-          ],
-          "widget_id": "01dc3a55",
-          "extra_filter": "to_artifact_type is '{{ARTIFACT_TYPE}}' and to_artifact_name is '{{ARTIFACT_NAME}}'"
-        }
-      ]
-    },
-    {
-      "title": "Used by this artifact",
-      "widgets": [
+          "widget_type": "label",
+          "max_width": 12,
+          "height": 0.5,
+          "min_width": 12,
+          "label": "<div style='text-align:center;width:100%;'><h1><a style='text-decoration:none;color:#0066ff;' target='_blank'>Device SNMP Traps</a></h1></div>",
+          "widget_id": "33317e49"
+        },
         {
-          "title": "Used by this artifact",
+          "title": "Total Traps",
+          "widget_type": "custom_counter",
+          "formatter": "DescriptiveCountFormatter",
+          "stream": "snmp_trap_event_stream_all",
+          "ts_column": "timestamp",
+          "column": "_id",
+          "agg": "value_count",
+          "type": "int",
+          "max_width": 2,
+          "height": 4,
+          "min_width": 2,
+          "style": {
+            "color-list": [
+              "#215CC3"
+            ]
+          },
+          "widget_id": "df82078f"
+        },
+        {
+          "title": "Unique Traps by OID",
+          "widget_type": "custom_counter",
+          "formatter": "DescriptiveCountFormatter",
+          "stream": "snmp_trap_event_stream_all",
+          "ts_column": "timestamp",
+          "column": "snmpTrapOID",
+          "agg": "cardinality",
+          "type": "int",
+          "max_width": 2,
+          "height": 4,
+          "min_width": 2,
+          "style": {
+            "color-list": [
+              "#21C374"
+            ]
+          },
+          "widget_id": "ed5e8ee0"
+        },
+        {
+          "title": "Distribution by OID",
+          "widget_type": "bar_chart",
+          "stream": "snmp_trap_event_stream_all",
+          "ts_column": "timestamp",
+          "chartProperties": {
+            "yAxisLabel": "Count",
+            "xAxisLabel": "OID",
+            "stacked": true,
+            "legendLocation": "none",
+            "orientation": "vertical"
+          },
+          "group_by": [
+            "snmpTrapOID"
+          ],
+          "column": "_id",
+          "agg": "cardinality",
+          "type": "int",
+          "min_width": 4,
+          "height": 4,
+          "max_width": 4,
+          "widget_id": "43799fef"
+        },
+        {
+          "title": "Traps by IP",
+          "widget_type": "pie_chart",
+          "stream": "snmp_trap_event_stream_all",
+          "ts_column": "timestamp",
+          "column": "rda_gw_client_ip",
+          "agg": "value_count",
+          "group_by": [
+            "rda_gw_client_ip"
+          ],
+          "type": "str",
+          "min_width": 4,
+          "height": 4,
+          "max_width": 4,
+          "widget_id": "5d627f3e"
+        },
+        {
+          "title": "SNMP Traps",
           "widget_type": "tabular",
-          "stream": "rda_artifact_dependencies",
-          "timebased": false,
+          "max_width": 12,
+          "height": 8,
+          "min_width": 12,
+          "stream": "snmp_trap_event_stream_all",
+          "ts_column": "timestamp",
+          "resizableColumns": true,
+          "max_rows": 100,
+          "showRowSummary": true,
+          "sorting": [
+            {
+              "timestamp": "desc"
+            }
+          ],
           "remote_searchable": true,
           "remote_searchable_cols": [
-            "to_artifact_type",
-            "to_artifact_name"
+            "rda_gw_client_ip",
+            "snmpTrapName",
+            "snmpTrapOID"
           ],
-          "ts_column": "timestamp",
-          "paginated": true,
-          "height": 10,
-          "min_wdith": 12,
           "columns": {
-            "to_artifact_type": {
-              "title": "Artifact Type"
-            },
-            "to_artifact_name": {
-              "title": "Artifact Name"
-            }
+            "timestamp": "Timestamp",
+            "rda_gw_client_ip": "Device",
+            "snmpTrapOID": "SNMP Trap OID",
+            "snmpTrapName": "SNMP Trap Name",
+            "snmpTrapDescription": "SNMP Trap Description",
+            "message": "Message",
+            "vb_oid_1": "SNMP OID 1",
+            "vb_value_1": "SNMP Value 1",
+            "vb_oid_2": "SNMP OID 2",
+            "vb_value_2": "SNMP Value 2"
           },
-          "custom_columns": [
-            {
-              "id": "artifact_name",
-              "label": "Artifact Name",
-              "expr": "to_artifact_name",
-              "key": true,
-              "visible": false,
-              "hidden": true,
-              "sortable": false
-            },
-            {
-              "id": "artifact_type",
-              "label": "Artifact Type",
-              "expr": "to_artifact_type",
-              "key": true,
-              "visible": false,
-              "hidden": true,
-              "sortable": false
-            }
-          ],
-          "actions": [
-            {
-              "permission": "rda:pipeline:view",
-              "appName": "user-dashboard/rda-artifact-dependencies-app",
-              "displayLabelColumnId": "name",
-              "drillDownLinkField": "name",
-              "identifier": "launch.url.dashboard",
-              "selectionType": "SINGLE",
-              "stateName": "app.featureapp",
-              "title": "View Dependencies",
-              "type": "GO_TO_APP_STATE"
-            }
-          ],
-          "widget_id": "1b7b32f7",
-          "extra_filter": "from_artifact_type is '{{ARTIFACT_TYPE}}' and from_artifact_name is '{{ARTIFACT_NAME}}'"
+          "widget_id": "46a6b5b6"
         }
       ]
     }
