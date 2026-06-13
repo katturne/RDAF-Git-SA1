@@ -1,49 +1,16 @@
-{
-  "name": "rda-graph-nodes-data-preview-template",
-  "label": "Graph Nodes Data Preview",
-  "description": "Graph Nodes Data Preview",
-  "enabled": true,
-  "dashboard_type": "template",
-  "dashboard_style": "auto",
-  "template_variables": {},
-  "dashboard_filters": {
-    "time_filter": false,
-    "columns_filter": []
-  },
-  "dashboard_sections": [
-    {
-      "title": "Data Preview",
-      "show_filter": false,
-      "widgets": [
-        {
-          "title": "Collection Data",
-          "widget_type": "portal_tabular",
-          "reportId": "graphdb.nodes.collection.data",
-          "max_width": 12,
-          "height": 12,
-          "min_width": 12,
-          "paginated": true,
-          "widget_id": "72498ed4"
-        }
-      ]
-    }
-  ],
-  "pstream_dashboards": [
-    {
-      "title": "Data Preview",
-      "show_filter": false,
-      "widgets": [
-        {
-          "title": "Collection Data",
-          "widget_type": "portal_tabular",
-          "reportId": "graphdb.nodes.collection.data",
-          "max_width": 12,
-          "height": 12,
-          "min_width": 12,
-          "paginated": true,
-          "widget_id": "72498ed4"
-        }
-      ]
-    }
-  ]
-}
+
+ ## Name: incident_notify_msteams
+@dm:empty
+ --> @agent:agent-irm:irmagent:getIncidentDetails roomId='$ROOM_ID' and incidentId='$INCIDENT_ID'
+ --> @dm:map to="teams_channels" & func="fixed" & value="$teams_channels"
+ --> @dm:map to="alertid" & func="fixed" & value="$alert_id"
+ --> @dm:map to="incident_url" & func="fixed" & value="$incident_url"
+ --> @dm:save name='temp-incident_details'
+ --> *dm:filter teams_channels is not None
+ --> @dm:skip-pipeline-if-shape row_count = 0
+ --> @dm:eval message="'IncidentId:' + str(incidentid) + ',\n<br>AlertId:' + str(alertid) + ',\n<br>Summary:' + summary + '\n<br>' + incident_url + '\n<br>Powered by CloudFabrix RDAF'"
+ --> @msteams:send-message channel = "General"  & message_col = "message" & title = "Incidents" & channel_url_col = "teams_channels"
+ --> @dm:eval notification_message="'IncidentId:' + str(incidentid) + ',AlertId:' + str(alertid) + ' shared with MSTeams successfully'"
+ --> @dm:map to="notification_subject" & func="fixed" & value="Notification Message from MSTeams-RDAPipeline"
+ --> @rn:write-stream name="oia-incident-collab-message-stream"
+ --> @dm:map to="pipeline_name" & func="fixed" & value="incident_notify_msteams"
