@@ -1,140 +1,89 @@
-@c:new-block
- --> @exec:get-input
- --> @dm:save name="ticket-create-input"
- --> @dm:save name="temp-create-input"
- --> @dm:save name="create-ticket-pipeline-input"
+@dm:empty
+ --> @dm:addrow profile_name = 'ios_show_ip_int_brief' and
+command = 'show ip interface brief' and
+textfsm_url = 'https://raw.githubusercontent.com/networktocode/ntc-templates/master/ntc_templates/templates/cisco_ios_show_ip_interface_brief.textfsm' and
+condition = '{% raw %}{{device_fw_type == "Cisco IOS"}}{% endraw %}'
+ --> @dm:addrow profile_name = 'iosxr_show_ip_int_brief' and
+command = 'show ip interface brief' and
+textfsm_url = 'https://raw.githubusercontent.com/networktocode/ntc-templates/master/ntc_templates/templates/cisco_xr_show_ip_interface_brief.textfsm' and
+condition = '{% raw %}{{device_fw_type == "Cisco IOS XR"}}{% endraw %}'
+ --> @dm:addrow profile_name = 'ios_show_ip_ospf_neighbor' and
+command = 'show ip ospf neighbor' and
+textfsm_url = 'https://raw.githubusercontent.com/networktocode/ntc-templates/master/ntc_templates/templates/cisco_ios_show_ip_ospf_neighbor.textfsm' and
+condition = '{% raw %}{{device_fw_type == "Cisco IOS"}}{% endraw %}'
+ --> @dm:addrow profile_name = 'iosxr_show_ip_ospf_neighbor' and
+command = 'show ip ospf neighbor' and
+textfsm_url = 'https://raw.githubusercontent.com/networktocode/ntc-templates/master/ntc_templates/templates/cisco_xr_show_ospf_neighbor.textfsm' and
+condition = '{% raw %}{{device_fw_type == "Cisco IOS XR"}}{% endraw %}'
+ --> @dm:addrow profile_name = 'ios_show_cdp_neighbors' and
+command = 'show cdp neighbors detail' and
+textfsm_url = 'https://raw.githubusercontent.com/networktocode/ntc-templates/master/ntc_templates/templates/cisco_ios_show_cdp_neighbors_detail.textfsm' and
+condition = '{% raw %}{{device_fw_type == "Cisco IOS"}}{% endraw %}'
+ --> @dm:addrow profile_name = 'iosxr_show_cdp_neighbors' and
+command = 'show cdp neighbors detail' and
+textfsm_url = 'https://raw.githubusercontent.com/networktocode/ntc-templates/master/ntc_templates/templates/cisco_xr_show_cdp_neighbors_detail.textfsm' and
+condition = '{% raw %}{{device_fw_type == "Cisco IOS XR"}}{% endraw %}'
+ --> @dm:addrow profile_name = 'ios_show_ip_bgp_neighbor' and
+command = 'show ip bgp neighbors' and
+textfsm_url = 'https://raw.githubusercontent.com/networktocode/ntc-templates/master/ntc_templates/templates/cisco_ios_show_ip_bgp_neighbors.textfsm' and
+condition = '{% raw %}{{device_fw_type == "Cisco IOS"}}{% endraw %}'
+ --> @dm:addrow profile_name = 'iosxr_show_ip_bgp_neighbor' and
+command = 'show ip bgp neighbors' and
+textfsm_content = "Value NEIGHBOR (\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\nValue VRF (\S+)\nValue REMOTE_AS (\d+)\nValue PEER_GROUP (\S+)\nValue REMOTE_ROUTER_ID (\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\nValue BGP_STATE (\w+)\nValue LOCALHOST_IP (\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\nValue LOCALHOST_PORT (\d+)\nValue REMOTE_IP (\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\nValue REMOTE_PORT (\d+)\nValue INBOUND_ROUTEMAP (\S+)\nValue OUTBOUND_ROUTEMAP (\S+)\n\nStart\n  # Capture first line, which shows the BGP neighor and remote AS number\n  ^BGP\s+neighbor\s+is -> Continue.Record\n  ^BGP\s+neighbor\s+is\s+${NEIGHBOR},?(\s+vrf\s+${VRF},)?(\s+remote\s+AS\s+${REMOTE_AS})?\n  ^\s+Remote AS ${REMOTE_AS}\n  # Capture BGP peer group\n  # Example: 'Member of peer-group RR_SERVERS for session parameters'\n  ^\s*Member\s+of\s+peer-group\s+${PEER_GROUP}\n  # \n  # Capture remote router ID\n  # Example: ' BGP state = Established, up for 7w3d'\n  ^.+[rR]emote\s+router\s+ID\s+${REMOTE_ROUTER_ID}\n  #\n  # Capture BGP state\n  # Example: ' BGP state = Established, up for 7w3d'\n  ^\s+BGP\s+state\s+=\s+${BGP_STATE}\n  #\n  # Capture Inbound/Outbound Route Maps\n  # Example: 'Route map for incoming advertisements is BGP_Vendor_in'\n  # Example: 'Route map for outgoing advertisements is BGP_Vendor_out'\n  ^\s+Route\s+map\s+for\s+incoming\s+advertisements\s+is\s+${INBOUND_ROUTEMAP}\n  ^\s+Route\s+map\s+for\s+outgoing\s+advertisements\s+is\s+${OUTBOUND_ROUTEMAP}\n  #\n  # Match local host and port\n  # Example: 'Local host: 10.10.255.13, Local port: 39443'\n  ^\s*Local\s+host:\s+${LOCALHOST_IP},\s+Local\s+port:\s+${LOCALHOST_PORT}\n  # \n  # Match local host and port\n  # Example: 'Local host: 10.10.255.13, Local port: 39443'\n  ^\s*Foreign\s+host:\s+${REMOTE_IP},\s+Foreign\s+port:\s+${REMOTE_PORT}\n  #^.+ -> Error" and
+condition = '{% raw %}{{device_fw_type == "Cisco IOS XR"}}{% endraw %}'
+ --> @dm:save name = 'temp-profile_dataset'
  --> @c:new-block
  --> @dm:empty
- --> @dm:save name="temp-incident-alerts"
- --> @dm:save name="temp-payload-snow-create"
- --> @dm:save name="temp-notes"
- --> @dm:save name="temp-incident-data"
- --> @c:data-loop dataset="temp-create-input" & columns="project_id,incident_id,customer_id"
- --> @dm:recall name="temp-create-input"
- --> *dm:filter incident_id == '$incident_id' and project_id == '$project_id'
- --> @dm:add-missing-columns columns = 'inc_data'
- --> @dm:fixnull columns = 'inc_data' & value='{}'
- --> *dm:filter inc_data != '{}' and inc_data != ''
- --> @dm:skip-block-if-shape row_count = 0
- --> @dm:eval inc_data="json_loads(inc_data)"
- --> @dm:explode-json column = 'inc_data'
- --> @dm:map to="incident_id" & func="fixed" & value="$incident_id"
- --> @dm:map to="project_id" & func="fixed" & value='$project_id'
- --> @dm:map to="customer_id" & func="fixed" & value="$customer_id"
- --> @dm:save name="temp-incident-data" & append="yes"
- ## Prepare worknotes using Alerts
-
- --> @c:data-loop dataset="temp-create-input" & columns="project_id,incident_id,customer_id"
- --> @dm:recall name="temp-create-input"
- --> *dm:filter incident_id == '$incident_id' and project_id == '$project_id'
- --> @dm:add-missing-columns columns = 'alerts'
- --> @dm:fixnull columns = 'alerts' & value='[]'
- --> *dm:filter alerts != '[]' and alerts != ''
- --> @dm:skip-block-if-shape row_count = 0
- --> @dm:eval alerts="json_loads(alerts)"
- --> @dm:explode-json column = 'alerts'
- ## Will create new dataset. Old will be replaced with this new one
-
- ## Change-Here: make sure to find correct incident_id column
-
- --> @dm:map to="incident_id" & func="fixed" & value="$incident_id"
- --> @dm:map to="project_id" & func="fixed" & value="$project_id"
- --> @dm:map to="customer_id" & func="fixed" & value="$customer_id"
- --> @dm:map to="step" & func="fixed" & value="c1"
- --> @rn:write-stream compression="auto" & name="debug-fsm-att"
- ## Change-Here: Select columns
-
- --> @dm:selectcolumns include="a_message|a_raised_ts|a_created_ts|a_updated_ts|a_status|a_asset_name|a_repeat_count|incident|project|customer"
- --> @dm:add-missing-columns columns = 'a_message,a_raised_ts,a_created_ts,a_updated_ts,a_status,a_asset_name,a_repeat_count' & value=""
- --> @dm:fixnull columns = 'a_message,a_raised_ts,a_created_ts,a_updated_ts,a_status,a_asset_name,a_repeat_count' & value=""
- --> @dm:save name="temp-incident-alerts"
- ## Prepare notes based on Alerts
-
- --> @dm:save name="before-apply-template-for-create"
- --> @dm:apply-template-all-rows template_name = 'snow-notes-template' & output_col = 'concat_value'
- --> @dm:save name="after-apply-template-for-create"
- --> @dm:add-missing-columns columns = 'concat_value' & value=""
- --> @dm:eval work_notes="'[code] ' + concat_value + ' [/code]'"
- --> @dm:copy-columns to="notes" & from="work_notes"
- --> @dm:copy-columns to="comments" & from="work_notes"
- --> @dm:map to="incident_id" & func="fixed" & value="$incident_id"
- --> @dm:map to="project_id" & func="fixed" & value="$project_id"
- --> @dm:map to="customer_id" & func="fixed" & value="$customer_id"
- --> @dm:save name="temp-notes" & append="yes"
- --> @dm:map to="step" & func="fixed" & value="c2"
- --> @rn:write-stream compression="auto" & name="debug-fsm-att"
- ## Prepare Payload for Snow
-
- --> @c:data-loop dataset="temp-create-input" & columns="project_id,incident_id,customer_id"
- --> @dm:recall name="temp-notes"
- --> *dm:filter incident_id == '$incident_id' and project_id == '$project_id'
- --> @dm:skip-block-if-shape row_count = 0
- ## Incident Data
-
- ## Join Alerts and Incident Data Records. One(Incident) to Many(Alerts).
-
- --> @dm:enrich dict='temp-incident-data' & dict_key_cols='incident_id,project_id' & src_key_cols='incident_id,project_id' & enrich_cols='i_state,i_summary,i_description,i_priority'
- --> @dm:map to="account" & func="fixed" & value="CloudFabrix"
- --> @dm:map to="company" & func="fixed" & value="f5eab4f4070e1110187bf9fc7c1ed0ef"
- --> @dm:map to="category" & func="fixed" & value="Software"
- --> @dm:copy-columns to="shortDescription" & from="i_summary"
- --> @dm:copy-columns to="short_description" & from="i_summary"
- --> @dm:eval state="('New' if i_state == 'Open' else ('New' if i_state == 'Assigned' else ('On Hold' if i_state == 'On Hold' else ('Resolved' if i_state == 'Resolved' else ('Resolved' if i_state == 'Closed' else ('Canceled' if i_state == 'Cancelled' else ('New')))))))"
- --> @dm:fixnull columns = 'i_priority' & value='3.0'
- --> @dm:eval impact="('1 - High' if (str(i_priority) == '1.0') else ('2 - Medium' if (str(i_priority) == '2.0') else ('3 - Low')))"
- --> @dm:eval urgency="('1 - High' if (str(i_priority) == '1.0') else ('2 - Medium' if (str(i_priority) == '2.0') else ('3 - Low')))"
- --> @dm:eval severity="('1 - High' if (str(i_priority) == '1.0') else ('2 - Medium' if (str(i_priority) == '2.0') else ('3 - Low')))"
- --> @dm:apply-template-by-row template_name = 'snow-description-template' & output_col = 'description'
- --> @dm:map to="fsmInputEventName" & func="fixed" & value="save-ticket-id"
- --> @dm:map to="fsmModelName" & func="fixed" & value="at_n_t_incident"
- --> @dm:map to="incident_id" & func="fixed" & value="$incident_id"
- --> @dm:map to="project_id" & func="fixed" & value="$project_id"
- --> @dm:map to="customer_id" & func="fixed" & value="$customer_id"
- --> @dm:save name="temp-payload-snow-create" & append="yes"
- --> @dm:map to="step" & func="fixed" & value="c3"
- --> @dm:save name="create-ticket-save-ticket-id"
- --> @rn:write-stream compression="auto" & name="debug-fsm-att"
- ## Create Snow Ticket
-
- --> @c:data-loop dataset="temp-create-input" & columns="project_id,incident_id,customer_id"
- --> @dm:recall name="temp-payload-snow-create"
- --> *dm:filter incident_id == '$incident_id' and project_id == '$project_id'
- --> @dm:skip-block-if-shape row_count = 0
- --> @dm:selectcolumns include="account|company|category|description|short|state|urgency|impact|severity|notes|comments|work_notes|project_id|incident_id|customer_id|fsm"
- --> @dm:save name="temp-before-snow-create"
- --> @snowv2:create-incident mandatory_cols="short_description,urgency,state,impact,description,comments"
- --> @dm:check-columns must_contain="rda_row_id,number" & action="skip-block"
- --> @dm:fixnull columns = 'rda_row_id' & value=''
- --> *dm:filter rda_row_id != ''
- --> @dm:skip-block-if-shape row_count = 0
- --> @dm:map to="incident_id" & func="fixed" & value="$incident_id"
- --> @dm:map to="project_id" & func="fixed" & value="$project_id"
- --> @dm:map to="customer_id" & func="fixed" & value="$customer_id"
- --> @dm:eval itsm_link="'https://dev84819.service-now.com/nav_to.do?uri=%2Fincident.do%3Fsys_id%3D' + rda_row_id"
- --> @dm:map to="step" & func="fixed" & value="c4"
- --> @rn:write-stream compression="auto" & name="debug-fsm-att"
- --> @dm:save name="temp-after-snow-create"
- --> @dm:recall name="temp-before-snow-create"
- --> @dm:enrich dict='temp-after-snow-create' & dict_key_cols='incident_id,project_id' & src_key_cols='incident_id,project_id' & enrich_cols='rda_row_id,number,itsm_link'
- --> @dm:check-columns must_contain="rda_row_id,number" & action="skip-block"
- --> @dm:fixnull columns = 'rda_row_id' & value=''
- --> *dm:filter rda_row_id != ''
- --> @dm:skip-block-if-shape row_count = 0
- --> @dm:copy-columns to="itsm_ticket_number" & from="number"
- --> @dm:copy-columns to="itsm_ticket_id" & from="rda_row_id"
- --> @dm:save name="temp-merged-snow-create"
- --> @dm:map to="step" & func="fixed" & value="c5"
- --> @rn:write-stream compression="auto" & name="debug-fsm-att"
- --> @dm:copy-columns to="label" & from="number"
- --> @dm:copy-columns to="incidentid" & from="incident_id"
- --> @dm:copy-columns to="roomid" & from="project_id"
- --> @dm:copy-columns to="externalUrl" & from="itsm_link"
- --> @dm:eval attrs=' "[{\"name\":\"externalUrl\",\"value\":\"" + itsm_link + "\"}]" '
- --> @dm:eval attributes = "json_loads(attrs)"
- --> @dm:selectcolumns include="roomid|incidentid|label|attributes"
- --> @agent:agent-irm:irmagent:updateIncidents
- --> @dm:save name="temp-irm-result"
- --> @dm:map to="step" & func="fixed" & value="c6"
- --> @rn:write-stream compression="auto" & name="debug-fsm-att"
- --> @dm:recall name="temp-merged-snow-create"
- --> @rn:write-stream compression="auto" & name="rda_fsm_event_stream"
+ --> @dm:addrow device_ip = '9.3.252.31-9.3.252.40,9.3.252.90-9.3.252.100' and profiles = 'ios_show_ip_int_brief, iosxr_show_ip_int_brief, ios_show_ip_ospf_neighbor, iosxr_show_ip_ospf_neighbor, ios_show_cdp_neighbors, iosxr_show_cdp_neighbors, iosxr_show_ip_bgp_neighbor, ios_show_ip_bgp_neighbor'
+ --> @dm:save name = "temp-collection-set"
+ --> @c:new-block
+ --> @dm:recall name = "temp-collection-set"
+ --> @network_device_cisco123:run-commands ip_column_name = 'device_ip' and
+profile_dataset_name = 'temp-profile_dataset' and
+devices_details_dataset = 'cml_cisco_device_chassis_dict' and
+profile_column_name = 'profiles'
+ --> *dm:filter collection_status is "Success"
+ --> @dm:save name="temp-out1"
+ --> @c:new-block
+ --> @dm:recall name = "temp-collection-set"
+ --> @network_device_cisco:run-commands ip_column_name = 'device_ip' and
+profile_dataset_name = 'temp-profile_dataset' and
+devices_details_dataset = 'cml_cisco_device_chassis_dict' and
+profile_column_name = 'profiles'
+ --> *dm:filter collection_status is "Success"
+ --> @dm:save name="temp-out2"
+ --> @c:new-block
+ --> @dm:recall name = "temp-collection-set"
+ --> @network_device_cisco01:run-commands ip_column_name = 'device_ip' and
+profile_dataset_name = 'temp-profile_dataset' and
+devices_details_dataset = 'cml_cisco_device_chassis_dict' and
+profile_column_name = 'profiles'
+ --> *dm:filter collection_status is "Success"
+ --> @dm:save name="temp-out3"
+ --> @c:new-block
+ --> @dm:concat names = "temp-out.*"
+ --> @dm:save name="temp-collection-output"
+ --> @c:new-block
+ --> @dm:recall name = "temp-collection-output"
+ --> *dm:filter command is "show ip interface brief"
+ --> @dm:explode-json column="parsed_json"
+ --> @dm:save name="cml-interface-data"
+ --> @c:new-block
+ --> @dm:recall name = "temp-collection-output"
+ --> *dm:filter command is "show ip ospf neighbor"
+ --> @dm:explode-json column="parsed_json"
+ --> @dm:save name="cml-ospf-data"
+ --> @c:new-block
+ --> @dm:recall name = "temp-collection-output"
+ --> *dm:filter command is "show cdp neighbors detail"
+ --> @dm:explode-json column="parsed_json"
+ --> @dm:mergecolumns include="destination_host|dest_host" and to="dest_host"
+ --> @dm:mergecolumns include="management_ip|mgmt_ip" and to="mgmt_ip"
+ --> @dm:mergecolumns include="software_version|version" and to="version"
+ --> @dm:eval mgmt_ip="mgmt_ip.strip()"
+ --> @dm:save name="cml-cdp-data"
+ --> @c:new-block
+ --> @dm:recall name = "temp-collection-output"
+ --> *dm:filter command is "show ip bgp neighbors"
+ --> @dm:explode-json column="parsed_json"
+ --> @dm:save name="cml-bgp-data"

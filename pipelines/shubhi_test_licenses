@@ -1,140 +1,125 @@
 @c:new-block
- --> @exec:get-input
- --> @dm:save name="ticket-create-input"
- --> @dm:save name="temp-create-input"
- --> @dm:save name="create-ticket-pipeline-input"
+ --> @dm:recall name="edc_license_domains"
+ --> @dm:save name='temp-cust-domains'
+ ## Collect data
+
+ --> @c:data-loop columns='top_level_domain,customer' and dataset='temp-cust-domains'
+ --> @snowflake:native-query dbname is "CX_DB" and warehouse is "CX_DMP_RPT_WH" and query is "SELECT * FROM CX_DB.CX_LCANALYTICS_BR.MT_BV_LIC_ALL_OPP_F WHERE TOP_LEVEL_DOMAIN = '$top_level_domain';"
+ --> @dm:add-missing-columns columns="execution_status"
+ --> *dm:filter execution_status =="Success"
+ --> @dm:skip-block-if-shape column_count = 3
+ --> @dm:rename-columns license="feature_name"
+ --> @dm:fixnull columns = 'license_class,licensed_feature_key,pak_item_id,license,domain_name,smart_account_name,virtual_account_name,license_type,product_family,license_sku,subscription_reference_id,business_entity,sub_business_entity' and value='NA' and apply_for_empty="yes"
+ --> @dm:fixnull columns = 'license_start_date,license_end_date' and value = '1970-01-01T00:00:01' and apply_for_empty="yes"
+ --> @dm:to_type columns = 'consumed_quantity,entitled_quantity' & type  = 'int'
+ --> @dm:change-time-format columns="license_start_date,license_end_date" and from_format="datetimestr" and to_format="%Y-%m-%d"
+ --> @dm:rename-columns licenseType="license_type" &
+startDate="license_start_date" &
+endDate="license_end_date" &
+subscriptionId="subscription_reference_id" &
+licenseSku="license_sku" &
+smart_account_key="smart_accounts_key"
+ --> @dm:manipulate-string to="customer_name" and func="eval" and value="'$customer'"
+ --> @dm:selectcolumns exclude="attempt_count|execution_reason|execution_status"
+ --> @dm:eval unique_key = "str(customer_name) + str(smart_account_key) +str(virtual_account_key)+  str(licensed_feature_key) +str(endDate) +str(startDate) +str(licenseSku) + str(subscriptionId) +str(license_entitlement_key)"
+ --> @dm:save name="temp-shubhi-both" and append = "yes"
+ --> @dm:save name="shubhi-both" and append = "yes"
+ ## consolidate consumption into single record for smtAcct-virtualAcct-licensedFeature
+
  --> @c:new-block
- --> @dm:empty
- --> @dm:save name="temp-incident-alerts"
- --> @dm:save name="temp-payload-snow-create"
- --> @dm:save name="temp-notes"
- --> @dm:save name="temp-incident-data"
- --> @c:data-loop dataset="temp-create-input" & columns="project_id,incident_id,customer_id"
- --> @dm:recall name="temp-create-input"
- --> *dm:filter incident_id == '$incident_id' and project_id == '$project_id'
- --> @dm:add-missing-columns columns = 'inc_data'
- --> @dm:fixnull columns = 'inc_data' & value='{}'
- --> *dm:filter inc_data != '{}' and inc_data != ''
- --> @dm:skip-block-if-shape row_count = 0
- --> @dm:eval inc_data="json_loads(inc_data)"
- --> @dm:explode-json column = 'inc_data'
- --> @dm:map to="incident_id" & func="fixed" & value="$incident_id"
- --> @dm:map to="project_id" & func="fixed" & value='$project_id'
- --> @dm:map to="customer_id" & func="fixed" & value="$customer_id"
- --> @dm:save name="temp-incident-data" & append="yes"
- ## Prepare worknotes using Alerts
+ --> @dm:recall name="temp-shubhi-both"
+ --> @dm:selectcolumns include="customer_name|domain_name|smart_account_name|smart_account_key|virtual_account_key|virtual_account_name|licensed_feature_key|pak_item_id|^license$|license_class|consumed_quantity"
+ --> @dm:groupby columns="customer_name,domain_name,smart_account_name,smart_account_key,virtual_account_name,virtual_account_key,licensed_feature_key,pak_item_id,license,license_class" and agg='sum'
+ --> @dm:save name="temp-license_consumed_grp-shubhi"
+ ## Build dict for License to Business Entity
 
- --> @c:data-loop dataset="temp-create-input" & columns="project_id,incident_id,customer_id"
- --> @dm:recall name="temp-create-input"
- --> *dm:filter incident_id == '$incident_id' and project_id == '$project_id'
- --> @dm:add-missing-columns columns = 'alerts'
- --> @dm:fixnull columns = 'alerts' & value='[]'
- --> *dm:filter alerts != '[]' and alerts != ''
- --> @dm:skip-block-if-shape row_count = 0
- --> @dm:eval alerts="json_loads(alerts)"
- --> @dm:explode-json column = 'alerts'
- ## Will create new dataset. Old will be replaced with this new one
+ --> @c:new-block
+ --> @dm:recall name="temp-shubhi-both"
+ --> *dm:filter business_entity is not 'NA'
+ --> @dm:selectcolumns include="license$|business_entity|sub_business_entity|product_family|license_class"
+ --> @dm:groupby columns="license,business_entity,sub_business_entity,product_family"
+ --> @dm:rename-columns tot_count="license_class" &
+common_BE="business_entity" &
+common_SBE="sub_business_entity" &
+common_product_family="product_family"
+ --> @dm:sort columns="license,tot_count" and order="asc"
+ --> @dm:dedup columns = 'license' and keep="last"
+ --> @dm:selectcolumns exclude="tot_count"
+ --> @dm:save name="temp-business_dict-shubhi"
+ ## # Create expiration column for entitlement
 
- ## Change-Here: make sure to find correct incident_id column
+ --> @c:new-block
+ --> @dm:recall name="temp-shubhi-both"
+ --> @dm:fixnull-regex value='NA'
+ --> @dm:eval days_to_expire = " 20000 if licenseType=='PERPETUAL' else (to_datetime(endDate) - utcnow()).days"
+ --> @dm:eval license_end_time = "utcnow()"
+ --> @dm:change-time-format columns="license_end_time" and from_format="datetimestr" and to_format="%A, %m-%d-%Y %I:%M:%S %p %Z"
+ --> @dm:eval license_end_time = "str(license_end_time)+str(    'UTC')"
+ --> @dm:eval expiration_color = " '#79BAEC' if (licenseType =='PERPETUAL' or days_to_expire < -19000 ) else '#BB0000' if (days_to_expire < 90 or days_to_expire == 90) else  '#00BB00' if days_to_expire > 90 else '#b0bec5' "
+ --> @dm:eval sort_number = " '3' if (licenseType =='PERPETUAL' or days_to_expire < -19000) else '1' if (days_to_expire < 90 or days_to_expire == 90) else  '2' if days_to_expire > 90 else '4' "
+ --> @dm:eval expiration_status = " 'Valid Indefinitely' if (licenseType =='PERPETUAL' or days_to_expire < -19000 ) else  'Already Expired' if (days_to_expire< 0  and days_to_expire > -19000)  else  'Expiring within 90 days' if (days_to_expire < 90 or days_to_expire == 90) else 'Expiring after 90 days' if days_to_expire > 90  else 'NA' "
+ ## Enrich with consumption
 
- --> @dm:map to="incident_id" & func="fixed" & value="$incident_id"
- --> @dm:map to="project_id" & func="fixed" & value="$project_id"
- --> @dm:map to="customer_id" & func="fixed" & value="$customer_id"
- --> @dm:map to="step" & func="fixed" & value="c1"
- --> @rn:write-stream compression="auto" & name="debug-fsm-att"
- ## Change-Here: Select columns
+ --> @dm:fixnull columns = 'consumed_quantity' and value=0 and apply_for_empty="yes"
+ --> @dm:eval available_quantity= "(entitled_quantity - consumed_quantity)"
+ --> @dm:save name="temp-shubhi-both"
+ ## Concatenate
 
- --> @dm:selectcolumns include="a_message|a_raised_ts|a_created_ts|a_updated_ts|a_status|a_asset_name|a_repeat_count|incident|project|customer"
- --> @dm:add-missing-columns columns = 'a_message,a_raised_ts,a_created_ts,a_updated_ts,a_status,a_asset_name,a_repeat_count' & value=""
- --> @dm:fixnull columns = 'a_message,a_raised_ts,a_created_ts,a_updated_ts,a_status,a_asset_name,a_repeat_count' & value=""
- --> @dm:save name="temp-incident-alerts"
- ## Prepare notes based on Alerts
+ ## combine the entitled and missing entitled data/ consumption data and saves in the details pstream
 
- --> @dm:save name="before-apply-template-for-create"
- --> @dm:apply-template-all-rows template_name = 'snow-notes-template' & output_col = 'concat_value'
- --> @dm:save name="after-apply-template-for-create"
- --> @dm:add-missing-columns columns = 'concat_value' & value=""
- --> @dm:eval work_notes="'[code] ' + concat_value + ' [/code]'"
- --> @dm:copy-columns to="notes" & from="work_notes"
- --> @dm:copy-columns to="comments" & from="work_notes"
- --> @dm:map to="incident_id" & func="fixed" & value="$incident_id"
- --> @dm:map to="project_id" & func="fixed" & value="$project_id"
- --> @dm:map to="customer_id" & func="fixed" & value="$customer_id"
- --> @dm:save name="temp-notes" & append="yes"
- --> @dm:map to="step" & func="fixed" & value="c2"
- --> @rn:write-stream compression="auto" & name="debug-fsm-att"
- ## Prepare Payload for Snow
+ --> @c:new-block
+ --> @dm:concat names="temp-shubhi-both|temp-license_consumption_missing-shubhi"
+ --> @dm:save name = "temp-license_details-shubhi"
+ --> @rn:write-stream name='edc_license_details-shubhi' and direct_to_opensearch="yes"
+ --> @dm:sleep seconds = 5
+ --> @c:new-block
+ ## take all the entitled and not entitled but consume data and added consumed quantuty and BE columns, saved all to a dataset
 
- --> @c:data-loop dataset="temp-create-input" & columns="project_id,incident_id,customer_id"
- --> @dm:recall name="temp-notes"
- --> *dm:filter incident_id == '$incident_id' and project_id == '$project_id'
- --> @dm:skip-block-if-shape row_count = 0
- ## Incident Data
+ ## availability calc
 
- ## Join Alerts and Incident Data Records. One(Incident) to Many(Alerts).
+ --> @dm:recall name="temp-license_details-shubhi"
+ --> @dm:selectcolumns include="customer_name|smart_account_name|domain_name|smart_account_key|virtual_account_key|virtual_account_name|^license$|license_class|licensed_feature_key|entitled_quantity"
+ --> @dm:groupby columns="customer_name,smart_account_name,domain_name,smart_account_key,virtual_account_key,virtual_account_name,license,license_class,licensed_feature_key" and agg='sum'
+ ## Bring available and consumed
 
- --> @dm:enrich dict='temp-incident-data' & dict_key_cols='incident_id,project_id' & src_key_cols='incident_id,project_id' & enrich_cols='i_state,i_summary,i_description,i_priority'
- --> @dm:map to="account" & func="fixed" & value="CloudFabrix"
- --> @dm:map to="company" & func="fixed" & value="f5eab4f4070e1110187bf9fc7c1ed0ef"
- --> @dm:map to="category" & func="fixed" & value="Software"
- --> @dm:copy-columns to="shortDescription" & from="i_summary"
- --> @dm:copy-columns to="short_description" & from="i_summary"
- --> @dm:eval state="('New' if i_state == 'Open' else ('New' if i_state == 'Assigned' else ('On Hold' if i_state == 'On Hold' else ('Resolved' if i_state == 'Resolved' else ('Resolved' if i_state == 'Closed' else ('Canceled' if i_state == 'Cancelled' else ('New')))))))"
- --> @dm:fixnull columns = 'i_priority' & value='3.0'
- --> @dm:eval impact="('1 - High' if (str(i_priority) == '1.0') else ('2 - Medium' if (str(i_priority) == '2.0') else ('3 - Low')))"
- --> @dm:eval urgency="('1 - High' if (str(i_priority) == '1.0') else ('2 - Medium' if (str(i_priority) == '2.0') else ('3 - Low')))"
- --> @dm:eval severity="('1 - High' if (str(i_priority) == '1.0') else ('2 - Medium' if (str(i_priority) == '2.0') else ('3 - Low')))"
- --> @dm:apply-template-by-row template_name = 'snow-description-template' & output_col = 'description'
- --> @dm:map to="fsmInputEventName" & func="fixed" & value="save-ticket-id"
- --> @dm:map to="fsmModelName" & func="fixed" & value="at_n_t_incident"
- --> @dm:map to="incident_id" & func="fixed" & value="$incident_id"
- --> @dm:map to="project_id" & func="fixed" & value="$project_id"
- --> @dm:map to="customer_id" & func="fixed" & value="$customer_id"
- --> @dm:save name="temp-payload-snow-create" & append="yes"
- --> @dm:map to="step" & func="fixed" & value="c3"
- --> @dm:save name="create-ticket-save-ticket-id"
- --> @rn:write-stream compression="auto" & name="debug-fsm-att"
- ## Create Snow Ticket
+ --> @dm:enrich dict="temp-license_consumed_grp-shubhi" and src_key_cols="customer_name,smart_account_key,virtual_account_key,licensed_feature_key" and dict_key_cols="customer_name,smart_account_key,virtual_account_key,licensed_feature_key" and enrich_cols="consumed_quantity"
+ ## Bring most used business entity for license
 
- --> @c:data-loop dataset="temp-create-input" & columns="project_id,incident_id,customer_id"
- --> @dm:recall name="temp-payload-snow-create"
- --> *dm:filter incident_id == '$incident_id' and project_id == '$project_id'
- --> @dm:skip-block-if-shape row_count = 0
- --> @dm:selectcolumns include="account|company|category|description|short|state|urgency|impact|severity|notes|comments|work_notes|project_id|incident_id|customer_id|fsm"
- --> @dm:save name="temp-before-snow-create"
- --> @snowv2:create-incident mandatory_cols="short_description,urgency,state,impact,description,comments"
- --> @dm:check-columns must_contain="rda_row_id,number" & action="skip-block"
- --> @dm:fixnull columns = 'rda_row_id' & value=''
- --> *dm:filter rda_row_id != ''
- --> @dm:skip-block-if-shape row_count = 0
- --> @dm:map to="incident_id" & func="fixed" & value="$incident_id"
- --> @dm:map to="project_id" & func="fixed" & value="$project_id"
- --> @dm:map to="customer_id" & func="fixed" & value="$customer_id"
- --> @dm:eval itsm_link="'https://dev84819.service-now.com/nav_to.do?uri=%2Fincident.do%3Fsys_id%3D' + rda_row_id"
- --> @dm:map to="step" & func="fixed" & value="c4"
- --> @rn:write-stream compression="auto" & name="debug-fsm-att"
- --> @dm:save name="temp-after-snow-create"
- --> @dm:recall name="temp-before-snow-create"
- --> @dm:enrich dict='temp-after-snow-create' & dict_key_cols='incident_id,project_id' & src_key_cols='incident_id,project_id' & enrich_cols='rda_row_id,number,itsm_link'
- --> @dm:check-columns must_contain="rda_row_id,number" & action="skip-block"
- --> @dm:fixnull columns = 'rda_row_id' & value=''
- --> *dm:filter rda_row_id != ''
- --> @dm:skip-block-if-shape row_count = 0
- --> @dm:copy-columns to="itsm_ticket_number" & from="number"
- --> @dm:copy-columns to="itsm_ticket_id" & from="rda_row_id"
- --> @dm:save name="temp-merged-snow-create"
- --> @dm:map to="step" & func="fixed" & value="c5"
- --> @rn:write-stream compression="auto" & name="debug-fsm-att"
- --> @dm:copy-columns to="label" & from="number"
- --> @dm:copy-columns to="incidentid" & from="incident_id"
- --> @dm:copy-columns to="roomid" & from="project_id"
- --> @dm:copy-columns to="externalUrl" & from="itsm_link"
- --> @dm:eval attrs=' "[{\"name\":\"externalUrl\",\"value\":\"" + itsm_link + "\"}]" '
- --> @dm:eval attributes = "json_loads(attrs)"
- --> @dm:selectcolumns include="roomid|incidentid|label|attributes"
- --> @agent:agent-irm:irmagent:updateIncidents
- --> @dm:save name="temp-irm-result"
- --> @dm:map to="step" & func="fixed" & value="c6"
- --> @rn:write-stream compression="auto" & name="debug-fsm-att"
- --> @dm:recall name="temp-merged-snow-create"
- --> @rn:write-stream compression="auto" & name="rda_fsm_event_stream"
+ --> @dm:enrich dict="temp-business_dict-shubhi" and src_key_cols="license" and dict_key_cols="license" and enrich_cols="common_BE,common_SBE,common_product_family"
+ --> @dm:fixnull columns = 'consumed_quantity' and value=0 and apply_for_empty="yes"
+ --> @dm:eval available_quantity= "(entitled_quantity - consumed_quantity)"
+ --> @dm:save name="temp-grouping-shubhi"
+ --> @c:new-block
+ ## expiration logic
+
+ --> @dm:recall name="temp-license_details-shubhi"
+ --> @dm:save name = "license_details-shubhi-source"
+ --> @dm:selectcolumns include="customer_name|smart_account_key|virtual_account_key|days_to_expire|licenseType|^license$|licensed_feature_key"
+ --> @dm:groupby columns="customer_name,smart_account_key,virtual_account_key,license,licensed_feature_key" and agg='min'
+ --> @dm:eval exp_status = " 'Valid Indefinitely' if ((licenseType =='PERPETUAL' or days_to_expire < -19000)) else 'One or more Expired Licenses' if (days_to_expire< 0  and days_to_expire > -19000)    else  'Expiring within 90 days' if ((days_to_expire < 90 or days_to_expire == 90)) else 'Expiring after 90 days' if (days_to_expire > 90) else 'NA' "
+ --> @dm:eval sort_number = " '3' if ((licenseType =='PERPETUAL' or days_to_expire < -19000)) else '1' if (days_to_expire< 0  and days_to_expire > -19000)    else  '1' if ((days_to_expire < 90 or days_to_expire == 90)) else '2' if (days_to_expire > 90) else '4' "
+ --> @dm:eval expiration_color = " '#79BAEC' if ((licenseType =='PERPETUAL' or days_to_expire < -19000)) else '#BB0000' if ((days_to_expire < 90 or days_to_expire == 90)) else  '#00BB00' if (days_to_expire > 90) else '#b0bec5'  "
+ --> @dm:save name="temp-grouping2-shubhi"
+ ## Enrich grouping for summary with message for expiration
+
+ ## build a summary of license details with alerts. combines availability and expiration inf and creates alrets for dashboard ig
+
+ --> @c:new-block
+ --> @dm:recall name="temp-grouping-shubhi"
+ --> @dm:enrich dict="temp-grouping2-shubhi" and src_key_cols="customer_name,smart_account_key,virtual_account_key,licensed_feature_key" and dict_key_cols="customer_name,smart_account_key,virtual_account_key,licensed_feature_key" and enrich_cols="exp_status,expiration_color,sort_number"
+ ## evaluate Alerts
+
+ --> @dm:eval alert_status = " 'Licenses Expired' if (exp_status == 'One or more Expired Licenses') else 'Insufficient Licenses' if (available_quantity<0 ) else 'Licenses Expiring'  if (exp_status == 'Expiring within 90 days') else 'NA' "
+ --> @dm:eval alert_color = " '#FF0000' if (exp_status == 'One or more Expired Licenses') else  '#FFA500' if (available_quantity<0 ) else '#F4C430' if (exp_status == 'Expiring within 90 days') else '#b0bec5'  "
+ --> @dm:save name="temp-summary-details-shubhi"
+ --> @c:new-block
+ ## takes the complete data and cleans and pushes to pstream.
+
+ --> @dm:recall name="temp-summary-details-shubhi"
+ --> @dm:eval unique_key = "str(customer_name) + str(smart_account_key) +str(virtual_account_key)+  str(license) +  str(license_class) + str(licensed_feature_key)"
+ --> @dm:eval license_end_time = "utcnow()"
+ --> @dm:change-time-format columns="license_end_time" and from_format="datetimestr" and to_format="%A, %m-%d-%Y %I:%M:%S %p %Z"
+ --> @dm:eval endTime = "str(license_end_time)+str(    'UTC')"
+ --> @dm:fixnull-regex value='NA'
+ --> @rn:write-stream name='edc_license_summary-shubhi' and direct_to_opensearch="yes"
+ --> @dm:sleep seconds = 5
