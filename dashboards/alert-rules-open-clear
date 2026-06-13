@@ -1,55 +1,415 @@
 {
-  "name": "oi-asp-documentation-test-saummmond",
-  "label": "OI Org Chart",
+  "name": "alert-rules-open-clear",
+  "label": "Alert rules based Open and Clear Alerts",
+  "description": "Alert rules based Open and Clear Alerts",
+  "version": "25.5.13.1",
+  "enabled": true,
   "live_edit": true,
-  "version": "25.2.25.1",
-  "description": "OI ASP Documentation Widgets",
-  "dashboard_folder": "Default",
-  "dashboard_type": "dashboard",
-  "enabled": false,
+  "dashboard_type": "template",
+  "status_poller": {
+    "stream": "rda_alert_state_management_data",
+    "frequency": 15,
+    "columns": [
+      "timestamp"
+    ],
+    "sorting": [
+      {
+        "timestamp": "desc"
+      }
+    ],
+    "query": "timestamp is after '$timestamp'",
+    "defaults": {
+      "timestamp": "$UTCNOW"
+    },
+    "action": "refresh"
+  },
+  "dashboard_filters": {
+    "time_filter": true,
+    "default_time_filter_non_removable": true,
+    "show_default_time_filter": false,
+    "columns_filter": [
+      {
+        "id": "type",
+        "label": "Alert Type",
+        "type": "TEXT"
+      },
+      {
+        "id": "name",
+        "label": "Alert Name",
+        "type": "TEXT"
+      },
+      {
+        "id": "state",
+        "label": "State",
+        "type": "TEXT"
+      },
+      {
+        "id": "severity",
+        "label": "Open Severity",
+        "type": "TEXT"
+      },
+      {
+        "id": "clear_severity",
+        "label": "Clear Severity",
+        "type": "TEXT"
+      },
+      {
+        "id": "md5",
+        "label": "Alert Id",
+        "type": "TEXT"
+      },
+      {
+        "id": "unique_keys",
+        "label": "Alert Keys",
+        "type": "TEXT"
+      },
+      {
+        "id": "payload",
+        "label": "Payload",
+        "type": "TEXT"
+      }
+    ],
+    "default_time_filter_labels": [
+      "Last 24 hours"
+    ],
+    "group_filters": [
+      {
+        "stream": "rda_alert_state_management_data",
+        "title": "Alert Type",
+        "group_by": [
+          "type"
+        ],
+        "ts_column": "timestamp",
+        "agg": "sum",
+        "column": "count_",
+        "type": "str"
+      },
+      {
+        "stream": "rda_alert_state_management_data",
+        "title": "Alert Name",
+        "group_by": [
+          "name"
+        ],
+        "ts_column": "timestamp",
+        "agg": "sum",
+        "column": "count_",
+        "type": "str"
+      },
+      {
+        "stream": "rda_alert_state_management_data",
+        "title": "State",
+        "group_by": [
+          "state"
+        ],
+        "ts_column": "timestamp",
+        "agg": "sum",
+        "column": "count_",
+        "type": "str"
+      }
+    ]
+  },
   "dashboard_sections": [
     {
-      "title": "Documentation",
+      "title": "alerts",
+      "show_filter": true,
       "widgets": [
         {
-          "title": "Documentation",
-          "widget_type": "custom_widget",
-          "widget_implementation": "oi-asp-documentation-test-saummmond/oi-asp-documentation-test-saummmond_widget",
-          "min_width": 12,
-          "min_height": 12,
-          "widget_id": "4e2d534c"
+          "extends": [
+            "self:alerts_tabular_widget",
+            "self:actions_lib.alerts_tabular_widget_actions"
+          ],
+          "extend_vars": {
+            "alerts_tabular_widget_extra_filter": "state in ['OPEN', 'CLEAR']"
+          },
+          "widget_id": "94a3fc99"
         }
       ]
     }
   ],
-  "custom_widgets": {
-    "oi-asp-documentation-test-saummmond_widget": {
-      "artifacts": {
-        "main": {
-          "attachment": "main.html",
-          "content_type": "text/html",
-          "is_template": true
+  "library": {
+    "widgets": {
+      "alerts_tabular_widget": {
+        "extra_filter": "$alerts_tabular_widget_extra_filter",
+        "title": "Alerts",
+        "widget_type": "tabular",
+        "stream": "rda_alert_state_management_data",
+        "min_width": 12,
+        "height": 12,
+        "max_width": 12,
+        "paginated": true,
+        "resizableColumns": false,
+        "remote_searchable": true,
+        "remote_searchable_cols": [
+          "type",
+          "name",
+          "state",
+          "severity",
+          "clear_severity",
+          "md5",
+          "unique_keys"
+        ],
+        "refreshRequired": true,
+        "timebased": false,
+        "max_rows": 50,
+        "columns": {
+          "type": {
+            "title": "Alert Type",
+            "key": true
+          },
+          "name": {
+            "title": "Alert Name",
+            "key": true
+          },
+          "md5": {
+            "title": "Alert Id",
+            "key": true
+          },
+          "unique_keys": {
+            "title": "Alert Keys"
+          },
+          "state_color": {
+            "type": "COLOR-MAP",
+            "source-column": "state",
+            "color-map": {
+              "CLEAR": "#4CAF50",
+              "OPEN": "#FFA726"
+            }
+          },
+          "state": {
+            "title": "State",
+            "htmlTemplateForRow": "<span class='badge' style='background-color: {{'{{ row.state_color }}'}}' > {{'{{ row.state }}'}} </span>",
+            "defaultWidth": 150,
+            "key": true
+          },
+          "severity_color": {
+            "type": "COLOR-MAP",
+            "source-column": "severity",
+            "color-map": {
+              "SEVERE": "#B71C1C",
+              "CRITICAL": "#E53935",
+              "MAJOR": "#F57C00",
+              "MINOR": "#FFA726",
+              "WARNING": "#FFD54F",
+              "NOTIFICATION": "#4DD0E1",
+              "INFORMATION": "#03A9F4"
+            }
+          },
+          "severity": {
+            "title": "Open Severity",
+            "type": "DYNAMIC_HTML",
+            "htmlTemplate": "<span class='badge' v-if='rowData.severity' :style='{ backgroundColor: rowData.severity_color }'>{{'{{ rowData.severity }}'}}</span>",
+            "defaultWidth": 150
+          },
+          "clear_severity_color": {
+            "type": "COLOR-MAP",
+            "source-column": "clear_severity",
+            "color-map": {
+              "SEVERE": "#B71C1C",
+              "CRITICAL": "#E53935",
+              "MAJOR": "#F57C00",
+              "MINOR": "#FFA726",
+              "WARNING": "#FFD54F",
+              "NOTIFICATION": "#4DD0E1",
+              "INFORMATION": "#03A9F4"
+            }
+          },
+          "clear_severity": {
+            "title": "Clear Severity",
+            "type": "DYNAMIC_HTML",
+            "htmlTemplate": "<span class='badge' v-if='rowData.clear_severity' :style='{ backgroundColor: rowData.clear_severity_color }'>{{'{{ rowData.clear_severity }}'}}</span>",
+            "defaultWidth": 150,
+            "visible": false
+          },
+          "open_timestamp": {
+            "title": "Open Timestamp",
+            "type": "DATETIME"
+          },
+          "clear_timestamp": {
+            "title": "Clear Timestamp",
+            "type": "DATETIME",
+            "visible": false
+          },
+          "timestamp": {
+            "title": "Timestamp",
+            "type": "DATETIME",
+            "visible": false
+          }
         }
+      }
+    },
+    "actions_lib": {
+      "alerts_tabular_widget_actions": {
+        "actions": [
+          {
+            "permission": "rda:user_dashboard:clear",
+            "title": "Clear Alerts",
+            "type": "POPUP_FORM",
+            "selectionType": "NONE",
+            "identifier": "saas-service-action:alertrule-clear-batch",
+            "api-endpoint": {
+              "service-name": "saas-reports",
+              "methodName": "getForm",
+              "stringified-params": true,
+              "parse-output": false,
+              "params": [
+                {
+                  "formId": "rda.saas.dynamic.form",
+                  "formDefinition": {
+                    "id": "rda.saas.dynamic.form",
+                    "refreshRequired": true,
+                    "formFieldList": [
+                      {
+                        "help": "Clear Alerts",
+                        "dataType": "string",
+                        "controlType": "SELECTOR_TABLE",
+                        "controlPropertyList": [
+                          {
+                            "attribute": "column-key",
+                            "value": "md5"
+                          },
+                          {
+                            "attribute": "selection",
+                            "value": "MULTIPLE"
+                          }
+                        ],
+                        "widget": {
+                          "extends": "self:alerts_tabular_widget",
+                          "extend_vars": {
+                            "alerts_tabular_widget_extra_filter": "state in ['OPEN']"
+                          }
+                        },
+                        "required": true,
+                        "editable": true,
+                        "label": "Alerts",
+                        "hidden": false,
+                        "fieldId": "selectedAlerts"
+                      },
+                      {
+                        "fieldId": "notification",
+                        "dataType": "boolean",
+                        "controlType": "BOOLEAN_FIELD",
+                        "hidden": false,
+                        "required": false,
+                        "editable": true,
+                        "defaultValue": false,
+                        "label": "Send Notification",
+                        "help": "Send Clear Notification"
+                      }
+                    ]
+                  },
+                  "formActionList": {
+                    "formActions": [
+                      {
+                        "identifier": "Submit",
+                        "actionLabel": "Clear",
+                        "type": "SUBMIT"
+                      }
+                    ]
+                  },
+                  "actions": [
+                    {
+                      "type": "UPDATE_PSTREAM",
+                      "pstreamName": "alert_rules_clear_jobs_custom_nats_stream",
+                      "collapse_json": true,
+                      "collapsed_json_column": "payload"
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "permission": "rda:user_dashboard:view",
+            "title": "Clear Alert",
+            "type": "POPUP_FORM",
+            "selectionType": "SINGLE",
+            "identifier": "saas-service-action:alertrule-clear",
+            "api-endpoint": {
+              "service-name": "saas-reports",
+              "methodName": "getForm",
+              "stringified-params": true,
+              "parse-output": false,
+              "params": [
+                {
+                  "formId": "rda.saas.alertrule.clear_alert"
+                }
+              ]
+            },
+            "actionCondition": {
+              "actionControl": "SHOW_IF",
+              "conditionalField": [
+                {
+                  "conditionType": "EQUAL",
+                  "conditionValue": "OPEN",
+                  "fieldId": "state"
+                }
+              ]
+            }
+          },
+          {
+            "permission": "rda:user_dashboard:view",
+            "title": "View Open Payload",
+            "type": "POPUP_FORM",
+            "selectionType": "SINGLE",
+            "identifier": "saas-service-action:alertrule-view-payload",
+            "api-endpoint": {
+              "service-name": "saas-reports",
+              "methodName": "getForm",
+              "stringified-params": true,
+              "parse-output": false,
+              "params": [
+                {
+                  "formId": "rda.saas.alertrule.view_payload"
+                }
+              ]
+            }
+          },
+          {
+            "permission": "rda:user_dashboard:view",
+            "title": "View Clear Payload",
+            "type": "POPUP_FORM",
+            "selectionType": "SINGLE",
+            "identifier": "saas-service-action:alertrule-view-clear-payload",
+            "api-endpoint": {
+              "service-name": "saas-reports",
+              "methodName": "getForm",
+              "stringified-params": true,
+              "parse-output": false,
+              "params": [
+                {
+                  "formId": "rda.saas.alertrule.view_clear_payload"
+                }
+              ]
+            },
+            "actionCondition": {
+              "actionControl": "SHOW_IF",
+              "conditionalField": [
+                {
+                  "conditionType": "EQUAL",
+                  "conditionValue": "CLEAR",
+                  "fieldId": "state"
+                }
+              ]
+            }
+          }
+        ]
       }
     }
   },
-  "attachments": [
-    {
-      "name": "main.html",
-      "value": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"UTF-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n<title>Organization & Executive Summary</title>\n<style>\n    body {\n        font-family: Arial, sans-serif;\n        padding: 20px;\n        background: url(\"/iconlib/background\") no-repeat center center fixed;\n        background-size: cover;\n        color: white;\n    }\n\n    .section {\n        border: 2px solid #ccc;\n        border-radius: 8px;\n        background: rgba(255, 255, 255, 0.95);\n        color: black;\n        margin-bottom: 40px;\n        overflow: hidden;\n    }\n\n    .section-header {\n        background-color: #07182D;\n        color: white;\n        font-size: 20px;\n        font-weight: bold;\n        padding: 10px;\n    }\n\n    .section-content {\n        padding: 20px;\n        text-align: center;\n    }\n\n    img {\n        max-width: 100%;\n        border-radius: 5px;\n        height: auto;\n        margin: 10px 0;\n    }\n\n    table {\n        width: 100%;\n        border-collapse: collapse;\n        margin-top: 20px;\n    }\n    th, td {\n        padding: 10px;\n        border: 1px solid #ccc;\n        text-align: center;\n    }\n    th {\n        background-color: #07182D;\n        color: white;\n    }\n    tr:nth-child(even) {\n        background-color: #f2f2f2;\n    }\n</style>\n</head>\n<body>\n\n<!-- Organization Section -->\n<div class=\"section\">\n    <div class=\"section-header\">Organization</div>\n    <div class=\"section-content\">\n        <img src=\"/iconlib/orgchart\" alt=\"Organization Chart\">\n        <img src=\"/iconlib/orgchart-1\" alt=\"Organization Chart 2\">\n    </div>\n</div>\n\n<!-- Executive Summary Section -->\n<div class=\"section\">\n    <div class=\"section-header\">Executive Summary</div>\n    <div class=\"section-content\">\n        <table id=\"dataTable\">\n            <thead>\n                <tr><th>Metric</th><th>Value</th></tr>\n            </thead>\n            <tbody></tbody>\n        </table>\n    </div>\n</div>\n\n<script>\nasync function loadData() {\n    try {\n        const response = await fetch('/api/v2/pstreams/pstream/data_trial/data');\n        if (!response.ok) throw new Error('Failed to fetch data');\n        \n        const json = await response.json();\n        console.log(\"Fetched JSON:\", json);\n\n        const table = document.getElementById(\"dataTable\");\n        const thead = table.querySelector(\"thead\");\n        const tbody = table.querySelector(\"tbody\");\n\n        tbody.innerHTML = \"\";\n        thead.innerHTML = \"\";\n\n        if (!json.pstream_data || json.pstream_data.length === 0) {\n            tbody.innerHTML = `<tr><td colspan=\"100%\">No data available</td></tr>`;\n            return;\n        }\n\n        const excludeKeys = [\"__uuid\", \"timestamp\", \"count_\", \"_RDA_Id\"];\n        const columns = Object.keys(json.pstream_data[0]).filter(k => !excludeKeys.includes(k));\n\n        // Create table header\n        const headerRow = document.createElement(\"tr\");\n        columns.forEach(col => {\n            const th = document.createElement(\"th\");\n            th.textContent = col;\n            headerRow.appendChild(th);\n        });\n        thead.appendChild(headerRow);\n\n        // Create rows\n        json.pstream_data.forEach(row => {\n            const tr = document.createElement(\"tr\");\n            columns.forEach(col => {\n                const td = document.createElement(\"td\");\n                td.textContent = row[col] || \"\";\n                tr.appendChild(td);\n            });\n            tbody.appendChild(tr);\n        });\n\n    } catch (err) {\n        console.error(\"Error fetching/parsing stream:\", err);\n    }\n}\n\nloadData();\n</script>\n\n</body>\n</html>\n"
-    }
-  ],
   "pstream_dashboards": [
     {
-      "title": "Documentation",
+      "title": "alerts",
+      "show_filter": true,
       "widgets": [
         {
-          "title": "Documentation",
-          "widget_type": "custom_widget",
-          "widget_implementation": "oi-asp-documentation-test-saummmond/oi-asp-documentation-test-saummmond_widget",
-          "min_width": 12,
-          "min_height": 12,
-          "widget_id": "4e2d534c"
+          "extends": [
+            "self:alerts_tabular_widget",
+            "self:actions_lib.alerts_tabular_widget_actions"
+          ],
+          "extend_vars": {
+            "alerts_tabular_widget_extra_filter": "state in ['OPEN', 'CLEAR']"
+          },
+          "widget_id": "94a3fc99"
         }
       ]
     }
