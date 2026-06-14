@@ -1,105 +1,225 @@
+%% stream = no and limit = 0
+%% template_type="jinja"
+##%% import_src_type = "diagnostictools"
+
 @dm:empty
- --> @exec:get-input
- --> @dm:save name='temp-sa-exploded-data'
- --> @dm:save name='test-1sa-exploded-data'
- --> @c:new-block
- --> @dm:recall name="temp-sa-exploded-data"
- --> @dm:selectcolumns exclude='^unique_key$'
- ## --> @dm:enrich dict="temp-sa-data" and src_key_cols='product_id,sw_version,sw_os_type' and dict_key_cols='product_id,sw_version,sw_os_type' and enrich_cols="contract_number,customer"
+    --> @dm:save name = "temp-customer-context"
+    
 
- --> @dm:add-missing-columns columns="PsirtID,MatchConfidence,MatchReason,MatchDefinition,HeadlineName,AdvisoryId,BulletinURL,Summary,Details,RevisedDate,RevisionNumber,PublishedDate,SeverityLevelName,CvssScore,CveId,_id,advisoryId,created,customerVisible,external_text,external_title,firstIcAlertId,groups,icIssueId,icProblemId,ignored,lastIcAlertId,matchDefinition,matchInfo,matchConfidence,missingInfo,moreInfo,name,openedOn,resultType,resultSubType,severity,severityText,state,updated,deviceSN,source,runType,filename,icType,atticaStatus,cdetsList,retry,associatedGroups,key,current_time_ms_loop,token_expiry_time,access_token,expires_in,token_type,sw_version,sw_os_type,product_id,transaction_id,eoXAlert,eoXAlertType,DocumentId"
- --> @dm:eval matchConfidence = "'Potentially Vulnerable' if matchConfidence == 'POTVUL' else 'Vulnerable' if matchConfidence == 'VUL' else matchConfidence"
- --> @dm:eval secAdv_confidence_score = "100 if matchConfidence == 'Vulnerable' else 99 if matchConfidence == 'Potentially Vulnerable' else 98 if matchConfidence == 'Not Vulnerable' else 0"
- --> @dm:fixnull columns="PsirtID,MatchConfidence,MatchReason,MatchDefinition,HeadlineName,AdvisoryId,BulletinURL,Summary,Details,RevisedDate,RevisionNumber,PublishedDate,SeverityLevelName,CvssScore,CveId,_id,advisoryId,created,customerVisible,external_text,external_title,firstIcAlertId,groups,icIssueId,icProblemId,ignored,lastIcAlertId,matchDefinition,matchInfo,matchConfidence,missingInfo,moreInfo,name,openedOn,resultType,resultSubType,severity,severityText,state,updated,deviceSN,source,runType,filename,icType,atticaStatus,cdetsList,retry,associatedGroups,key,current_time_ms_loop,token_expiry_time,expires_in,token_type,sw_version,sw_os_type,product_id,transaction_id,eoXAlert,eoXAlertType,DocumentId,secAdv_confidence_score" and value="Not Available" and apply_for_empty="yes"
- --> @dm:fixnull-regex columns="Timestamp$|timestamp$"
- --> @dm:rename-columns secAdv_matchConfidence ='matchConfidence' and secAdv_securityImpactRating='SeverityLevelName' and secAdv_bulletinTitle='external_title' and securityAdvisoryId='advisoryId' and ID = '_id' and secAdv_BulletinURL ='BulletinURL'
- --> @dm:save name="temp-sec-adv-details"
- --> @c:new-block
- --> @dm:empty
- --> @dm:addrow name='edc_cust_pid_sw' and limit=0
- --> #dm:query-persistent-stream
- --> @dm:groupby columns='customer'
- --> @dm:save name='temp-unique-cust-name'
- --> @c:data-loop dataset='temp-unique-cust-name' and columns='customer'
- --> @dm:empty
- --> @dm:addrow name='edc_oi_inventory_enriched' and limit=0
- --> #dm:query-persistent-stream customer_name=='$customer' and coverage=='COVERED'
- --> @dm:save name='temp-hw-eol-details' and append='yes'
- --> @c:new-block
- --> @dm:recall name='temp-hw-eol-details'
- --> @dm:to-type columns='contract_number' and type='int'
- --> @dm:save name='temp-hw-eol-details'
- ## Queries data for the customer from edc_oi_enriched_stream
+## {% set row = "" %}
+{% if customer_tag %} 
+   {% set customer_id = customer_id %}
+   {% set customer_tag = customer_tag %}
+   {% set customerTag = customer_tag %}
+{% elif customerTag %} 
+   {% set customer_id = customer_id %}
+   {% set customer_tag = customerTag %}
+{% else %}
+   {% set customer_id = '' %}
+   {% set customer_tag = '' %}
+{% endif %}   
 
- --> @c:data-loop dataset='temp-unique-cust-name' and columns='customer'
- --> @dm:empty
- --> @dm:addrow name='edc_oi_inventory_enriched' and limit=0 and groupby='contract_number,customer_name,product_name,product_id,portfolio_desc' and aggs='sum:combination_count'
- --> #dm:query-persistent-stream coverage=='COVERED' and customer_name is '$customer'
- --> @dm:save name='temp-hw-eol-details-grouped' and append='yes'
- --> @c:new-block
- --> @dm:recall name='temp-hw-eol-details-grouped'
- --> @dm:to-type columns='contract_number' and type='int'
- --> @dm:save name='temp-hw-eol-details-grouped'
- ## enriches the processed columns to edc_oi_inventory_enriched
+## access
+--> @dm:empty
+    --> @dm:save name="temp-access-verify"
+    --> @dm:save name="temp-snmp"
+    --> @dm:save name = 'temp-ip-list-snmp'
+    --> @dm:save name = 'temp-ip-list-ssh'
+    --> @dm:save name="temp-success-snmp"
+    --> @dm:save name="temp-failed-unique-snmp"
+    --> @dm:save name="temp-failed"
+    --> @dm:save name = "temp-access-ssh" 
+    --> @dm:save name = "temp-access-snmp"
 
- ## enriches the processed columns to edc_oi_inventory_enriched
+--> @c:new-block
+    --> @exec:get-input 
+    --> @dm:save name="temp-access-verify"
 
- --> @c:new-block
- --> @dm:recall name='temp-sec-adv-details'
- --> @dm:to-type columns='contract_number' and type='int'
- ## --> @dm:eval product_name="product_id if product_name is 'Not Available' else product_name"
 
- --> @dm:enrich dict='temp-hw-eol-details-grouped' and dict_key_cols='contract_number,customer_name,product_name' and src_key_cols='contract_number,customer,product_name' and enrich_cols='combination_count_sum,portfolio_desc' and how_type='left' and dedup_dict='no'
- --> @dm:add-missing-columns columns="combination_count_sum"
- --> @dm:eval unique_key='str(PsirtID) + str(securityAdvisoryId) + str(product_id) + str(product_name) + str(contract_number)'
- --> @dm:to-type columns='combination_count_sum' and type='int'
- --> @dm:save name='temp-sec-adv-combination-count-sum'
- --> @c:new-block
- --> @dm:recall name='temp-hw-eol-details'
- --> @dm:selectcolumns exclude='^(PsirtID|securityAdvisoryId|secAdv_confidence_score|secAdv_securityImpactRating|secAdv_matchConfidence|match|customer|sw_os_type|sw_version|secAdv_BulletinURL|secAdv_bulletinTitle|CveId|CvssScore|matchInfo|RevisedDate|RevisionNumber|PublishedDate)$'
- --> @dm:save name='temp-hw-eol-details'
- --> @c:new-block
- --> @dm:recall name='temp-sec-adv-combination-count-sum'
- --> @dm:enrich dict='temp-hw-eol-details'  and dict_key_cols='contract_number,customer_name,product_name' and src_key_cols='contract_number,customer,product_name' and enrich_cols='item_type,product_family'
- --> @dm:save name='sa-enriched-final-enrich-before-dropnull'
- --> @dm:dropnull columns='secAdv_securityImpactRating'
- --> @dm:selectcolumns exclude='^(key|Unique_id|_RDA_Id|count_|timestamp|customer_name_y)'
- --> @dm:eval customer_name='customer_name_x'
- --> @dm:save name='sa-enriched-final-enrich'
- --> @dm:save name='temp-edc-sweol-data'
- --> @rn:write-stream name='edc_sec_adv_data_enriched'
- ## Queries data for the customer from edc_oi_enriched_stream
+-->  @c:new-block     
 
- --> @c:new-block
- --> @dm:recall name='temp-hw-eol-details'
- --> @dm:to_type columns = 'contract_number' and type  = 'int'
- --> @dm:save name='temp-hw-eol-details'
- ## dedup security advisory based on the secAdv_confidence_score
+           -->  @dm:empty 
+           {% if customer_tag %}   
+           -->  #dm:query-persistent-stream     type in ['snmp-cred','ssh-cred','device-snmp-v3','device-host-ssh','device-snmp-v1v2'] and (customerTag contains '{{customer_tag}}') with-input name = 'rda_secrets_meta' and limit= 0
+            {% else %}
+           -->  #dm:query-persistent-stream     type in ['snmp-cred','ssh-cred','device-snmp-v3','device-host-ssh','device-snmp-v1v2'] and (customerTag is empty) with-input name = 'rda_secrets_meta' and limit= 0
+            {% endif %}
+           --> @dm:eval key ="'key'"  
+            --> @dm:eval snmp_cred_name = "name if type in ['snmp-cred','device-snmp-v3','device-snmp-v1v2'] else None" 
+           --> @dm:eval ssh_cred_name = "name if type in ['ssh-cred','device-host-ssh'] else None"  
+                    
+-->  @dm:save     name = 'temp-creds'
+##-->  @dm:save     name = 'test2-creds'
 
- --> @c:new-block
- --> @dm:recall name='temp-sec-adv-details'
- ## --> @dm:groupby columns='firstIcAlertId'
+--> @c:new-block
+  -->  @dm:recall     name = 'temp-creds'
+  -->*dm:filter snmp_cred_name is not empty
+  -->  @dm:eval     key ="'key'"
+  ##-->  @dm:save     name = 'test-creds-snmp'
+  -->  @dm:save     name = 'temp-creds-snmp'
 
- --> @dm:skip-block-if-shape row_count="0"
- ## --> @dm:save name='test-sec-adv-details'
+--> @c:new-block
+  -->  @dm:recall     name = 'temp-creds'
+  -->*dm:filter ssh_cred_name is not empty
+  -->  @dm:eval     key ="'key'"
+  ##-->  @dm:save     name = 'test-creds-ssh'
+  -->  @dm:save     name = 'temp-creds-ssh'
+   
+  
+--> @c:new-block
+    --> @dm:recall name="temp-access-verify"
+    --> @dm:skip-block-if-shape row_count = 0
+    --> @dm:selectcolumns include = "Others|customer_tag|customer_id"
+    ## --> @dm:eval Others = 'Others.replace("\'", "\"")'
+    --> @dm:explode-json column="Others"
+    --> @dm:eval key ="'key'"
+    --> @dm:save name="temp-network-access-verification-pipeline"
+    ##--> @dm:save name="network-access-verification-pipeline"
 
- --> @dm:sort columns='secAdv_confidence_score' and order='descending'
- --> @dm:dedup columns='product_id,sw_version,sw_os_type,contract_number,customer'
- --> @dm:to_type columns = 'contract_number' and type  = 'int'
- --> @dm:eval match="'yes'"
- --> @dm:save name="temp-pa-sec-adv-dedups"
- --> @c:new-block
- --> @dm:recall name='temp-hw-eol-details'
- --> @dm:enrich dict='temp-pa-sec-adv-dedups' and dict_key_cols='contract_number,customer,product_id' and src_key_cols='contract_number,customer_name,product_id' and enrich_cols='match' and how_type='left'
- --> @dm:dropnull columns='match'
- --> @dm:selectcolumns exclude='^(PsirtID|securityAdvisoryId|secAdv_confidence_score|secAdv_securityImpactRating|secAdv_matchConfidence|match|customer|sw_os_type|sw_version|secAdv_BulletinURL|secAdv_bulletinTitle|CveId|CvssScore|matchInfo|RevisedDate|RevisionNumber|PublishedDate)$'
- --> @dm:save name='temp-matched-inv'
- --> @c:new-block
- --> @dm:recall name='temp-matched-inv'
- --> @dm:enrich dict='temp-pa-sec-adv-dedups' and dict_key_cols='contract_number,customer,product_id' and src_key_cols='contract_number,customer_name,product_id' and enrich_cols='PsirtID,secAdv_confidence_score,securityAdvisoryId,secAdv_securityImpactRating,secAdv_matchConfidence,sw_os_type,sw_version,secAdv_bulletinTitle,secAdv_BulletinURL,CveId,CvssScore,matchInfo,RevisedDate,RevisionNumber,PublishedDate'
- --> @dm:selectcolumns exclude="^(customer_x|customer_y|deviceSN|source|secAdv_bulletinTitle_x)"
- --> @dm:rename-columns secAdv_bulletinTitle ='secAdv_bulletinTitle_y'
- --> @dm:save name='temp-final-enrich'
- ## --> @dm:save name='sa-final-enrich'
+ 
+--> @c:new-block
+    --> @dm:recall name="temp-access-verify"
+    --> @dm:skip-block-if-shape row_count > 0     
+ {% if customer_tag %} 
+           -->  #dm:query-persistent-stream     device_ip is not empty and (customer_tag is '{{customer_tag}}') with-input name = "discovery" & limit = "0"
+{% else %}
+           -->  #dm:query-persistent-stream     device_ip is not empty and (customer_tag is empty or customer_tag is 'None') with-input name = "discovery" & limit = "0"
+    {% endif %}
+-->  *dm:filter     device_ip not in ['nan', 'not available']
+-->@dm:selectcolumns include = "^device_ip$|^discovery_scope$"
+-->  @dm:dedup     columns= "device_ip"
+-->  @dm:eval     key ="'key'"
+ --> @dm:save name = 'temp-network-access-verification-pipeline'
 
- --> @rn:write-stream name='edc_oi_inventory_enriched'
+     
+
+--> @c:new-block
+    --> @dm:recall name="temp-network-access-verification-pipeline"
+    --> @dm:add-missing-columns columns = "customer_tag,customer_id" 
+--> @dm:save name="temp-ip-list"
+##--> @dm:save name="test-ip-list"
+
+--> @c:data-loop columns="snmp_cred_name" and dataset ="temp-creds-snmp"
+--> @dm:recall name = 'temp-ip-list'
+--> @dm:eval snmp_cred_name ="'$snmp_cred_name'"
+--> @dm:save name="temp-ip-list-snmp" & append = "yes"
+ 
+  
+    
+--> @c:data-loop columns="ssh_cred_name" and dataset ="temp-creds-ssh"
+--> @dm:recall name = 'temp-ip-list'
+--> @dm:eval ssh_cred_name ="'$ssh_cred_name'"
+--> @dm:save name="temp-ip-list-ssh" & append = "yes"
+
+
+## SNMP/SSH Credentials Access Verification
+
+--> @c:data-loop columns="device_ip,discovery_scope,snmp_cred_name" and dataset ="temp-ip-list-snmp"   
+   --> @dm:recall name = 'temp-ip-list-snmp'
+   --> @dm:skip-block-if-shape row_count = 0  
+   --> *exec:if-condition device_ip = "${device_ip}"
+    --> @asset-discovery:access-check ip_column = 'device_ip' & protocol = 'snmp' and snmp_creds_regex = "$snmp_cred_name"
+    --> @dm:eval discovery_scope ="'$discovery_scope'"
+    --> @dm:eval key ="'key'"
+    --> @dm:enrich dict="temp-ip-list" and src_key_cols="key" and dict_key_cols="key" and enrich_cols="customer_tag,customer_id"
+    --> @dm:save name = "temp-access-snmp" & append = "yes"
+    ##--> @rn:write-stream name="network_access_verification"
+    --> @exec:end-if
+     
+
+--> @c:new-block
+--> @dm:recall    name = 'temp-access-snmp'
+--> @dm:save name="test-access-snmp"
+--> @dm:dedup columns="ip_address,auth_state"
+--> @dm:save name="temp-snmp"
+-->*dm:filter auth_state = "Success"
+--> @dm:eval success_row="'yes'"
+--> @dm:save name="temp-snmp-success"
+ --> @dm:recall name="temp-snmp"
+ -->@dm:add-missing-columns columns = "auth_state"
+ -->*dm:filter auth_state = "Failed"
+--> @dm:save name="temp-failed"
+--> @dm:save name="test-failed"
+ ##--> *exec:if-condition row_count > 0
+   --> @dm:skip-block-if-shape row_count = 0  
+ --> @dm:enrich-conditional dict is 'temp-snmp-success' and condition is 'ip_address == "$ip_address"' and enrich_cols = "success_row"
+
+ ##--> @dm:enrich dict='temp-success' and src_key_cols="ip_address" and dict_key_cols="ip_address" and enrich_cols="success_row"
+    -->@dm:add-missing-columns columns = "success_row"
+    --> *dm:filter success_row notin ["yes"]
+     --> @dm:save name="temp-failed-unique-snmp"
+ ##-->@exec:end-if
+ --> @c:new-block
+ --> @dm:recall name="temp-failed"
+   --> @dm:skip-block-if-shape row_count > 0  
+ ##--> *exec:if-shape row_count = 0  
+    --> @dm:recall name="temp-snmp-success"
+ --> @rn:write-stream name="network_access_verification"
+##--> @exec:end-if
+
+--> @c:new-block
+ ##--> @dm:recall name="temp-failed"
+ ##  --> @dm:skip-block-if-shape row_count = 0  
+ ## --> *exec:if-condition row_count > 0 
+    --> @dm:concat names="temp-snmp-success|temp-failed-unique-snmp"
+    --> @dm:save name="temp-successfull-data"
+     --> @dm:save name="test-successfull-data"
+    --> @rn:write-stream name="network_access_verification"
+   ## -->@exec:end-if
+    
+
+
+--> @c:data-loop columns="device_ip,discovery_scope,ssh_cred_name" and dataset ="temp-ip-list-ssh"
+    --> @dm:recall name = 'temp-ip-list-ssh'
+    --> @dm:skip-block-if-shape row_count = 0  
+    --> *exec:if-condition device_ip = "${device_ip}"
+    --> @asset-discovery:access-check ip_column = 'device_ip' & protocol = 'ssh' & ssh_creds_regex = "$ssh_cred_name"
+    --> @dm:eval key ="'key'"
+    --> @dm:eval discovery_scope ="'$discovery_scope'"
+    --> @dm:enrich dict="temp-ip-list" and src_key_cols="key" and dict_key_cols="key" and enrich_cols="customer_tag,customer_id"
+    --> @dm:save name = "temp-access-ssh" & append = 'yes'
+    ##--> @rn:write-stream name="network_access_verification"
+    --> @exec:end-if
+
+    --> @c:new-block
+    --> @dm:recall    name = 'temp-access-ssh'
+    --> @dm:save name="test-access-ssh"
+    --> @dm:dedup columns="ip_address,auth_state"
+    --> @dm:save name="temp-ssh"
+    --> *dm:filter auth_state = "Success"
+    --> @dm:eval success_row="'yes'"
+    --> @dm:save name="temp-ssh-success"
+    --> @dm:recall name="temp-ssh"
+    --> @dm:add-missing-columns columns = "auth_state"
+    --> *dm:filter auth_state = "Failed"
+    --> @dm:save name="temp-failed-ssh"
+    --> @dm:save name="test-failed"
+    ## --> *exec:if-condition row_count > 0
+    --> @dm:skip-block-if-shape row_count = 0
+    --> @dm:enrich-conditional dict is 'temp-ssh-success' and condition is 'ip_address == "$ip_address"' and enrich_cols = "success_row"
+    ## --> @dm:enrich dict='temp-success' and src_key_cols="ip_address" and dict_key_cols="ip_address" and enrich_cols="success_row"
+    --> @dm:add-missing-columns columns = "success_row"
+    --> *dm:filter success_row notin ["yes"]
+    --> @dm:save name="temp-failed-unique-ssh"
+
+## -->@exec:end-if
+--> @c:new-block
+    --> @dm:recall name="temp-failed-ssh"
+    --> @dm:skip-block-if-shape row_count > 0
+    ## --> *exec:if-shape row_count = 0
+    --> @dm:recall name="temp-ssh-success"
+    --> @rn:write-stream name="network_access_verification"
+
+## --> @exec:end-if
+--> @c:new-block
+    ## --> @dm:recall name="temp-failed"
+    ## --> @dm:skip-block-if-shape row_count = 0
+    ## --> *exec:if-condition row_count > 0
+    --> @dm:concat names="temp-ssh-success|temp-failed-unique-ssh"
+    --> @dm:save name="temp-successfull-data"
+    --> @dm:save name="test-successfull-data"
+    --> @rn:write-stream name="network_access_verification"
+
+
+
+  
