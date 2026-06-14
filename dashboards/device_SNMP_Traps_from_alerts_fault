@@ -1,307 +1,447 @@
 {
-  "name": "device_SNMP_Traps_from_alerts_fault",
-  "label": "SNMP Traps",
-  "description": "SNMP traps dashboard",
-  "version": "2023-06-13-02",
-  "enabled": true,
-  "dashboard_folder": "NetworkDevicePack",
-  "dashboard_style": "auto",
-  "template_variables": {
-    "CUST_ID": {
-      "contextId": "customer_id"
-    },
-    "PROJ_ID": {
-      "contextId": "project_id"
-    },
-    "CUST_TAG": {
-      "contextId": "customer_tag"
-    },
-    "DEVICE_IP": {
-      "contextId": "device_ip"
-    }
-  },
-  "status_poller": {
-    "stream": "snmp_trap_event_stream_all",
-    "frequency": 10,
-    "columns": [
-      "timestamp"
+  "name": "cnc-network-devices",
+  "label": "Network Devices",
+  "description": "Network Devices",
+  "dashboard_folder": "MOW",
+  "version": "2023-03-18_2",
+  "enabled": false,
+  "debug": true,
+  "live_edit": true,
+  "stream": "cnc_device_inventory",
+  "dashboard_type": "template",
+  "dashboard_filters": {
+    "time_filter": true,
+    "default_time_filter_labels": [
+      "Last 12 months"
     ],
-    "sorting": [
+    "extra_filter": "`item_type` is  \"CHASSIS\"",
+    "columns_filter": [
       {
-        "timestamp": "desc"
+        "id": "device_ip",
+        "label": "IP Address",
+        "type": "TEXT"
+      },
+      {
+        "id": "device_family",
+        "label": "Device Family",
+        "type": "TEXT"
+      },
+      {
+        "id": "device_serial_number",
+        "label": "Serial Number",
+        "type": "TEXT"
+      },
+      {
+        "id": "device_fw_version",
+        "label": "Software Version",
+        "type": "TEXT"
+      },
+      {
+        "id": "clli_code",
+        "label": "CLLI Code",
+        "type": "TEXT"
       }
     ],
-    "query": "timestamp is after '${timestamp}'",
-    "defaults": {
-      "timestamp": "$UTCNOW"
-    },
-    "action": "refresh"
-  },
-  "dashboard_filters": {
-    "default_time_filter_labels": [
-      "Last 1 month"
-    ],
-    "extra_filter1": "(customer_tag is '{{CUST_TAG}}')",
-    "time_filter": true,
-    "columns_filter": [],
-    "group_filters": []
+    "group_filters": [
+      {
+        "stream": "cnc_device_inventory",
+        "title": "Manufacturer",
+        "duration_hours": 1080,
+        "extra_filter": "`item_type` is  \"CHASSIS\"",
+        "group_by": [
+          "manufacturer"
+        ],
+        "ts_column": "timestamp",
+        "agg": "value_count",
+        "column": "_RDA_Id",
+        "type": "str"
+      },
+      {
+        "stream": "cnc_device_inventory",
+        "title": "Model",
+        "duration_hours": 1080,
+        "extra_filter": "`item_type` is  \"CHASSIS\"",
+        "group_by": [
+          "device_model"
+        ],
+        "ts_column": "timestamp",
+        "agg": "value_count",
+        "column": "_RDA_Id",
+        "type": "str"
+      },
+      {
+        "stream": "cnc_device_inventory",
+        "title": "SW Versions",
+        "duration_hours": 1080,
+        "extra_filter": "`item_type` is  \"CHASSIS\"",
+        "group_by": [
+          "device_fw_version"
+        ],
+        "ts_column": "timestamp",
+        "agg": "value_count",
+        "column": "_RDA_Id",
+        "type": "str"
+      }
+    ]
   },
   "dashboard_sections": [
     {
-      "title": "snmp details",
+      "title": "Network Devices",
       "show_filter": true,
       "widgets": [
         {
           "widget_type": "label",
-          "max_width": 12,
-          "height": 0.5,
+          "label": "<div style='text-align:center;width:100%;'><h1><a style='text-decoration:none;color:#0066ff;' target='_blank'> Network Devices </a></h1></div>",
           "min_width": 12,
-          "label": "<div style='text-align:center;width:100%;'><h1><a style='text-decoration:none;color:#0066ff;' target='_blank'>Device SNMP Traps</a></h1></div>",
-          "widget_id": "33317e49"
+          "height": 0.4,
+          "max_width": 12,
+          "widget_id": "dd3ae8ae"
         },
         {
-          "title": "Total Traps",
+          "title": "Total Devices",
           "widget_type": "custom_counter",
-          "formatter": "DescriptiveCountFormatter",
-          "stream": "snmp_trap_event_stream_all",
+          "duration_hours": 1080,
+          "stream": "cnc_device_inventory",
           "ts_column": "timestamp",
-          "column": "_id",
+          "column": "_RDA_Id",
           "agg": "value_count",
-          "type": "int",
-          "max_width": 2,
-          "height": 4,
-          "min_width": 2,
-          "style": {
-            "color-list": [
-              "#215CC3"
-            ]
-          },
-          "widget_id": "df82078f"
-        },
-        {
-          "title": "Unique Traps by OID",
-          "widget_type": "custom_counter",
-          "formatter": "DescriptiveCountFormatter",
-          "stream": "snmp_trap_event_stream_all",
-          "ts_column": "timestamp",
-          "column": "snmpTrapOID",
-          "agg": "cardinality",
-          "type": "int",
-          "max_width": 2,
-          "height": 4,
-          "min_width": 2,
-          "style": {
-            "color-list": [
-              "#21C374"
-            ]
-          },
-          "widget_id": "ed5e8ee0"
-        },
-        {
-          "title": "Distribution by OID",
-          "widget_type": "bar_chart",
-          "stream": "snmp_trap_event_stream_all",
-          "ts_column": "timestamp",
-          "chartProperties": {
-            "yAxisLabel": "Count",
-            "xAxisLabel": "OID",
-            "stacked": true,
-            "legendLocation": "none",
-            "orientation": "vertical"
-          },
-          "group_by": [
-            "snmpTrapOID"
-          ],
-          "column": "_id",
-          "agg": "cardinality",
           "type": "int",
           "min_width": 4,
           "height": 4,
           "max_width": 4,
-          "widget_id": "43799fef"
+          "style": {
+            "color-list": [
+              "#90CAF9"
+            ]
+          },
+          "widget_id": "f0ehB7He"
         },
         {
-          "title": "Traps by IP",
           "widget_type": "pie_chart",
-          "stream": "snmp_trap_event_stream_all",
+          "title": "Devices by Model",
+          "stream": "cnc_device_inventory",
           "ts_column": "timestamp",
-          "column": "rda_gw_client_ip",
+          "extra_filter": "`item_type` is  \"CHASSIS\"",
+          "duration_hours": 1080,
+          "column": "_RDA_Id",
           "agg": "value_count",
           "group_by": [
-            "rda_gw_client_ip"
+            "device_model"
           ],
           "type": "str",
           "min_width": 4,
           "height": 4,
           "max_width": 4,
-          "widget_id": "5d627f3e"
+          "widget_id": "45ecc884"
         },
         {
-          "title": "SNMP Traps",
+          "widget_type": "pie_chart",
+          "title": "Devices by SW Versions",
+          "stream": "cnc_device_inventory",
+          "extra_filter": "`item_type` is  \"CHASSIS\"",
+          "ts_column": "timestamp",
+          "duration_hours": 1080,
+          "column": "_RDA_Id",
+          "agg": "value_count",
+          "group_by": [
+            "device_fw_version"
+          ],
+          "type": "str",
+          "min_width": 4,
+          "height": 4,
+          "max_width": 4,
+          "widget_id": "00a5203d"
+        },
+        {
+          "title": "Devices by Model and Version",
+          "widget_type": "multi_bar_chart",
+          "stream": "cnc_device_inventory",
+          "ts_column": "timestamp",
+          "extra_filter": "`item_type` is  \"CHASSIS\"",
+          "duration_hours": 1080,
+          "group_by": [
+            "device_fw_version",
+            "device_model"
+          ],
+          "chartProperties": {
+            "yAxisLabel": "Count",
+            "xAxisLabel": "Model",
+            "stacked": true,
+            "legendLocation": "right",
+            "orientation": "vertical"
+          },
+          "min_width": 12,
+          "height": 4,
+          "max_width": 12,
+          "column": "_RDA_Id",
+          "agg": "value_count",
+          "widget_id": "2O4VqY3d"
+        },
+        {
+          "title": "Network Devices",
           "widget_type": "tabular",
+          "duration_hours": 1080,
+          "showRowSummary": true,
+          "query": "*",
           "max_width": 12,
           "height": 8,
           "min_width": 12,
-          "stream": "snmp_trap_event_stream_all",
+          "stream": "cnc_device_inventory",
           "ts_column": "timestamp",
-          "resizableColumns": true,
-          "max_rows": 100,
-          "showRowSummary": true,
-          "sorting": [
-            {
-              "timestamp": "desc"
-            }
-          ],
           "remote_searchable": true,
           "remote_searchable_cols": [
-            "rda_gw_client_ip",
-            "snmpTrapName",
-            "snmpTrapOID"
+            "device_ip",
+            "device_serial_number",
+            "device_family",
+            "device_fw_version"
           ],
           "columns": {
-            "timestamp": "Timestamp",
-            "rda_gw_client_ip": "Device",
-            "snmpTrapOID": "SNMP Trap OID",
-            "snmpTrapName": "SNMP Trap Name",
-            "snmpTrapDescription": "SNMP Trap Description",
-            "message": "Message",
-            "vb_oid_1": "SNMP OID 1",
-            "vb_value_1": "SNMP Value 1",
-            "vb_oid_2": "SNMP OID 2",
-            "vb_value_2": "SNMP Value 2"
+            "device_hostname": {
+              "title": "Device Name",
+              "type": "TEXT",
+              "key": true
+            },
+            "device_ip": {
+              "title": "IP Address",
+              "type": "TEXT",
+              "key": true
+            },
+            "device_model": {
+              "title": "Model",
+              "type": "TEXT",
+              "key": true
+            },
+            "clli_code": {
+              "title": "CLLI Code",
+              "type": "TEXT",
+              "key": true
+            },
+            "product_type": {
+              "title": "Product Type",
+              "type": "TEXT",
+              "visible": true
+            },
+            "device_family": {
+              "title": "Family",
+              "type": "TEXT",
+              "visible": true
+            },
+            "device_fw_version": {
+              "title": "SW Version",
+              "type": "TEXT",
+              "visible": true
+            },
+            "device_fw_type": {
+              "title": "OS Type",
+              "type": "TEXT",
+              "visible": true
+            }
           },
-          "widget_id": "46a6b5b6"
+          "actions": [
+            {
+              "permission": "rda:user_dashboard:view",
+              "appName": "user-dashboard/device_inventory",
+              "drillDownLinkField": "device_hostname",
+              "identifier": "launch.dashboard.device_inventory",
+              "selectionType": "SINGLE",
+              "title": "Node Details",
+              "contextParamList": {
+                "contextParams": [
+                  {
+                    "paramKey": "device_ip",
+                    "paramId": "a_asset_ip_address"
+                  },
+                  {
+                    "paramKey": "device_hostname",
+                    "paramId": "a_device_hostname"
+                  }
+                ]
+              },
+              "type": "GO_TO_APP_STATE"
+            }
+          ],
+          "widget_id": "fac6548b"
         }
       ]
     }
   ],
-  "dashboard_type": "template",
-  "dashboard_pages": [],
   "pstream_dashboards": [
     {
-      "title": "snmp details",
+      "title": "Network Devices",
       "show_filter": true,
       "widgets": [
         {
           "widget_type": "label",
-          "max_width": 12,
-          "height": 0.5,
+          "label": "<div style='text-align:center;width:100%;'><h1><a style='text-decoration:none;color:#0066ff;' target='_blank'> Network Devices </a></h1></div>",
           "min_width": 12,
-          "label": "<div style='text-align:center;width:100%;'><h1><a style='text-decoration:none;color:#0066ff;' target='_blank'>Device SNMP Traps</a></h1></div>",
-          "widget_id": "33317e49"
+          "height": 0.4,
+          "max_width": 12,
+          "widget_id": "dd3ae8ae"
         },
         {
-          "title": "Total Traps",
+          "title": "Total Devices",
           "widget_type": "custom_counter",
-          "formatter": "DescriptiveCountFormatter",
-          "stream": "snmp_trap_event_stream_all",
+          "duration_hours": 1080,
+          "stream": "cnc_device_inventory",
           "ts_column": "timestamp",
-          "column": "_id",
+          "column": "_RDA_Id",
           "agg": "value_count",
-          "type": "int",
-          "max_width": 2,
-          "height": 4,
-          "min_width": 2,
-          "style": {
-            "color-list": [
-              "#215CC3"
-            ]
-          },
-          "widget_id": "df82078f"
-        },
-        {
-          "title": "Unique Traps by OID",
-          "widget_type": "custom_counter",
-          "formatter": "DescriptiveCountFormatter",
-          "stream": "snmp_trap_event_stream_all",
-          "ts_column": "timestamp",
-          "column": "snmpTrapOID",
-          "agg": "cardinality",
-          "type": "int",
-          "max_width": 2,
-          "height": 4,
-          "min_width": 2,
-          "style": {
-            "color-list": [
-              "#21C374"
-            ]
-          },
-          "widget_id": "ed5e8ee0"
-        },
-        {
-          "title": "Distribution by OID",
-          "widget_type": "bar_chart",
-          "stream": "snmp_trap_event_stream_all",
-          "ts_column": "timestamp",
-          "chartProperties": {
-            "yAxisLabel": "Count",
-            "xAxisLabel": "OID",
-            "stacked": true,
-            "legendLocation": "none",
-            "orientation": "vertical"
-          },
-          "group_by": [
-            "snmpTrapOID"
-          ],
-          "column": "_id",
-          "agg": "cardinality",
           "type": "int",
           "min_width": 4,
           "height": 4,
           "max_width": 4,
-          "widget_id": "43799fef"
+          "style": {
+            "color-list": [
+              "#90CAF9"
+            ]
+          },
+          "widget_id": "f0ehB7He"
         },
         {
-          "title": "Traps by IP",
           "widget_type": "pie_chart",
-          "stream": "snmp_trap_event_stream_all",
+          "title": "Devices by Model",
+          "stream": "cnc_device_inventory",
           "ts_column": "timestamp",
-          "column": "rda_gw_client_ip",
+          "extra_filter": "`item_type` is  \"CHASSIS\"",
+          "duration_hours": 1080,
+          "column": "_RDA_Id",
           "agg": "value_count",
           "group_by": [
-            "rda_gw_client_ip"
+            "device_model"
           ],
           "type": "str",
           "min_width": 4,
           "height": 4,
           "max_width": 4,
-          "widget_id": "5d627f3e"
+          "widget_id": "45ecc884"
         },
         {
-          "title": "SNMP Traps",
+          "widget_type": "pie_chart",
+          "title": "Devices by SW Versions",
+          "stream": "cnc_device_inventory",
+          "extra_filter": "`item_type` is  \"CHASSIS\"",
+          "ts_column": "timestamp",
+          "duration_hours": 1080,
+          "column": "_RDA_Id",
+          "agg": "value_count",
+          "group_by": [
+            "device_fw_version"
+          ],
+          "type": "str",
+          "min_width": 4,
+          "height": 4,
+          "max_width": 4,
+          "widget_id": "00a5203d"
+        },
+        {
+          "title": "Devices by Model and Version",
+          "widget_type": "multi_bar_chart",
+          "stream": "cnc_device_inventory",
+          "ts_column": "timestamp",
+          "extra_filter": "`item_type` is  \"CHASSIS\"",
+          "duration_hours": 1080,
+          "group_by": [
+            "device_fw_version",
+            "device_model"
+          ],
+          "chartProperties": {
+            "yAxisLabel": "Count",
+            "xAxisLabel": "Model",
+            "stacked": true,
+            "legendLocation": "right",
+            "orientation": "vertical"
+          },
+          "min_width": 12,
+          "height": 4,
+          "max_width": 12,
+          "column": "_RDA_Id",
+          "agg": "value_count",
+          "widget_id": "2O4VqY3d"
+        },
+        {
+          "title": "Network Devices",
           "widget_type": "tabular",
+          "duration_hours": 1080,
+          "showRowSummary": true,
+          "query": "*",
           "max_width": 12,
           "height": 8,
           "min_width": 12,
-          "stream": "snmp_trap_event_stream_all",
+          "stream": "cnc_device_inventory",
           "ts_column": "timestamp",
-          "resizableColumns": true,
-          "max_rows": 100,
-          "showRowSummary": true,
-          "sorting": [
-            {
-              "timestamp": "desc"
-            }
-          ],
           "remote_searchable": true,
           "remote_searchable_cols": [
-            "rda_gw_client_ip",
-            "snmpTrapName",
-            "snmpTrapOID"
+            "device_ip",
+            "device_serial_number",
+            "device_family",
+            "device_fw_version"
           ],
           "columns": {
-            "timestamp": "Timestamp",
-            "rda_gw_client_ip": "Device",
-            "snmpTrapOID": "SNMP Trap OID",
-            "snmpTrapName": "SNMP Trap Name",
-            "snmpTrapDescription": "SNMP Trap Description",
-            "message": "Message",
-            "vb_oid_1": "SNMP OID 1",
-            "vb_value_1": "SNMP Value 1",
-            "vb_oid_2": "SNMP OID 2",
-            "vb_value_2": "SNMP Value 2"
+            "device_hostname": {
+              "title": "Device Name",
+              "type": "TEXT",
+              "key": true
+            },
+            "device_ip": {
+              "title": "IP Address",
+              "type": "TEXT",
+              "key": true
+            },
+            "device_model": {
+              "title": "Model",
+              "type": "TEXT",
+              "key": true
+            },
+            "clli_code": {
+              "title": "CLLI Code",
+              "type": "TEXT",
+              "key": true
+            },
+            "product_type": {
+              "title": "Product Type",
+              "type": "TEXT",
+              "visible": true
+            },
+            "device_family": {
+              "title": "Family",
+              "type": "TEXT",
+              "visible": true
+            },
+            "device_fw_version": {
+              "title": "SW Version",
+              "type": "TEXT",
+              "visible": true
+            },
+            "device_fw_type": {
+              "title": "OS Type",
+              "type": "TEXT",
+              "visible": true
+            }
           },
-          "widget_id": "46a6b5b6"
+          "actions": [
+            {
+              "permission": "rda:user_dashboard:view",
+              "appName": "user-dashboard/device_inventory",
+              "drillDownLinkField": "device_hostname",
+              "identifier": "launch.dashboard.device_inventory",
+              "selectionType": "SINGLE",
+              "title": "Node Details",
+              "contextParamList": {
+                "contextParams": [
+                  {
+                    "paramKey": "device_ip",
+                    "paramId": "a_asset_ip_address"
+                  },
+                  {
+                    "paramKey": "device_hostname",
+                    "paramId": "a_device_hostname"
+                  }
+                ]
+              },
+              "type": "GO_TO_APP_STATE"
+            }
+          ],
+          "widget_id": "fac6548b"
         }
       ]
     }
