@@ -1,35 +1,14 @@
 @dm:empty
+ --> @dm:recall name='att_mobility_rma'
+ --> @dm:fixcolumns
+ --> @dm:to-type columns="product_total_rma_2024_count,product_total_rma_2025_count,product_total_stock_forecast" and type="int"
+ --> @dm:save name="temp-rma-devices"
  --> @c:new-block
- --> @rn:read-stream name = 'snmp_trap_event_stream' & group = '06_14_2023'
- --> @dm:map-snmp-trap-to-alert template_folder="trap2alert2"
- ## For now, process this only for cml devices
-
- --> *dm:filter rda_gw_client_ip contains '9.3.252'
- ## Handle OSPF NBR CHANGE traps
-
- --> *exec:if-condition snmpTrapName is 'ospfNbrStateChange'
- --> @dm:eval link_type="'OSPF'"
- --> @dm:save name="temp-ospf-raw-trap"
- --> #dm:query-persistent-stream left_id is '{{row.device}}' and neighbor_id="{{row.ospfNbrRtrId}}" and timestamp is after -1440 hours with-input name="cml_topo_edges" and limit="1" and max_rows="1"
- --> @dm:selectcolumns include="^left_id$|^right_id$"
- ## -->  @dm:eval left_id="left_id.strip()"
-
- --> @dm:map attr="left_id" & func="strip"
- --> @dm:eval dict_name = "'temp-topo-data'"
- --> @rn:write-stream name = 'new_cml_snmp_trap_alerts_debug'
- --> @dm:save name="temp-topo-data"
- --> @dm:recall name="temp-ospf-raw-trap"
- --> @dm:selectcolumns include="^device$"
- ## -->  @dm:eval device="device.strip()"
-
- --> @dm:map attr="device" & func="strip"
- --> @dm:eval dict_name = "'current'"
- --> @rn:write-stream name = 'new_cml_snmp_trap_alerts_debug'
- --> @dm:enrich dict="temp-topo-data"
-and src_key_cols="device"
-and dict_key_cols="left_id"
-and enrich_cols="right_id"
-and enrich_cols_as="remote_ip_new"
- --> @dm:eval dict_name = "'final'"
- --> @rn:write-stream name = 'new_cml_snmp_trap_alerts_debug'
- --> @exec:end-if
+ --> @dm:empty
+ --> @dm:addrow name="edc_customer_inventory" & limit = '0' and sort_by_col='timestamp' and sort_type='desc'
+ --> #dm:query-persistent-stream project_name = 'ATT-Mobility'
+ --> @dm:selectcolumns exclude ="product_total_rma_2024_count|product_total_rma_2025_count|product_total_stock_forecast|product_id_rma_2025|product_id_rma_2024"
+ --> @dm:enrich dict="temp-rma-devices" and src_key_cols="product_id" and dict_key_cols="product_id" and enrich_cols="product_total_rma_2024_count,product_total_rma_2025_count,product_total_stock_forecast" and case_insensitive="yes"
+ --> @dm:fixnull columns="product_total_rma_2024_count,product_total_rma_2025_count,product_total_stock_forecast" and value=0 and apply_for_empty="yes"
+ --> @dm:save name="temp-devices"
+ --> @rn:write-stream name='edc_customer_inventory' and direct_to_opensearch="yes"
