@@ -1,26 +1,15 @@
+@dm:empty
+ --> @exec:get-input
+ ## --> @dm:save name='stream-input'
 
- ## declaring thrid level child pipelines
-@c:new-block
- --> @dm:empty
- --> @exec:define-function name="define_child_pipelines"
- --> @exec:run-pipeline name ="edc_generate_token" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_sw_get_data" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_sweol_enrich" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_processing_sw_data" & ignore_failures = "no"
- --> @exec:end-function
- --> @dm:empty
- --> @dm:addrow name='edc_cust_pid_sw' and limit=0
- --> #dm:query-persistent-stream
- --> *dm:filter product_id is not null and sw_version is not null and sw_os_type is not null and contract_number is not null
- --> @dm:add-missing-columns columns="source" and value='software'
- --> @dm:save name='added-minio-file'
- --> @exec:run-pipeline name ="edc_sw_run_scan" & ignore_failures = "no"
- --> @dm:save name='temp-edc-sw-run-scan-op-exploded'
- --> @c:new-block
- --> @dm:recall name='temp-edc-sw-run-scan-op-exploded'
- --> @rn:write-stream name='edc_sw_raw_data'
- ## calling the enrich pipeline
+ --> @dm:save name='temp-generate_token_creds'
+ ## Generate token
 
- --> @c:new-block
- --> @dm:recall name='temp-edc-sw-run-scan-op-exploded'
- --> @exec:run-pipeline name='edc_sweol_enrich' and ignore_failures = "no"
+ --> @c:data-loop columns='content_type,client_secret,client_id,grant_type' and dataset='temp-generate_token_creds'
+ --> @restclient:read url="https://int-id.cisco.com/oauth2/aussduh26AoUqMpmQ1d6/v1/token?grant_type=$grant_type&client_id=$client_id&client_secret=$client_secret" and
+`method`="POST" and
+`Content-Type`='$content_type' and
+`Accept`='*/*'
+ --> @dm:eval key="'key'"
+ --> @dm:save name="temp-token"
+ --> @dm:save name='test-token'
