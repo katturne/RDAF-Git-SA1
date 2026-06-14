@@ -1,26 +1,20 @@
-
- ## declaring thrid level child pipelines
 @c:new-block
  --> @dm:empty
- --> @exec:define-function name="define_child_pipelines"
- --> @exec:run-pipeline name ="edc_generate_token" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_sw_get_data" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_sweol_enrich" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_processing_sw_data" & ignore_failures = "no"
- --> @exec:end-function
- --> @dm:empty
- --> @dm:addrow name='edc_cust_pid_sw' and limit=0
- --> #dm:query-persistent-stream
- --> *dm:filter product_id is not null and sw_version is not null and sw_os_type is not null and contract_number is not null
- --> @dm:add-missing-columns columns="source" and value='software'
- --> @dm:save name='added-minio-file'
- --> @exec:run-pipeline name ="edc_sw_run_scan" & ignore_failures = "no"
- --> @dm:save name='temp-edc-sw-run-scan-op-exploded'
- --> @c:new-block
- --> @dm:recall name='temp-edc-sw-run-scan-op-exploded'
- --> @rn:write-stream name='edc_sw_raw_data'
- ## calling the enrich pipeline
+ ## Get submitted form fields
 
+ --> @exec:get-input
+ ## Exclude label as it contains unneeded info that should not be written to stream later
+
+ --> @dm:selectcolumns exclude='.*_label'
+ --> @dm:save name='temp-input_data'
+ --> @dm:selectcolumns include="sweox_csv"
+ --> @dm:explode-json column="sweox_csv"
+ --> @dm:save name="temp-input-dataset"
  --> @c:new-block
- --> @dm:recall name='temp-edc-sw-run-scan-op-exploded'
- --> @exec:run-pipeline name='edc_sweol_enrich' and ignore_failures = "no"
+ --> @c:data-loop dataset="temp-input-dataset" and columns="bucketName,objectName"
+ --> @dm:recall name="temp-input-dataset"
+ --> @dm:skip-block-if-shape row_count=0
+ --> @dm:get-from-location path="$bucketName/$objectName"
+ --> @dm:save name="temp-uploaded-file-data"
+ --> @dm:save name="uploaded-sweox-data"
+ --> @rn:write-stream name="test1-stream-input"

@@ -1,8 +1,14 @@
 @dm:empty
- --> @dm:addrow name='edc_oi_inventory_enriched' and limit=0
- --> #dm:query-persistent-stream
- --> @dm:save name='temp-edc-oi-inv-enriched'
- --> @c:new-block
- --> @dm:recall name='temp-edc-oi-inv-enriched'
- --> @dm:selectcolumns exclude='^(EndOfLifeInternalAnnouncementDate|EndOfLastHardwareShipDate|EndOfHardwareNewServiceAttachmentDate|EndOfHardwareRoutineFailureAnalysisDate|EndOfBUEngineeringSupportTACDate|EndOfHardwareServiceContractRenewalDate|EndOfSignatureReleasesDate|EndOfSoftwareAvailabilityDate|EndOfSoftwareLicenseAvailabilityDate|created|customerVisible|external_text|external_title|firstIcAlertId|groups|icIssueId|icProblemId|ignored|lastIcAlertId|eoXAlertType|name|openedOn|resultType|severity|severityText|state|updated|deviceSN|runType|filename|icType|atticaStatus|cdetsList|retry|associatedGroups)$'
- --> @rn:write-stream name='edc_oi_inventory_enriched'
+ --> @dm:recall name="10dataset"
+ --> @dm:save name="test-status"
+ --> @dm:sleep seconds = 20
+ --> #dm:query-persistent-stream pipeline_name is "swdata-status-test" with-input name="rda_system_worker_traces"
+ --> @dm:sort columns = 'timestamp' and order = "descending"
+ --> @dm:head n = 1
+ --> @dm:selectcolumns include = 'status_type|pipeline_name|jobid|timestamp'
+ --> @dm:save name="temp-tempo"
+ --> @dm:recall name="temp-tempo"
+ --> @dm:enrich dict ="temp1-temp" & src_key_cols="pipeline_name" & dict_key_cols="pipeline_name" &
+enrich_cols="USER_ID,proj_name,customer_name"
+ --> @dm:save name="temp1-temp" and append="no"
+ --> @rn:write-stream name = "status-stream"
