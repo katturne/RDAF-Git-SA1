@@ -1,117 +1,40 @@
-%% stream = no and limit = 0
-%%template_type="jinja"
 
-%%start_inline_object name="context_dynamic_form" and type="data" and format="json"
-{
-    "formFieldList": [
-        {
-            "fieldId": "customer_tag",
-            "label": "Tag of the customer",
-            "required": false,
-            "dataType": "string"
-        }
-    ]
-}
-%%end_inline_object
+ ## Pipeline to add Sec Adv data to inventory
 
+ ## Sec Adv data comes from data processed from NP. It is already formatted and should include
+
+ ## columns: cusctomer_name, project_name
 @dm:empty
-    --> @dm:save name = "temp-customer-context"
+ --> @dm:recall name='edc_project_product_alerts'
+ --> *dm:filter project_name =="ATT-Mobility" and customer_name == "ATT"
+ --> *dm:filter serial_number is not Null
+ --> @dm:fixnull columns="secAdv_bulletinFirstPublished,secAdv_bulletinLastUpdated,secAdv_bulletinMappingCaveat,secAdv_bulletinSummary,secAdv_bulletinTitle,secAdv_bulletinUrl,secAdv_bulletinVersion,secAdv_ciscoBugIds,secAdv_cveId,secAdv_cvssBase,secAdv_cvssTemporal,secAdv_match_confidence,secAdv_match_confidence_reason,secAdv_psirtAdvisoryId,secAdv_psirtColdId,secAdv_psirt_advisory_id,secAdv_psirt_cold_id,secAdv_securityImpactRating" and value="Not Available" and apply_for_empty="yes"
+ --> @dm:eval secAdv_confidence_score = " 100 if secAdv_match_confidence == 'Vulnerable' else 99 if secAdv_match_confidence == 'Potentially Vulnerable' else 98 if secAdv_match_confidence == 'Not Vulnerable' else 0"
+ --> @dm:eval secAdv_impact_score = "100 if secAdv_securityImpactRating == 'Critical' else 99 if secAdv_securityImpactRating == 'High' else 98 if secAdv_securityImpactRating == 'Medium' else 97 if secAdv_securityImpactRating == 'Low' else 0"
+ --> @dm:manipulate-string from="customer_name,project_name,secAdv_psirtColdId,serial_number" and func="concat_columns" and to="unique_key" and value="_"
+ --> @dm:selectcolumns exclude="secAdv_count"
+ --> @dm:save name='temp-productAlerts-secAdv-details'
+ --> @rn:write-stream name="edc_customer_productAlerts"
+ --> @c:new-block
+ --> @dm:empty
+ --> @dm:addrow name="edc_customer_inventory" & limit = '0' and sort_by_col='timestamp' and sort_type='desc'
+ --> #dm:query-persistent-stream project_name is 'ATT-Mobility' and customer_name is 'ATT' and match_inv in ['Only in Network','IB + In Network']
+ --> @dm:save name='temp-customer_inventory'
+ ## Deduping Security Advisories based on matchConfidence priority
 
+ --> @c:new-block
+ --> @dm:recall name="temp-productAlerts-secAdv-details"
+ --> @dm:skip-block-if-shape row_count="0"
+ --> @dm:sort columns='secAdv_confidence_score,secAdv_impact_score' and order='descending'
+ --> @dm:dedup columns='serial_number'
+ --> @dm:save name="temp-pa-sec_adv-device-dedups"
+ ## Merging Inventory with Security Advisories Dataset. Also enrich specific Moblity network attrs
 
-## {% set row = "" %}
-
-      {% if customer_tag %} 
-      {% set customer_id = customer_id %}
-      {% set customer_tag = customer_tag %}
-      {% set customerTag = customer_tag %}
-      {% set customerId = customer_id %}
-   {% elif customerTag %} 
-      {% set customer_id = customerId %}
-      {% set customer_tag = customerTag %}
-   {% else %}
-      {% set customer_id = '' %}
-      {% set customer_tag = '' %}
-   {% endif %}   
-
-
---> @c:new-block
-    --> @dm:empty
-    --> @exec:get-input
-   ## --> @dm:save name="temp-input-devices"
-   --> @dm:eval key ="'key'" 
-   --> @dm:save name ="temp-input-data"
-    --> @dm:save name ="temp-input-dataset"
-     {% if customer_tag %} 
-         --> @dm:save name="{{customer_tag}}-network-import-devices"
-    {% else %}
-        --> @dm:save name="network-import-devices"
-    {% endif %}
-
-
---> @c:new-block
-    {% if customer_tag %} 
-         --> @dm:recall name="{{customer_tag}}-network-import-devices"
-    {% else %}
-        --> @dm:recall name="network-import-devices"
-    {% endif %} 
-    --> @dm:replace-data columns="fileUpload" and expr="'" and replace='"'
-    --> @dm:to-type columns="replace" and type="str"
-    --> @dm:explode-json column="fileUpload"
-    --> @dm:save name ="temp-input-dataset"
-
-
-    --> @c:new-block
-    --> @dm:empty
-    {% if customer_tag %} 
-         --> #dm:query-persistent-stream customer_tag is '{{customer_tag}}' with-input name = "discovery" & limit = "0"
-    {% else %} 
-        --> #dm:query-persistent-stream customer_tag is empty with-input name = "discovery" & limit = "0"
-    {% endif %} 
-    
-    --> @dm:save name ="temp-customer-old-data"
-
---> @c:new-block
-
---> @c:data-loop dataset="temp-input-dataset" and columns="bucketName,objectName"
-    --> @dm:recall name="temp-input-dataset"
-    --> *dm:filter replace=="True"
-    --> @dm:skip-block-if-shape row_count="0"
-    --> @dm:get-from-location path="$bucketName/$objectName"
-    ## --> @dm:tail n = 1
-    --> @dm:check-columns must_contain="device_ip" and action="fail"
-    --> @dm:dedup columns="device_ip"
-    --> @dm:save name="temp-uploaded-file-data"
-    ##--> @dm:save name="$dataset_name"
-    ##--> @dm:save  name="test-discovery2"
-    --> @dm:eval key ="'key'" 
-  ## --> @dm:eval customer_tag ="'{{customer_tag}}'"
-  ##     --> @dm:eval customer_id ="'{{customer_id}}'"
-                --> @dm:enrich dict = "temp-input-data" & src_key_cols = "key" & dict_key_cols="key" & enrich_cols = "customer_tag,customer_id"
-
-      ##--> @dm:save  name="test-discovery"
-
-    --> @rn:write-stream name="discovery"
-    --> @dm:skip-pipeline-if-shape row_count > 0
-
---> @c:new-block
-
---> @c:data-loop dataset="temp-input-dataset" and columns="bucketName,objectName"
-    --> @dm:recall name="temp-input-dataset"
-    --> *dm:filter replace=="False"
-    --> @dm:skip-block-if-shape row_count="0"
-    --> @dm:get-from-location path="$bucketName/$objectName"
-    --> @dm:check-columns must_contain="device_ip" and action="fail"
-    ## --> @dm:head n = 1
-    --> @dm:save name="temp-uploaded-file-data"
-    --> @dm:recall name ="temp-customer-old-data"
-    --> @dm:save name="temp-uploaded-file-data" and append= "yes"
-    --> @dm:recall name="temp-uploaded-file-data"
-    --> @dm:dedup columns="device_ip"
-   ## --> @dm:save name="$dataset_name"
-    --> @dm:eval key ="'key'" 
-   ## --> @dm:eval customer_tag ="'{{customer_tag}}'"
-   ##    --> @dm:eval customer_id ="'{{customer_id}}'"
-          --> @dm:enrich dict = "temp-input-data" & src_key_cols = "key" & dict_key_cols="key" & enrich_cols = "customer_tag,customer_id"
-
-    --> @rn:write-stream name="discovery"
-
+ --> @c:new-block
+ --> @dm:recall name='temp-customer_inventory'
+ --> @dm:enrich dict="temp-pa-sec_adv-device-dedups" and src_key_cols="serial_number" and dict_key_cols="serial_number" and enrich_cols="secAdv_match_confidence,secAdv_securityImpactRating" and replace_values="yes"
+ --> @dm:add-missing-columns columns="secAdv_match_confidence,secAdv_securityImpactRating"
+ --> @dm:fixnull columns="secAdv_match_confidence,secAdv_securityImpactRating" and value="Not Available" and apply_for_empty="yes"
+ --> @dm:gc
+ --> @dm:save name='temp-bcs-inventory-data'
+ --> @rn:write-stream name="edc_customer_inventory"
