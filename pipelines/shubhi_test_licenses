@@ -1,58 +1,125 @@
 @c:new-block
- --> @dm:empty
- --> @dm:addrow name='edc_cust_pid_sw' and limit=5
- --> #dm:query-persistent-stream
- --> @dm:add-missing-columns columns="key" and value='key'
- --> @dm:add-missing-columns columns="source" and value='software'
- --> @dm:save name='temp-sw-data'
- --> @dm:save name='added-sw-data'
- --> @c:new-block
- --> @dm:empty
- --> @exec:define-function name="generate_access_token"
- --> @dm:recall name='generate_token_creds'
- ## --> @dm:empty
+ --> @dm:recall name="edc_license_domains"
+ --> @dm:save name='temp-cust-domains'
+ ## Collect data
 
- --> @exec:run-pipeline name ="edc_generate_token" & ignore_failures = "no"
- ## --> @dm:addrow key='key'
+ --> @c:data-loop columns='top_level_domain,customer' and dataset='temp-cust-domains'
+ --> @snowflake:native-query dbname is "CX_DB" and warehouse is "CX_DMP_RPT_WH" and query is "SELECT * FROM CX_DB.CX_LCANALYTICS_BR.MT_BV_LIC_ALL_OPP_F WHERE TOP_LEVEL_DOMAIN = '$top_level_domain';"
+ --> @dm:add-missing-columns columns="execution_status"
+ --> *dm:filter execution_status =="Success"
+ --> @dm:skip-block-if-shape column_count = 3
+ --> @dm:rename-columns license="feature_name"
+ --> @dm:fixnull columns = 'license_class,licensed_feature_key,pak_item_id,license,domain_name,smart_account_name,virtual_account_name,license_type,product_family,license_sku,subscription_reference_id,business_entity,sub_business_entity' and value='NA' and apply_for_empty="yes"
+ --> @dm:fixnull columns = 'license_start_date,license_end_date' and value = '1970-01-01T00:00:01' and apply_for_empty="yes"
+ --> @dm:to_type columns = 'consumed_quantity,entitled_quantity' & type  = 'int'
+ --> @dm:change-time-format columns="license_start_date,license_end_date" and from_format="datetimestr" and to_format="%Y-%m-%d"
+ --> @dm:rename-columns licenseType="license_type" &
+startDate="license_start_date" &
+endDate="license_end_date" &
+subscriptionId="subscription_reference_id" &
+licenseSku="license_sku" &
+smart_account_key="smart_accounts_key"
+ --> @dm:manipulate-string to="customer_name" and func="eval" and value="'$customer'"
+ --> @dm:selectcolumns exclude="attempt_count|execution_reason|execution_status"
+ --> @dm:eval unique_key = "str(customer_name) + str(smart_account_key) +str(virtual_account_key)+  str(licensed_feature_key) +str(endDate) +str(startDate) +str(licenseSku) + str(subscriptionId) +str(license_entitlement_key)"
+ --> @dm:save name="temp-shubhi-both" and append = "yes"
+ --> @dm:save name="shubhi-both" and append = "yes"
+ ## consolidate consumption into single record for smtAcct-virtualAcct-licensedFeature
 
- --> @dm:add-missing-columns columns="key" and value='key'
- --> @dm:eval current_time_ms="int(time_now_as_ms())"
- --> @dm:eval token_expiry_time='current_time_ms+30000'
- --> @dm:save name='temp-expiry-time'
- --> @exec:end-function
  --> @c:new-block
- --> @dm:recall name='temp-sw-data'
- --> @dm:add-missing-columns columns="key" and value='key'
- --> @dm:manipulate-string from="sw_version,sw_os_type,product_id" and func="concat_columns" and to="unique_payload_inputs"
- --> @dm:dedup columns ='unique_payload_inputs'
- --> @dm:counter
- --> @dm:save name='temp-unique-sw-data'
- --> @dm:save name='unique-added-sw-data'
- --> @c:new-block
- --> @dm:empty
- --> @exec:call-function name='generate_access_token'
- --> @c:data-loop columns='sw_version,sw_os_type,product_id,source,COUNTER' and dataset='temp-unique-sw-data'
- ## --> @dm:recall name='temp-unique-sw-data'
+ --> @dm:recall name="temp-shubhi-both"
+ --> @dm:selectcolumns include="customer_name|domain_name|smart_account_name|smart_account_key|virtual_account_key|virtual_account_name|licensed_feature_key|pak_item_id|^license$|license_class|consumed_quantity"
+ --> @dm:groupby columns="customer_name,domain_name,smart_account_name,smart_account_key,virtual_account_name,virtual_account_key,licensed_feature_key,pak_item_id,license,license_class" and agg='sum'
+ --> @dm:save name="temp-license_consumed_grp-shubhi"
+ ## Build dict for License to Business Entity
 
- --> @dm:empty
- --> @dm:addrow key='key'
- --> @dm:eval current_time_ms_loop="int(time_now_as_ms())"
- --> @dm:save name='temp-loop-time'
- --> @dm:save name='test-loop-time'
- --> @dm:enrich dict='temp-expiry-time' and src_key_cols='key' and dict_key_cols='key' and enrich_cols='token_expiry_time,access_token,expires_in,token_type' and replace_values='yes'
- --> *exec:if-condition token_expiry_time is null or current_time_ms_loop  is greater than or equal to token_expiry_time
- --> @exec:call-function name='generate_access_token'
- --> @exec:end-if
- --> @dm:recall name='temp-expiry-time'
- --> @dm:add-missing-columns columns='sw_version' and value='$sw_version'
- --> @dm:add-missing-columns columns='sw_os_type' and value='$sw_os_type'
- --> @dm:eval sw_os_type="('IOS XR' if sw_os_type=='IOS-XR' else sw_os_type)"
- --> @dm:add-missing-columns columns='product_id' and value='$product_id'
- --> @dm:add-missing-columns columns='source' and value='$source'
- --> @exec:run-pipeline name ="edc_sw_get_data" & ignore_failures = "no"
- --> @dm:save name='temp-token'
- --> @dm:selectcolumns exclude='^(access_token)$'
- --> @dm:save name='temp-sweol' and append ='yes'
  --> @c:new-block
- --> @dm:recall name='temp-sweol'
- --> @dm:save name='test-sweol'
+ --> @dm:recall name="temp-shubhi-both"
+ --> *dm:filter business_entity is not 'NA'
+ --> @dm:selectcolumns include="license$|business_entity|sub_business_entity|product_family|license_class"
+ --> @dm:groupby columns="license,business_entity,sub_business_entity,product_family"
+ --> @dm:rename-columns tot_count="license_class" &
+common_BE="business_entity" &
+common_SBE="sub_business_entity" &
+common_product_family="product_family"
+ --> @dm:sort columns="license,tot_count" and order="asc"
+ --> @dm:dedup columns = 'license' and keep="last"
+ --> @dm:selectcolumns exclude="tot_count"
+ --> @dm:save name="temp-business_dict-shubhi"
+ ## # Create expiration column for entitlement
+
+ --> @c:new-block
+ --> @dm:recall name="temp-shubhi-both"
+ --> @dm:fixnull-regex value='NA'
+ --> @dm:eval days_to_expire = " 20000 if licenseType=='PERPETUAL' else (to_datetime(endDate) - utcnow()).days"
+ --> @dm:eval license_end_time = "utcnow()"
+ --> @dm:change-time-format columns="license_end_time" and from_format="datetimestr" and to_format="%A, %m-%d-%Y %I:%M:%S %p %Z"
+ --> @dm:eval license_end_time = "str(license_end_time)+str(    'UTC')"
+ --> @dm:eval expiration_color = " '#79BAEC' if (licenseType =='PERPETUAL' or days_to_expire < -19000 ) else '#BB0000' if (days_to_expire < 90 or days_to_expire == 90) else  '#00BB00' if days_to_expire > 90 else '#b0bec5' "
+ --> @dm:eval sort_number = " '3' if (licenseType =='PERPETUAL' or days_to_expire < -19000) else '1' if (days_to_expire < 90 or days_to_expire == 90) else  '2' if days_to_expire > 90 else '4' "
+ --> @dm:eval expiration_status = " 'Valid Indefinitely' if (licenseType =='PERPETUAL' or days_to_expire < -19000 ) else  'Already Expired' if (days_to_expire< 0  and days_to_expire > -19000)  else  'Expiring within 90 days' if (days_to_expire < 90 or days_to_expire == 90) else 'Expiring after 90 days' if days_to_expire > 90  else 'NA' "
+ ## Enrich with consumption
+
+ --> @dm:fixnull columns = 'consumed_quantity' and value=0 and apply_for_empty="yes"
+ --> @dm:eval available_quantity= "(entitled_quantity - consumed_quantity)"
+ --> @dm:save name="temp-shubhi-both"
+ ## Concatenate
+
+ ## combine the entitled and missing entitled data/ consumption data and saves in the details pstream
+
+ --> @c:new-block
+ --> @dm:concat names="temp-shubhi-both|temp-license_consumption_missing-shubhi"
+ --> @dm:save name = "temp-license_details-shubhi"
+ --> @rn:write-stream name='edc_license_details-shubhi' and direct_to_opensearch="yes"
+ --> @dm:sleep seconds = 5
+ --> @c:new-block
+ ## take all the entitled and not entitled but consume data and added consumed quantuty and BE columns, saved all to a dataset
+
+ ## availability calc
+
+ --> @dm:recall name="temp-license_details-shubhi"
+ --> @dm:selectcolumns include="customer_name|smart_account_name|domain_name|smart_account_key|virtual_account_key|virtual_account_name|^license$|license_class|licensed_feature_key|entitled_quantity"
+ --> @dm:groupby columns="customer_name,smart_account_name,domain_name,smart_account_key,virtual_account_key,virtual_account_name,license,license_class,licensed_feature_key" and agg='sum'
+ ## Bring available and consumed
+
+ --> @dm:enrich dict="temp-license_consumed_grp-shubhi" and src_key_cols="customer_name,smart_account_key,virtual_account_key,licensed_feature_key" and dict_key_cols="customer_name,smart_account_key,virtual_account_key,licensed_feature_key" and enrich_cols="consumed_quantity"
+ ## Bring most used business entity for license
+
+ --> @dm:enrich dict="temp-business_dict-shubhi" and src_key_cols="license" and dict_key_cols="license" and enrich_cols="common_BE,common_SBE,common_product_family"
+ --> @dm:fixnull columns = 'consumed_quantity' and value=0 and apply_for_empty="yes"
+ --> @dm:eval available_quantity= "(entitled_quantity - consumed_quantity)"
+ --> @dm:save name="temp-grouping-shubhi"
+ --> @c:new-block
+ ## expiration logic
+
+ --> @dm:recall name="temp-license_details-shubhi"
+ --> @dm:save name = "license_details-shubhi-source"
+ --> @dm:selectcolumns include="customer_name|smart_account_key|virtual_account_key|days_to_expire|licenseType|^license$|licensed_feature_key"
+ --> @dm:groupby columns="customer_name,smart_account_key,virtual_account_key,license,licensed_feature_key" and agg='min'
+ --> @dm:eval exp_status = " 'Valid Indefinitely' if ((licenseType =='PERPETUAL' or days_to_expire < -19000)) else 'One or more Expired Licenses' if (days_to_expire< 0  and days_to_expire > -19000)    else  'Expiring within 90 days' if ((days_to_expire < 90 or days_to_expire == 90)) else 'Expiring after 90 days' if (days_to_expire > 90) else 'NA' "
+ --> @dm:eval sort_number = " '3' if ((licenseType =='PERPETUAL' or days_to_expire < -19000)) else '1' if (days_to_expire< 0  and days_to_expire > -19000)    else  '1' if ((days_to_expire < 90 or days_to_expire == 90)) else '2' if (days_to_expire > 90) else '4' "
+ --> @dm:eval expiration_color = " '#79BAEC' if ((licenseType =='PERPETUAL' or days_to_expire < -19000)) else '#BB0000' if ((days_to_expire < 90 or days_to_expire == 90)) else  '#00BB00' if (days_to_expire > 90) else '#b0bec5'  "
+ --> @dm:save name="temp-grouping2-shubhi"
+ ## Enrich grouping for summary with message for expiration
+
+ ## build a summary of license details with alerts. combines availability and expiration inf and creates alrets for dashboard ig
+
+ --> @c:new-block
+ --> @dm:recall name="temp-grouping-shubhi"
+ --> @dm:enrich dict="temp-grouping2-shubhi" and src_key_cols="customer_name,smart_account_key,virtual_account_key,licensed_feature_key" and dict_key_cols="customer_name,smart_account_key,virtual_account_key,licensed_feature_key" and enrich_cols="exp_status,expiration_color,sort_number"
+ ## evaluate Alerts
+
+ --> @dm:eval alert_status = " 'Licenses Expired' if (exp_status == 'One or more Expired Licenses') else 'Insufficient Licenses' if (available_quantity<0 ) else 'Licenses Expiring'  if (exp_status == 'Expiring within 90 days') else 'NA' "
+ --> @dm:eval alert_color = " '#FF0000' if (exp_status == 'One or more Expired Licenses') else  '#FFA500' if (available_quantity<0 ) else '#F4C430' if (exp_status == 'Expiring within 90 days') else '#b0bec5'  "
+ --> @dm:save name="temp-summary-details-shubhi"
+ --> @c:new-block
+ ## takes the complete data and cleans and pushes to pstream.
+
+ --> @dm:recall name="temp-summary-details-shubhi"
+ --> @dm:eval unique_key = "str(customer_name) + str(smart_account_key) +str(virtual_account_key)+  str(license) +  str(license_class) + str(licensed_feature_key)"
+ --> @dm:eval license_end_time = "utcnow()"
+ --> @dm:change-time-format columns="license_end_time" and from_format="datetimestr" and to_format="%A, %m-%d-%Y %I:%M:%S %p %Z"
+ --> @dm:eval endTime = "str(license_end_time)+str(    'UTC')"
+ --> @dm:fixnull-regex value='NA'
+ --> @rn:write-stream name='edc_license_summary-shubhi' and direct_to_opensearch="yes"
+ --> @dm:sleep seconds = 5
