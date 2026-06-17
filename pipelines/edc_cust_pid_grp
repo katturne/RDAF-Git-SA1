@@ -1,11 +1,28 @@
-folder: NetworkDevicePack
-name: import-customer-devices
-description: test pipeline
-data_path: pipelines/data/import-customer-devices/2024.05.22.2/data.json
-usecase: ''
-category: ''
-sources: {}
-artifacts: {}
-version: 2024.05.22.2
-file_type: json
-checksum: 83d951b6
+
+ ## =========================================
+
+ ## Write to status stream
+
+ ## Save form fields in historical stream
+
+ ## =========================================
+@c:new-block
+ ## Get submitted form fields
+
+ --> @exec:get-input
+ --> @dm:selectcolumns exclude='.*_label'
+ --> @dm:selectcolumns include='customer_list|USER_ID'
+ ## Separate customer
+
+ --> @dm:explode-json column='customer_list'
+ --> @dm:save name='temp-cusomer_pid_form'
+ --> @dm:save name='edc-cusomer_pid_form'
+ --> @c:data-loop dataset="temp-cusomer_pid_form" and columns="customer,USER_ID"
+ --> @dm:empty
+ --> @dm:addrow name="edc_oi_inventory_grouped" and limit=0
+ --> #dm:query-persistent-stream customer_name='$customer' and item_type is 'CHASSIS' and product_type in ['ROUTER','SWITCH','FUNCSYSTM','MULTIPROD']
+ --> *dm:filter contract_number is not NULL
+ --> @dm:selectcolumns include='customer_name|contract_number|product_name|combination_count'
+ --> @dm:addrow user_id="$USER_ID"
+ --> @dm:groupby columns ="customer_name,contract_number,product_name"
+ --> @dm:save name='edc_cust_contract_pid'
