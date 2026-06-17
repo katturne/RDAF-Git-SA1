@@ -1,179 +1,217 @@
 
- ## get the uploaded sw data
-@c:new-block
- --> @exec:get-input
- --> @dm:add-missing-columns columns="key" and value='key'
- --> @dm:add-missing-columns columns="source" and value='software'
- --> @dm:eval sw_os_type="('IOS XR' if sw_os_type=='IOS-XR' else sw_os_type)"
- --> @dm:save name='temp-uploaded-data'
- ## declaring child pipelines
+ ## %% import_src_type = "asset-discovery"
+@exec:get-input
+ --> @dm:eval key="'key'"
+ ## --> @dm:eval credential_pattern = "customer_tag+'.*'"
+
+ --> @dm:save name="temp-input-org-details"
+ ## --> @dm:save name="discovery-input-org-details"
+
+ ## asset-disovery bot
+
+ ## --> @c:data-loop columns="customer_tag,name" and dataset ="temp-input-org-details"
 
  --> @c:new-block
- --> @dm:empty
- --> @exec:define-function name="define_child_pipelines"
- --> @exec:run-pipeline name ="edc_oi_get_product_alerts" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_oi_product_alerts_raw" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_oi_product_alerts_run_scan" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_oi_generate_token" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_oi_process_sw_data" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_oi_get_sweol_data" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_oi_get_security_advisories_data" & ignore_failures = "no"
- --> @exec:end-function
- ## function to generate the access token
+ --> @dm:recall name="temp-input-org-details"
+ --> @dm:dedup columns = 'device_ip'
+ ## --> @dm:save name="discovery-input-org-details"
+
+ ## --> @asset-discovery:collector seed_addresses_col is device_ip and collection_group_rules is "default" and extended_inventory = True and cli_access = True and jobname = "$customer_tag" and credential_patterns =  "$name" and  credential_types = "snmp-cred,device-snmp-v3,device-host-ssh,device-snmpv1v2" and status_stream = "asset_inventory_collection_status_stream"
+
+ ## credential_types = "snmp-cred,device-snmp-v3,device-host-ssh,device-snmpv1v2"
+
+ --> @asset-discovery:collector seed_addresses_col is device_ip and collection_group_rules is "default" and extended_inventory = True and cli_access = True and jobname = "{{row.customer_tag}}" and status_stream = "asset_inventory_collection_status_stream"
+ --> *dm:filter collection_status = 'Success'
+ ## --> @dm:save name = "asset-discovery-output"
+
+ --> @dm:save name = "temp-asset-discovery-output" & append = "yes"
+ ## --> @dm:enrich-conditional dict is 'temp-input-org-details' and condition is 'device_ip == "$target_ip"'
+
+ ## --> *dm:filter device_ip is not empty
+
+ --> @dm:selectcolumns exclude = "^device_ip$|^discovery_scope$|^key$|^ds_name$|^name$"
+ --> @dm:save name = "temp-collection-status"
+ ## asset discovery collection
 
  --> @c:new-block
- --> @dm:empty
- --> @exec:define-function name="generate_access_token"
- --> @dm:recall name='generate_token_creds'
- --> @exec:run-pipeline name ="edc_oi_generate_token" & ignore_failures = "no"
- --> @dm:addrow key='key'
- --> @dm:eval current_time_ms="int(time_now_as_ms())"
- --> @dm:eval token_expiry_time='current_time_ms+3000000'
- --> @dm:save name='temp-token-details'
- --> @exec:end-function
- ## get the dataset with unique sw_version,sw_os_type,product_id combinations to make the API call
+ --> @dm:recall name = "temp-asset-discovery-output"
+ --> @dm:to-type columns = "is_duplicate" & type = "str"
+ --> *dm:filter is_duplicate not in  ['True','true','TRUE']
+ ## --> @dm:save name = "asset-discovery-output-duplicate"
+
+ --> @dm:skip-pipeline-if-shape row_count= 0
+ ## --> @dm:enrich-conditional dict is 'temp-input-org-details' and condition is 'device_ip == "$target_ip"'
+
+ ## --> *dm:filter device_ip is not empty
+
+ --> @dm:selectcolumns exclude = "^device_ip$|^discovery_scope$|^key$|^ds_name$|^name$"
+ --> @dm:eval path = "'inventory_collection/outputs/'+jobid+'/'+target_ip+'.json'"
+ --> @asset-discovery:get-collection-files path_column = "path" &            groups="base,system,entityPhysical,interfaces,entAliasMappingTable,cdpGlobal,ipAddrTable,cdpCache,cli_show_ether_channel_summary,management-target,snmpEngineDetails,lldpRemTable,base.credential-id,ipNetToMediaTable,dot1dTpFdbTablemacprocess"
+ ## --> @dm:save name="Group-base-all"
+
+ --> @dm:selectcolumns include = "asset_ip|groupname|output|reason|jobid|path"
+ --> @dm:explode-json column='output'
+ --> @dm:selectcolumns include = "target|data|groupname|asset_ip|reason|jobid|path"
+ --> @dm:save name = "temp-group-data"
+ ## --> @dm:save name = "group-data"
 
  --> @c:new-block
- --> @dm:recall name='temp-uploaded-data'
- --> @dm:add-missing-columns columns="key" and value='key'
- --> @dm:manipulate-string from="sw_version,sw_os_type,product_id" and func="concat_columns" and to="unique_payload_inputs"
- --> @dm:dedup columns ='unique_payload_inputs'
- --> @dm:save name='temp-unique-rows-list'
- ## gneerate the access token
+ --> @dm:set-tracing-context __block__="parse base"
+ --> @dm:recall name="temp-group-data"
+ --> *dm:filter groupname is "base"
+ --> @dm:explode-json column = 'data'
+ ## --> @dm:selectcolumns include="base|target"
+
+ --> @dm:save name="temp-Group-base"
+ ## --> @dm:save name="Group-base"
 
  --> @c:new-block
- --> @dm:empty
- --> @exec:call-function name='generate_access_token'
- ## get the API output for the above created dataset
+ --> @dm:set-tracing-context __block__="get vendor"
+ --> @dm:recall name="temp-Group-base"
+ --> @dm:add-missing-columns columns="systemVendorID,sysObjectID"
+ ## --> @dm:selectcolumns include = "systemVendorName|systemVendorID|target|sysObjectID|reason"
 
- --> @c:data-loop columns='sw_version,sw_os_type,product_id,source' and dataset='temp-unique-rows-list'
- ## --> @dm:recall name='temp-unique-rows-list'
+ ## --> @dm:save name = "system-vendor"
 
- --> @dm:empty
- --> @dm:addrow key='key'
- --> @dm:eval current_time_ms_loop="int(time_now_as_ms())"
- --> @dm:save name='temp-current-time'
- --> @dm:enrich dict='temp-token-details' and src_key_cols='key' and dict_key_cols='key' and enrich_cols='token_expiry_time,access_token,expires_in,token_type'
- --> *exec:if-condition token_expiry_time is null or current_time_ms_loop  is greater than or equal to token_expiry_time
- --> @exec:call-function name='generate_access_token'
- --> @exec:end-if
- --> @dm:dropnull columns='access_token'
- --> @dm:add-missing-columns columns='sw_version' and value='$sw_version'
- --> @dm:add-missing-columns columns='sw_os_type' and value='$sw_os_type'
- --> @dm:add-missing-columns columns='product_id' and value='$product_id'
- --> @dm:add-missing-columns columns='source' and value='$source'
- --> *exec:if-condition sw_version is not null and sw_os_type is not null and product_id is not null
- --> @exec:run-pipeline name ="edc_oi_product_alerts_run_scan" & ignore_failures = "yes"
- --> @dm:save name='temp-token-updates'
- --> @dm:save name='temp-api-op-before-explode' and append='yes'
- --> @exec:end-if
- --> @c:new-block
- --> @dm:recall name='temp-api-op-before-explode'
- --> @dm:save name='api-op-raw'
- ## filter out the rows whose API output is empty
+ --> @dm:add-missing-columns columns = "vendor"
+ --> *dm:filter systemVendorID is not null
+ --> @dm:to-type columns = "systemVendorID" & type = "str"
+ --> @dm:eval vendor='"Juniper Networks, Inc." if systemVendorID in ["2636", "2636.0"] else "Cisco" if systemVendorID in ["9","9.0"] else "Vyatta" if systemVendorID in ["74", "74.0"] else "Fortinet" if systemVendorID in ["12356", "12356.0"] else "Viptela" if systemVendorID in ["41916", "41916.0"] else vendor'
+ ## --> @dm:to-type columns = "systemVendorID" and type = "str"
+
+ --> @dm:to-type columns = "sysObjectID" and type = "str"
+ --> *dm:filter target is not null
+ --> @dm:save name = "temp-vendor-data"
+ ## --> @dm:save name = "vendor-data"
+
+ ## Run cisco main
 
  --> @c:new-block
- --> @dm:recall name='temp-api-op-before-explode'
- --> @dm:dedup columns='product_id,sw_os_type,sw_version'
- --> @dm:copy-columns from='issues' and to='issues_str'
- --> @dm:to-type columns='issues_str' and type='str'
- --> *dm:filter issues_str is '[]'
- --> @dm:selectcolumns exclude='^issues_str$|^timestampl$'
- --> @dm:save name='temp-api-op-before-explode-empty'
- ## enrich to add API output to rows with same sw_version,sw_os_type,product_id combination but different contract_number
-
- --> @c:new-block
- --> @dm:recall name='temp-api-op-before-explode-empty'
- --> *exec:if-condition source=='software'
- --> @dm:recall name='temp-uploaded-data'
- --> @dm:enrich dict='temp-api-op-before-explode-empty' and src_key_cols='product_id,sw_os_type,sw_version' and dict_key_cols='product_id,sw_os_type,sw_version' and enrich_cols='issues,transaction_id,id,last_updated_time' and how_type='inner' and dedup_dict='no'
- --> @dm:add-missing-columns columns="sw_status,lastDayOfSupportDate,EndOfSoftwareVulnerabilityOrSecuritySupportDate,endOfSoftwareMaintenanceReleasesDate,endOfServiceContractRenewalDate,endOfNewServiceAttachmentDate,endOfLifeAnnouncementDate,endOfSaleDate,bulletinUrl,bulletinNumber,bulletinTitle,softwareEOXId"
- --> @dm:eval sw_status="'No EOL'"
- --> @dm:fixnull columns="sw_status,lastDayOfSupportDate,EndOfSoftwareVulnerabilityOrSecuritySupportDate,endOfSoftwareMaintenanceReleasesDate,endOfServiceContractRenewalDate,endOfNewServiceAttachmentDate,endOfLifeAnnouncementDate,endOfSaleDate,bulletinUrl,bulletinNumber,bulletinTitle,softwareEOXId" and value="Not Available" and apply_for_empty="yes"
- --> @dm:save name='temp-api-exploded-empty-sw'
- --> @dm:save name='api-exploded-empty-sw'
- --> @exec:end-if
- --> @c:new-block
- --> @dm:recall name='temp-api-op-before-explode-empty'
- --> *exec:if-condition source=='security_advisory'
- --> @dm:recall name='temp-uploaded-data'
- --> @dm:enrich dict='temp-api-op-before-explode-empty' and src_key_cols='product_id,sw_os_type,sw_version' and dict_key_cols='product_id,sw_os_type,sw_version' and enrich_cols='issues,transaction_id,id,last_updated_time' and how_type='inner' and dedup_dict='no'
- --> @dm:add-missing-columns columns="PsirtID,BulletinURL,advisoryId,AdvisoryId,bulletinTitle,SeverityLevelName,matchConfidence"
- --> @dm:fixnull columns="PsirtID,BulletinURL,advisoryId,AdvisoryId,bulletinTitle,SeverityLevelName,matchConfidence" and value="Not Available" and apply_for_empty="yes"
- --> @dm:save name='temp-api-exploded-empty-sa'
- --> @dm:save name='api-exploded-empty-sa'
- --> @exec:end-if
- ## filter out the rows whose API output is not empty
-
- --> @c:new-block
- --> @dm:recall name='temp-api-op-before-explode'
- --> @dm:dedup columns='product_id,sw_os_type,sw_version'
- --> @dm:copy-columns from='issues' and to='issues_str'
- --> @dm:to-type columns='issues_str' and type='str'
- --> *dm:filter issues_str is not '[]'
- --> @dm:selectcolumns exclude='^issues_str$|^timestampl$'
- --> @dm:save name='temp-api-op-before-explode-dedup'
- ## enrich to add API output to rows with same sw_version,sw_os_type,product_id combination but different contract_number
-
- --> @c:new-block
- --> @dm:recall name='temp-uploaded-data'
- --> @dm:enrich dict='temp-api-op-before-explode-dedup' and src_key_cols='product_id,sw_os_type,sw_version' and dict_key_cols='product_id,sw_os_type,sw_version' and enrich_cols='issues,transaction_id,id,last_updated_time' and how_type='inner' and dedup_dict='no'
- --> @dm:save name='temp-edc-run-scan-op-enriched'
- ## Explode the API output for software data
-
- --> @c:new-block
- --> @dm:recall name='temp-edc-run-scan-op-enriched'
- --> *exec:if-condition source=='software'
- --> @dm:recall name='temp-edc-run-scan-op-enriched'
- --> @dm:save name='sw-be-edc-run-scan-op-enriched'
- ## --> @dm:eval issues='eval(issues)'
-
- --> @dm:eval issues='json_dumps(issues)'
- --> @dm:explode-json column="issues"
- --> @dm:eval eoXAlert='json_dumps(eoXAlert)'
- --> @dm:explode-json column="eoXAlert"
- --> @dm:selectcolumns exclude='^timestamp$'
- --> @dm:save name='temp-exploded-api-op'
- ## --> @dm:save name='exploded-api-op-sw'
-
- --> @exec:end-if
- ## Logging the repeated counts of the data from run scan api
-
- --> @c:new-block
- --> @dm:recall name='temp-edc-run-scan-op-enriched'
- --> *exec:if-condition source=='software'
- --> @dm:recall name="temp-exploded-api-op"
- --> @dm:to-type columns="BulletinNumber" and type="str"
- --> @dm:implode key_columns='product_id,sw_version,sw_os_type' and merge_columns='BulletinNumber' and dedup_merge_values='no' and keep_columns='id,transaction_id'
- --> @dm:eval BulletinNumber="str(BulletinNumber).split(',')"
- --> @dm:eval total_records = "len(BulletinNumber)"
- --> *dm:filter total_records > 1
+ --> @c:data-loop columns="customer_id,customer_tag,discovery_enabled" and dataset="temp-input-org-details"
+ --> @dm:recall name = "temp-vendor-data"
+ --> *dm:filter systemVendorID in ["9","9.0"] and sysObjectID not in ['1.3.6.1.4.1.9.1.1348']
  --> @dm:skip-block-if-shape row_count=0
- --> @dm:eval duplicate_record_count="total_records-1"
- --> @dm:eval unique_key="str(product_id)+'_'+str(sw_version)+'_'+str(sw_os_type)"
- --> @rn:write-stream name="edc_run_scan_duplicate_records"
- --> @exec:end-if
- ## Explode the API output for security advisory data
+ --> @dm:eval key="'key'"
+ --> @dm:eval customer_id="'$customer_id'"
+ --> @dm:eval customer_tag="'$customer_tag'"
+ ## --> @dm:eval project_id="'$project_id'"
+
+ ## --> @dm:eval ingestion_id="'$ingestion_id'"
+
+ --> @dm:eval discovery_enabled="'$discovery_enabled'"
+ ## --> @dm:enrich dict	 = "temp-input-org-details" and src_key_cols	 = "key" and dict_key_cols	="key" and enrich_cols	="ingestion_id,discovery_enabled,project_id,customer_tag,customer_id"
+
+ --> @exec:run-pipeline name ="cisco_discovery_main_pipeline" & ignore_failures = "no"
+ ## --> @exec:run-pipeline-multi-proc name="cisco_discovery_main_pipeline"
+
+ ## --> @dm:save name = "asset-cisco-data"
+
+ ## --> @dm:save name = "temp-cisco-data"
+
+ ## Run juniper main
 
  --> @c:new-block
- --> @dm:recall name='temp-edc-run-scan-op-enriched'
- --> *exec:if-condition source=='security_advisory'
- --> @dm:recall name='temp-edc-run-scan-op-enriched'
- --> @dm:eval issues='json_dumps(issues)'
- --> @dm:explode-json column="issues"
- --> @dm:eval psirtAlert='json_dumps(psirtAlert)'
- --> @dm:explode-json column="psirtAlert"
- --> @dm:selectcolumns exclude='^timestamp$'
- --> @dm:save name='temp-exploded-api-op'
- ## --> @dm:save name='exploded-api-op-sa'
+ --> @c:data-loop columns="customer_id,customer_tag,discovery_enabled" and dataset="temp-input-org-details"
+ --> @dm:recall name = "temp-vendor-data"
+ --> *dm:filter systemVendorID in ["2636", "2636.0"]
+ --> @dm:skip-block-if-shape row_count=0
+ --> @dm:eval key="'key'"
+ --> @dm:eval customer_id="'$customer_id'"
+ --> @dm:eval customer_tag="'$customer_tag'"
+ --> @dm:eval discovery_enabled="'$discovery_enabled'"
+ ## --> @dm:eval project_id="'$project_id'"
 
- --> @exec:end-if
- --> @c:new-block
- --> @dm:recall name="temp-exploded-api-op"
- --> @dm:save name='temp-api-exploded-not-empty'
- ## --> @dm:save name='api-exploded-not-empty'
+ ## --> @dm:eval ingestion_id="'$ingestion_id'"
+
+ ## --> @dm:enrich dict	 = "temp-input-org-details" and src_key_cols	 = "key" and dict_key_cols	="key" and enrich_cols	="ingestion_id,discovery_enabled"
+
+ --> @exec:run-pipeline name ="juniper_discovery_main_pipeline" & ignore_failures = "no"
+ ## --> @exec:run-pipeline-multi-proc name="juniper_discovery_main_pipeline"
+
+ ## --> @dm:save name = "temp-juniper-data"
+
+ ## Run vyatta main
+
+ ## --> @c:data-loop columns="Minio_location" and dataset="temp-discovery-results"
+
+ ## --> @dm:set-tracing-context __block__="get vendor Vyatta"
+
+ ## --> @dm:recall name="temp-ips_to_process"
+
+ ## --> *dm:filter systemVendorID in ["74", "74.0"]
+
+ ## --> @dm:eval ec_zip_file_loc_pipeinput='"$Minio_location"'
+
+ ## --> @dm:add-missing-columns columns="required_groups" and value="possible-duplicate,management-target,base.data,system.data,ipAddrTable.data,snmpEngineDetails.data,jnxContentsTable.data,cli_show_chasis_hardware.data,cli_show_version_juniper.data,jsystem.data,base.start-time,interfaces.data,entAliasMappingTable.data"
+
+ ## --> @dm:skip-block-if-shape row_count=0
+
+ ## --> @dm:eval key="'key'"
+
+ ## --> @dm:enrich dict	 = "temp-input-org-details" and src_key_cols	 = "key" and dict_key_cols	="key" and enrich_cols	="customer_tag,customer_id,project_id,ingestion_id"
+
+ ## --> @exec:run-pipeline name ="vyatta_discovery_main_pipeline" & ignore_failures = "no"
+
+ ## --> @dm:save name="temp-vyatta_data"
+
+ ## Run fortinet main
 
  --> @c:new-block
- --> @dm:concat names='temp-api-exploded-.*'
- --> @dm:save name='temp-api-response'
- --> @dm:save name='api-response'
+ --> @c:data-loop columns="customer_id,customer_tag,discovery_enabled" and dataset="temp-input-org-details"
+ --> @dm:recall name = "temp-vendor-data"
+ --> *dm:filter systemVendorID in ["12356", "12356.0"]
+ --> @dm:skip-block-if-shape row_count=0
+ --> @dm:eval key="'key'"
+ --> @dm:eval customer_id="'$customer_id'"
+ --> @dm:eval customer_tag="'$customer_tag'"
+ --> @dm:eval discovery_enabled="'$discovery_enabled'"
+ ## --> @dm:eval project_id="'$project_id'"
+
+ ## --> @dm:eval ingestion_id="'$ingestion_id'"
+
+ ## --> @dm:enrich dict	 = "temp-input-org-details" and src_key_cols	 = "key" and dict_key_cols	="key" and enrich_cols	="ingestion_id,discovery_enabled"
+
+ --> @exec:run-pipeline name ="fortinet_discovery_main_pipeline" & ignore_failures = "no"
+ ## --> @exec:run-pipeline-multi-proc name="fortinet_discovery_main_pipeline"
+
+ ## --> @dm:save name = "temp-fortinet_data"
+
+ ## Run Viptela main
+
+ ## --> @c:data-loop columns="Minio_location" and dataset="temp-discovery-results"
+
+ ## --> @dm:set-tracing-context __block__="get vendor Viptela"
+
+ ## --> @dm:recall name="temp-ips_to_process"
+
+ ## --> *dm:filter systemVendorID in ["41916", "41916.0"]
+
+ ## --> @dm:eval ec_zip_file_loc_pipeinput='"$Minio_location"'
+
+ ## --> @dm:skip-block-if-shape row_count=0
+
+ ## --> @dm:eval key="'key'"
+
+ ## --> @dm:enrich dict = "temp-input-org-details" and src_key_cols = "key" and dict_key_cols ="key" and enrich_cols ="customer_tag,customer_id,project_id,ingestion_id"
+
+ ## --> @exec:run-pipeline name ="viptela_discovery_main_pipeline" & ignore_failures = "no"
+
+ ## --> @dm:save name = "temp-viptela_data"
+
+ ## Run other Vendors main
+
+ --> @c:new-block
+ --> @c:data-loop columns="customer_id,customer_tag,discovery_enabled" and dataset="temp-input-org-details"
+ --> @dm:recall name = "temp-vendor-data"
+ --> *dm:filter systemVendorID not in ["2636", "2636.0","41916","41916.0","12356", "12356.0","74", "74.0","9","9.0"] and systemVendorID not null
+ --> @dm:skip-block-if-shape row_count=0
+ --> @dm:eval key="'key'"
+ --> @dm:eval customer_id="'$customer_id'"
+ --> @dm:eval customer_tag="'$customer_tag'"
+ --> @dm:eval discovery_enabled="'$discovery_enabled'"
+ ## --> @dm:eval project_id="'$project_id'"
+
+ ## --> @dm:eval ingestion_id="'$ingestion_id'"
+
+ --> @dm:enrich dict	 = "temp-input-org-details" and src_key_cols	 = "key" and dict_key_cols	="key" and enrich_cols	="discovery_enabled"
+ --> @exec:run-pipeline name ="other_vendors_discovery_main_pipeline" & ignore_failures = "no"
