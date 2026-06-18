@@ -1,9 +1,105 @@
-@restclient:read url="https://id.cisco.com/oauth2/default/v1/token" and method="POST" and `Content-Type`='application/x-www-form-urlencoded' and encoding = "urlencode" and payload = '{"grant_type":"client_credentials","client_id":"cqiui-ser","client_secret":"uK_5wNET3M-Q_1_xIEXkzFPASDtw8MI5jVRWNcjmq6kmM-bU2L-lpYdTSwQTibMR"}' and `Accept`= "*/*"
- --> @dm:add-missing-columns columns = 'static' & value = "token"
- --> @dm:save name = "circuit_token1"
- --> @c:data-loop columns="access_token" and dataset="circuit_token1"
- --> @restclient:read url="https://wwwin-cqifq-cae-rcdn.cisco.com/cqimqipservices/v1/crpmhwthreemonth" and method="POST" and `Authorization`= "Bearer $access_token" and `Content-Type`='application/json' and payload = '{ "filter": [ { "value":["ADP"], "field":"customerName", "condition":"in" }, {"value":["ADP"], "field":"networkName", "condition":"in" }, { "value":["ADP - ADP"], "field":"customerAndNetworkName", "condition":"in" }, { "value":[], "field":"productFamily", "condition":"in" }, { "value":[], "field":"gpid", "condition":"in" }, { "value":[], "field":"vertical", "condition":"in" }, { "value":[], "field":"contractNumber", "condition":"in" }, { "value":[], "field":"softwareVersion", "condition":"in" }, { "value":["202508"], "field":"calendarMonth", "condition":"in" } ] }'
- --> @dm:save name = "output"
- --> @dm:recall name = "output"
- --> @dm:selectcolumns include="gpid|productFamily|month3CRR"
- --> @rn:write-stream name="month3CRR-stream"
+@dm:empty
+ --> @exec:get-input
+ --> @dm:save name='temp-sa-exploded-data'
+ --> @dm:save name='test-1sa-exploded-data'
+ --> @c:new-block
+ --> @dm:recall name="temp-sa-exploded-data"
+ --> @dm:selectcolumns exclude='^unique_key$'
+ ## --> @dm:enrich dict="temp-sa-data" and src_key_cols='product_id,sw_version,sw_os_type' and dict_key_cols='product_id,sw_version,sw_os_type' and enrich_cols="contract_number,customer"
+
+ --> @dm:add-missing-columns columns="PsirtID,MatchConfidence,MatchReason,MatchDefinition,HeadlineName,AdvisoryId,BulletinURL,Summary,Details,RevisedDate,RevisionNumber,PublishedDate,SeverityLevelName,CvssScore,CveId,_id,advisoryId,created,customerVisible,external_text,external_title,firstIcAlertId,groups,icIssueId,icProblemId,ignored,lastIcAlertId,matchDefinition,matchInfo,matchConfidence,missingInfo,moreInfo,name,openedOn,resultType,resultSubType,severity,severityText,state,updated,deviceSN,source,runType,filename,icType,atticaStatus,cdetsList,retry,associatedGroups,key,current_time_ms_loop,token_expiry_time,access_token,expires_in,token_type,sw_version,sw_os_type,product_id,transaction_id,eoXAlert,eoXAlertType,DocumentId"
+ --> @dm:eval matchConfidence = "'Potentially Vulnerable' if matchConfidence == 'POTVUL' else 'Vulnerable' if matchConfidence == 'VUL' else matchConfidence"
+ --> @dm:eval secAdv_confidence_score = "100 if matchConfidence == 'Vulnerable' else 99 if matchConfidence == 'Potentially Vulnerable' else 98 if matchConfidence == 'Not Vulnerable' else 0"
+ --> @dm:fixnull columns="PsirtID,MatchConfidence,MatchReason,MatchDefinition,HeadlineName,AdvisoryId,BulletinURL,Summary,Details,RevisedDate,RevisionNumber,PublishedDate,SeverityLevelName,CvssScore,CveId,_id,advisoryId,created,customerVisible,external_text,external_title,firstIcAlertId,groups,icIssueId,icProblemId,ignored,lastIcAlertId,matchDefinition,matchInfo,matchConfidence,missingInfo,moreInfo,name,openedOn,resultType,resultSubType,severity,severityText,state,updated,deviceSN,source,runType,filename,icType,atticaStatus,cdetsList,retry,associatedGroups,key,current_time_ms_loop,token_expiry_time,expires_in,token_type,sw_version,sw_os_type,product_id,transaction_id,eoXAlert,eoXAlertType,DocumentId,secAdv_confidence_score" and value="Not Available" and apply_for_empty="yes"
+ --> @dm:fixnull-regex columns="Timestamp$|timestamp$"
+ --> @dm:rename-columns secAdv_matchConfidence ='matchConfidence' and secAdv_securityImpactRating='SeverityLevelName' and secAdv_bulletinTitle='external_title' and securityAdvisoryId='advisoryId' and ID = '_id' and secAdv_BulletinURL ='BulletinURL'
+ --> @dm:save name="temp-sec-adv-details"
+ --> @c:new-block
+ --> @dm:empty
+ --> @dm:addrow name='edc_cust_pid_sw' and limit=0
+ --> #dm:query-persistent-stream
+ --> @dm:groupby columns='customer'
+ --> @dm:save name='temp-unique-cust-name'
+ --> @c:data-loop dataset='temp-unique-cust-name' and columns='customer'
+ --> @dm:empty
+ --> @dm:addrow name='edc_oi_inventory_enriched' and limit=0
+ --> #dm:query-persistent-stream customer_name=='$customer' and coverage=='COVERED'
+ --> @dm:save name='temp-hw-eol-details' and append='yes'
+ --> @c:new-block
+ --> @dm:recall name='temp-hw-eol-details'
+ --> @dm:to-type columns='contract_number' and type='int'
+ --> @dm:save name='temp-hw-eol-details'
+ ## Queries data for the customer from edc_oi_enriched_stream
+
+ --> @c:data-loop dataset='temp-unique-cust-name' and columns='customer'
+ --> @dm:empty
+ --> @dm:addrow name='edc_oi_inventory_enriched' and limit=0 and groupby='contract_number,customer_name,product_name,product_id,portfolio_desc' and aggs='sum:combination_count'
+ --> #dm:query-persistent-stream coverage=='COVERED' and customer_name is '$customer'
+ --> @dm:save name='temp-hw-eol-details-grouped' and append='yes'
+ --> @c:new-block
+ --> @dm:recall name='temp-hw-eol-details-grouped'
+ --> @dm:to-type columns='contract_number' and type='int'
+ --> @dm:save name='temp-hw-eol-details-grouped'
+ ## enriches the processed columns to edc_oi_inventory_enriched
+
+ ## enriches the processed columns to edc_oi_inventory_enriched
+
+ --> @c:new-block
+ --> @dm:recall name='temp-sec-adv-details'
+ --> @dm:to-type columns='contract_number' and type='int'
+ ## --> @dm:eval product_name="product_id if product_name is 'Not Available' else product_name"
+
+ --> @dm:enrich dict='temp-hw-eol-details-grouped' and dict_key_cols='contract_number,customer_name,product_name' and src_key_cols='contract_number,customer,product_name' and enrich_cols='combination_count_sum,portfolio_desc' and how_type='left' and dedup_dict='no'
+ --> @dm:add-missing-columns columns="combination_count_sum"
+ --> @dm:eval unique_key='str(PsirtID) + str(securityAdvisoryId) + str(product_id) + str(product_name) + str(contract_number)'
+ --> @dm:to-type columns='combination_count_sum' and type='int'
+ --> @dm:save name='temp-sec-adv-combination-count-sum'
+ --> @c:new-block
+ --> @dm:recall name='temp-hw-eol-details'
+ --> @dm:selectcolumns exclude='^(PsirtID|securityAdvisoryId|secAdv_confidence_score|secAdv_securityImpactRating|secAdv_matchConfidence|match|customer|sw_os_type|sw_version|secAdv_BulletinURL|secAdv_bulletinTitle|CveId|CvssScore|matchInfo|RevisedDate|RevisionNumber|PublishedDate)$'
+ --> @dm:save name='temp-hw-eol-details'
+ --> @c:new-block
+ --> @dm:recall name='temp-sec-adv-combination-count-sum'
+ --> @dm:enrich dict='temp-hw-eol-details'  and dict_key_cols='contract_number,customer_name,product_name' and src_key_cols='contract_number,customer,product_name' and enrich_cols='item_type,product_family'
+ --> @dm:save name='sa-enriched-final-enrich-before-dropnull'
+ --> @dm:dropnull columns='secAdv_securityImpactRating'
+ --> @dm:selectcolumns exclude='^(key|Unique_id|_RDA_Id|count_|timestamp|customer_name_y)'
+ --> @dm:eval customer_name='customer_name_x'
+ --> @dm:save name='sa-enriched-final-enrich'
+ --> @dm:save name='temp-edc-sweol-data'
+ --> @rn:write-stream name='edc_sec_adv_data_enriched'
+ ## Queries data for the customer from edc_oi_enriched_stream
+
+ --> @c:new-block
+ --> @dm:recall name='temp-hw-eol-details'
+ --> @dm:to_type columns = 'contract_number' and type  = 'int'
+ --> @dm:save name='temp-hw-eol-details'
+ ## dedup security advisory based on the secAdv_confidence_score
+
+ --> @c:new-block
+ --> @dm:recall name='temp-sec-adv-details'
+ ## --> @dm:groupby columns='firstIcAlertId'
+
+ --> @dm:skip-block-if-shape row_count="0"
+ ## --> @dm:save name='test-sec-adv-details'
+
+ --> @dm:sort columns='secAdv_confidence_score' and order='descending'
+ --> @dm:dedup columns='product_id,sw_version,sw_os_type,contract_number,customer'
+ --> @dm:to_type columns = 'contract_number' and type  = 'int'
+ --> @dm:eval match="'yes'"
+ --> @dm:save name="temp-pa-sec-adv-dedups"
+ --> @c:new-block
+ --> @dm:recall name='temp-hw-eol-details'
+ --> @dm:enrich dict='temp-pa-sec-adv-dedups' and dict_key_cols='contract_number,customer,product_id' and src_key_cols='contract_number,customer_name,product_id' and enrich_cols='match' and how_type='left'
+ --> @dm:dropnull columns='match'
+ --> @dm:selectcolumns exclude='^(PsirtID|securityAdvisoryId|secAdv_confidence_score|secAdv_securityImpactRating|secAdv_matchConfidence|match|customer|sw_os_type|sw_version|secAdv_BulletinURL|secAdv_bulletinTitle|CveId|CvssScore|matchInfo|RevisedDate|RevisionNumber|PublishedDate)$'
+ --> @dm:save name='temp-matched-inv'
+ --> @c:new-block
+ --> @dm:recall name='temp-matched-inv'
+ --> @dm:enrich dict='temp-pa-sec-adv-dedups' and dict_key_cols='contract_number,customer,product_id' and src_key_cols='contract_number,customer_name,product_id' and enrich_cols='PsirtID,secAdv_confidence_score,securityAdvisoryId,secAdv_securityImpactRating,secAdv_matchConfidence,sw_os_type,sw_version,secAdv_bulletinTitle,secAdv_BulletinURL,CveId,CvssScore,matchInfo,RevisedDate,RevisionNumber,PublishedDate'
+ --> @dm:selectcolumns exclude="^(customer_x|customer_y|deviceSN|source|secAdv_bulletinTitle_x)"
+ --> @dm:rename-columns secAdv_bulletinTitle ='secAdv_bulletinTitle_y'
+ --> @dm:save name='temp-final-enrich'
+ ## --> @dm:save name='sa-final-enrich'
+
+ --> @rn:write-stream name='edc_oi_inventory_enriched'
