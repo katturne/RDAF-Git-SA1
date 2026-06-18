@@ -1,11 +1,23 @@
-folder: OI
-name: edc_delete_all
-description: test pipeline
-data_path: pipelines/data/edc_delete_all/2025-04-11_02/data.json
-usecase: ''
-category: ''
-sources: {}
-artifacts: []
-version: 2025-04-11_02
-file_type: json
-checksum: e9a484df
+@c:new-block
+ --> @dm:empty
+ --> @exec:define-function name="define_child_pipelines"
+ --> @exec:run-pipeline name ="edc_combined" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_oi_get_product_alerts" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_oi_product_alerts_raw" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_oi_product_alerts_run_scan" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_oi_generate_token" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_oi_process_sw_data" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_oi_get_sweol_data" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_combined" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_oi_get_security_advisories_data" & ignore_failures = "no"
+ --> @exec:end-function
+ --> @c:new-block
+ --> @dm:empty
+ --> @dm:addrow name="edc_customer_names" and limit=0
+ --> #dm:query-persistent-stream
+ --> @dm:save name='temp-unique-customer-name'
+ --> @exec:run-pipeline name='edc_update_data'
+ --> @dm:empty
+ --> @exec:define-function name="define_child_pipelines"
+ --> @exec:run-pipeline name ="edc_combined" & ignore_failures = "no"
+ --> @exec:end-function
