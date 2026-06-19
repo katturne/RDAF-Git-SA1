@@ -1,1098 +1,633 @@
 {
-  "name": "oi-pack-input",
-  "label": "OI pack Configure and Manage",
-  "description": "OI pack configure and management dashboard",
-  "version": "25.09.16.1",
+  "name": "pipeline_failure_trends",
+  "label": "Health: Pipeline Failure Trend",
+  "description": "device_training: Insights",
+  "dashboard_folder": "RDAF_Health_Trends",
+  "version": "1.0.0",
   "enabled": false,
+  "showTitle": false,
+  "title": "Dashboard Data",
   "dashboard_type": "template",
-  "dashboard_folder": "Default",
-  "dashboard_style": "auto",
+  "live_edit": true,
+  "debug": false,
   "template_variables": {
-    "CUST_ID": {
-      "contextId": "customerId"
+    "STREAM_NAME": {
+      "contextId": "stream_name",
+      "default": "rda_system_worker_traces"
+    }
+  },
+  "computedContext": {
+    "show_traces": {
+      "expr": "'yes' if str(stream_name) in [ 'rda_system_worker_traces'] else 'no'",
+      "defaultValue": "yes"
     },
-    "PROJ_ID": {
-      "contextId": "projectId"
+    "show_logs": {
+      "expr": "'yes' if str(stream_name) in [ 'rda_system_worker_logs'] else 'no'",
+      "defaultValue": "no"
     },
-    "CUST_TAG": {
-      "contextId": "customerTag"
+    "all_context": {
+      "expr": "",
+      "defaultValue": "Unknown"
     }
   },
   "dashboard_filters": {
     "time_filter": true,
     "default_time_filter_labels": [
-      "Last 1 month"
+      "Last 2 days"
+    ],
+    "columns_filter": [
+      {
+        "id": "timestamp",
+        "label": "Timestamp",
+        "type": "DATETIME"
+      },
+      {
+        "id": "pipeline_name",
+        "label": "Pipeline Name",
+        "type": "TEXT"
+      },
+      {
+        "id": "error_message",
+        "label": "Error Message",
+        "type": "TEXT"
+      }
+    ],
+    "group_filters": [
+      {
+        "stream": "rda_system_worker_traces",
+        "title": "Pipeline Name (Traces)",
+        "extra_filter": "status_type == 'failed' or levelname== 'ERROR'",
+        "limit": 50,
+        "group_by": [
+          "pipeline_name"
+        ],
+        "ts_column": "timestamp",
+        "agg": "cardinality",
+        "column": "pipeline_name",
+        "type": "int",
+        "show_counts": false
+      },
+      {
+        "stream": "rda_system_worker_logs",
+        "title": "Pipeline Name (Logs)",
+        "extra_filter": "status_type == 'failed' or levelname== 'ERROR'",
+        "limit": 50,
+        "group_by": [
+          "pipeline_name"
+        ],
+        "ts_column": "timestamp",
+        "agg": "cardinality",
+        "column": "pipeline_name",
+        "type": "int",
+        "show_counts": false
+      }
     ]
   },
-  "live_edit": true,
   "dashboard_sections": [
     {
-      "title": "ONLINE Data Input",
+      "title": "Pipeline Failure",
+      "show_filter": true,
       "widgets": [
         {
-          "title": "Snowflake Credential Management",
-          "widget_type": "tabular",
-          "stream": "rda_secrets_meta",
-          "extra_filter": "(type in ['snowflake'])",
-          "timebased": false,
-          "remote_searchable_cols": [
-            "name",
-            "type",
-            "typeDescription"
+          "widget_type": "label",
+          "context_filter": "show_traces is 'yes'",
+          "max_width": 12,
+          "height": 0.5,
+          "min_width": 12,
+          "label": "<div style='text-align:center;width:100%;'><h1><a style='text-decoration:none;color:#0066ff;' target='_blank'> Pipeline Failure Trend (Worker Traces)</a></h1></div>",
+          "widget_id": "33317e49"
+        },
+        {
+          "widget_type": "label",
+          "context_filter": "show_logs is 'yes'",
+          "max_width": 12,
+          "height": 0.5,
+          "min_width": 12,
+          "label": "<div style='text-align:center;width:100%;'><h1><a style='text-decoration:none;color:#0066ff;' target='_blank'> Pipeline Failure Trend (Worker Logs) </a></h1></div>",
+          "widget_id": "af4f91d4"
+        },
+        {
+          "widget_type": "pie_chart",
+          "title": "Top pipelines failed ",
+          "duration_hours": 1080,
+          "stream": "{{STREAM_NAME}}",
+          "ts_column": "timestamp",
+          "extra_filter": "status_type == 'failed' or levelname== 'ERROR'",
+          "column": "count_",
+          "agg": "value_count",
+          "group_by": [
+            "pipeline_name"
           ],
-          "ts_column": "saved_time",
-          "paginated": true,
+          "min_width": 4,
           "height": 4,
-          "min_wdith": 12,
+          "max_width": 4,
+          "widget_id": "b015e2a2"
+        },
+        {
+          "title": "Unique Count Failing Pipelines (Daily)",
+          "widget_type": "timeseries",
+          "stream": "{{STREAM_NAME}}",
+          "ts_column": "timestamp",
+          "extra_filter": "status_type == 'failed' or levelname== 'ERROR'",
+          "duration_hours": 1080,
+          "max_width": 8,
+          "height": 4,
+          "min_width": 8,
+          "gap_interval": "keep",
+          "chartProperties": {
+            "yAxisLabel": "Failures",
+            "xAxisLabel": "Local Time",
+            "legendLocation": "none",
+            "isDownsamplingDisabled": true,
+            "mode": "selection",
+            "column-id": "timestamp",
+            "options": {
+              "axes": {
+                "display": false
+              }
+            }
+          },
+          "interval": "1d",
+          "series_spec": [
+            {
+              "column": "pipeline_name",
+              "agg": "cardinality",
+              "type": "int"
+            }
+          ],
+          "widget_id": "ed5ca8c1"
+        },
+        {
+          "title": "Top Pipelines",
+          "widget_type": "tabular",
+          "duration_hours": 1080,
+          "max_width": 4,
+          "max_rows": 10,
+          "height": 5,
+          "min_width": 4,
+          "stream": "{{STREAM_NAME}}",
+          "ts_column": "timestamp",
+          "extra_filter": "status_type == 'failed' or levelname== 'ERROR'",
+          "paginated": false,
+          "remote_searchable": true,
+          "remote_searchable_cols": [
+            "pipeline_name"
+          ],
           "columns": {
-            "name": {
-              "title": "Name",
+            "pipeline_name": {
+              "title": "Pipeline",
               "key": true
-            },
-            "type": {
-              "title": "Type",
+            }
+          },
+          "pivot": {
+            "pivot_type": "advanced",
+            "group_by": [
+              "pipeline_name"
+            ],
+            "series": [
+              {
+                "column": "count_",
+                "agg": "sum",
+                "type": "int",
+                "label": "Failure Count"
+              }
+            ]
+          },
+          "widget_id": "954ed85a"
+        },
+        {
+          "title": "Top Errors (Traces)",
+          "context_filter": "show_traces is 'yes'",
+          "widget_type": "tabular",
+          "duration_hours": 1080,
+          "max_width": 8,
+          "max_rows": 10,
+          "height": 6,
+          "min_width": 6,
+          "stream": "{{STREAM_NAME}}",
+          "ts_column": "timestamp",
+          "extra_filter": "status_type == 'failed' or levelname== 'ERROR'",
+          "paginated": false,
+          "remote_searchable_cols": [
+            "error_message"
+          ],
+          "columns": {
+            "error_message": {
+              "title": "Error",
               "key": true
+            }
+          },
+          "pivot": {
+            "pivot_type": "advanced",
+            "group_by": [
+              "error_message"
+            ],
+            "series": [
+              {
+                "column": "count_",
+                "agg": "sum",
+                "type": "int",
+                "label": "Failure Count"
+              }
+            ]
+          },
+          "widget_id": "a329bffb"
+        },
+        {
+          "title": "Top Errors (Logs)",
+          "context_filter": "show_logs is 'yes'",
+          "widget_type": "tabular",
+          "duration_hours": 1080,
+          "max_width": 8,
+          "max_rows": 10,
+          "height": 6,
+          "min_width": 6,
+          "stream": "{{STREAM_NAME}}",
+          "ts_column": "timestamp",
+          "extra_filter": "status_type == 'failed' or levelname== 'ERROR'",
+          "paginated": false,
+          "remote_searchable_cols": [
+            "message"
+          ],
+          "columns": {
+            "message": {
+              "title": "Error",
+              "key": true
+            }
+          },
+          "pivot": {
+            "pivot_type": "advanced",
+            "group_by": [
+              "message"
+            ],
+            "series": [
+              {
+                "column": "count_",
+                "agg": "sum",
+                "type": "int",
+                "label": "Failure Count"
+              }
+            ]
+          },
+          "widget_id": "db9561ce"
+        },
+        {
+          "title": "Failed Pipeline Execution List (Traces)",
+          "context_filter": "show_traces is 'yes'",
+          "widget_type": "tabular",
+          "duration_hours": 1080,
+          "max_width": 12,
+          "height": 8,
+          "min_width": 12,
+          "stream": "{{STREAM_NAME}}",
+          "ts_column": "timestamp",
+          "extra_filter": "status_type == 'failed' or levelname== 'ERROR'",
+          "paginated": false,
+          "remote_searchable_cols": [
+            "pipeline_name",
+            "error_message"
+          ],
+          "columns": {
+            "pipeline_name": {
+              "title": "Pipeline Name",
+              "type": "TEXT"
             },
-            "typeDescription": {
-              "title": "description"
-            },
-            "has_credential_check": {
-              "title": "Credential Check",
-              "visible": false
-            },
-            "saved_time": {
-              "title": "Saved Time",
-              "type": "DATETIME"
+            "error_message": {
+              "title": "Error Message",
+              "type": "TEXT",
+              "visible": true
             },
             "timestamp": {
-              "title": "When",
-              "type": "HUMANIZE_TIME_DELTA",
-              "source-column": "saved_time",
-              "sortable": false
+              "title": "Timestamp",
+              "type": "DATETIME",
+              "visible": true
             }
           },
-          "custom_columns": [
-            {
-              "id": "rowStyleClass",
-              "hidden": true,
-              "visiblle": false,
-              "expr": "'bg-fading-blue' if time_now_as_ms() - isoformat_to_ms(saved_time) <= 120000 else None"
-            },
-            {
-              "id": "artifact_name",
-              "label": "Artifact Name",
-              "expr": "name",
-              "key": true,
-              "visible": false,
-              "sortable": false
-            },
-            {
-              "id": "artifact_type",
-              "label": "Artifact Type",
-              "expr": "'source'",
-              "key": true,
-              "visible": false,
-              "sortable": false
-            }
-          ],
-          "actions": [
-            {
-              "permission": "rda:credential:add",
-              "title": "Add",
-              "icon": "mdi mdi-plus",
-              "type": "POPUP_FORM",
-              "selectionType": "NONE",
-              "identifier": "saas-service-action:vault-add",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.vault.add",
-                    "extension_types": [
-                      "snowflake"
-                    ]
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:credential:edit",
-              "title": "Edit",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:vault-edit",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.vault.edit"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:credential:view",
-              "title": "View",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "displayLabelColumnId": "name",
-              "drillDownLinkField": "name",
-              "identifier": "saas-service-action:vault-view",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.vault.view"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:credential:verify",
-              "title": "Verify Credentials",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:vault-edit",
-              "actionCondition": {
-                "actionControl": "HIDE_IF",
-                "conditionalField": [
-                  {
-                    "conditionType": "EQUAL",
-                    "conditionValue": "false",
-                    "fieldId": "has_credential_check"
-                  }
-                ]
-              },
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.vault.validateConenctivity"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:credential:verify",
-              "title": "Delete",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:vault-delete",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.vault.delete"
-                  }
-                ]
-              }
-            }
-          ],
-          "widget_id": "01dc3a55"
-        }
-      ]
-    },
-    {
-      "title": "OFFLINE Data Input",
-      "widgets": [
-        {
-          "title": "Upload HW EoX Data",
-          "widget_type": "tabular",
-          "duration_hours": 1080,
-          "stream": "edc_oi_inventory_enriched",
-          "remote_searchable": true,
-          "ts_column": "timestamp",
-          "paginated": true,
-          "height": 4,
-          "min_wdith": 12,
-          "columns": {
-            "customer_name": {
-              "title": "Customer Name",
-              "type": "TEXT",
-              "visible": true,
-              "key": true
-            }
-          },
-          "pivot": {
-            "pivot_type": "advanced",
-            "group_by": [
-              "customer_name",
-              "count_"
-            ],
-            "series": [
-              {
-                "column": "_RDA_Id",
-                "agg": "value_count",
-                "type": "int",
-                "label": "Number of Records"
-              }
-            ]
-          },
-          "actions": [
-            {
-              "permission": "rda:github:view",
-              "title": "Add Inventory and HW EOX Data",
-              "type": "POPUP_FORM",
-              "selectionType": "NONE",
-              "identifier": "saas-service-action:userdashboard-add-yaml",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.dynamic.form",
-                    "formDefinition": {
-                      "id": "rda.saas.dynamic.form",
-                      "refreshRequired": true,
-                      "formFieldList": [
-                        {
-                          "label": "Upload a CSV or Excel file that contains the data for Inventory and HW EoX (for stream edc_oi_inventory_enriched)",
-                          "dataType": "string",
-                          "controlType": "LABEL",
-                          "required": false,
-                          "editable": true,
-                          "hidden": false,
-                          "fieldId": "devices_to_supp_csv"
-                        },
-                        {
-                          "help": "Choose csv file to upload",
-                          "dataType": "string",
-                          "required": true,
-                          "editable": true,
-                          "label": "CSV Upload",
-                          "controlType": "FILE_UPLOAD",
-                          "hidden": false,
-                          "fieldId": "hweox_csv"
-                        }
-                      ]
-                    },
-                    "actions": [
-                      {
-                        "type": "RUN_PIPELINE",
-                        "pipelineName": "import-customer-data",
-                        "isSync": false
-                      }
-                    ]
-                  }
-                ]
-              }
-            }
-          ],
-          "widget_id": "cab00a38"
+          "widget_id": "b9e3d8a1"
         },
         {
-          "title": "Upload SW EoX Data",
+          "title": "Failed Pipeline Execution List (Logs)",
+          "context_filter": "show_logs is 'yes'",
           "widget_type": "tabular",
           "duration_hours": 1080,
-          "stream": "edc_sweol_data",
-          "remote_searchable": true,
+          "max_width": 12,
+          "height": 8,
+          "min_width": 12,
+          "stream": "{{STREAM_NAME}}",
           "ts_column": "timestamp",
-          "paginated": true,
-          "height": 4,
-          "min_wdith": 12,
-          "columns": {
-            "customer_name": {
-              "title": "Customer Name",
-              "type": "TEXT",
-              "visible": true,
-              "key": true
-            }
-          },
-          "pivot": {
-            "pivot_type": "advanced",
-            "group_by": [
-              "customer_name",
-              "count_"
-            ],
-            "series": [
-              {
-                "column": "_RDA_Id",
-                "agg": "value_count",
-                "type": "int",
-                "label": "Number of Records"
-              }
-            ]
-          },
-          "actions": [
-            {
-              "permission": "rda:github:view",
-              "title": "Add SW EOX Data",
-              "type": "POPUP_FORM",
-              "selectionType": "NONE",
-              "identifier": "saas-service-action:userdashboard-add-yaml",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.dynamic.form",
-                    "formDefinition": {
-                      "id": "rda.saas.dynamic.form",
-                      "refreshRequired": true,
-                      "formFieldList": [
-                        {
-                          "label": "Upload a CSV or Excel file that contains the data for SW EoX (for stream: edc_sweol_data) ",
-                          "dataType": "string",
-                          "controlType": "LABEL",
-                          "required": false,
-                          "editable": true,
-                          "hidden": false,
-                          "fieldId": "devices_to_supp_csv"
-                        },
-                        {
-                          "help": "Choose csv file to upload",
-                          "dataType": "string",
-                          "required": true,
-                          "editable": true,
-                          "label": "CSV Upload",
-                          "controlType": "FILE_UPLOAD",
-                          "hidden": false,
-                          "fieldId": "sweox_csv"
-                        }
-                      ]
-                    },
-                    "actions": [
-                      {
-                        "type": "RUN_PIPELINE",
-                        "pipelineName": "import-customer-data",
-                        "isSync": false
-                      }
-                    ]
-                  }
-                ]
-              }
-            }
+          "extra_filter": "status_type == 'failed' or levelname== 'ERROR'",
+          "paginated": false,
+          "remote_searchable_cols": [
+            "pipeline_name",
+            "message"
           ],
-          "widget_id": "1227dff0"
-        },
-        {
-          "title": "Upload Security Advisory Data",
-          "widget_type": "tabular",
-          "duration_hours": 1080,
-          "stream": "edc_sec_adv_data_enriched",
-          "remote_searchable": true,
-          "ts_column": "timestamp",
-          "paginated": true,
-          "height": 5,
-          "min_wdith": 12,
           "columns": {
-            "customer_name": {
-              "title": "Customer Name",
+            "pipeline_name": {
+              "title": "Pipeline Name",
+              "type": "TEXT"
+            },
+            "message": {
+              "title": "Error Message",
               "type": "TEXT",
-              "visible": true,
-              "key": true
+              "visible": true
+            },
+            "timestamp": {
+              "title": "Timestamp",
+              "type": "DATETIME",
+              "visible": true
             }
           },
-          "pivot": {
-            "pivot_type": "advanced",
-            "group_by": [
-              "customer_name",
-              "count_"
-            ],
-            "series": [
-              {
-                "column": "_RDA_Id",
-                "agg": "value_count",
-                "type": "int",
-                "label": "Number of Records"
-              }
-            ]
-          },
-          "actions": [
-            {
-              "permission": "rda:github:view",
-              "title": "Add Security Advisory Data",
-              "type": "POPUP_FORM",
-              "selectionType": "NONE",
-              "identifier": "saas-service-action:userdashboard-add-yaml",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.dynamic.form",
-                    "formDefinition": {
-                      "id": "rda.saas.dynamic.form",
-                      "refreshRequired": true,
-                      "formFieldList": [
-                        {
-                          "label": "Upload a CSV or Excel file that contains the data for Security Advisories (for stream: edc_sec_adv_data_enriched) ",
-                          "dataType": "string",
-                          "controlType": "LABEL",
-                          "required": false,
-                          "editable": true,
-                          "hidden": false,
-                          "fieldId": "devices_to_supp_csv"
-                        },
-                        {
-                          "help": "Choose csv file to upload",
-                          "dataType": "string",
-                          "required": true,
-                          "editable": true,
-                          "label": "CSV Upload",
-                          "controlType": "FILE_UPLOAD",
-                          "hidden": false,
-                          "fieldId": "secadv_csv"
-                        }
-                      ]
-                    },
-                    "actions": [
-                      {
-                        "type": "RUN_PIPELINE",
-                        "pipelineName": "import-customer-data",
-                        "isSync": false
-                      }
-                    ]
-                  }
-                ]
-              }
-            }
-          ],
-          "widget_id": "201de080"
-        },
-        {
-          "title": "Upload Licenses Details Data",
-          "widget_type": "tabular",
-          "duration_hours": 1080,
-          "stream": "edc_license_details",
-          "remote_searchable": true,
-          "ts_column": "timestamp",
-          "paginated": true,
-          "height": 5,
-          "min_wdith": 12,
-          "columns": {
-            "customer_name": {
-              "title": "Customer Name",
-              "type": "TEXT",
-              "visible": true,
-              "key": true
-            }
-          },
-          "pivot": {
-            "pivot_type": "advanced",
-            "group_by": [
-              "customer_name",
-              "count_"
-            ],
-            "series": [
-              {
-                "column": "_RDA_Id",
-                "agg": "value_count",
-                "type": "int",
-                "label": "Number of Records"
-              }
-            ]
-          },
-          "actions": [
-            {
-              "permission": "rda:github:view",
-              "title": "Add SW License Details Data",
-              "type": "POPUP_FORM",
-              "selectionType": "NONE",
-              "identifier": "saas-service-action:userdashboard-add-yaml",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.dynamic.form",
-                    "formDefinition": {
-                      "id": "rda.saas.dynamic.form",
-                      "refreshRequired": true,
-                      "formFieldList": [
-                        {
-                          "label": "Upload a CSV that contains the data for SW Licenes Details (for stream: edc_license_details) ",
-                          "dataType": "string",
-                          "controlType": "LABEL",
-                          "required": false,
-                          "editable": true,
-                          "hidden": false,
-                          "fieldId": "devices_to_supp_csv"
-                        },
-                        {
-                          "help": "Choose csv file to upload",
-                          "dataType": "string",
-                          "required": true,
-                          "editable": true,
-                          "label": "CSV Upload",
-                          "controlType": "FILE_UPLOAD",
-                          "hidden": false,
-                          "fieldId": "swlicenses_details_csv"
-                        }
-                      ]
-                    },
-                    "actions": [
-                      {
-                        "type": "RUN_PIPELINE",
-                        "pipelineName": "import-customer-data",
-                        "isSync": false
-                      }
-                    ]
-                  }
-                ]
-              }
-            }
-          ],
-          "widget_id": "159a8bd0"
+          "widget_id": "58205089"
         }
       ]
     }
   ],
-  "pstream_dashboards": [
-    {
-      "title": "ONLINE Data Input",
-      "widgets": [
+  "dynamic_form": {
+    "formData": {},
+    "controlPanelFormDefinition": {
+      "title": "Select Data Source",
+      "buttonLabel": "Apply",
+      "id": "kpi.benchmark.json",
+      "refreshRequired": true,
+      "openByDefault": false,
+      "formFieldList": [
         {
-          "title": "Snowflake Credential Management",
-          "widget_type": "tabular",
-          "stream": "rda_secrets_meta",
-          "extra_filter": "(type in ['snowflake'])",
-          "timebased": false,
-          "remote_searchable_cols": [
-            "name",
-            "type",
-            "typeDescription"
-          ],
-          "ts_column": "saved_time",
-          "paginated": true,
-          "height": 4,
-          "min_wdith": 12,
-          "columns": {
-            "name": {
-              "title": "Name",
-              "key": true
+          "fieldId": "stream_name",
+          "label": "Select Source",
+          "hidden": false,
+          "editable": true,
+          "required": true,
+          "controlType": "COMBO_BOX",
+          "defaultValue": "rda_system_worker_traces",
+          "lovValues": [
+            {
+              "identifier": "rda_system_worker_traces",
+              "displayName": "RDAF Worker Traces"
             },
-            "type": {
-              "title": "Type",
-              "key": true
-            },
-            "typeDescription": {
-              "title": "description"
-            },
-            "has_credential_check": {
-              "title": "Credential Check",
-              "visible": false
-            },
-            "saved_time": {
-              "title": "Saved Time",
-              "type": "DATETIME"
-            },
-            "timestamp": {
-              "title": "When",
-              "type": "HUMANIZE_TIME_DELTA",
-              "source-column": "saved_time",
-              "sortable": false
+            {
+              "identifier": "rda_system_worker_logs",
+              "displayName": "RDAF Worker Logs"
             }
-          },
-          "custom_columns": [
-            {
-              "id": "rowStyleClass",
-              "hidden": true,
-              "visiblle": false,
-              "expr": "'bg-fading-blue' if time_now_as_ms() - isoformat_to_ms(saved_time) <= 120000 else None"
-            },
-            {
-              "id": "artifact_name",
-              "label": "Artifact Name",
-              "expr": "name",
-              "key": true,
-              "visible": false,
-              "sortable": false
-            },
-            {
-              "id": "artifact_type",
-              "label": "Artifact Type",
-              "expr": "'source'",
-              "key": true,
-              "visible": false,
-              "sortable": false
-            }
-          ],
-          "actions": [
-            {
-              "permission": "rda:credential:add",
-              "title": "Add",
-              "icon": "mdi mdi-plus",
-              "type": "POPUP_FORM",
-              "selectionType": "NONE",
-              "identifier": "saas-service-action:vault-add",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.vault.add",
-                    "extension_types": [
-                      "snowflake"
-                    ]
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:credential:edit",
-              "title": "Edit",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:vault-edit",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.vault.edit"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:credential:view",
-              "title": "View",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "displayLabelColumnId": "name",
-              "drillDownLinkField": "name",
-              "identifier": "saas-service-action:vault-view",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.vault.view"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:credential:verify",
-              "title": "Verify Credentials",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:vault-edit",
-              "actionCondition": {
-                "actionControl": "HIDE_IF",
-                "conditionalField": [
-                  {
-                    "conditionType": "EQUAL",
-                    "conditionValue": "false",
-                    "fieldId": "has_credential_check"
-                  }
-                ]
-              },
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.vault.validateConenctivity"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:credential:verify",
-              "title": "Delete",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:vault-delete",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.vault.delete"
-                  }
-                ]
-              }
-            }
-          ],
-          "widget_id": "01dc3a55"
+          ]
         }
       ]
-    },
+    }
+  },
+  "pstream_dashboards": [
     {
-      "title": "OFFLINE Data Input",
+      "title": "Pipeline Failure",
+      "show_filter": true,
       "widgets": [
         {
-          "title": "Upload HW EoX Data",
-          "widget_type": "tabular",
+          "widget_type": "label",
+          "context_filter": "show_traces is 'yes'",
+          "max_width": 12,
+          "height": 0.5,
+          "min_width": 12,
+          "label": "<div style='text-align:center;width:100%;'><h1><a style='text-decoration:none;color:#0066ff;' target='_blank'> Pipeline Failure Trend (Worker Traces)</a></h1></div>",
+          "widget_id": "33317e49"
+        },
+        {
+          "widget_type": "label",
+          "context_filter": "show_logs is 'yes'",
+          "max_width": 12,
+          "height": 0.5,
+          "min_width": 12,
+          "label": "<div style='text-align:center;width:100%;'><h1><a style='text-decoration:none;color:#0066ff;' target='_blank'> Pipeline Failure Trend (Worker Logs) </a></h1></div>",
+          "widget_id": "af4f91d4"
+        },
+        {
+          "widget_type": "pie_chart",
+          "title": "Top pipelines failed ",
           "duration_hours": 1080,
-          "stream": "edc_oi_inventory_enriched",
-          "remote_searchable": true,
+          "stream": "{{STREAM_NAME}}",
           "ts_column": "timestamp",
-          "paginated": true,
+          "extra_filter": "status_type == 'failed' or levelname== 'ERROR'",
+          "column": "count_",
+          "agg": "value_count",
+          "group_by": [
+            "pipeline_name"
+          ],
+          "min_width": 4,
           "height": 4,
-          "min_wdith": 12,
-          "columns": {
-            "customer_name": {
-              "title": "Customer Name",
-              "type": "TEXT",
-              "visible": true,
-              "key": true
-            }
-          },
-          "pivot": {
-            "pivot_type": "advanced",
-            "group_by": [
-              "customer_name",
-              "count_"
-            ],
-            "series": [
-              {
-                "column": "_RDA_Id",
-                "agg": "value_count",
-                "type": "int",
-                "label": "Number of Records"
-              }
-            ]
-          },
-          "actions": [
-            {
-              "permission": "rda:github:view",
-              "title": "Add Inventory and HW EOX Data",
-              "type": "POPUP_FORM",
-              "selectionType": "NONE",
-              "identifier": "saas-service-action:userdashboard-add-yaml",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.dynamic.form",
-                    "formDefinition": {
-                      "id": "rda.saas.dynamic.form",
-                      "refreshRequired": true,
-                      "formFieldList": [
-                        {
-                          "label": "Upload a CSV or Excel file that contains the data for Inventory and HW EoX (for stream edc_oi_inventory_enriched)",
-                          "dataType": "string",
-                          "controlType": "LABEL",
-                          "required": false,
-                          "editable": true,
-                          "hidden": false,
-                          "fieldId": "devices_to_supp_csv"
-                        },
-                        {
-                          "help": "Choose csv file to upload",
-                          "dataType": "string",
-                          "required": true,
-                          "editable": true,
-                          "label": "CSV Upload",
-                          "controlType": "FILE_UPLOAD",
-                          "hidden": false,
-                          "fieldId": "hweox_csv"
-                        }
-                      ]
-                    },
-                    "actions": [
-                      {
-                        "type": "RUN_PIPELINE",
-                        "pipelineName": "import-customer-data",
-                        "isSync": false
-                      }
-                    ]
-                  }
-                ]
-              }
-            }
-          ],
-          "widget_id": "cab00a38"
+          "max_width": 4,
+          "widget_id": "b015e2a2"
         },
         {
-          "title": "Upload SW EoX Data",
-          "widget_type": "tabular",
-          "duration_hours": 1080,
-          "stream": "edc_sweol_data",
-          "remote_searchable": true,
+          "title": "Unique Count Failing Pipelines (Daily)",
+          "widget_type": "timeseries",
+          "stream": "{{STREAM_NAME}}",
           "ts_column": "timestamp",
-          "paginated": true,
+          "extra_filter": "status_type == 'failed' or levelname== 'ERROR'",
+          "duration_hours": 1080,
+          "max_width": 8,
           "height": 4,
-          "min_wdith": 12,
-          "columns": {
-            "customer_name": {
-              "title": "Customer Name",
-              "type": "TEXT",
-              "visible": true,
-              "key": true
+          "min_width": 8,
+          "gap_interval": "keep",
+          "chartProperties": {
+            "yAxisLabel": "Failures",
+            "xAxisLabel": "Local Time",
+            "legendLocation": "none",
+            "isDownsamplingDisabled": true,
+            "mode": "selection",
+            "column-id": "timestamp",
+            "options": {
+              "axes": {
+                "display": false
+              }
             }
           },
-          "pivot": {
-            "pivot_type": "advanced",
-            "group_by": [
-              "customer_name",
-              "count_"
-            ],
-            "series": [
-              {
-                "column": "_RDA_Id",
-                "agg": "value_count",
-                "type": "int",
-                "label": "Number of Records"
-              }
-            ]
-          },
-          "actions": [
+          "interval": "1d",
+          "series_spec": [
             {
-              "permission": "rda:github:view",
-              "title": "Add SW EOX Data",
-              "type": "POPUP_FORM",
-              "selectionType": "NONE",
-              "identifier": "saas-service-action:userdashboard-add-yaml",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.dynamic.form",
-                    "formDefinition": {
-                      "id": "rda.saas.dynamic.form",
-                      "refreshRequired": true,
-                      "formFieldList": [
-                        {
-                          "label": "Upload a CSV or Excel file that contains the data for SW EoX (for stream: edc_sweol_data) ",
-                          "dataType": "string",
-                          "controlType": "LABEL",
-                          "required": false,
-                          "editable": true,
-                          "hidden": false,
-                          "fieldId": "devices_to_supp_csv"
-                        },
-                        {
-                          "help": "Choose csv file to upload",
-                          "dataType": "string",
-                          "required": true,
-                          "editable": true,
-                          "label": "CSV Upload",
-                          "controlType": "FILE_UPLOAD",
-                          "hidden": false,
-                          "fieldId": "sweox_csv"
-                        }
-                      ]
-                    },
-                    "actions": [
-                      {
-                        "type": "RUN_PIPELINE",
-                        "pipelineName": "import-customer-data",
-                        "isSync": false
-                      }
-                    ]
-                  }
-                ]
-              }
+              "column": "pipeline_name",
+              "agg": "cardinality",
+              "type": "int"
             }
           ],
-          "widget_id": "1227dff0"
+          "widget_id": "ed5ca8c1"
         },
         {
-          "title": "Upload Security Advisory Data",
+          "title": "Top Pipelines",
           "widget_type": "tabular",
           "duration_hours": 1080,
-          "stream": "edc_sec_adv_data_enriched",
-          "remote_searchable": true,
-          "ts_column": "timestamp",
-          "paginated": true,
+          "max_width": 4,
+          "max_rows": 10,
           "height": 5,
-          "min_wdith": 12,
+          "min_width": 4,
+          "stream": "{{STREAM_NAME}}",
+          "ts_column": "timestamp",
+          "extra_filter": "status_type == 'failed' or levelname== 'ERROR'",
+          "paginated": false,
+          "remote_searchable": true,
+          "remote_searchable_cols": [
+            "pipeline_name"
+          ],
           "columns": {
-            "customer_name": {
-              "title": "Customer Name",
-              "type": "TEXT",
-              "visible": true,
+            "pipeline_name": {
+              "title": "Pipeline",
               "key": true
             }
           },
           "pivot": {
             "pivot_type": "advanced",
             "group_by": [
-              "customer_name",
-              "count_"
+              "pipeline_name"
             ],
             "series": [
               {
-                "column": "_RDA_Id",
-                "agg": "value_count",
+                "column": "count_",
+                "agg": "sum",
                 "type": "int",
-                "label": "Number of Records"
+                "label": "Failure Count"
               }
             ]
           },
-          "actions": [
-            {
-              "permission": "rda:github:view",
-              "title": "Add Security Advisory Data",
-              "type": "POPUP_FORM",
-              "selectionType": "NONE",
-              "identifier": "saas-service-action:userdashboard-add-yaml",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.dynamic.form",
-                    "formDefinition": {
-                      "id": "rda.saas.dynamic.form",
-                      "refreshRequired": true,
-                      "formFieldList": [
-                        {
-                          "label": "Upload a CSV or Excel file that contains the data for Security Advisories (for stream: edc_sec_adv_data_enriched) ",
-                          "dataType": "string",
-                          "controlType": "LABEL",
-                          "required": false,
-                          "editable": true,
-                          "hidden": false,
-                          "fieldId": "devices_to_supp_csv"
-                        },
-                        {
-                          "help": "Choose csv file to upload",
-                          "dataType": "string",
-                          "required": true,
-                          "editable": true,
-                          "label": "CSV Upload",
-                          "controlType": "FILE_UPLOAD",
-                          "hidden": false,
-                          "fieldId": "secadv_csv"
-                        }
-                      ]
-                    },
-                    "actions": [
-                      {
-                        "type": "RUN_PIPELINE",
-                        "pipelineName": "import-customer-data",
-                        "isSync": false
-                      }
-                    ]
-                  }
-                ]
-              }
-            }
-          ],
-          "widget_id": "201de080"
+          "widget_id": "954ed85a"
         },
         {
-          "title": "Upload Licenses Details Data",
+          "title": "Top Errors (Traces)",
+          "context_filter": "show_traces is 'yes'",
           "widget_type": "tabular",
           "duration_hours": 1080,
-          "stream": "edc_license_details",
-          "remote_searchable": true,
+          "max_width": 8,
+          "max_rows": 10,
+          "height": 6,
+          "min_width": 6,
+          "stream": "{{STREAM_NAME}}",
           "ts_column": "timestamp",
-          "paginated": true,
-          "height": 5,
-          "min_wdith": 12,
+          "extra_filter": "status_type == 'failed' or levelname== 'ERROR'",
+          "paginated": false,
+          "remote_searchable_cols": [
+            "error_message"
+          ],
           "columns": {
-            "customer_name": {
-              "title": "Customer Name",
-              "type": "TEXT",
-              "visible": true,
+            "error_message": {
+              "title": "Error",
               "key": true
             }
           },
           "pivot": {
             "pivot_type": "advanced",
             "group_by": [
-              "customer_name",
-              "count_"
+              "error_message"
             ],
             "series": [
               {
-                "column": "_RDA_Id",
-                "agg": "value_count",
+                "column": "count_",
+                "agg": "sum",
                 "type": "int",
-                "label": "Number of Records"
+                "label": "Failure Count"
               }
             ]
           },
-          "actions": [
-            {
-              "permission": "rda:github:view",
-              "title": "Add SW License Details Data",
-              "type": "POPUP_FORM",
-              "selectionType": "NONE",
-              "identifier": "saas-service-action:userdashboard-add-yaml",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.dynamic.form",
-                    "formDefinition": {
-                      "id": "rda.saas.dynamic.form",
-                      "refreshRequired": true,
-                      "formFieldList": [
-                        {
-                          "label": "Upload a CSV that contains the data for SW Licenes Details (for stream: edc_license_details) ",
-                          "dataType": "string",
-                          "controlType": "LABEL",
-                          "required": false,
-                          "editable": true,
-                          "hidden": false,
-                          "fieldId": "devices_to_supp_csv"
-                        },
-                        {
-                          "help": "Choose csv file to upload",
-                          "dataType": "string",
-                          "required": true,
-                          "editable": true,
-                          "label": "CSV Upload",
-                          "controlType": "FILE_UPLOAD",
-                          "hidden": false,
-                          "fieldId": "swlicenses_details_csv"
-                        }
-                      ]
-                    },
-                    "actions": [
-                      {
-                        "type": "RUN_PIPELINE",
-                        "pipelineName": "import-customer-data",
-                        "isSync": false
-                      }
-                    ]
-                  }
-                ]
-              }
-            }
+          "widget_id": "a329bffb"
+        },
+        {
+          "title": "Top Errors (Logs)",
+          "context_filter": "show_logs is 'yes'",
+          "widget_type": "tabular",
+          "duration_hours": 1080,
+          "max_width": 8,
+          "max_rows": 10,
+          "height": 6,
+          "min_width": 6,
+          "stream": "{{STREAM_NAME}}",
+          "ts_column": "timestamp",
+          "extra_filter": "status_type == 'failed' or levelname== 'ERROR'",
+          "paginated": false,
+          "remote_searchable_cols": [
+            "message"
           ],
-          "widget_id": "159a8bd0"
+          "columns": {
+            "message": {
+              "title": "Error",
+              "key": true
+            }
+          },
+          "pivot": {
+            "pivot_type": "advanced",
+            "group_by": [
+              "message"
+            ],
+            "series": [
+              {
+                "column": "count_",
+                "agg": "sum",
+                "type": "int",
+                "label": "Failure Count"
+              }
+            ]
+          },
+          "widget_id": "db9561ce"
+        },
+        {
+          "title": "Failed Pipeline Execution List (Traces)",
+          "context_filter": "show_traces is 'yes'",
+          "widget_type": "tabular",
+          "duration_hours": 1080,
+          "max_width": 12,
+          "height": 8,
+          "min_width": 12,
+          "stream": "{{STREAM_NAME}}",
+          "ts_column": "timestamp",
+          "extra_filter": "status_type == 'failed' or levelname== 'ERROR'",
+          "paginated": false,
+          "remote_searchable_cols": [
+            "pipeline_name",
+            "error_message"
+          ],
+          "columns": {
+            "pipeline_name": {
+              "title": "Pipeline Name",
+              "type": "TEXT"
+            },
+            "error_message": {
+              "title": "Error Message",
+              "type": "TEXT",
+              "visible": true
+            },
+            "timestamp": {
+              "title": "Timestamp",
+              "type": "DATETIME",
+              "visible": true
+            }
+          },
+          "widget_id": "b9e3d8a1"
+        },
+        {
+          "title": "Failed Pipeline Execution List (Logs)",
+          "context_filter": "show_logs is 'yes'",
+          "widget_type": "tabular",
+          "duration_hours": 1080,
+          "max_width": 12,
+          "height": 8,
+          "min_width": 12,
+          "stream": "{{STREAM_NAME}}",
+          "ts_column": "timestamp",
+          "extra_filter": "status_type == 'failed' or levelname== 'ERROR'",
+          "paginated": false,
+          "remote_searchable_cols": [
+            "pipeline_name",
+            "message"
+          ],
+          "columns": {
+            "pipeline_name": {
+              "title": "Pipeline Name",
+              "type": "TEXT"
+            },
+            "message": {
+              "title": "Error Message",
+              "type": "TEXT",
+              "visible": true
+            },
+            "timestamp": {
+              "title": "Timestamp",
+              "type": "DATETIME",
+              "visible": true
+            }
+          },
+          "widget_id": "58205089"
         }
       ]
     }
