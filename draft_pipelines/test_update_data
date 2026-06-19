@@ -1,62 +1,26 @@
-@dm:empty
- ## --> @exec:get-input
-
- --> @dm:recall name="test-retrieve-dataset"
- --> @dm:save name="temp-retrieve-dataset"
- --> @c:new-block
- ## --> @dm:recall name="edc_customer_names"
-
- --> @dm:recall name="temp-retrieve-dataset"
- --> *dm:filter savm_level =="SAVM_SALES_LEVEL_4_NAME"
- --> @dm:save name='temp-level4-name'
- --> @c:new-block
- ## --> @dm:recall name="edc_customer_names"
-
- --> @dm:recall name="temp-retrieve-dataset"
- --> *dm:filter savm_level =="SAVM_SALES_LEVEL_5_NAME"
- --> @dm:save name='temp-level5-name'
- --> @c:new-block
- ## --> @dm:recall name="edc_customer_names"
-
- --> @dm:recall name="temp-retrieve-dataset"
- --> *dm:filter savm_level =="SAVM_SALES_LEVEL_6_NAME"
- --> @dm:save name='temp-level6-name'
- --> @c:new-block
- --> @dm:empty
- --> @dm:save name='edc_status'
- --> @c:data-loop columns='savm_name,customer' and dataset='temp-level4-name' and return_empty='yes'
- --> @dm:recall name='edc_status' and return_empty = 'yes'
- --> @dm:addrow dummy='key'
- --> @dm:add-missing-columns columns='customer_name' and  value="$customer"
- --> @dm:manipulate-string to="status" and func="eval" and value="'starting to fetch the data'"
- --> @rn:write-stream name ='edc_update_status'
- --> @snowflake:native-query dbname is "CX_DB" and warehouse is "CX_DMP_RPT_WH" and query is "WITH UniqueCombinations AS (    SELECT GU_NAME, SAVM_SALES_LEVEL_3_NAME, SAVM_SALES_LEVEL_4_NAME, SAVM_SALES_LEVEL_5_NAME, SAVM_SALES_LEVEL_6_NAME, CONTRACT_NUMBER, PRODUCT_NAME, COVERAGE, COVERED_LINE_STATUS, BUSINESS_ENTITY, BUSINESS_SUB_ENTITY, PRODUCT_LIST_PRICE, COALESCE(CONTRACT_NUMBER, COVERED_LINE_STATUS, PRODUCT_LIST_PRICE), COUNT(*) AS combination_count    FROM CX_DB.CX_DMP_EBV.BV_ASSET    WHERE SAVM_SALES_LEVEL_4_NAME = '$savm_name'      AND ASSET_TYPE = 'Hardware'    GROUP BY GU_NAME, SAVM_SALES_LEVEL_3_NAME, SAVM_SALES_LEVEL_4_NAME, SAVM_SALES_LEVEL_5_NAME, SAVM_SALES_LEVEL_6_NAME, CONTRACT_NUMBER, PRODUCT_NAME, COVERAGE, COVERED_LINE_STATUS, BUSINESS_ENTITY, BUSINESS_SUB_ENTITY, PRODUCT_LIST_PRICE) SELECT DISTINCT a.GU_NAME, a.SAVM_SALES_LEVEL_3_NAME, a.SAVM_SALES_LEVEL_4_NAME, a.SAVM_SALES_LEVEL_5_NAME, a.SAVM_SALES_LEVEL_6_NAME, a.CONTRACT_NUMBER, a.PRODUCT_NAME, a.COVERAGE, a.COVERED_LINE_STATUS, a.BUSINESS_ENTITY, a.BUSINESS_SUB_ENTITY, a.BK_END_OF_LIFE_REQUEST_NUM, a.BK_EOL_BULLETIN_PRODUCT_TYP_CD, a.END_OF_NEW_SVC_ATTACHMENT_DT, a.END_OF_ROUTINE_FAIL_ANLYSYS_DT, a.END_OF_SOFTWARE_MAINTENANCE_DT, a.END_OF_SVC_CONTRACT_RNWL_DT, a.EOL_EXTERNAL_ANNOUNCE_DT, a.EOL_PRODUCT_NAME, a.ITEM_TYPE, a.LAST_DATE_OF_SALE, a.LAST_DATE_OF_SUPPORT, a.PRODUCT_DESCRIPTION, a.PRODUCT_FAMILY, a.PRODUCT_FAMILY_DESCRIPTION, a.PRODUCT_TYPE,  a.PRODUCT_LIST_PRICE , u.combination_count FROM CX_DB.CX_DMP_EBV.BV_ASSET a LEFT JOIN UniqueCombinations u ON a.GU_NAME = u.GU_NAME AND a.SAVM_SALES_LEVEL_3_NAME = u.SAVM_SALES_LEVEL_3_NAME AND a.SAVM_SALES_LEVEL_4_NAME = u.SAVM_SALES_LEVEL_4_NAME AND a.SAVM_SALES_LEVEL_5_NAME = u.SAVM_SALES_LEVEL_5_NAME AND a.SAVM_SALES_LEVEL_6_NAME = u.SAVM_SALES_LEVEL_6_NAME AND COALESCE(a.CONTRACT_NUMBER, 'NULL') = COALESCE(u.CONTRACT_NUMBER, 'NULL') AND a.PRODUCT_NAME = u.PRODUCT_NAME AND a.COVERAGE = u.COVERAGE AND COALESCE(a.COVERED_LINE_STATUS, 'NULL') = COALESCE(u.COVERED_LINE_STATUS, 'NULL') AND a.BUSINESS_ENTITY = u.BUSINESS_ENTITY AND a.BUSINESS_SUB_ENTITY = u.BUSINESS_SUB_ENTITY AND COALESCE(a.PRODUCT_LIST_PRICE, 0) = COALESCE(u.PRODUCT_LIST_PRICE, 0) WHERE a.SAVM_SALES_LEVEL_4_NAME = '$savm_name'  AND a.ASSET_TYPE = 'Hardware';"
- --> @dm:eval timestamp = "int(time_now_as_ms())"
- --> @dm:add-missing-columns columns="execution_status"
- --> *dm:filter execution_status =="Success"
- --> @dm:skip-block-if-shape column_count = 3
- --> @dm:to_type columns = 'product_list_price,combination_count' & type  = 'int'
- --> @dm:fixnull columns="product_list_price" and value="0" and apply_for_empty="yes"
- ## --> @dm:save name="edc_inventory"
-
- --> @dm:fixnull columns="covered_line_status,coverage" and value="Not Available" and apply_for_empty="yes"
- --> @dm:eval total_product_list_price = "(product_list_price * combination_count)"
- ## create column for unique customer
-
- --> @dm:manipulate-string to="customer_name" and func="eval" and value="'$customer'"
- --> @dm:eval unique_key = "str(gu_name) + str(savm_sales_level_3_name) + str(savm_sales_level_4_name) + str(savm_sales_level_5_name) + str(savm_sales_level_6_name) + str(contract_number) + str(product_name) + str(coverage) + str (covered_line_status) + str(business_entity) + str (business_sub_entity) + str (product_list_price)"
- --> @dm:change-time-format columns="end_of_new_svc_attachment_dt,end_of_routine_fail_anlysys_dt,end_of_software_maintenance_dt,end_of_svc_contract_rnwl_dt,eol_external_announce_dt,last_date_of_sale,last_date_of_support" and from_format="datetimestr" and to_format="%Y-%m-%d"
- --> @dm:save name="temp-edc-inventory-level4"
- --> @dm:save name="test-edc-inventory-level4"
- ## --> @dm:selectcolumns include="contract_number|product_name|coverage|covered_line_status|business_entity|business_sub_entity	bk_end_of_life_request_num|bk_eol_bulletin_product_typ_cd|end_of_new_svc_attachment_dt"
-
- ## --> @rn:write-stream name="edc_oi_inventory_grouped"
-
- --> @rn:write-stream name="edc_oi_inventory_grouped_1" and direct_to_opensearch="yes"
- --> @dm:empty
- --> @dm:manipulate-string to="status" and func="eval" and value="'Data fetch completed'"
- --> @rn:write-stream name ='edc_update_status'
- --> @dm:manipulate-string to="status" and func="eval" and value="'Processing EOL data'"
- --> @dm:add-missing-columns columns='customer_name' and  value="$customer"
- --> @rn:write-stream name ='edc_update_status'
- --> @dm:recall name='temp-edc-inventory-level4'
+folder: Default
+name: test-sweol-data
+description: test pipeline
+data_path: draft-pipelines/data/test-sweol-data/2025_05_21_01/data.json
+usecase: ''
+category: ''
+sources:
+  cfxaia:
+    name: cfxaia
+    type: cfxaia
+  rn:
+    name: rn
+    type: rn
+artifacts:
+- artifact_type: dataset
+  artifact_name: test-sweol
+  access: read
+- artifact_type: dataset
+  artifact_name: test-sweol
+  access: read
+- artifact_type: rda-network-stream
+  artifact_name: edc_sweol_data
+  access: write
+version: '2025_05_21_01'
+file_type: json
+checksum: 9ec55724

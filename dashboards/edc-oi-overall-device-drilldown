@@ -1,55 +1,628 @@
 {
-  "name": "oi-asp-documentation-test-saummmond",
-  "label": "OI Org Chart",
-  "live_edit": true,
-  "version": "25.2.25.1",
-  "description": "OI ASP Documentation Widgets",
-  "dashboard_folder": "Default",
-  "dashboard_type": "dashboard",
+  "name": "edc-oi-overall-device-drilldown",
+  "label": "Device Details",
+  "description": "EDC Device Drilldown Details",
+  "version": "2026-02-10-01",
   "enabled": false,
+  "context_label_id": "serial_number",
+  "dashboard_folder": "OI",
+  "dashboard_style": "auto",
+  "live_edit": true,
+  "dashboard_type": "template",
+  "template_variables": {
+    "PROJECT_NAME": {
+      "contextId": "project_name"
+    },
+    "SERIAL_NUMBER": {
+      "contextId": "serial_number"
+    },
+    "SW_VERSION": {
+      "contextId": "sw_version"
+    },
+    "SW_OS_TYPE": {
+      "contextId": "sw_os_type"
+    },
+    "PRODUCT_ID": {
+      "contextId": "product_id"
+    }
+  },
+  "dashboard_pages": [],
+  "dashboard_filters": {
+    "time_filter": false,
+    "default_time_filter_labels": [
+      "Last 12 months"
+    ],
+    "columns_filter": [],
+    "group_filters": []
+  },
   "dashboard_sections": [
     {
-      "title": "Documentation",
+      "title": "Device Details",
+      "show_filter": true,
       "widgets": [
         {
-          "title": "Documentation",
-          "widget_type": "custom_widget",
-          "widget_implementation": "oi-asp-documentation-test-saummmond/oi-asp-documentation-test-saummmond_widget",
+          "title": "SW EOLs",
+          "widget_type": "tabular",
+          "max_width": 12,
+          "height": 5,
           "min_width": 12,
-          "min_height": 12,
-          "widget_id": "4e2d534c"
+          "stream": "edc_customer_inventory",
+          "extra_filter": "project_name is '{{PROJECT_NAME}}' and serial_number is '{{SERIAL_NUMBER}}'",
+          "duration_hours": 1080,
+          "ts_column": "timestamp",
+          "columns": {
+            "swEOL_softwareEOXId": {
+              "title": "SW EOL ID",
+              "type": "DOUBLE"
+            },
+            "swEOL_bulletinNumber": {
+              "title": "Bulletin Number",
+              "type": "TEXT",
+              "htmlTemplateForRow": "{% raw %} <a href=\"{{row.swEOL_bulletinUrl}}\" target='_blank'>{{row. swEOL_bulletinNumber}}</a>{% endraw %}"
+            },
+            "swEOL_bulletinTitle": {
+              "title": "Bulleting Title",
+              "type": "TEXT",
+              "visible": true
+            },
+            "sw_status_color": {
+              "type": "COLOR-MAP",
+              "source-column": "sw_status",
+              "color-map": {
+                "Expired": "#BB0000",
+                "Expiring in a Quarter": "#F6C309",
+                "Expiring in 8 Quarters": "#FF9800",
+                "Expiring after 8 Quarters": "#1ECBE1",
+                "No EOL": "#00BB00"
+              }
+            },
+            "sw_version": "SW Version",
+            "sw_status": {
+              "title": "SW Status",
+              "type": "TEXT",
+              "htmlTemplateForRow": "{% raw %}<span class='badge' style='background-color: {{ row.sw_status_color }}' > {{ row.sw_status }} </span>{% endraw %}",
+              "visible": true
+            },
+            "product_id": "Product ID",
+            "serial_number": {
+              "title": "Serial Number",
+              "type": "TEXT",
+              "visible": false
+            },
+            "product_family": "Product Family",
+            "swEOL_endOfLifeAnnouncementDate": {
+              "title": "EOL Announcement",
+              "type": "DATE"
+            },
+            "swEOL_endOfSaleDate": {
+              "title": "End Of Sale",
+              "type": "DATE"
+            },
+            "swEOL_endOfSoftwareMaintenanceReleasesDate": {
+              "title": "End Of Software Maintenance Releases",
+              "type": "DATE"
+            },
+            "swEOL_endOfVulnerabilitySecuritySupportDate": {
+              "title": "End Of Vulnerability Security Support",
+              "type": "DATE"
+            },
+            "swEOL_lastDayOfSupportDate": {
+              "title": "Last Day of Support",
+              "type": "DATE"
+            }
+          },
+          "widget_id": "c5f4de2f"
+        },
+        {
+          "title": "Security Advisories",
+          "widget_type": "tabular",
+          "max_width": 12,
+          "height": 6,
+          "min_width": 12,
+          "stream": "edc_customer_productAlerts",
+          "context_filter": "project_name is 'ATT-Mobility'",
+          "duration_hours": 1080,
+          "ts_column": "timestamp",
+          "extra_filter": "(serial_number is '{{SERIAL_NUMBER}}' )",
+          "sorting": [
+            {
+              "secAdv_confidence_score": "desc",
+              "secAdv_impact_score": "desc"
+            }
+          ],
+          "columns": {
+            "secAdv_psirtColdId": {
+              "title": "Security Advisory Col ID",
+              "type": "DOUBLE"
+            },
+            "secAdv_psirtAdvisoryId": {
+              "title": "Security Advisory ID",
+              "type": "TEXT",
+              "htmlTemplateForRow": "{% raw %} <a href=\"{{row.secAdv_bulletinUrl}}\" target='_blank'>{{row.secAdv_psirtAdvisoryId}}</a>{% endraw %}"
+            },
+            "secAdv_bulletinTitle": "Title",
+            "secAdv_confidence_color": {
+              "type": "COLOR-MAP",
+              "source-column": "secAdv_match_confidence",
+              "color-map": {
+                "Not Vulnerable": "#00BB00",
+                "Vulnerable": "#BB0000",
+                "Potentially Vulnerable": "#F6C309"
+              }
+            },
+            "secAdv_match_confidence": {
+              "title": "Confidence",
+              "type": "TEXT",
+              "htmlTemplateForRow": "{% raw %}<span class='badge' style='background-color: {{ row.secAdv_confidence_color }}' > {{ row.secAdv_match_confidence }} </span>{% endraw %}",
+              "visible": true
+            },
+            "secAdv_impact_rating_color": {
+              "type": "COLOR-MAP",
+              "source-column": "secAdv_securityImpactRating",
+              "color-map": {
+                "Critical": "#8B0000",
+                "High": "#FF4500",
+                "Medium": "#ff8b11",
+                "Low": "#f3ce20"
+              }
+            },
+            "secAdv_securityImpactRating": {
+              "title": "Impact Rating",
+              "type": "TEXT",
+              "htmlTemplateForRow": "{% raw %}<span class='badge' style='background-color: {{ row.secAdv_impact_rating_color }}' > {{ row.secAdv_securityImpactRating }} </span>{% endraw %}",
+              "visible": true
+            },
+            "product_name": "Product ID",
+            "serial_number": "Serial Number",
+            "product_family": "Product Family",
+            "sw_version": "SW Version",
+            "sw_os_type": {
+              "title": "OS Type",
+              "type": "TEXT",
+              "visible": false
+            },
+            "productType": {
+              "title": "Product Type",
+              "type": "TEXT",
+              "visible": false
+            },
+            "secAdv_ciscoBugIds": {
+              "title": "Bug IDs",
+              "type": "TEXT"
+            },
+            "secAdv_cveId": {
+              "title": "CVE IDs",
+              "type": "TEXT"
+            },
+            "secAdv_match_confidence_reason": "Confidence Reason",
+            "secAdv_bulletinLastUpdated": {
+              "title": "Published",
+              "type": "DATETIME"
+            },
+            "secAdv_bulletinVersion": {
+              "title": "Version",
+              "type": "TEXT"
+            },
+            "secAdv_bulletinUrl": {
+              "title": "URL",
+              "type": "TEXT",
+              "visible": false
+            },
+            "secAdv_bulletinSummary": {
+              "title": "Summary",
+              "type": "TEXT",
+              "visible": false
+            },
+            "secAdv_bulletinMappingCaveat": {
+              "title": "Caveat",
+              "type": "TEXT",
+              "visible": false
+            }
+          },
+          "widget_id": "8f645323"
+        },
+        {
+          "title": "Security Advisories",
+          "widget_type": "tabular",
+          "max_width": 12,
+          "height": 6,
+          "min_width": 12,
+          "stream": "edc_customer_productAlerts",
+          "context_filter": "project_name is not 'ATT-Mobility'",
+          "duration_hours": 1080,
+          "ts_column": "timestamp",
+          "extra_filter": "(project_name is '{{PROJECT_NAME}}' and product_id is '{{PRODUCT_ID}}' and sw_version is '{{SW_VERSION}}' and sw_os_type is '{{SW_OS_TYPE}}' )",
+          "sorting": [
+            {
+              "secAdv_confidence_score": "desc",
+              "secAdv_impact_score": "desc"
+            }
+          ],
+          "columns": {
+            "secAdv_psirtColdId": {
+              "title": "Security Advisory Col ID",
+              "type": "DOUBLE"
+            },
+            "secAdv_psirtAdvisoryId": {
+              "title": "Security Advisory ID",
+              "type": "TEXT",
+              "htmlTemplateForRow": "{% raw %} <a href=\"{{row.secAdv_bulletinUrl}}\" target='_blank'>{{row.secAdv_psirtAdvisoryId}}</a>{% endraw %}"
+            },
+            "secAdv_bulletinTitle": "Title",
+            "secAdv_confidence_color": {
+              "type": "COLOR-MAP",
+              "source-column": "secAdv_match_confidence",
+              "color-map": {
+                "Not Vulnerable": "#00BB00",
+                "Vulnerable": "#BB0000",
+                "Potentially Vulnerable": "#F6C309"
+              }
+            },
+            "secAdv_match_confidence": {
+              "title": "Confidence",
+              "type": "TEXT",
+              "htmlTemplateForRow": "{% raw %}<span class='badge' style='background-color: {{ row.secAdv_confidence_color }}' > {{ row.secAdv_match_confidence }} </span>{% endraw %}",
+              "visible": true
+            },
+            "secAdv_impact_rating_color": {
+              "type": "COLOR-MAP",
+              "source-column": "secAdv_securityImpactRating",
+              "color-map": {
+                "Critical": "#8B0000",
+                "High": "#FF4500",
+                "Medium": "#ff8b11",
+                "Low": "#f3ce20"
+              }
+            },
+            "secAdv_securityImpactRating": {
+              "title": "Impact Rating",
+              "type": "TEXT",
+              "htmlTemplateForRow": "{% raw %}<span class='badge' style='background-color: {{ row.secAdv_impact_rating_color }}' > {{ row.secAdv_securityImpactRating }} </span>{% endraw %}",
+              "visible": true
+            },
+            "product_id": "Product ID",
+            "serial_number": {
+              "title": "Serial Number",
+              "type": "TEXT",
+              "visible": false
+            },
+            "sw_version": "SW Version",
+            "sw_os_type": {
+              "title": "OS Type",
+              "type": "TEXT",
+              "visible": false
+            },
+            "productType": {
+              "title": "Product Type",
+              "type": "TEXT",
+              "visible": false
+            },
+            "secAdv_cveId": {
+              "title": "CVE IDs",
+              "type": "TEXT"
+            },
+            "secAdv_match_confidence_reason": "Confidence Reason",
+            "secAdv_bulletinLastUpdated": {
+              "title": "Published",
+              "type": "DATETIME"
+            },
+            "secAdv_bulletinVersion": {
+              "title": "Version",
+              "type": "TEXT"
+            },
+            "secAdv_bulletinUrl": {
+              "title": "URL",
+              "type": "TEXT",
+              "visible": false
+            },
+            "secAdv_bulletinSummary": {
+              "title": "Summary",
+              "type": "TEXT",
+              "visible": false
+            },
+            "secAdv_bulletinMappingCaveat": {
+              "title": "Caveat",
+              "type": "TEXT",
+              "visible": false
+            }
+          },
+          "widget_id": "3cf88777"
         }
       ]
     }
   ],
-  "custom_widgets": {
-    "oi-asp-documentation-test-saummmond_widget": {
-      "artifacts": {
-        "main": {
-          "attachment": "main.html",
-          "content_type": "text/html",
-          "is_template": true
-        }
-      }
-    }
-  },
-  "attachments": [
-    {
-      "name": "main.html",
-      "value": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"UTF-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n<title>Organization & Executive Summary</title>\n<style>\n    body {\n        font-family: Arial, sans-serif;\n        padding: 20px;\n        background: url(\"/iconlib/background\") no-repeat center center fixed;\n        background-size: cover;\n        color: white;\n    }\n\n    .section {\n        border: 2px solid #ccc;\n        border-radius: 8px;\n        background: rgba(255, 255, 255, 0.95);\n        color: black;\n        margin-bottom: 40px;\n        overflow: hidden;\n    }\n\n    .section-header {\n        background-color: #07182D;\n        color: white;\n        font-size: 20px;\n        font-weight: bold;\n        padding: 10px;\n    }\n\n    .section-content {\n        padding: 20px;\n        text-align: center;\n    }\n\n    img {\n        max-width: 100%;\n        border-radius: 5px;\n        height: auto;\n        margin: 10px 0;\n    }\n\n    table {\n        width: 100%;\n        border-collapse: collapse;\n        margin-top: 20px;\n    }\n    th, td {\n        padding: 10px;\n        border: 1px solid #ccc;\n        text-align: center;\n    }\n    th {\n        background-color: #07182D;\n        color: white;\n    }\n    tr:nth-child(even) {\n        background-color: #f2f2f2;\n    }\n</style>\n</head>\n<body>\n\n<!-- Organization Section -->\n<div class=\"section\">\n    <div class=\"section-header\">Organization</div>\n    <div class=\"section-content\">\n        <img src=\"/iconlib/orgchart\" alt=\"Organization Chart\">\n        <img src=\"/iconlib/orgchart-1\" alt=\"Organization Chart 2\">\n    </div>\n</div>\n\n<!-- Executive Summary Section -->\n<div class=\"section\">\n    <div class=\"section-header\">Executive Summary</div>\n    <div class=\"section-content\">\n        <table id=\"dataTable\">\n            <thead>\n                <tr><th>Metric</th><th>Value</th></tr>\n            </thead>\n            <tbody></tbody>\n        </table>\n    </div>\n</div>\n\n<script>\nasync function loadData() {\n    try {\n        const response = await fetch('/api/v2/pstreams/pstream/data_trial/data');\n        if (!response.ok) throw new Error('Failed to fetch data');\n        \n        const json = await response.json();\n        console.log(\"Fetched JSON:\", json);\n\n        const table = document.getElementById(\"dataTable\");\n        const thead = table.querySelector(\"thead\");\n        const tbody = table.querySelector(\"tbody\");\n\n        tbody.innerHTML = \"\";\n        thead.innerHTML = \"\";\n\n        if (!json.pstream_data || json.pstream_data.length === 0) {\n            tbody.innerHTML = `<tr><td colspan=\"100%\">No data available</td></tr>`;\n            return;\n        }\n\n        const excludeKeys = [\"__uuid\", \"timestamp\", \"count_\", \"_RDA_Id\"];\n        const columns = Object.keys(json.pstream_data[0]).filter(k => !excludeKeys.includes(k));\n\n        // Create table header\n        const headerRow = document.createElement(\"tr\");\n        columns.forEach(col => {\n            const th = document.createElement(\"th\");\n            th.textContent = col;\n            headerRow.appendChild(th);\n        });\n        thead.appendChild(headerRow);\n\n        // Create rows\n        json.pstream_data.forEach(row => {\n            const tr = document.createElement(\"tr\");\n            columns.forEach(col => {\n                const td = document.createElement(\"td\");\n                td.textContent = row[col] || \"\";\n                tr.appendChild(td);\n            });\n            tbody.appendChild(tr);\n        });\n\n    } catch (err) {\n        console.error(\"Error fetching/parsing stream:\", err);\n    }\n}\n\nloadData();\n</script>\n\n</body>\n</html>\n"
-    }
-  ],
   "pstream_dashboards": [
     {
-      "title": "Documentation",
+      "title": "Device Details",
+      "show_filter": true,
       "widgets": [
         {
-          "title": "Documentation",
-          "widget_type": "custom_widget",
-          "widget_implementation": "oi-asp-documentation-test-saummmond/oi-asp-documentation-test-saummmond_widget",
+          "title": "SW EOLs",
+          "widget_type": "tabular",
+          "max_width": 12,
+          "height": 5,
           "min_width": 12,
-          "min_height": 12,
-          "widget_id": "4e2d534c"
+          "stream": "edc_customer_inventory",
+          "extra_filter": "project_name is '{{PROJECT_NAME}}' and serial_number is '{{SERIAL_NUMBER}}'",
+          "duration_hours": 1080,
+          "ts_column": "timestamp",
+          "columns": {
+            "swEOL_softwareEOXId": {
+              "title": "SW EOL ID",
+              "type": "DOUBLE"
+            },
+            "swEOL_bulletinNumber": {
+              "title": "Bulletin Number",
+              "type": "TEXT",
+              "htmlTemplateForRow": "{% raw %} <a href=\"{{row.swEOL_bulletinUrl}}\" target='_blank'>{{row. swEOL_bulletinNumber}}</a>{% endraw %}"
+            },
+            "swEOL_bulletinTitle": {
+              "title": "Bulleting Title",
+              "type": "TEXT",
+              "visible": true
+            },
+            "sw_status_color": {
+              "type": "COLOR-MAP",
+              "source-column": "sw_status",
+              "color-map": {
+                "Expired": "#BB0000",
+                "Expiring in a Quarter": "#F6C309",
+                "Expiring in 8 Quarters": "#FF9800",
+                "Expiring after 8 Quarters": "#1ECBE1",
+                "No EOL": "#00BB00"
+              }
+            },
+            "sw_version": "SW Version",
+            "sw_status": {
+              "title": "SW Status",
+              "type": "TEXT",
+              "htmlTemplateForRow": "{% raw %}<span class='badge' style='background-color: {{ row.sw_status_color }}' > {{ row.sw_status }} </span>{% endraw %}",
+              "visible": true
+            },
+            "product_id": "Product ID",
+            "serial_number": {
+              "title": "Serial Number",
+              "type": "TEXT",
+              "visible": false
+            },
+            "product_family": "Product Family",
+            "swEOL_endOfLifeAnnouncementDate": {
+              "title": "EOL Announcement",
+              "type": "DATE"
+            },
+            "swEOL_endOfSaleDate": {
+              "title": "End Of Sale",
+              "type": "DATE"
+            },
+            "swEOL_endOfSoftwareMaintenanceReleasesDate": {
+              "title": "End Of Software Maintenance Releases",
+              "type": "DATE"
+            },
+            "swEOL_endOfVulnerabilitySecuritySupportDate": {
+              "title": "End Of Vulnerability Security Support",
+              "type": "DATE"
+            },
+            "swEOL_lastDayOfSupportDate": {
+              "title": "Last Day of Support",
+              "type": "DATE"
+            }
+          },
+          "widget_id": "c5f4de2f"
+        },
+        {
+          "title": "Security Advisories",
+          "widget_type": "tabular",
+          "max_width": 12,
+          "height": 6,
+          "min_width": 12,
+          "stream": "edc_customer_productAlerts",
+          "context_filter": "project_name is 'ATT-Mobility'",
+          "duration_hours": 1080,
+          "ts_column": "timestamp",
+          "extra_filter": "(serial_number is '{{SERIAL_NUMBER}}' )",
+          "sorting": [
+            {
+              "secAdv_confidence_score": "desc",
+              "secAdv_impact_score": "desc"
+            }
+          ],
+          "columns": {
+            "secAdv_psirtColdId": {
+              "title": "Security Advisory Col ID",
+              "type": "DOUBLE"
+            },
+            "secAdv_psirtAdvisoryId": {
+              "title": "Security Advisory ID",
+              "type": "TEXT",
+              "htmlTemplateForRow": "{% raw %} <a href=\"{{row.secAdv_bulletinUrl}}\" target='_blank'>{{row.secAdv_psirtAdvisoryId}}</a>{% endraw %}"
+            },
+            "secAdv_bulletinTitle": "Title",
+            "secAdv_confidence_color": {
+              "type": "COLOR-MAP",
+              "source-column": "secAdv_match_confidence",
+              "color-map": {
+                "Not Vulnerable": "#00BB00",
+                "Vulnerable": "#BB0000",
+                "Potentially Vulnerable": "#F6C309"
+              }
+            },
+            "secAdv_match_confidence": {
+              "title": "Confidence",
+              "type": "TEXT",
+              "htmlTemplateForRow": "{% raw %}<span class='badge' style='background-color: {{ row.secAdv_confidence_color }}' > {{ row.secAdv_match_confidence }} </span>{% endraw %}",
+              "visible": true
+            },
+            "secAdv_impact_rating_color": {
+              "type": "COLOR-MAP",
+              "source-column": "secAdv_securityImpactRating",
+              "color-map": {
+                "Critical": "#8B0000",
+                "High": "#FF4500",
+                "Medium": "#ff8b11",
+                "Low": "#f3ce20"
+              }
+            },
+            "secAdv_securityImpactRating": {
+              "title": "Impact Rating",
+              "type": "TEXT",
+              "htmlTemplateForRow": "{% raw %}<span class='badge' style='background-color: {{ row.secAdv_impact_rating_color }}' > {{ row.secAdv_securityImpactRating }} </span>{% endraw %}",
+              "visible": true
+            },
+            "product_name": "Product ID",
+            "serial_number": "Serial Number",
+            "product_family": "Product Family",
+            "sw_version": "SW Version",
+            "sw_os_type": {
+              "title": "OS Type",
+              "type": "TEXT",
+              "visible": false
+            },
+            "productType": {
+              "title": "Product Type",
+              "type": "TEXT",
+              "visible": false
+            },
+            "secAdv_ciscoBugIds": {
+              "title": "Bug IDs",
+              "type": "TEXT"
+            },
+            "secAdv_cveId": {
+              "title": "CVE IDs",
+              "type": "TEXT"
+            },
+            "secAdv_match_confidence_reason": "Confidence Reason",
+            "secAdv_bulletinLastUpdated": {
+              "title": "Published",
+              "type": "DATETIME"
+            },
+            "secAdv_bulletinVersion": {
+              "title": "Version",
+              "type": "TEXT"
+            },
+            "secAdv_bulletinUrl": {
+              "title": "URL",
+              "type": "TEXT",
+              "visible": false
+            },
+            "secAdv_bulletinSummary": {
+              "title": "Summary",
+              "type": "TEXT",
+              "visible": false
+            },
+            "secAdv_bulletinMappingCaveat": {
+              "title": "Caveat",
+              "type": "TEXT",
+              "visible": false
+            }
+          },
+          "widget_id": "8f645323"
+        },
+        {
+          "title": "Security Advisories",
+          "widget_type": "tabular",
+          "max_width": 12,
+          "height": 6,
+          "min_width": 12,
+          "stream": "edc_customer_productAlerts",
+          "context_filter": "project_name is not 'ATT-Mobility'",
+          "duration_hours": 1080,
+          "ts_column": "timestamp",
+          "extra_filter": "(project_name is '{{PROJECT_NAME}}' and product_id is '{{PRODUCT_ID}}' and sw_version is '{{SW_VERSION}}' and sw_os_type is '{{SW_OS_TYPE}}' )",
+          "sorting": [
+            {
+              "secAdv_confidence_score": "desc",
+              "secAdv_impact_score": "desc"
+            }
+          ],
+          "columns": {
+            "secAdv_psirtColdId": {
+              "title": "Security Advisory Col ID",
+              "type": "DOUBLE"
+            },
+            "secAdv_psirtAdvisoryId": {
+              "title": "Security Advisory ID",
+              "type": "TEXT",
+              "htmlTemplateForRow": "{% raw %} <a href=\"{{row.secAdv_bulletinUrl}}\" target='_blank'>{{row.secAdv_psirtAdvisoryId}}</a>{% endraw %}"
+            },
+            "secAdv_bulletinTitle": "Title",
+            "secAdv_confidence_color": {
+              "type": "COLOR-MAP",
+              "source-column": "secAdv_match_confidence",
+              "color-map": {
+                "Not Vulnerable": "#00BB00",
+                "Vulnerable": "#BB0000",
+                "Potentially Vulnerable": "#F6C309"
+              }
+            },
+            "secAdv_match_confidence": {
+              "title": "Confidence",
+              "type": "TEXT",
+              "htmlTemplateForRow": "{% raw %}<span class='badge' style='background-color: {{ row.secAdv_confidence_color }}' > {{ row.secAdv_match_confidence }} </span>{% endraw %}",
+              "visible": true
+            },
+            "secAdv_impact_rating_color": {
+              "type": "COLOR-MAP",
+              "source-column": "secAdv_securityImpactRating",
+              "color-map": {
+                "Critical": "#8B0000",
+                "High": "#FF4500",
+                "Medium": "#ff8b11",
+                "Low": "#f3ce20"
+              }
+            },
+            "secAdv_securityImpactRating": {
+              "title": "Impact Rating",
+              "type": "TEXT",
+              "htmlTemplateForRow": "{% raw %}<span class='badge' style='background-color: {{ row.secAdv_impact_rating_color }}' > {{ row.secAdv_securityImpactRating }} </span>{% endraw %}",
+              "visible": true
+            },
+            "product_id": "Product ID",
+            "serial_number": {
+              "title": "Serial Number",
+              "type": "TEXT",
+              "visible": false
+            },
+            "sw_version": "SW Version",
+            "sw_os_type": {
+              "title": "OS Type",
+              "type": "TEXT",
+              "visible": false
+            },
+            "productType": {
+              "title": "Product Type",
+              "type": "TEXT",
+              "visible": false
+            },
+            "secAdv_cveId": {
+              "title": "CVE IDs",
+              "type": "TEXT"
+            },
+            "secAdv_match_confidence_reason": "Confidence Reason",
+            "secAdv_bulletinLastUpdated": {
+              "title": "Published",
+              "type": "DATETIME"
+            },
+            "secAdv_bulletinVersion": {
+              "title": "Version",
+              "type": "TEXT"
+            },
+            "secAdv_bulletinUrl": {
+              "title": "URL",
+              "type": "TEXT",
+              "visible": false
+            },
+            "secAdv_bulletinSummary": {
+              "title": "Summary",
+              "type": "TEXT",
+              "visible": false
+            },
+            "secAdv_bulletinMappingCaveat": {
+              "title": "Caveat",
+              "type": "TEXT",
+              "visible": false
+            }
+          },
+          "widget_id": "3cf88777"
         }
       ]
     }
