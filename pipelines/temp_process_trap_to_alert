@@ -1,51 +1,35 @@
-
- ## get the minio path for the uploaded file
-@exec:get-input
- --> @dm:save name='temp-sw-input'
- --> @dm:save name='cmd_ip'
- ## --> @dm:replace-data columns="fileUpload" and expr="'" and replace='"'
-
- ## --> @dm:eval fileUpload = "fileUpload.strip() if fileUpload else fileUpload"
-
- ## --> @dm:eval orders="eval(fileUpload)"
-
- --> @dm:eval fileUpload="json_dumps(fileUpload)"
- --> @dm:explode-json column="fileUpload"
- --> @dm:eval location="bucketName+'/'+objectName"
- --> @dm:save name='objesct_path'
- --> @dm:save name="temp-input-dataset"
- ## declaring thrid level child pipelines
-
+@dm:empty
  --> @c:new-block
- --> @dm:empty
- --> @exec:define-function name="define_child_pipelines"
- --> @exec:run-pipeline name ="edc_generate_token" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_sw_get_data" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_sweol_enrich" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_processing_sw_data" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_get_sw_sa_details" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_sw_run_scan" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_sa_run_scan" & ignore_failures = "no"
- --> @exec:end-function
- ## collecting the file and storing it in edc_cust_pid_sw stream, collecting the API data and adding the processed data to edc_sw_raw_data
+ --> @rn:read-stream name = 'snmp_trap_event_stream' & group = '06_14_2023'
+ --> @dm:map-snmp-trap-to-alert template_folder="trap2alert2"
+ ## For now, process this only for cml devices
 
- --> @c:data-loop dataset="temp-input-dataset" and columns="objectName,location"
- --> @dm:empty
- --> @dm:get-from-location path='$location'
- ## --> @dm:save name='uploaded_file'
+ --> *dm:filter rda_gw_client_ip contains '9.3.252'
+ ## Handle OSPF NBR CHANGE traps
 
- --> @dm:rename-columns customer='Customer' and sw_version='SW_Version' and sw_os_type='SW_OS_Type' and product_id='Product_ID' and contract_number='Contract_Number' and product_name='Product_Name'
- --> @dm:to-type columns='contract_number,customer,product_id,sw_version,sw_os_type' and type='str'
- --> @dm:map from = 'contract_number,customer,product_id,sw_version,sw_os_type' & to = 'unique_key' & func = 'join' & sep = '_'
- --> @dm:save name='temp-sw-user-uploaded-input'
- --> @c:new-block
- --> @dm:recall name='temp-sw-user-uploaded-input'
- --> @rn:write-stream name='edc_cust_pid_sw'
- --> @c:new-block
- --> @dm:recall name='temp-sw-user-uploaded-input'
- --> @dm:eval source="'software'"
- --> @exec:run-pipeline name='edc_add_sw_details' and ignore_failures = "no"
- --> @c:new-block
- --> @dm:recall name='temp-sw-user-uploaded-input'
- --> @dm:eval source="'security_advisory'"
- --> @exec:run-pipeline name='edc_add_sw_details' and ignore_failures = "no"
+ --> *exec:if-condition snmpTrapName is 'ospfNbrStateChange'
+ --> @dm:eval link_type="'OSPF'"
+ --> @dm:save name="temp-ospf-raw-trap"
+ --> #dm:query-persistent-stream left_id is '{{row.device}}' and neighbor_id="{{row.ospfNbrRtrId}}" and timestamp is after -1440 hours with-input name="cml_topo_edges" and limit="1" and max_rows="1"
+ --> @dm:selectcolumns include="^left_id$|^right_id$"
+ ## -->  @dm:eval left_id="left_id.strip()"
+
+ --> @dm:map attr="left_id" & func="strip"
+ --> @dm:eval dict_name = "'temp-topo-data'"
+ --> @rn:write-stream name = 'new_cml_snmp_trap_alerts_debug'
+ --> @dm:save name="temp-topo-data"
+ --> @dm:recall name="temp-ospf-raw-trap"
+ --> @dm:selectcolumns include="^device$"
+ ## -->  @dm:eval device="device.strip()"
+
+ --> @dm:map attr="device" & func="strip"
+ --> @dm:eval dict_name = "'current'"
+ --> @rn:write-stream name = 'new_cml_snmp_trap_alerts_debug'
+ --> @dm:enrich dict="temp-topo-data"
+and src_key_cols="device"
+and dict_key_cols="left_id"
+and enrich_cols="right_id"
+and enrich_cols_as="remote_ip_new"
+ --> @dm:eval dict_name = "'final'"
+ --> @rn:write-stream name = 'new_cml_snmp_trap_alerts_debug'
+ --> @exec:end-if
