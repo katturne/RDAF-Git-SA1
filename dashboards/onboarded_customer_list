@@ -1,444 +1,1145 @@
 {
-  "name": "onboarded_customer_list",
-  "label": "Onboarded Customers",
-  "description": "Onboarded Customers List",
-  "version": "2024.03.16",
+  "name": "edc-asp-customer",
+  "label": "Customers",
+  "description": "ASP Customers",
+  "version": "2025-04-01-1",
+  "stream": "edc_customer_names",
   "enabled": false,
+  "dashboard_folder": "OI",
   "live_edit": true,
   "dashboard_style": "auto",
-  "dashboard_type": "template",
-  "template_variables": {
-    "PROJ_ID": {
-      "contextId": "project_id"
-    },
-    "CUST_TAG": {
-      "contextId": "tag1"
-    }
-  },
-  "stream": "rda_system_organizations",
+  "dashboard_type": "dashboard",
+  "dashboard_pages": [],
   "dashboard_filters": {
     "time_filter": true,
     "default_time_filter_labels": [
       "Last 12 months"
     ],
-    "default_time_filter_non_removable": true,
     "columns_filter": [
       {
-        "id": "customerId",
-        "label": "ID",
-        "type": "TEXT"
-      },
-      {
-        "id": "customer_tag",
+        "id": "customer",
         "label": "Customer",
         "type": "TEXT"
-      },
+      }
+    ],
+    "group_filters": [
       {
-        "id": "tag1",
-        "label": "Customer Label",
-        "type": "TEXT"
-      },
-      {
-        "id": "projectId",
-        "label": "Project ID",
-        "type": "TEXT"
-      },
-      {
-        "id": "inventory",
-        "label": "Total Devices",
-        "type": "DOUBLE"
-      },
-      {
-        "id": "id",
-        "label": "ID",
-        "type": "FIXED_VALUE"
+        "stream": "edc_customer_names",
+        "title": "Customer Name",
+        "group_by": [
+          "customer"
+        ],
+        "ts_column": "timestamp",
+        "duration_hours": 1080,
+        "limit": 200,
+        "agg": "value_count",
+        "column": "count_",
+        "type": "int"
       }
     ]
   },
   "dashboard_sections": [
     {
-      "title": "Customers",
+      "title": "Inventory",
       "show_filter": true,
       "widgets": [
         {
           "widget_type": "label",
-          "max_width": 12,
-          "height": 0.5,
+          "label": "<div style=' padding: 12px; display: flex; align-items: center; justify-content: space-between;'><h1 style='margin: 0; color: #0066ff; text-align: center; flex-grow: 1;'> Inventory </h1></div>",
           "min_width": 12,
-          "label": "<div style='text-align:center;width:100%;'><h1><a style='text-decoration:none;color:#0066ff;' target='_blank'>List of Customers</a></h1></div>",
-          "widget_id": "33317e49"
+          "height": 0.8,
+          "max_width": 12,
+          "widget_id": "dd3ae8ae"
         },
         {
           "title": "Customers",
           "widget_type": "tabular",
-          "ts_column": "createdAt",
-          "stream": "rda_system_organizations",
-          "extra_filter": "customerName is not 'cfx_rda_quarantine'",
           "max_width": 12,
-          "height": 12,
+          "height": 8,
           "min_width": 12,
+          "stream": "edc_customer_names",
+          "ts_column": "timestamp",
+          "duration_hours": 1080,
           "remote_searchable": true,
-          "remote_searchable_cols": [
-            "tag1"
-          ],
           "columns": {
-            "customerId": {
-              "title": "ID",
+            "customer": {
+              "title": "Customer Name",
               "type": "TEXT",
-              "key": true,
-              "visible": false
+              "visible": true,
+              "key": true
             },
-            "tag1": {
-              "title": "Customer",
+            "savm_level": {
+              "title": "SAVM Sales Level",
               "type": "TEXT",
-              "key": true,
-              "visible": true
+              "visible": true,
+              "key": true
             },
-            "customer_tag": {
-              "title": "Customer Tag",
+            "savm_name": {
+              "title": "SAVM Level Name",
               "type": "TEXT",
-              "key": true,
-              "visible": false
+              "visible": true,
+              "key": true
             },
-            "projectId": {
-              "title": "Project ID",
-              "type": "TEXT",
-              "key": true,
-              "visible": false
-            },
-            "createdAt": {
+            "timestamp": {
               "title": "Timestamp",
               "type": "DATETIME",
+              "visible": true
+            }
+          },
+          "actions": [
+            {
+              "permission": "rda:github:view",
+              "title": "Delete data",
+              "type": "POPUP_FORM",
+              "selectionType": "SINGLE",
+              "identifier": "saas-service-action:userdashboard-add-yaml",
+              "api-endpoint": {
+                "service-name": "saas-reports",
+                "methodName": "getForm",
+                "stringified-params": true,
+                "parse-output": false,
+                "params": [
+                  {
+                    "formId": "rda.saas.dynamic.form",
+                    "formActionList": {
+                      "formActions": [
+                        {
+                          "identifier": "Submit",
+                          "actionLabel": "Delete"
+                        }
+                      ]
+                    },
+                    "formDefinition": {
+                      "id": "rda.saas.dynamic.form",
+                      "refreshRequired": true,
+                      "formFieldList": [
+                        {
+                          "label": "Do you want to delete all data from this customer?",
+                          "dataType": "string",
+                          "controlType": "LABEL",
+                          "required": false,
+                          "editable": false,
+                          "hidden": false,
+                          "fieldId": "delete_customer_data"
+                        }
+                      ]
+                    },
+                    "actions": [
+                      {
+                        "type": "RUN_PIPELINE",
+                        "pipelineName": "edc_delete_customer_data",
+                        "isSync": true
+                      }
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "permission": "rda:github:view",
+              "title": "Delete ALL customer records",
+              "type": "POPUP_FORM",
+              "selectionType": "NONE",
+              "identifier": "saas-service-action:userdashboard-add-yaml",
+              "api-endpoint": {
+                "service-name": "saas-reports",
+                "methodName": "getForm",
+                "stringified-params": true,
+                "parse-output": false,
+                "params": [
+                  {
+                    "formId": "rda.saas.dynamic.form",
+                    "formActionList": {
+                      "formActions": [
+                        {
+                          "identifier": "Submit",
+                          "actionLabel": "Run"
+                        }
+                      ]
+                    },
+                    "formDefinition": {
+                      "id": "rda.saas.dynamic.form",
+                      "refreshRequired": true,
+                      "formFieldList": [
+                        {
+                          "controlType": "LABEL",
+                          "dataType": "string",
+                          "required": false,
+                          "editable": false,
+                          "label": "Are you sure you want to delete ALL data (for all customers)?",
+                          "hidden": false,
+                          "fieldId": "confirmation_label"
+                        }
+                      ]
+                    },
+                    "actions": [
+                      {
+                        "type": "RUN_PIPELINE",
+                        "pipelineName": "edc_delete_customer_data",
+                        "isSync": true
+                      }
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "permission": "rda:github:view",
+              "title": "Update data",
+              "type": "POPUP_FORM",
+              "selectionType": "SINGLE",
+              "identifier": "saas-service-action:userdashboard-get-config",
+              "api-endpoint": {
+                "service-name": "saas-reports",
+                "methodName": "getForm",
+                "stringified-params": true,
+                "parse-output": false,
+                "params": [
+                  {
+                    "formId": "rda.saas.dynamic.form",
+                    "formActionList": {
+                      "formActions": [
+                        {
+                          "identifier": "Submit",
+                          "actionLabel": "Submit"
+                        }
+                      ]
+                    },
+                    "formDefinition": {
+                      "id": "rda.saas.dynamic.form",
+                      "refreshRequired": true,
+                      "formFieldList": [
+                        {
+                          "label": "Do you want to retrieve all data from this customer?",
+                          "dataType": "string",
+                          "controlType": "LABEL",
+                          "required": false,
+                          "editable": false,
+                          "hidden": false,
+                          "fieldId": "retrieve_customer_data"
+                        }
+                      ]
+                    },
+                    "actions": [
+                      {
+                        "type": "RUN_PIPELINE",
+                        "pipelineName": "edc_retrieve_customer_records",
+                        "isSync": false
+                      }
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "permission": "rda:github:view",
+              "title": "Retrieve ALL customer records",
+              "type": "POPUP_FORM",
+              "selectionType": "NONE",
+              "identifier": "saas-service-action:userdashboard-add-yaml",
+              "api-endpoint": {
+                "service-name": "saas-reports",
+                "methodName": "getForm",
+                "stringified-params": true,
+                "parse-output": false,
+                "params": [
+                  {
+                    "formId": "rda.saas.dynamic.form",
+                    "formActionList": {
+                      "formActions": [
+                        {
+                          "identifier": "Submit",
+                          "actionLabel": "Run"
+                        }
+                      ]
+                    },
+                    "formDefinition": {
+                      "id": "rda.saas.dynamic.form",
+                      "refreshRequired": true,
+                      "formFieldList": [
+                        {
+                          "controlType": "LABEL",
+                          "dataType": "string",
+                          "required": false,
+                          "editable": false,
+                          "label": "Do you want to retrieve ALL data (for all customers)?",
+                          "hidden": false,
+                          "fieldId": "retrieve_all_customer_data"
+                        }
+                      ]
+                    },
+                    "actions": [
+                      {
+                        "type": "RUN_PIPELINE",
+                        "pipelineName": "edc_retrieve_customer_records",
+                        "isSync": false,
+                        "workerGroup": "rda-site-01"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          ],
+          "widget_id": "f5221fe7"
+        },
+        {
+          "title": "Customer Record Summary (raw data)",
+          "widget_type": "tabular",
+          "stream": "edc_oi_inventory_grouped",
+          "duration_hours": 10800,
+          "extra_filter": null,
+          "ts_column": "timestamp",
+          "paginated": true,
+          "height": 8,
+          "min_width": 6,
+          "remote_searchable": true,
+          "sorting": [
+            {
+              "created_time": "desc"
+            }
+          ],
+          "columns": {
+            "customer_name": {
+              "title": "Customer Name",
+              "type": "TEXT",
+              "visible": true,
+              "key": true
+            },
+            "count_": {
+              "title": "count",
+              "type": "TEXT",
               "visible": false
             }
           },
-          "custom_columns": [
+          "pivot": {
+            "pivot_type": "advanced",
+            "group_by": [
+              "customer_name",
+              "count_"
+            ],
+            "series": [
+              {
+                "column": "_RDA_Id",
+                "agg": "value_count",
+                "type": "int",
+                "label": "Total Count"
+              }
+            ]
+          },
+          "widget_id": "25cbbfd3"
+        },
+        {
+          "title": "Customer Record Summary (enriched data)",
+          "widget_type": "tabular",
+          "stream": "edc_oi_inventory_enriched",
+          "duration_hours": 10800,
+          "extra_filter": null,
+          "ts_column": "timestamp",
+          "paginated": true,
+          "height": 8,
+          "min_width": 6,
+          "remote_searchable": true,
+          "sorting": [
             {
-              "id": "adminApp",
-              "label": "Customer Admin App",
-              "expr": "'Admin App'",
+              "created_time": "desc"
+            }
+          ],
+          "columns": {
+            "customer_name": {
+              "title": "Customer Name",
+              "type": "TEXT",
               "visible": true,
               "key": true
             },
+            "count_": {
+              "title": "count",
+              "type": "TEXT",
+              "visible": false
+            }
+          },
+          "pivot": {
+            "pivot_type": "advanced",
+            "group_by": [
+              "customer_name",
+              "count_"
+            ],
+            "series": [
+              {
+                "column": "_RDA_Id",
+                "agg": "value_count",
+                "type": "int",
+                "label": "Total Count"
+              }
+            ]
+          },
+          "widget_id": "a69be2eb"
+        }
+      ]
+    },
+    {
+      "title": "Utilization",
+      "show_filter": true,
+      "widgets": [
+        {
+          "widget_type": "label",
+          "label": "<div style=' padding: 12px; display: flex; align-items: center; justify-content: space-between;'><h1 style='margin: 0; color: #0066ff; text-align: center; flex-grow: 1;'> SPOG Usage </h1></div>",
+          "min_width": 12,
+          "height": 0.8,
+          "max_width": 12,
+          "widget_id": "01df24e8"
+        },
+        {
+          "title": "Total Unique Users (Last week)",
+          "widget_type": "custom_counter",
+          "duration_hours": 1080,
+          "extra_filter": "(operation is 'LOGIN') and (operation notin ['FAIL']) and (timestamp is after -7 days)",
+          "stream": "rda_system_audit_logs",
+          "ts_column": "timestamp",
+          "column": "user_id",
+          "agg": "cardinality",
+          "type": "int",
+          "min_width": 2,
+          "max_width": 2,
+          "widget_id": "cc50a043"
+        },
+        {
+          "title": "Top users (Last week)",
+          "widget_type": "pie_chart",
+          "duration_hours": 540,
+          "extra_filter": "(operation is 'LOGIN') and (operation notin ['FAIL']) and (timestamp is after -7 days) and (user_id not in ['katturne@cisco.com','mikesul@cisco.com','venkat.potluri@cloudfabrix.com','nikijosh@cisco.com','shubhish@cisco.com']) ",
+          "stream": "rda_system_audit_logs",
+          "ts_column": "timestamp",
+          "column": "count_",
+          "agg": "value_count",
+          "group_by": [
+            "user_id"
+          ],
+          "limit": 100,
+          "type": "str",
+          "min_width": 4,
+          "height": 4,
+          "max_width": 6,
+          "widget_id": "48f41244"
+        },
+        {
+          "title": "Unique Users (Daily)",
+          "widget_type": "timeseries",
+          "stream": "rda_system_audit_logs",
+          "ts_column": "timestamp",
+          "duration_hours": 1080,
+          "description": "Select a time range to extract list of users",
+          "extra_filter": "(operation is 'LOGIN') and (operation notin ['FAIL']) and (user_id not in ['katturne@cisco.com','mikesul@cisco.com','venkat.potluri@cloudfabrix.com','nikijosh@cisco.com','shubhish@cisco.com'])",
+          "max_width": 12,
+          "height": 4,
+          "min_width": 6,
+          "gap_interval": "keep",
+          "chartProperties": {
+            "yAxisLabel": "Unique Users",
+            "xAxisLabel": "Local Time",
+            "legendLocation": "none",
+            "isDownsamplingDisabled": true
+          },
+          "interval": "1d",
+          "series_spec": [
             {
-              "id": "opsApp",
-              "label": "Customer Ops App",
-              "expr": "'Ops App'",
-              "visible": true,
-              "key": true
+              "column": "user_id",
+              "agg": "cardinality",
+              "type": "str"
             }
           ],
+          "widget_id": "ed5ca8c1"
+        },
+        {
+          "title": "Top 10 Dashboards used Last week",
+          "widget_type": "pie_chart",
+          "duration_hours": 540,
+          "extra_filter": "(feature_type is 'Dashboard') and (feature contains 'User Dashboard') and (feature contains 'ASP') and (timestamp is after -7 days) and (user_id not in ['katturne@cisco.com','mikesul@cisco.com','venkat.potluri@cloudfabrix.com','nikijosh@cisco.com','shubhish@cisco.com']) ",
+          "stream": "rda_system_feature_usage",
+          "ts_column": "timestamp",
+          "column": "count_",
+          "agg": "value_count",
+          "group_by": [
+            "feature"
+          ],
+          "type": "str",
+          "min_width": 4,
+          "height": 4,
+          "max_width": 5,
+          "widget_id": "73e5a813"
+        },
+        {
+          "title": "Dashboard per User (Last week)",
+          "widget_type": "multi_bar_chart",
+          "duration_hours": 1080,
+          "extra_filter": "(feature_type is 'Dashboard') and (feature contains 'User Dashboard') and (feature contains 'ASP') and (timestamp is after -7 days) and (user_id not in ['katturne@cisco.com','mikesul@cisco.com','venkat.potluri@cloudfabrix.com','nikijosh@cisco.com','shubhish@cisco.com']) ",
+          "stream": "rda_system_feature_usage",
+          "ts_column": "timestamp",
+          "min_width": 5,
+          "height": 4,
+          "max_width": 7,
+          "limit": 10,
+          "chartProperties": {
+            "xAxisLabel": "User",
+            "stacked": false,
+            "legendLocation": "bottom",
+            "orientation": "vertical"
+          },
+          "group_by": [
+            "feature",
+            "user_id"
+          ],
+          "column": "count_",
+          "agg": "value_count",
+          "widget_id": "0dc9"
+        }
+      ]
+    },
+    {
+      "title": "License Summary",
+      "show_filter": true,
+      "widgets": [
+        {
+          "widget_type": "label",
+          "label": "<div style=' padding: 12px; display: flex; align-items: center; justify-content: space-between;'><h1 style='margin: 0; color: #0066ff; text-align: center; flex-grow: 1;'> License Summary </h1></div>",
+          "min_width": 12,
+          "height": 0.8,
+          "max_width": 12,
+          "widget_id": "0f7fe6e7"
+        },
+        {
+          "title": "License Summary",
+          "widget_type": "tabular",
+          "stream": "edc_license_domains",
+          "extra_filter": null,
+          "ts_column": "timestamp",
+          "paginated": true,
+          "height": 8,
+          "min_width": 6,
+          "remote_searchable": true,
+          "columns": {
+            "customer": {
+              "title": "Customer Name",
+              "type": "TEXT",
+              "visible": true,
+              "key": true
+            },
+            "top_level_domain": {
+              "title": "Top_level_domain",
+              "type": "TEXT",
+              "visible": true
+            },
+            "count_": {
+              "title": "count",
+              "type": "TEXT",
+              "visible": false
+            }
+          },
           "actions": [
             {
-              "appName": "user-dashboard/customer_ops_application",
-              "permission": "aia:page:view",
-              "contextParamList": {
-                "contextParams": [
+              "permission": "rda:github:view",
+              "title": "Retrieve ALL customer records",
+              "type": "POPUP_FORM",
+              "selectionType": "NONE",
+              "identifier": "saas-service-action:userdashboard-add-yaml",
+              "api-endpoint": {
+                "service-name": "saas-reports",
+                "methodName": "getForm",
+                "stringified-params": true,
+                "parse-output": false,
+                "params": [
                   {
-                    "paramKey": "projectId",
-                    "paramId": "project_id"
-                  },
-                  {
-                    "paramKey": "customerId",
-                    "paramId": "customer_id"
-                  },
-                  {
-                    "paramKey": "tag1",
-                    "paramId": "a_en_customer_tag"
-                  },
-                  {
-                    "paramKey": "tag1",
-                    "paramId": "attrs_customer_tag"
-                  },
-                  {
-                    "paramKey": "tag1",
-                    "paramId": "customerTag"
-                  },
-                  {
-                    "paramKey": "tag1",
-                    "paramId": "customer_tag"
-                  }
-                ]
-              },
-              "drillDownLinkField": "tag1",
-              "identifier": "tag1",
-              "selectionType": "SINGLE",
-              "stateName": "app.featureapp",
-              "title": "View Details",
-              "type": "GO_TO_APP_STATE"
-            },
-            {
-              "appName": "user-dashboard/customer_ops_application",
-              "permission": "rda:page:view",
-              "drillDownLinkField": "opsApp",
-              "identifier": "customerName",
-              "selectionType": "SINGLE",
-              "stateName": "app.featureapp",
-              "title": "Customer Ops App",
-              "type": "GO_TO_APP_STATE",
-              "contextParamList": {
-                "contextParams": [
-                  {
-                    "paramKey": "projectId",
-                    "paramId": "project_id"
-                  },
-                  {
-                    "paramKey": "customerId",
-                    "paramId": "customer_id"
-                  },
-                  {
-                    "paramKey": "tag1",
-                    "paramId": "a_en_customer_tag"
-                  },
-                  {
-                    "paramKey": "tag1",
-                    "paramId": "attrs_customer_tag"
-                  },
-                  {
-                    "paramKey": "tag1",
-                    "paramId": "customerTag"
-                  },
-                  {
-                    "paramKey": "tag1",
-                    "paramId": "customer_tag"
-                  }
-                ]
-              }
-            },
-            {
-              "appName": "user-dashboard/rda-packs-customer-all",
-              "permission": "rda:page:view",
-              "identifier": "tag1",
-              "selectionType": "SINGLE",
-              "stateName": "app.featureapp",
-              "drillDownLinkField": "adminApp",
-              "title": "Customer Admin",
-              "type": "GO_TO_APP_STATE",
-              "contextParamList": {
-                "contextParams": [
-                  {
-                    "paramKey": "projectId",
-                    "paramId": "project_id"
-                  },
-                  {
-                    "paramKey": "customerId",
-                    "paramId": "customer_id"
-                  },
-                  {
-                    "paramKey": "tag1",
-                    "paramId": "a_en_customer_tag"
-                  },
-                  {
-                    "paramKey": "tag1",
-                    "paramId": "attrs_customer_tag"
-                  },
-                  {
-                    "paramKey": "tag1",
-                    "paramId": "customerTag"
-                  },
-                  {
-                    "paramKey": "tag1",
-                    "paramId": "customer_tag"
+                    "formId": "rda.saas.dynamic.form",
+                    "formActionList": {
+                      "formActions": [
+                        {
+                          "identifier": "Submit",
+                          "actionLabel": "Run"
+                        }
+                      ]
+                    },
+                    "formDefinition": {
+                      "id": "rda.saas.dynamic.form",
+                      "refreshRequired": true,
+                      "formFieldList": [
+                        {
+                          "controlType": "LABEL",
+                          "dataType": "string",
+                          "required": false,
+                          "editable": false,
+                          "label": "Do you want to retrieve ALL data (for all customers)?",
+                          "hidden": false,
+                          "fieldId": "retrieve_all_customer_data"
+                        }
+                      ]
+                    },
+                    "actions": [
+                      {
+                        "type": "RUN_PIPELINE",
+                        "pipelineName": "edc_license_grp",
+                        "isSync": false,
+                        "workerGroup": "rda-site-01"
+                      }
+                    ]
                   }
                 ]
               }
             }
           ],
-          "widget_id": "79ae514e"
+          "widget_id": "fbb04382"
         }
       ]
     }
   ],
   "pstream_dashboards": [
     {
-      "title": "Customers",
+      "title": "Inventory",
       "show_filter": true,
       "widgets": [
         {
           "widget_type": "label",
-          "max_width": 12,
-          "height": 0.5,
+          "label": "<div style=' padding: 12px; display: flex; align-items: center; justify-content: space-between;'><h1 style='margin: 0; color: #0066ff; text-align: center; flex-grow: 1;'> Inventory </h1></div>",
           "min_width": 12,
-          "label": "<div style='text-align:center;width:100%;'><h1><a style='text-decoration:none;color:#0066ff;' target='_blank'>List of Customers</a></h1></div>",
-          "widget_id": "33317e49"
+          "height": 0.8,
+          "max_width": 12,
+          "widget_id": "dd3ae8ae"
         },
         {
           "title": "Customers",
           "widget_type": "tabular",
-          "ts_column": "createdAt",
-          "stream": "rda_system_organizations",
-          "extra_filter": "customerName is not 'cfx_rda_quarantine'",
           "max_width": 12,
-          "height": 12,
+          "height": 8,
           "min_width": 12,
+          "stream": "edc_customer_names",
+          "ts_column": "timestamp",
+          "duration_hours": 1080,
           "remote_searchable": true,
-          "remote_searchable_cols": [
-            "tag1"
-          ],
           "columns": {
-            "customerId": {
-              "title": "ID",
+            "customer": {
+              "title": "Customer Name",
               "type": "TEXT",
-              "key": true,
-              "visible": false
+              "visible": true,
+              "key": true
             },
-            "tag1": {
-              "title": "Customer",
+            "savm_level": {
+              "title": "SAVM Sales Level",
               "type": "TEXT",
-              "key": true,
-              "visible": true
+              "visible": true,
+              "key": true
             },
-            "customer_tag": {
-              "title": "Customer Tag",
+            "savm_name": {
+              "title": "SAVM Level Name",
               "type": "TEXT",
-              "key": true,
-              "visible": false
+              "visible": true,
+              "key": true
             },
-            "projectId": {
-              "title": "Project ID",
-              "type": "TEXT",
-              "key": true,
-              "visible": false
-            },
-            "createdAt": {
+            "timestamp": {
               "title": "Timestamp",
               "type": "DATETIME",
+              "visible": true
+            }
+          },
+          "actions": [
+            {
+              "permission": "rda:github:view",
+              "title": "Delete data",
+              "type": "POPUP_FORM",
+              "selectionType": "SINGLE",
+              "identifier": "saas-service-action:userdashboard-add-yaml",
+              "api-endpoint": {
+                "service-name": "saas-reports",
+                "methodName": "getForm",
+                "stringified-params": true,
+                "parse-output": false,
+                "params": [
+                  {
+                    "formId": "rda.saas.dynamic.form",
+                    "formActionList": {
+                      "formActions": [
+                        {
+                          "identifier": "Submit",
+                          "actionLabel": "Delete"
+                        }
+                      ]
+                    },
+                    "formDefinition": {
+                      "id": "rda.saas.dynamic.form",
+                      "refreshRequired": true,
+                      "formFieldList": [
+                        {
+                          "label": "Do you want to delete all data from this customer?",
+                          "dataType": "string",
+                          "controlType": "LABEL",
+                          "required": false,
+                          "editable": false,
+                          "hidden": false,
+                          "fieldId": "delete_customer_data"
+                        }
+                      ]
+                    },
+                    "actions": [
+                      {
+                        "type": "RUN_PIPELINE",
+                        "pipelineName": "edc_delete_customer_data",
+                        "isSync": true
+                      }
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "permission": "rda:github:view",
+              "title": "Delete ALL customer records",
+              "type": "POPUP_FORM",
+              "selectionType": "NONE",
+              "identifier": "saas-service-action:userdashboard-add-yaml",
+              "api-endpoint": {
+                "service-name": "saas-reports",
+                "methodName": "getForm",
+                "stringified-params": true,
+                "parse-output": false,
+                "params": [
+                  {
+                    "formId": "rda.saas.dynamic.form",
+                    "formActionList": {
+                      "formActions": [
+                        {
+                          "identifier": "Submit",
+                          "actionLabel": "Run"
+                        }
+                      ]
+                    },
+                    "formDefinition": {
+                      "id": "rda.saas.dynamic.form",
+                      "refreshRequired": true,
+                      "formFieldList": [
+                        {
+                          "controlType": "LABEL",
+                          "dataType": "string",
+                          "required": false,
+                          "editable": false,
+                          "label": "Are you sure you want to delete ALL data (for all customers)?",
+                          "hidden": false,
+                          "fieldId": "confirmation_label"
+                        }
+                      ]
+                    },
+                    "actions": [
+                      {
+                        "type": "RUN_PIPELINE",
+                        "pipelineName": "edc_delete_customer_data",
+                        "isSync": true
+                      }
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "permission": "rda:github:view",
+              "title": "Update data",
+              "type": "POPUP_FORM",
+              "selectionType": "SINGLE",
+              "identifier": "saas-service-action:userdashboard-get-config",
+              "api-endpoint": {
+                "service-name": "saas-reports",
+                "methodName": "getForm",
+                "stringified-params": true,
+                "parse-output": false,
+                "params": [
+                  {
+                    "formId": "rda.saas.dynamic.form",
+                    "formActionList": {
+                      "formActions": [
+                        {
+                          "identifier": "Submit",
+                          "actionLabel": "Submit"
+                        }
+                      ]
+                    },
+                    "formDefinition": {
+                      "id": "rda.saas.dynamic.form",
+                      "refreshRequired": true,
+                      "formFieldList": [
+                        {
+                          "label": "Do you want to retrieve all data from this customer?",
+                          "dataType": "string",
+                          "controlType": "LABEL",
+                          "required": false,
+                          "editable": false,
+                          "hidden": false,
+                          "fieldId": "retrieve_customer_data"
+                        }
+                      ]
+                    },
+                    "actions": [
+                      {
+                        "type": "RUN_PIPELINE",
+                        "pipelineName": "edc_retrieve_customer_records",
+                        "isSync": false
+                      }
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "permission": "rda:github:view",
+              "title": "Retrieve ALL customer records",
+              "type": "POPUP_FORM",
+              "selectionType": "NONE",
+              "identifier": "saas-service-action:userdashboard-add-yaml",
+              "api-endpoint": {
+                "service-name": "saas-reports",
+                "methodName": "getForm",
+                "stringified-params": true,
+                "parse-output": false,
+                "params": [
+                  {
+                    "formId": "rda.saas.dynamic.form",
+                    "formActionList": {
+                      "formActions": [
+                        {
+                          "identifier": "Submit",
+                          "actionLabel": "Run"
+                        }
+                      ]
+                    },
+                    "formDefinition": {
+                      "id": "rda.saas.dynamic.form",
+                      "refreshRequired": true,
+                      "formFieldList": [
+                        {
+                          "controlType": "LABEL",
+                          "dataType": "string",
+                          "required": false,
+                          "editable": false,
+                          "label": "Do you want to retrieve ALL data (for all customers)?",
+                          "hidden": false,
+                          "fieldId": "retrieve_all_customer_data"
+                        }
+                      ]
+                    },
+                    "actions": [
+                      {
+                        "type": "RUN_PIPELINE",
+                        "pipelineName": "edc_retrieve_customer_records",
+                        "isSync": false,
+                        "workerGroup": "rda-site-01"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          ],
+          "widget_id": "f5221fe7"
+        },
+        {
+          "title": "Customer Record Summary (raw data)",
+          "widget_type": "tabular",
+          "stream": "edc_oi_inventory_grouped",
+          "duration_hours": 10800,
+          "extra_filter": null,
+          "ts_column": "timestamp",
+          "paginated": true,
+          "height": 8,
+          "min_width": 6,
+          "remote_searchable": true,
+          "sorting": [
+            {
+              "created_time": "desc"
+            }
+          ],
+          "columns": {
+            "customer_name": {
+              "title": "Customer Name",
+              "type": "TEXT",
+              "visible": true,
+              "key": true
+            },
+            "count_": {
+              "title": "count",
+              "type": "TEXT",
               "visible": false
             }
           },
-          "custom_columns": [
+          "pivot": {
+            "pivot_type": "advanced",
+            "group_by": [
+              "customer_name",
+              "count_"
+            ],
+            "series": [
+              {
+                "column": "_RDA_Id",
+                "agg": "value_count",
+                "type": "int",
+                "label": "Total Count"
+              }
+            ]
+          },
+          "widget_id": "25cbbfd3"
+        },
+        {
+          "title": "Customer Record Summary (enriched data)",
+          "widget_type": "tabular",
+          "stream": "edc_oi_inventory_enriched",
+          "duration_hours": 10800,
+          "extra_filter": null,
+          "ts_column": "timestamp",
+          "paginated": true,
+          "height": 8,
+          "min_width": 6,
+          "remote_searchable": true,
+          "sorting": [
             {
-              "id": "adminApp",
-              "label": "Customer Admin App",
-              "expr": "'Admin App'",
+              "created_time": "desc"
+            }
+          ],
+          "columns": {
+            "customer_name": {
+              "title": "Customer Name",
+              "type": "TEXT",
               "visible": true,
               "key": true
             },
+            "count_": {
+              "title": "count",
+              "type": "TEXT",
+              "visible": false
+            }
+          },
+          "pivot": {
+            "pivot_type": "advanced",
+            "group_by": [
+              "customer_name",
+              "count_"
+            ],
+            "series": [
+              {
+                "column": "_RDA_Id",
+                "agg": "value_count",
+                "type": "int",
+                "label": "Total Count"
+              }
+            ]
+          },
+          "widget_id": "a69be2eb"
+        }
+      ]
+    },
+    {
+      "title": "Utilization",
+      "show_filter": true,
+      "widgets": [
+        {
+          "widget_type": "label",
+          "label": "<div style=' padding: 12px; display: flex; align-items: center; justify-content: space-between;'><h1 style='margin: 0; color: #0066ff; text-align: center; flex-grow: 1;'> SPOG Usage </h1></div>",
+          "min_width": 12,
+          "height": 0.8,
+          "max_width": 12,
+          "widget_id": "01df24e8"
+        },
+        {
+          "title": "Total Unique Users (Last week)",
+          "widget_type": "custom_counter",
+          "duration_hours": 1080,
+          "extra_filter": "(operation is 'LOGIN') and (operation notin ['FAIL']) and (timestamp is after -7 days)",
+          "stream": "rda_system_audit_logs",
+          "ts_column": "timestamp",
+          "column": "user_id",
+          "agg": "cardinality",
+          "type": "int",
+          "min_width": 2,
+          "max_width": 2,
+          "widget_id": "cc50a043"
+        },
+        {
+          "title": "Top users (Last week)",
+          "widget_type": "pie_chart",
+          "duration_hours": 540,
+          "extra_filter": "(operation is 'LOGIN') and (operation notin ['FAIL']) and (timestamp is after -7 days) and (user_id not in ['katturne@cisco.com','mikesul@cisco.com','venkat.potluri@cloudfabrix.com','nikijosh@cisco.com','shubhish@cisco.com']) ",
+          "stream": "rda_system_audit_logs",
+          "ts_column": "timestamp",
+          "column": "count_",
+          "agg": "value_count",
+          "group_by": [
+            "user_id"
+          ],
+          "limit": 100,
+          "type": "str",
+          "min_width": 4,
+          "height": 4,
+          "max_width": 6,
+          "widget_id": "48f41244"
+        },
+        {
+          "title": "Unique Users (Daily)",
+          "widget_type": "timeseries",
+          "stream": "rda_system_audit_logs",
+          "ts_column": "timestamp",
+          "duration_hours": 1080,
+          "description": "Select a time range to extract list of users",
+          "extra_filter": "(operation is 'LOGIN') and (operation notin ['FAIL']) and (user_id not in ['katturne@cisco.com','mikesul@cisco.com','venkat.potluri@cloudfabrix.com','nikijosh@cisco.com','shubhish@cisco.com'])",
+          "max_width": 12,
+          "height": 4,
+          "min_width": 6,
+          "gap_interval": "keep",
+          "chartProperties": {
+            "yAxisLabel": "Unique Users",
+            "xAxisLabel": "Local Time",
+            "legendLocation": "none",
+            "isDownsamplingDisabled": true
+          },
+          "interval": "1d",
+          "series_spec": [
             {
-              "id": "opsApp",
-              "label": "Customer Ops App",
-              "expr": "'Ops App'",
-              "visible": true,
-              "key": true
+              "column": "user_id",
+              "agg": "cardinality",
+              "type": "str"
             }
           ],
+          "widget_id": "ed5ca8c1"
+        },
+        {
+          "title": "Top 10 Dashboards used Last week",
+          "widget_type": "pie_chart",
+          "duration_hours": 540,
+          "extra_filter": "(feature_type is 'Dashboard') and (feature contains 'User Dashboard') and (feature contains 'ASP') and (timestamp is after -7 days) and (user_id not in ['katturne@cisco.com','mikesul@cisco.com','venkat.potluri@cloudfabrix.com','nikijosh@cisco.com','shubhish@cisco.com']) ",
+          "stream": "rda_system_feature_usage",
+          "ts_column": "timestamp",
+          "column": "count_",
+          "agg": "value_count",
+          "group_by": [
+            "feature"
+          ],
+          "type": "str",
+          "min_width": 4,
+          "height": 4,
+          "max_width": 5,
+          "widget_id": "73e5a813"
+        },
+        {
+          "title": "Dashboard per User (Last week)",
+          "widget_type": "multi_bar_chart",
+          "duration_hours": 1080,
+          "extra_filter": "(feature_type is 'Dashboard') and (feature contains 'User Dashboard') and (feature contains 'ASP') and (timestamp is after -7 days) and (user_id not in ['katturne@cisco.com','mikesul@cisco.com','venkat.potluri@cloudfabrix.com','nikijosh@cisco.com','shubhish@cisco.com']) ",
+          "stream": "rda_system_feature_usage",
+          "ts_column": "timestamp",
+          "min_width": 5,
+          "height": 4,
+          "max_width": 7,
+          "limit": 10,
+          "chartProperties": {
+            "xAxisLabel": "User",
+            "stacked": false,
+            "legendLocation": "bottom",
+            "orientation": "vertical"
+          },
+          "group_by": [
+            "feature",
+            "user_id"
+          ],
+          "column": "count_",
+          "agg": "value_count",
+          "widget_id": "0dc9"
+        }
+      ]
+    },
+    {
+      "title": "License Summary",
+      "show_filter": true,
+      "widgets": [
+        {
+          "widget_type": "label",
+          "label": "<div style=' padding: 12px; display: flex; align-items: center; justify-content: space-between;'><h1 style='margin: 0; color: #0066ff; text-align: center; flex-grow: 1;'> License Summary </h1></div>",
+          "min_width": 12,
+          "height": 0.8,
+          "max_width": 12,
+          "widget_id": "0f7fe6e7"
+        },
+        {
+          "title": "License Summary",
+          "widget_type": "tabular",
+          "stream": "edc_license_domains",
+          "extra_filter": null,
+          "ts_column": "timestamp",
+          "paginated": true,
+          "height": 8,
+          "min_width": 6,
+          "remote_searchable": true,
+          "columns": {
+            "customer": {
+              "title": "Customer Name",
+              "type": "TEXT",
+              "visible": true,
+              "key": true
+            },
+            "top_level_domain": {
+              "title": "Top_level_domain",
+              "type": "TEXT",
+              "visible": true
+            },
+            "count_": {
+              "title": "count",
+              "type": "TEXT",
+              "visible": false
+            }
+          },
           "actions": [
             {
-              "appName": "user-dashboard/customer_ops_application",
-              "permission": "aia:page:view",
-              "contextParamList": {
-                "contextParams": [
+              "permission": "rda:github:view",
+              "title": "Retrieve ALL customer records",
+              "type": "POPUP_FORM",
+              "selectionType": "NONE",
+              "identifier": "saas-service-action:userdashboard-add-yaml",
+              "api-endpoint": {
+                "service-name": "saas-reports",
+                "methodName": "getForm",
+                "stringified-params": true,
+                "parse-output": false,
+                "params": [
                   {
-                    "paramKey": "projectId",
-                    "paramId": "project_id"
-                  },
-                  {
-                    "paramKey": "customerId",
-                    "paramId": "customer_id"
-                  },
-                  {
-                    "paramKey": "tag1",
-                    "paramId": "a_en_customer_tag"
-                  },
-                  {
-                    "paramKey": "tag1",
-                    "paramId": "attrs_customer_tag"
-                  },
-                  {
-                    "paramKey": "tag1",
-                    "paramId": "customerTag"
-                  },
-                  {
-                    "paramKey": "tag1",
-                    "paramId": "customer_tag"
-                  }
-                ]
-              },
-              "drillDownLinkField": "tag1",
-              "identifier": "tag1",
-              "selectionType": "SINGLE",
-              "stateName": "app.featureapp",
-              "title": "View Details",
-              "type": "GO_TO_APP_STATE"
-            },
-            {
-              "appName": "user-dashboard/customer_ops_application",
-              "permission": "rda:page:view",
-              "drillDownLinkField": "opsApp",
-              "identifier": "customerName",
-              "selectionType": "SINGLE",
-              "stateName": "app.featureapp",
-              "title": "Customer Ops App",
-              "type": "GO_TO_APP_STATE",
-              "contextParamList": {
-                "contextParams": [
-                  {
-                    "paramKey": "projectId",
-                    "paramId": "project_id"
-                  },
-                  {
-                    "paramKey": "customerId",
-                    "paramId": "customer_id"
-                  },
-                  {
-                    "paramKey": "tag1",
-                    "paramId": "a_en_customer_tag"
-                  },
-                  {
-                    "paramKey": "tag1",
-                    "paramId": "attrs_customer_tag"
-                  },
-                  {
-                    "paramKey": "tag1",
-                    "paramId": "customerTag"
-                  },
-                  {
-                    "paramKey": "tag1",
-                    "paramId": "customer_tag"
-                  }
-                ]
-              }
-            },
-            {
-              "appName": "user-dashboard/rda-packs-customer-all",
-              "permission": "rda:page:view",
-              "identifier": "tag1",
-              "selectionType": "SINGLE",
-              "stateName": "app.featureapp",
-              "drillDownLinkField": "adminApp",
-              "title": "Customer Admin",
-              "type": "GO_TO_APP_STATE",
-              "contextParamList": {
-                "contextParams": [
-                  {
-                    "paramKey": "projectId",
-                    "paramId": "project_id"
-                  },
-                  {
-                    "paramKey": "customerId",
-                    "paramId": "customer_id"
-                  },
-                  {
-                    "paramKey": "tag1",
-                    "paramId": "a_en_customer_tag"
-                  },
-                  {
-                    "paramKey": "tag1",
-                    "paramId": "attrs_customer_tag"
-                  },
-                  {
-                    "paramKey": "tag1",
-                    "paramId": "customerTag"
-                  },
-                  {
-                    "paramKey": "tag1",
-                    "paramId": "customer_tag"
+                    "formId": "rda.saas.dynamic.form",
+                    "formActionList": {
+                      "formActions": [
+                        {
+                          "identifier": "Submit",
+                          "actionLabel": "Run"
+                        }
+                      ]
+                    },
+                    "formDefinition": {
+                      "id": "rda.saas.dynamic.form",
+                      "refreshRequired": true,
+                      "formFieldList": [
+                        {
+                          "controlType": "LABEL",
+                          "dataType": "string",
+                          "required": false,
+                          "editable": false,
+                          "label": "Do you want to retrieve ALL data (for all customers)?",
+                          "hidden": false,
+                          "fieldId": "retrieve_all_customer_data"
+                        }
+                      ]
+                    },
+                    "actions": [
+                      {
+                        "type": "RUN_PIPELINE",
+                        "pipelineName": "edc_license_grp",
+                        "isSync": false,
+                        "workerGroup": "rda-site-01"
+                      }
+                    ]
                   }
                 ]
               }
             }
           ],
-          "widget_id": "79ae514e"
+          "widget_id": "fbb04382"
         }
       ]
     }
