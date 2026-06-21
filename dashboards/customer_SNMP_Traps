@@ -1,63 +1,148 @@
 {
-  "name": "onboarded_customer_list",
-  "label": "Onboarded Customers",
-  "description": "Onboarded Customers List",
-  "version": "2024.03.16",
-  "enabled": false,
-  "live_edit": true,
+  "name": "customer_SNMP_Traps",
+  "label": "SNMP Traps",
+  "description": "SNMP traps dashboard",
+  "version": "2024.02.27",
+  "enabled": true,
+  "dashboard_folder": "NetworkDevicePack",
   "dashboard_style": "auto",
-  "dashboard_type": "template",
   "template_variables": {
+    "CUST_ID": {
+      "contextId": "customer_id"
+    },
     "PROJ_ID": {
-      "contextId": "project_id"
+      "contextId": "projectId"
     },
     "CUST_TAG": {
-      "contextId": "tag1"
+      "contextId": "customer_tag"
     }
   },
-  "stream": "rda_system_organizations",
-  "dashboard_filters": {
-    "time_filter": true,
-    "default_time_filter_labels": [
-      "Last 12 months"
+  "status_poller": {
+    "stream": "snmp_trap_event_stream_all",
+    "frequency": 10,
+    "columns": [
+      "timestamp"
     ],
-    "default_time_filter_non_removable": true,
+    "sorting": [
+      {
+        "timestamp": "desc"
+      }
+    ],
+    "query": "timestamp is after '${timestamp}'",
+    "defaults": {
+      "timestamp": "$UTCNOW"
+    },
+    "action": "refresh"
+  },
+  "dashboard_filters": {
+    "default_time_filter_labels": [
+      "Last 24 hours"
+    ],
+    "extra_filter": "project_id in {{PROJ_ID}} or project_id is empty",
+    "time_filter": true,
     "columns_filter": [
       {
-        "id": "customerId",
-        "label": "ID",
+        "id": "rda_gw_client_ip",
+        "label": "Device IP",
         "type": "TEXT"
       },
       {
-        "id": "customer_tag",
-        "label": "Customer",
+        "id": "device_hostname",
+        "label": "Device Hostname",
         "type": "TEXT"
       },
       {
-        "id": "tag1",
-        "label": "Customer Label",
+        "id": "message",
+        "label": "Message",
         "type": "TEXT"
       },
       {
-        "id": "projectId",
-        "label": "Project ID",
+        "id": "snmpVersion",
+        "label": "SNMP Version",
         "type": "TEXT"
       },
       {
-        "id": "inventory",
-        "label": "Total Devices",
-        "type": "DOUBLE"
+        "id": "device_vendor",
+        "label": "Device Vendor",
+        "type": "TEXT"
       },
       {
-        "id": "id",
-        "label": "ID",
-        "type": "FIXED_VALUE"
+        "id": "device_status",
+        "label": "Device Status",
+        "type": "TEXT"
+      },
+      {
+        "id": "snmpTrapDescription",
+        "label": "MIB Description",
+        "type": "TEXT"
+      },
+      {
+        "id": "snmpTrapName",
+        "label": "Trap Name",
+        "type": "TEXT"
+      },
+      {
+        "id": "device_fw_version",
+        "label": "OS Version",
+        "type": "TEXT"
+      },
+      {
+        "id": "snmpTrapOID",
+        "label": "Trap OID",
+        "type": "TEXT"
+      },
+      {
+        "id": "snmpTrapMIB",
+        "label": "MIB Name",
+        "type": "TEXT"
+      }
+    ],
+    "group_filters": [
+      {
+        "stream": "snmp_trap_event_stream_all",
+        "title": "Vendor",
+        "group_by": [
+          "device_vendor"
+        ],
+        "ts_column": "timestamp",
+        "agg": "sum",
+        "column": "count_"
+      },
+      {
+        "stream": "snmp_trap_event_stream_all",
+        "title": "Status",
+        "group_by": [
+          "device_status"
+        ],
+        "ts_column": "timestamp",
+        "agg": "sum",
+        "column": "count_"
+      },
+      {
+        "stream": "snmp_trap_event_stream_all",
+        "title": "Trap Name",
+        "group_by": [
+          "snmpTrapName"
+        ],
+        "ts_column": "timestamp",
+        "agg": "sum",
+        "column": "count_"
+      },
+      {
+        "stream": "snmp_trap_event_stream_all",
+        "title": "MIB Name",
+        "group_by": [
+          "snmpTrapMIB"
+        ],
+        "ts_column": "timestamp",
+        "agg": "sum",
+        "column": "count_"
       }
     ]
   },
   "dashboard_sections": [
     {
-      "title": "Customers",
+      "title": "snmp details",
       "show_filter": true,
       "widgets": [
         {
@@ -65,193 +150,168 @@
           "max_width": 12,
           "height": 0.5,
           "min_width": 12,
-          "label": "<div style='text-align:center;width:100%;'><h1><a style='text-decoration:none;color:#0066ff;' target='_blank'>List of Customers</a></h1></div>",
+          "label": "<div style='text-align:center;width:100%;'><h1><a style='text-decoration:none;color:#0066ff;' target='_blank'>Customer SNMP Traps</a></h1></div>",
           "widget_id": "33317e49"
         },
         {
-          "title": "Customers",
+          "title": "Total Traps",
+          "widget_type": "custom_counter",
+          "formatter": "DescriptiveCountFormatter",
+          "stream": "snmp_trap_event_stream_all",
+          "extra_filter0": "project_id in {{PROJ_ID}} or project_id is empty",
+          "ts_column": "timestamp",
+          "column": "_id",
+          "agg": "value_count",
+          "type": "int",
+          "max_width": 3,
+          "height": 4,
+          "min_width": 3,
+          "style": {
+            "color-list": [
+              "#215CC3"
+            ]
+          },
+          "widget_id": "df82078f"
+        },
+        {
+          "title": "By Trap",
+          "widget_type": "pie_chart",
+          "stream": "snmp_trap_event_stream_all",
+          "extra_filter": "project_id in {{PROJ_ID}} or project_id is empty",
+          "ts_column": "timestamp",
+          "group_by": [
+            "snmpTrapName"
+          ],
+          "column": "count_",
+          "agg": "value_count",
+          "type": "int",
+          "min_width": 5,
+          "height": 4,
+          "max_width": 5,
+          "widget_id": "43799fef"
+        },
+        {
+          "title": "Traps by IP",
+          "widget_type": "pie_chart",
+          "stream": "snmp_trap_event_stream_all",
+          "extra_filter": "project_id in {{PROJ_ID}} or project_id is empty",
+          "ts_column": "timestamp",
+          "column": "count_",
+          "agg": "value_count",
+          "group_by": [
+            "rda_gw_client_ip"
+          ],
+          "type": "str",
+          "min_width": 4,
+          "height": 4,
+          "max_width": 8,
+          "widget_id": "5d627f3e"
+        },
+        {
+          "widget_type": "pie_chart",
+          "title": "Traps by Managed Status",
+          "stream": "snmp_trap_event_stream_all",
+          "extra_filter": "project_id in {{PROJ_ID}} or project_id is empty",
+          "ts_column": "timestamp",
+          "column": "count_",
+          "agg": "sum",
+          "group_by": [
+            "device_status"
+          ],
+          "min_width": 4,
+          "height": 4,
+          "max_width": 4,
+          "widget_id": "b9f66b8"
+        },
+        {
+          "widget_type": "pie_chart",
+          "title": "Assets by Managed Status ",
+          "stream": "snmp_trap_event_stream_all",
+          "extra_filter": "project_id in {{PROJ_ID}} or project_id is empty",
+          "ts_column": "timestamp",
+          "column": "rda_gw_client_ip",
+          "agg": "cardinality",
+          "group_by": [
+            "device_status"
+          ],
+          "min_width": 4,
+          "height": 4,
+          "max_width": 4,
+          "widget_id": "b2266b8"
+        },
+        {
+          "title": "Unmanaged Devices",
           "widget_type": "tabular",
-          "ts_column": "createdAt",
-          "stream": "rda_system_organizations",
-          "extra_filter": "customerName is not 'cfx_rda_quarantine'",
+          "max_width": 4,
+          "height": 4,
+          "min_width": 4,
+          "extra_filter": "device_status contains 'UNMANAGED' and (project_id in {{PROJ_ID}} or project_id is empty)",
+          "stream": "snmp_trap_event_stream_all",
+          "ts_column": "timestamp",
+          "columns": {
+            "rda_gw_client_ip": "IP Address"
+          },
+          "pivot": {
+            "group_by": [
+              "rda_gw_client_ip"
+            ],
+            "column": "count_",
+            "agg": "value_count"
+          },
+          "widget_id": "kz1MoAWD"
+        },
+        {
+          "title": "SNMP Traps",
+          "widget_type": "tabular",
           "max_width": 12,
-          "height": 12,
+          "height": 8,
           "min_width": 12,
+          "stream": "snmp_trap_event_stream_all",
+          "extra_filter": "project_id in {{PROJ_ID}} or project_id is empty",
+          "ts_column": "timestamp",
+          "resizableColumns": false,
+          "max_rows": 100,
+          "showRowSummary": true,
+          "sorting": [
+            {
+              "timestamp": "desc"
+            }
+          ],
           "remote_searchable": true,
           "remote_searchable_cols": [
-            "tag1"
+            "rda_gw_client_ip",
+            "snmpTrapOID",
+            "device_vendor",
+            "device_status",
+            "snmpTrapMIB",
+            "snmpVersion",
+            "rda_gw_client_ip",
+            "snmpTrapName"
           ],
           "columns": {
-            "customerId": {
-              "title": "ID",
-              "type": "TEXT",
-              "key": true,
-              "visible": false
-            },
-            "tag1": {
-              "title": "Customer",
-              "type": "TEXT",
-              "key": true,
-              "visible": true
-            },
-            "customer_tag": {
-              "title": "Customer Tag",
-              "type": "TEXT",
-              "key": true,
-              "visible": false
-            },
-            "projectId": {
-              "title": "Project ID",
-              "type": "TEXT",
-              "key": true,
-              "visible": false
-            },
-            "createdAt": {
-              "title": "Timestamp",
-              "type": "DATETIME",
-              "visible": false
-            }
+            "timestamp": "Timestamp",
+            "rda_gw_client_ip": "Device",
+            "device_hostname": "Device Hostname",
+            "message": "Message",
+            "snmpVersion": "SNMP Version",
+            "device_vendor": "Vendor",
+            "device_status": "Status",
+            "snmpTrapDescription": "MIB Description",
+            "snmpTrapName": "Trap Name",
+            "snmpTrapMIB": "MIB Name",
+            "device_fw_version": "OS Version",
+            "snmpTrapOID": "Trap OID"
           },
-          "custom_columns": [
-            {
-              "id": "adminApp",
-              "label": "Customer Admin App",
-              "expr": "'Admin App'",
-              "visible": true,
-              "key": true
-            },
-            {
-              "id": "opsApp",
-              "label": "Customer Ops App",
-              "expr": "'Ops App'",
-              "visible": true,
-              "key": true
-            }
-          ],
-          "actions": [
-            {
-              "appName": "user-dashboard/customer_ops_application",
-              "permission": "aia:page:view",
-              "contextParamList": {
-                "contextParams": [
-                  {
-                    "paramKey": "projectId",
-                    "paramId": "project_id"
-                  },
-                  {
-                    "paramKey": "customerId",
-                    "paramId": "customer_id"
-                  },
-                  {
-                    "paramKey": "tag1",
-                    "paramId": "a_en_customer_tag"
-                  },
-                  {
-                    "paramKey": "tag1",
-                    "paramId": "attrs_customer_tag"
-                  },
-                  {
-                    "paramKey": "tag1",
-                    "paramId": "customerTag"
-                  },
-                  {
-                    "paramKey": "tag1",
-                    "paramId": "customer_tag"
-                  }
-                ]
-              },
-              "drillDownLinkField": "tag1",
-              "identifier": "tag1",
-              "selectionType": "SINGLE",
-              "stateName": "app.featureapp",
-              "title": "View Details",
-              "type": "GO_TO_APP_STATE"
-            },
-            {
-              "appName": "user-dashboard/customer_ops_application",
-              "permission": "rda:page:view",
-              "drillDownLinkField": "opsApp",
-              "identifier": "customerName",
-              "selectionType": "SINGLE",
-              "stateName": "app.featureapp",
-              "title": "Customer Ops App",
-              "type": "GO_TO_APP_STATE",
-              "contextParamList": {
-                "contextParams": [
-                  {
-                    "paramKey": "projectId",
-                    "paramId": "project_id"
-                  },
-                  {
-                    "paramKey": "customerId",
-                    "paramId": "customer_id"
-                  },
-                  {
-                    "paramKey": "tag1",
-                    "paramId": "a_en_customer_tag"
-                  },
-                  {
-                    "paramKey": "tag1",
-                    "paramId": "attrs_customer_tag"
-                  },
-                  {
-                    "paramKey": "tag1",
-                    "paramId": "customerTag"
-                  },
-                  {
-                    "paramKey": "tag1",
-                    "paramId": "customer_tag"
-                  }
-                ]
-              }
-            },
-            {
-              "appName": "user-dashboard/rda-packs-customer-all",
-              "permission": "rda:page:view",
-              "identifier": "tag1",
-              "selectionType": "SINGLE",
-              "stateName": "app.featureapp",
-              "drillDownLinkField": "adminApp",
-              "title": "Customer Admin",
-              "type": "GO_TO_APP_STATE",
-              "contextParamList": {
-                "contextParams": [
-                  {
-                    "paramKey": "projectId",
-                    "paramId": "project_id"
-                  },
-                  {
-                    "paramKey": "customerId",
-                    "paramId": "customer_id"
-                  },
-                  {
-                    "paramKey": "tag1",
-                    "paramId": "a_en_customer_tag"
-                  },
-                  {
-                    "paramKey": "tag1",
-                    "paramId": "attrs_customer_tag"
-                  },
-                  {
-                    "paramKey": "tag1",
-                    "paramId": "customerTag"
-                  },
-                  {
-                    "paramKey": "tag1",
-                    "paramId": "customer_tag"
-                  }
-                ]
-              }
-            }
-          ],
-          "widget_id": "79ae514e"
+          "widget_id": "46a6b5b6"
         }
       ]
     }
   ],
+  "dashboard_type": "template",
+  "dashboard_pages": [],
   "pstream_dashboards": [
     {
-      "title": "Customers",
+      "title": "snmp details",
       "show_filter": true,
       "widgets": [
         {
@@ -259,186 +319,159 @@
           "max_width": 12,
           "height": 0.5,
           "min_width": 12,
-          "label": "<div style='text-align:center;width:100%;'><h1><a style='text-decoration:none;color:#0066ff;' target='_blank'>List of Customers</a></h1></div>",
+          "label": "<div style='text-align:center;width:100%;'><h1><a style='text-decoration:none;color:#0066ff;' target='_blank'>Customer SNMP Traps</a></h1></div>",
           "widget_id": "33317e49"
         },
         {
-          "title": "Customers",
+          "title": "Total Traps",
+          "widget_type": "custom_counter",
+          "formatter": "DescriptiveCountFormatter",
+          "stream": "snmp_trap_event_stream_all",
+          "extra_filter0": "project_id in {{PROJ_ID}} or project_id is empty",
+          "ts_column": "timestamp",
+          "column": "_id",
+          "agg": "value_count",
+          "type": "int",
+          "max_width": 3,
+          "height": 4,
+          "min_width": 3,
+          "style": {
+            "color-list": [
+              "#215CC3"
+            ]
+          },
+          "widget_id": "df82078f"
+        },
+        {
+          "title": "By Trap",
+          "widget_type": "pie_chart",
+          "stream": "snmp_trap_event_stream_all",
+          "extra_filter": "project_id in {{PROJ_ID}} or project_id is empty",
+          "ts_column": "timestamp",
+          "group_by": [
+            "snmpTrapName"
+          ],
+          "column": "count_",
+          "agg": "value_count",
+          "type": "int",
+          "min_width": 5,
+          "height": 4,
+          "max_width": 5,
+          "widget_id": "43799fef"
+        },
+        {
+          "title": "Traps by IP",
+          "widget_type": "pie_chart",
+          "stream": "snmp_trap_event_stream_all",
+          "extra_filter": "project_id in {{PROJ_ID}} or project_id is empty",
+          "ts_column": "timestamp",
+          "column": "count_",
+          "agg": "value_count",
+          "group_by": [
+            "rda_gw_client_ip"
+          ],
+          "type": "str",
+          "min_width": 4,
+          "height": 4,
+          "max_width": 8,
+          "widget_id": "5d627f3e"
+        },
+        {
+          "widget_type": "pie_chart",
+          "title": "Traps by Managed Status",
+          "stream": "snmp_trap_event_stream_all",
+          "extra_filter": "project_id in {{PROJ_ID}} or project_id is empty",
+          "ts_column": "timestamp",
+          "column": "count_",
+          "agg": "sum",
+          "group_by": [
+            "device_status"
+          ],
+          "min_width": 4,
+          "height": 4,
+          "max_width": 4,
+          "widget_id": "b9f66b8"
+        },
+        {
+          "widget_type": "pie_chart",
+          "title": "Assets by Managed Status ",
+          "stream": "snmp_trap_event_stream_all",
+          "extra_filter": "project_id in {{PROJ_ID}} or project_id is empty",
+          "ts_column": "timestamp",
+          "column": "rda_gw_client_ip",
+          "agg": "cardinality",
+          "group_by": [
+            "device_status"
+          ],
+          "min_width": 4,
+          "height": 4,
+          "max_width": 4,
+          "widget_id": "b2266b8"
+        },
+        {
+          "title": "Unmanaged Devices",
           "widget_type": "tabular",
-          "ts_column": "createdAt",
-          "stream": "rda_system_organizations",
-          "extra_filter": "customerName is not 'cfx_rda_quarantine'",
+          "max_width": 4,
+          "height": 4,
+          "min_width": 4,
+          "extra_filter": "device_status contains 'UNMANAGED' and (project_id in {{PROJ_ID}} or project_id is empty)",
+          "stream": "snmp_trap_event_stream_all",
+          "ts_column": "timestamp",
+          "columns": {
+            "rda_gw_client_ip": "IP Address"
+          },
+          "pivot": {
+            "group_by": [
+              "rda_gw_client_ip"
+            ],
+            "column": "count_",
+            "agg": "value_count"
+          },
+          "widget_id": "kz1MoAWD"
+        },
+        {
+          "title": "SNMP Traps",
+          "widget_type": "tabular",
           "max_width": 12,
-          "height": 12,
+          "height": 8,
           "min_width": 12,
+          "stream": "snmp_trap_event_stream_all",
+          "extra_filter": "project_id in {{PROJ_ID}} or project_id is empty",
+          "ts_column": "timestamp",
+          "resizableColumns": false,
+          "max_rows": 100,
+          "showRowSummary": true,
+          "sorting": [
+            {
+              "timestamp": "desc"
+            }
+          ],
           "remote_searchable": true,
           "remote_searchable_cols": [
-            "tag1"
+            "rda_gw_client_ip",
+            "snmpTrapOID",
+            "device_vendor",
+            "device_status",
+            "snmpTrapMIB",
+            "snmpVersion",
+            "rda_gw_client_ip",
+            "snmpTrapName"
           ],
           "columns": {
-            "customerId": {
-              "title": "ID",
-              "type": "TEXT",
-              "key": true,
-              "visible": false
-            },
-            "tag1": {
-              "title": "Customer",
-              "type": "TEXT",
-              "key": true,
-              "visible": true
-            },
-            "customer_tag": {
-              "title": "Customer Tag",
-              "type": "TEXT",
-              "key": true,
-              "visible": false
-            },
-            "projectId": {
-              "title": "Project ID",
-              "type": "TEXT",
-              "key": true,
-              "visible": false
-            },
-            "createdAt": {
-              "title": "Timestamp",
-              "type": "DATETIME",
-              "visible": false
-            }
+            "timestamp": "Timestamp",
+            "rda_gw_client_ip": "Device",
+            "device_hostname": "Device Hostname",
+            "message": "Message",
+            "snmpVersion": "SNMP Version",
+            "device_vendor": "Vendor",
+            "device_status": "Status",
+            "snmpTrapDescription": "MIB Description",
+            "snmpTrapName": "Trap Name",
+            "snmpTrapMIB": "MIB Name",
+            "device_fw_version": "OS Version",
+            "snmpTrapOID": "Trap OID"
           },
-          "custom_columns": [
-            {
-              "id": "adminApp",
-              "label": "Customer Admin App",
-              "expr": "'Admin App'",
-              "visible": true,
-              "key": true
-            },
-            {
-              "id": "opsApp",
-              "label": "Customer Ops App",
-              "expr": "'Ops App'",
-              "visible": true,
-              "key": true
-            }
-          ],
-          "actions": [
-            {
-              "appName": "user-dashboard/customer_ops_application",
-              "permission": "aia:page:view",
-              "contextParamList": {
-                "contextParams": [
-                  {
-                    "paramKey": "projectId",
-                    "paramId": "project_id"
-                  },
-                  {
-                    "paramKey": "customerId",
-                    "paramId": "customer_id"
-                  },
-                  {
-                    "paramKey": "tag1",
-                    "paramId": "a_en_customer_tag"
-                  },
-                  {
-                    "paramKey": "tag1",
-                    "paramId": "attrs_customer_tag"
-                  },
-                  {
-                    "paramKey": "tag1",
-                    "paramId": "customerTag"
-                  },
-                  {
-                    "paramKey": "tag1",
-                    "paramId": "customer_tag"
-                  }
-                ]
-              },
-              "drillDownLinkField": "tag1",
-              "identifier": "tag1",
-              "selectionType": "SINGLE",
-              "stateName": "app.featureapp",
-              "title": "View Details",
-              "type": "GO_TO_APP_STATE"
-            },
-            {
-              "appName": "user-dashboard/customer_ops_application",
-              "permission": "rda:page:view",
-              "drillDownLinkField": "opsApp",
-              "identifier": "customerName",
-              "selectionType": "SINGLE",
-              "stateName": "app.featureapp",
-              "title": "Customer Ops App",
-              "type": "GO_TO_APP_STATE",
-              "contextParamList": {
-                "contextParams": [
-                  {
-                    "paramKey": "projectId",
-                    "paramId": "project_id"
-                  },
-                  {
-                    "paramKey": "customerId",
-                    "paramId": "customer_id"
-                  },
-                  {
-                    "paramKey": "tag1",
-                    "paramId": "a_en_customer_tag"
-                  },
-                  {
-                    "paramKey": "tag1",
-                    "paramId": "attrs_customer_tag"
-                  },
-                  {
-                    "paramKey": "tag1",
-                    "paramId": "customerTag"
-                  },
-                  {
-                    "paramKey": "tag1",
-                    "paramId": "customer_tag"
-                  }
-                ]
-              }
-            },
-            {
-              "appName": "user-dashboard/rda-packs-customer-all",
-              "permission": "rda:page:view",
-              "identifier": "tag1",
-              "selectionType": "SINGLE",
-              "stateName": "app.featureapp",
-              "drillDownLinkField": "adminApp",
-              "title": "Customer Admin",
-              "type": "GO_TO_APP_STATE",
-              "contextParamList": {
-                "contextParams": [
-                  {
-                    "paramKey": "projectId",
-                    "paramId": "project_id"
-                  },
-                  {
-                    "paramKey": "customerId",
-                    "paramId": "customer_id"
-                  },
-                  {
-                    "paramKey": "tag1",
-                    "paramId": "a_en_customer_tag"
-                  },
-                  {
-                    "paramKey": "tag1",
-                    "paramId": "attrs_customer_tag"
-                  },
-                  {
-                    "paramKey": "tag1",
-                    "paramId": "customerTag"
-                  },
-                  {
-                    "paramKey": "tag1",
-                    "paramId": "customer_tag"
-                  }
-                ]
-              }
-            }
-          ],
-          "widget_id": "79ae514e"
+          "widget_id": "46a6b5b6"
         }
       ]
     }
