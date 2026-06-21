@@ -1,51 +1,119 @@
 {
-  "name": "mcp_prompt_templates",
-  "label": "Prompt Templates",
-  "description": "Dashboard to manage MCP Prompt Templates",
-  "enabled": true,
-  "dashboard_folder": "AI",
+  "name": "customer_discovery_runs",
+  "label": "On Demand Discovery",
+  "description": "onboarded_devices: Insights",
+  "dashboard_folder": "NetworkDevicePack",
+  "version": "1.0.3",
+  "enabled": false,
+  "dashboard_type": "template",
   "live_edit": true,
+  "template_variables": {
+    "CUST_ID": {
+      "contextId": "customerId"
+    },
+    "PROJ_ID": {
+      "contextId": "project_id"
+    },
+    "PROJ_ID_SINGLE": {
+      "contextId": "project_id"
+    },
+    "CUST_TAG": {
+      "contextId": "customerTag"
+    }
+  },
   "dashboard_filters": {
-    "time_filter": false
+    "time_filter": true,
+    "extra_filter0": "(target_type contains 'DEVICE')",
+    "default_time_filter_labels": [
+      "Last 1 month"
+    ],
+    "columns_filter": [
+      {
+        "id": "timestamp",
+        "label": "Timestamp",
+        "type": "DATETIME"
+      }
+    ],
+    "group_filters": []
   },
   "dashboard_sections": [
     {
-      "title": "AI",
-      "show_filter": false,
+      "title": "Onboarded Devices",
+      "show_filter": true,
       "widgets": [
         {
-          "title": "Prompt Templates",
+          "title": "Discovery Runs",
           "widget_type": "tabular",
-          "min_width": 12,
-          "height": 10,
+          "stream": "asset_inventory_collection_status_stream",
+          "extra_filter0": "customer_tag contains '{{CUST_TAG}}' or customer_tag is empty",
+          "extra_filter1": "(jobname contains '{{CUST_TAG}}' or jobname is empty) and type_ is 'overall_status' and total is not empty and pending is 0",
+          "extra_filter": "(jobname contains '{{CUST_TAG}}' or jobname contains 'job') and type_ is 'overall_status' and total is not empty and pending is 0",
+          "height": 4,
           "max_width": 12,
-          "timebased": false,
-          "timestamp": "timestamp",
-          "stream": "mcp_prompt_templates",
+          "min_width": 12,
           "columns": {
-            "prompt_template_name": {
-              "title": "Name",
-              "key": true
+            "collection_timestamp": {
+              "title": "Discovery End time",
+              "type": "DATETIME"
             },
-            "template_description": {
-              "title": "Description",
-              "key": true
+            "total": "Total Devices",
+            "success": {
+              "title": "Total Successful",
+              "htmlTemplateForRow0": "<{%raw%}span class='badge' style='background-color: {{ row.response_colors}}' > {{ row.success}} </span>{%endraw%}"
             },
-            "prompt_template": {
-              "title": "Template",
-              "defaultWidth": 500,
-              "visible": false,
-              "key": true
+            "failed": {
+              "title": "Total Failed",
+              "htmlTemplateForRow0": "{%raw%}<span class='badge' style='background-color: {{ row.response_colorf}}' > {{ row.failed}} </span>{%endraw%}"
+            },
+            "jobname": {
+              "title": "Jobname",
+              "type": "TEXT",
+              "hidden": true
+            },
+            "jobid": {
+              "title": "job id",
+              "type": "TEXT",
+              "hidden": true
+            },
+            "duplicates": {
+              "title": "Duplicates(Serial Number)",
+              "type": "TEXT",
+              "hidden": false
             }
           },
-          "widget_id": "2630645a",
+          "custom_columns": [
+            {
+              "id": "response_colors",
+              "label": "Enable Color",
+              "expr": "['#b3b3b3'] if success == 0 else ['#4CAF50']",
+              "hidden": true,
+              "visible": false,
+              "sortable": false
+            },
+            {
+              "id": "response_colorf",
+              "label": "Enable Color",
+              "expr": "['#b3b3b3'] if failed == 0 else ['#BB0000']",
+              "hidden": true,
+              "visible": false,
+              "sortable": false
+            },
+            {
+              "id": "status",
+              "label": "Status",
+              "expr": "'Success' if failed == 0 else 'Failed'",
+              "hidden": false,
+              "visible": true,
+              "sortable": false
+            }
+          ],
           "actions": [
             {
               "permission": "rda:github:view",
-              "title": "Add",
+              "title": "Run Discovery",
               "type": "POPUP_FORM",
               "selectionType": "NONE",
-              "identifier": "saas-service-action:aiadministration-add-prompt-template",
+              "identifier": "saas-service-action:userdashboard-add-yaml",
               "api-endpoint": {
                 "service-name": "saas-reports",
                 "methodName": "getForm",
@@ -54,265 +122,269 @@
                 "params": [
                   {
                     "formId": "rda.saas.dynamic.form",
-                    "formDefinition": {
-                      "id": "rda.saas.dynamic.form",
-                      "refreshRequired": true,
-                      "formFieldList": [
+                    "formActionList": {
+                      "formActions": [
                         {
-                          "fieldId": "prompt_template_name",
-                          "label": "Template Name",
-                          "description": "Prompt Template Name",
-                          "required": true,
-                          "isSecret": false,
-                          "dataType": "string",
-                          "hidden": false,
-                          "editable": true,
-                          "controlType": "TEXT"
-                        },
-                        {
-                          "fieldId": "template_description",
-                          "label": "Description",
-                          "description": "Prompt Template Description",
-                          "required": true,
-                          "isSecret": false,
-                          "dataType": "string",
-                          "hidden": false,
-                          "editable": true,
-                          "controlType": "TEXT"
-                        },
-                        {
-                          "fieldId": "prompt_template",
-                          "label": "Prompt Template",
-                          "description": "Prompt Template",
-                          "required": true,
-                          "isSecret": false,
-                          "dataType": "string",
-                          "hidden": false,
-                          "editable": true,
-                          "controlType": "TEXT_AREA"
+                          "identifier": "Submit",
+                          "actionLabel": "Run"
                         }
                       ]
                     },
-                    "actions": [
-                      {
-                        "type": "UPDATE_PSTREAM",
-                        "pstreamName": "mcp_prompt_templates",
-                        "operation": "ADD"
-                      }
-                    ]
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:github:view",
-              "title": "View Template",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "drillDownLinkField": "prompt_template_name",
-              "identifier": "saas-service-action:aiadministration-view-prompt-template",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.dynamic.form",
-                    "formDefinition": {
-                      "id": "rda.saas.dynamic.form",
-                      "refreshRequired": true,
-                      "submitRequired": false,
-                      "formFieldList": [
-                        {
-                          "fieldId": "prompt_template_name",
-                          "label": "Template Name",
-                          "description": "Prompt Template Name",
-                          "required": true,
-                          "isSecret": false,
-                          "dataType": "string",
-                          "hidden": false,
-                          "editable": false,
-                          "controlType": "TEXT"
-                        },
-                        {
-                          "fieldId": "template_description",
-                          "label": "Description",
-                          "description": "Prompt Template Description",
-                          "required": true,
-                          "isSecret": false,
-                          "dataType": "string",
-                          "hidden": false,
-                          "editable": true,
-                          "controlType": "TEXT"
-                        },
-                        {
-                          "fieldId": "prompt_template",
-                          "label": "Prompt Template",
-                          "description": "Prompt Template",
-                          "required": true,
-                          "isSecret": false,
-                          "dataType": "string",
-                          "hidden": false,
-                          "editable": false,
-                          "controlType": "TEXT_AREA"
-                        }
-                      ]
-                    }
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:github:view",
-              "title": "Edit Template",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:aiadministration-edit-prompt-template",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.dynamic.form",
                     "formDefinition": {
                       "id": "rda.saas.dynamic.form",
                       "refreshRequired": true,
                       "formFieldList": [
                         {
-                          "fieldId": "prompt_template_name",
-                          "label": "Template Name",
-                          "description": "Prompt Template Name",
-                          "required": true,
-                          "isSecret": false,
+                          "help": "Make sure access Verification is run for the devices you want to run discovery on",
                           "dataType": "string",
-                          "hidden": false,
-                          "editable": false,
-                          "controlType": "TEXT"
-                        },
-                        {
-                          "fieldId": "template_description",
-                          "label": "Description",
-                          "description": "Prompt Template Description",
                           "required": true,
-                          "isSecret": false,
-                          "dataType": "string",
-                          "hidden": false,
                           "editable": true,
-                          "controlType": "TEXT"
-                        },
-                        {
-                          "fieldId": "prompt_template",
-                          "label": "Prompt Template",
-                          "description": "Prompt Template",
-                          "required": true,
-                          "isSecret": false,
-                          "dataType": "string",
-                          "hidden": false,
-                          "editable": true,
-                          "controlType": "TEXT_AREA"
-                        }
-                      ]
-                    },
-                    "actions": [
-                      {
-                        "type": "UPDATE_PSTREAM",
-                        "pstreamName": "mcp_prompt_templates",
-                        "operation": "UPDATE",
-                        "cfxql_query": "prompt_template_name is '{{prompt_template_name}}'"
-                      }
-                    ]
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:github:view",
-              "title": "Delete Template",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:aiadministration-delete-prompt-template",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.dynamic.form",
-                    "formDefinition": {
-                      "id": "rda.saas.dynamic.form",
-                      "refreshRequired": true,
-                      "formFieldList": [
-                        {
-                          "help": "Do you want to delete the prompt template?",
-                          "dataType": "string",
+                          "label": "NOTE: Make sure that access verification is completed for  devices for which discovery needs to be run.",
                           "controlType": "LABEL",
-                          "required": false,
-                          "editable": false,
-                          "label": "Do you want to delete the prompt template?",
                           "hidden": false,
-                          "fieldId": "name"
+                          "fieldId": "note_field"
+                        },
+                        {
+                          "help": "Select network devices for which you want to run discovery",
+                          "dataType": "string",
+                          "required": true,
+                          "editable": true,
+                          "label": "Network Devices",
+                          "hidden": false,
+                          "fieldId": "Others",
+                          "controlType": "SELECTOR_TABLE",
+                          "controlPropertyList": [
+                            {
+                              "attribute": "column-key",
+                              "value": "device_ip"
+                            },
+                            {
+                              "attribute": "selection",
+                              "value": "MULTIPLE"
+                            }
+                          ],
+                          "widget": {
+                            "title": "Device Details",
+                            "timebased": false,
+                            "max_width": 12,
+                            "height": 8,
+                            "min_width": 12,
+                            "extra_filter0": "type contains 'windows'",
+                            "stream": "discovery",
+                            "extra_filter": "customer_tag contains '{{CUST_TAG}}' or customer_tag is empty",
+                            "ts_column": "timestamp",
+                            "sorting": [],
+                            "columns": {
+                              "device_ip": {
+                                "title": "IP Address",
+                                "key": true
+                              },
+                              "discovery_scope": {
+                                "title": "discovery Scope",
+                                "key": true,
+                                "visible": false
+                              }
+                            }
+                          }
                         }
                       ]
                     },
                     "actions": [
                       {
-                        "type": "UPDATE_PSTREAM",
-                        "pstreamName": "mcp_prompt_templates",
-                        "operation": "DELETE",
-                        "cfxql_query": "prompt_template_name is '{{prompt_template_name}}'"
+                        "type": "RUN_PIPELINE",
+                        "pipelineName": "ondemand_discovery_main",
+                        "isSync": false,
+                        "workerGroup": "{{CUST_TAG}}.*"
                       }
                     ]
+                  }
+                ]
+              }
+            },
+            {
+              "permission": "aia:page:view",
+              "drillDownLinkField": "success",
+              "identifier": "success",
+              "selectionType": "SINGLE",
+              "stateName": "app.featureapp",
+              "title": "View Success",
+              "contextParamList": {
+                "contextParams": [
+                  {
+                    "paramKey": "jobid",
+                    "paramId": "jobid"
+                  }
+                ]
+              },
+              "actionCondition": {
+                "actionControl": "SHOW_IF",
+                "conditionalField": [
+                  {
+                    "conditionType": "IS_NOT_NULL",
+                    "fieldId": "success"
+                  }
+                ]
+              },
+              "type": "GO_TO_APP_STATE",
+              "appName": "user-dashboard/customer_discovery_runs_details_success"
+            },
+            {
+              "permission": "aia:page:view",
+              "drillDownLinkField": "duplicates",
+              "identifier": "duplicates",
+              "selectionType": "SINGLE",
+              "stateName": "app.featureapp",
+              "title": "View Duplicates",
+              "contextParamList": {
+                "contextParams": [
+                  {
+                    "paramKey": "jobid",
+                    "paramId": "jobid"
+                  }
+                ]
+              },
+              "actionCondition": {
+                "actionControl": "SHOW_IF",
+                "conditionalField": [
+                  {
+                    "conditionType": "IS_NOT_NULL",
+                    "fieldId": "duplicates"
+                  }
+                ]
+              },
+              "type": "GO_TO_APP_STATE",
+              "appName": "user-dashboard/customer_discovery_runs_details_duplicates"
+            },
+            {
+              "appName": "user-dashboard/customer_discovery_runs_details_failed",
+              "permission": "aia:page:view",
+              "drillDownContext": "failed",
+              "drillDownLinkField": "failed",
+              "identifier": "failed",
+              "selectionType": "SINGLE",
+              "stateName": "app.featureapp",
+              "title": "View Failed",
+              "contextParamList": {
+                "contextParams": [
+                  {
+                    "paramKey": "jobid",
+                    "paramId": "jobid"
+                  }
+                ]
+              },
+              "actionCondition": {
+                "actionControl": "SHOW_IF",
+                "conditionalField": [
+                  {
+                    "conditionType": "IS_NOT_NULL",
+                    "fieldId": "failed"
+                  }
+                ]
+              },
+              "type": "GO_TO_APP_STATE"
+            },
+            {
+              "appName": "user-dashboard/logs",
+              "permission": "aia:page:view",
+              "identifier": "failed",
+              "drillDownLinkField": "total",
+              "selectionType": "SINGLE",
+              "stateName": "app.featureapp",
+              "title": "View Logs",
+              "type": "GO_TO_APP_STATE",
+              "contextParamList": {
+                "contextParams": [
+                  {
+                    "paramKey": "jobid",
+                    "paramId": "jobid"
                   }
                 ]
               }
             }
-          ]
+          ],
+          "widget_id": "b2c8d81c"
         }
       ]
     }
   ],
   "pstream_dashboards": [
     {
-      "title": "AI",
-      "show_filter": false,
+      "title": "Onboarded Devices",
+      "show_filter": true,
       "widgets": [
         {
-          "title": "Prompt Templates",
+          "title": "Discovery Runs",
           "widget_type": "tabular",
-          "min_width": 12,
-          "height": 10,
+          "stream": "asset_inventory_collection_status_stream",
+          "extra_filter0": "customer_tag contains '{{CUST_TAG}}' or customer_tag is empty",
+          "extra_filter1": "(jobname contains '{{CUST_TAG}}' or jobname is empty) and type_ is 'overall_status' and total is not empty and pending is 0",
+          "extra_filter": "(jobname contains '{{CUST_TAG}}' or jobname contains 'job') and type_ is 'overall_status' and total is not empty and pending is 0",
+          "height": 4,
           "max_width": 12,
-          "timebased": false,
-          "timestamp": "timestamp",
-          "stream": "mcp_prompt_templates",
+          "min_width": 12,
           "columns": {
-            "prompt_template_name": {
-              "title": "Name",
-              "key": true
+            "collection_timestamp": {
+              "title": "Discovery End time",
+              "type": "DATETIME"
             },
-            "template_description": {
-              "title": "Description",
-              "key": true
+            "total": "Total Devices",
+            "success": {
+              "title": "Total Successful",
+              "htmlTemplateForRow0": "<{%raw%}span class='badge' style='background-color: {{ row.response_colors}}' > {{ row.success}} </span>{%endraw%}"
             },
-            "prompt_template": {
-              "title": "Template",
-              "defaultWidth": 500,
-              "visible": false,
-              "key": true
+            "failed": {
+              "title": "Total Failed",
+              "htmlTemplateForRow0": "{%raw%}<span class='badge' style='background-color: {{ row.response_colorf}}' > {{ row.failed}} </span>{%endraw%}"
+            },
+            "jobname": {
+              "title": "Jobname",
+              "type": "TEXT",
+              "hidden": true
+            },
+            "jobid": {
+              "title": "job id",
+              "type": "TEXT",
+              "hidden": true
+            },
+            "duplicates": {
+              "title": "Duplicates(Serial Number)",
+              "type": "TEXT",
+              "hidden": false
             }
           },
-          "widget_id": "2630645a",
+          "custom_columns": [
+            {
+              "id": "response_colors",
+              "label": "Enable Color",
+              "expr": "['#b3b3b3'] if success == 0 else ['#4CAF50']",
+              "hidden": true,
+              "visible": false,
+              "sortable": false
+            },
+            {
+              "id": "response_colorf",
+              "label": "Enable Color",
+              "expr": "['#b3b3b3'] if failed == 0 else ['#BB0000']",
+              "hidden": true,
+              "visible": false,
+              "sortable": false
+            },
+            {
+              "id": "status",
+              "label": "Status",
+              "expr": "'Success' if failed == 0 else 'Failed'",
+              "hidden": false,
+              "visible": true,
+              "sortable": false
+            }
+          ],
           "actions": [
             {
               "permission": "rda:github:view",
-              "title": "Add",
+              "title": "Run Discovery",
               "type": "POPUP_FORM",
               "selectionType": "NONE",
-              "identifier": "saas-service-action:aiadministration-add-prompt-template",
+              "identifier": "saas-service-action:userdashboard-add-yaml",
               "api-endpoint": {
                 "service-name": "saas-reports",
                 "methodName": "getForm",
@@ -321,223 +393,187 @@
                 "params": [
                   {
                     "formId": "rda.saas.dynamic.form",
-                    "formDefinition": {
-                      "id": "rda.saas.dynamic.form",
-                      "refreshRequired": true,
-                      "formFieldList": [
+                    "formActionList": {
+                      "formActions": [
                         {
-                          "fieldId": "prompt_template_name",
-                          "label": "Template Name",
-                          "description": "Prompt Template Name",
-                          "required": true,
-                          "isSecret": false,
-                          "dataType": "string",
-                          "hidden": false,
-                          "editable": true,
-                          "controlType": "TEXT"
-                        },
-                        {
-                          "fieldId": "template_description",
-                          "label": "Description",
-                          "description": "Prompt Template Description",
-                          "required": true,
-                          "isSecret": false,
-                          "dataType": "string",
-                          "hidden": false,
-                          "editable": true,
-                          "controlType": "TEXT"
-                        },
-                        {
-                          "fieldId": "prompt_template",
-                          "label": "Prompt Template",
-                          "description": "Prompt Template",
-                          "required": true,
-                          "isSecret": false,
-                          "dataType": "string",
-                          "hidden": false,
-                          "editable": true,
-                          "controlType": "TEXT_AREA"
+                          "identifier": "Submit",
+                          "actionLabel": "Run"
                         }
                       ]
                     },
-                    "actions": [
-                      {
-                        "type": "UPDATE_PSTREAM",
-                        "pstreamName": "mcp_prompt_templates",
-                        "operation": "ADD"
-                      }
-                    ]
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:github:view",
-              "title": "View Template",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "drillDownLinkField": "prompt_template_name",
-              "identifier": "saas-service-action:aiadministration-view-prompt-template",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.dynamic.form",
-                    "formDefinition": {
-                      "id": "rda.saas.dynamic.form",
-                      "refreshRequired": true,
-                      "submitRequired": false,
-                      "formFieldList": [
-                        {
-                          "fieldId": "prompt_template_name",
-                          "label": "Template Name",
-                          "description": "Prompt Template Name",
-                          "required": true,
-                          "isSecret": false,
-                          "dataType": "string",
-                          "hidden": false,
-                          "editable": false,
-                          "controlType": "TEXT"
-                        },
-                        {
-                          "fieldId": "template_description",
-                          "label": "Description",
-                          "description": "Prompt Template Description",
-                          "required": true,
-                          "isSecret": false,
-                          "dataType": "string",
-                          "hidden": false,
-                          "editable": true,
-                          "controlType": "TEXT"
-                        },
-                        {
-                          "fieldId": "prompt_template",
-                          "label": "Prompt Template",
-                          "description": "Prompt Template",
-                          "required": true,
-                          "isSecret": false,
-                          "dataType": "string",
-                          "hidden": false,
-                          "editable": false,
-                          "controlType": "TEXT_AREA"
-                        }
-                      ]
-                    }
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:github:view",
-              "title": "Edit Template",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:aiadministration-edit-prompt-template",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.dynamic.form",
                     "formDefinition": {
                       "id": "rda.saas.dynamic.form",
                       "refreshRequired": true,
                       "formFieldList": [
                         {
-                          "fieldId": "prompt_template_name",
-                          "label": "Template Name",
-                          "description": "Prompt Template Name",
-                          "required": true,
-                          "isSecret": false,
+                          "help": "Make sure access Verification is run for the devices you want to run discovery on",
                           "dataType": "string",
-                          "hidden": false,
-                          "editable": false,
-                          "controlType": "TEXT"
-                        },
-                        {
-                          "fieldId": "template_description",
-                          "label": "Description",
-                          "description": "Prompt Template Description",
                           "required": true,
-                          "isSecret": false,
-                          "dataType": "string",
-                          "hidden": false,
                           "editable": true,
-                          "controlType": "TEXT"
-                        },
-                        {
-                          "fieldId": "prompt_template",
-                          "label": "Prompt Template",
-                          "description": "Prompt Template",
-                          "required": true,
-                          "isSecret": false,
-                          "dataType": "string",
-                          "hidden": false,
-                          "editable": true,
-                          "controlType": "TEXT_AREA"
-                        }
-                      ]
-                    },
-                    "actions": [
-                      {
-                        "type": "UPDATE_PSTREAM",
-                        "pstreamName": "mcp_prompt_templates",
-                        "operation": "UPDATE",
-                        "cfxql_query": "prompt_template_name is '{{prompt_template_name}}'"
-                      }
-                    ]
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:github:view",
-              "title": "Delete Template",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:aiadministration-delete-prompt-template",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.dynamic.form",
-                    "formDefinition": {
-                      "id": "rda.saas.dynamic.form",
-                      "refreshRequired": true,
-                      "formFieldList": [
-                        {
-                          "help": "Do you want to delete the prompt template?",
-                          "dataType": "string",
+                          "label": "NOTE: Make sure that access verification is completed for  devices for which discovery needs to be run.",
                           "controlType": "LABEL",
-                          "required": false,
-                          "editable": false,
-                          "label": "Do you want to delete the prompt template?",
                           "hidden": false,
-                          "fieldId": "name"
+                          "fieldId": "note_field"
+                        },
+                        {
+                          "help": "Select network devices for which you want to run discovery",
+                          "dataType": "string",
+                          "required": true,
+                          "editable": true,
+                          "label": "Network Devices",
+                          "hidden": false,
+                          "fieldId": "Others",
+                          "controlType": "SELECTOR_TABLE",
+                          "controlPropertyList": [
+                            {
+                              "attribute": "column-key",
+                              "value": "device_ip"
+                            },
+                            {
+                              "attribute": "selection",
+                              "value": "MULTIPLE"
+                            }
+                          ],
+                          "widget": {
+                            "title": "Device Details",
+                            "timebased": false,
+                            "max_width": 12,
+                            "height": 8,
+                            "min_width": 12,
+                            "extra_filter0": "type contains 'windows'",
+                            "stream": "discovery",
+                            "extra_filter": "customer_tag contains '{{CUST_TAG}}' or customer_tag is empty",
+                            "ts_column": "timestamp",
+                            "sorting": [],
+                            "columns": {
+                              "device_ip": {
+                                "title": "IP Address",
+                                "key": true
+                              },
+                              "discovery_scope": {
+                                "title": "discovery Scope",
+                                "key": true,
+                                "visible": false
+                              }
+                            }
+                          }
                         }
                       ]
                     },
                     "actions": [
                       {
-                        "type": "UPDATE_PSTREAM",
-                        "pstreamName": "mcp_prompt_templates",
-                        "operation": "DELETE",
-                        "cfxql_query": "prompt_template_name is '{{prompt_template_name}}'"
+                        "type": "RUN_PIPELINE",
+                        "pipelineName": "ondemand_discovery_main",
+                        "isSync": false,
+                        "workerGroup": "{{CUST_TAG}}.*"
                       }
                     ]
+                  }
+                ]
+              }
+            },
+            {
+              "permission": "aia:page:view",
+              "drillDownLinkField": "success",
+              "identifier": "success",
+              "selectionType": "SINGLE",
+              "stateName": "app.featureapp",
+              "title": "View Success",
+              "contextParamList": {
+                "contextParams": [
+                  {
+                    "paramKey": "jobid",
+                    "paramId": "jobid"
+                  }
+                ]
+              },
+              "actionCondition": {
+                "actionControl": "SHOW_IF",
+                "conditionalField": [
+                  {
+                    "conditionType": "IS_NOT_NULL",
+                    "fieldId": "success"
+                  }
+                ]
+              },
+              "type": "GO_TO_APP_STATE",
+              "appName": "user-dashboard/customer_discovery_runs_details_success"
+            },
+            {
+              "permission": "aia:page:view",
+              "drillDownLinkField": "duplicates",
+              "identifier": "duplicates",
+              "selectionType": "SINGLE",
+              "stateName": "app.featureapp",
+              "title": "View Duplicates",
+              "contextParamList": {
+                "contextParams": [
+                  {
+                    "paramKey": "jobid",
+                    "paramId": "jobid"
+                  }
+                ]
+              },
+              "actionCondition": {
+                "actionControl": "SHOW_IF",
+                "conditionalField": [
+                  {
+                    "conditionType": "IS_NOT_NULL",
+                    "fieldId": "duplicates"
+                  }
+                ]
+              },
+              "type": "GO_TO_APP_STATE",
+              "appName": "user-dashboard/customer_discovery_runs_details_duplicates"
+            },
+            {
+              "appName": "user-dashboard/customer_discovery_runs_details_failed",
+              "permission": "aia:page:view",
+              "drillDownContext": "failed",
+              "drillDownLinkField": "failed",
+              "identifier": "failed",
+              "selectionType": "SINGLE",
+              "stateName": "app.featureapp",
+              "title": "View Failed",
+              "contextParamList": {
+                "contextParams": [
+                  {
+                    "paramKey": "jobid",
+                    "paramId": "jobid"
+                  }
+                ]
+              },
+              "actionCondition": {
+                "actionControl": "SHOW_IF",
+                "conditionalField": [
+                  {
+                    "conditionType": "IS_NOT_NULL",
+                    "fieldId": "failed"
+                  }
+                ]
+              },
+              "type": "GO_TO_APP_STATE"
+            },
+            {
+              "appName": "user-dashboard/logs",
+              "permission": "aia:page:view",
+              "identifier": "failed",
+              "drillDownLinkField": "total",
+              "selectionType": "SINGLE",
+              "stateName": "app.featureapp",
+              "title": "View Logs",
+              "type": "GO_TO_APP_STATE",
+              "contextParamList": {
+                "contextParams": [
+                  {
+                    "paramKey": "jobid",
+                    "paramId": "jobid"
                   }
                 ]
               }
             }
-          ]
+          ],
+          "widget_id": "b2c8d81c"
         }
       ]
     }
