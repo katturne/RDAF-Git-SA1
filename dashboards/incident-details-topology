@@ -1,27 +1,32 @@
 {
-  "name": "rda-fabric-health-app",
-  "label": "Fabric Health",
-  "description": "Fabric Health Administration",
-  "version": "22.9.9.1",
-  "enabled": true,
-  "computedContext": {
-    "NOW": {
-      "expr": "now().replace(hour = 0, minute = 0, second = 0, microsecond = 0).isoformat()"
+  "name": "incident-details-topology",
+  "label": "Dynamic Incident Topology",
+  "description": "Dynamic Incident Topology",
+  "dashboard_style": "auto",
+  "dashboard_type": "template",
+  "version": "22.10.7.1",
+  "enabled": false,
+  "exportable": false,
+  "template_variables": {
+    "ROOM_ID": {
+      "default": "",
+      "contextId": "project_id"
     },
-    "DAY_1_AGO": {
-      "expr": "now().replace(hour = 0, minute = 0, second = 0, microsecond = 0).isoformat()"
+    "INCIDENT_ID": {
+      "default": "",
+      "contextId": "incident_id"
     },
-    "DAY_2_AGO": {
-      "expr": "(now().replace(hour = 0, minute = 0, second = 0, microsecond = 0) - timedelta(days=1)).isoformat()"
+    "A_INCIDENT_ID": {
+      "default": "",
+      "contextId": "a_incident_id"
     },
-    "DAY_3_AGO": {
-      "expr": "(now().replace(hour = 0, minute = 0, second = 0, microsecond = 0) - timedelta(days=2)).isoformat()"
+    "STACK_NAME": {
+      "default": "",
+      "contextId": "attrs_stack_name"
     },
-    "DAY_4_AGO": {
-      "expr": "(now().replace(hour = 0, minute = 0, second = 0, microsecond = 0) - timedelta(days=3)).isoformat()"
-    },
-    "TODAY": {
-      "expr": "now().strftime('%B %d, %Y')"
+    "MY_TEMPLATE": {
+      "default": "<details><summary><b>{{row.a_alert_type}}</b></summary><div class='v-data-table v-data-table--dense theme--light'><div class='v-data-table__wrapper'><table style='width: 300px;'><tbody><tr><td>Source</td><td>{{row.a_source_systemname}}</td></tr><tr><td>Message</td><td>{{row.a_message}}</td></tr><tr><td>Assett IP</td><td>{{row.a_asset_ip_address}}</td></tr><tr><td>Alert Status</td><td>{{row.a_status}}</td></tr></tbody></table></div></div></details>",
+      "contextId": "MY_TEMPLATE"
     }
   },
   "dashboard_filters": {
@@ -30,71 +35,204 @@
   },
   "dashboard_sections": [
     {
-      "title": "Example"
-    }
-  ],
-  "dashboard_type": "app",
-  "dashboard_folder": "System",
-  "dashboard_pages": [
-    {
-      "name": "rda-health-workers",
-      "label": "Workers",
-      "icon": "Analytics.svg"
-    },
-    {
-      "name": "rda-health-agents",
-      "label": "Agents",
-      "icon": "datasource.svg"
-    },
-    {
-      "name": "rda-health-microservices",
-      "label": "Microservices",
-      "icon": "gateway.svg"
-    },
-    {
-      "name": "rda-microservice-traces_page_Traces",
-      "label": "Traces",
-      "icon": "pipeline.svg"
-    },
-    {
-      "name": "rda-operations-page-jobs",
-      "label": "Jobs",
-      "icon": "templates.svg"
-    },
-    {
-      "name": "rda-operations-page-trends",
-      "label": "Trends",
-      "icon": "stack.svg"
-    },
-    {
-      "name": "fabric-usage",
-      "label": "Fabric Usage",
-      "icon": "experiment.svg"
-    },
-    {
-      "name": "pipeline_failure_trend",
-      "label": "Pipeline Failure Trend",
-      "icon": "bots.svg"
-    },
-    {
-      "name": "stream_error_trend",
-      "label": "Stream Error Trend",
-      "icon": "library.svg"
-    },
-    {
-      "name": "user_activity_trend",
-      "label": "User Activity",
-      "icon": "customer.svg"
-    },
-    {
-      "name": "artifact_change_trend",
-      "label": "Artifact Change Trend",
-      "icon": "file.svg"
+      "title": "Topology",
+      "show_filter": false,
+      "widgets": [
+        {
+          "widget_type": "topology",
+          "title": "Topology",
+          "register_search_endpoints": true,
+          "impact_action_details": {
+            "impact_distance": 5,
+            "impact_conditional_field": "alert_count"
+          },
+          "chartProperties": {
+            "hasToolbar": true,
+            "shortToolbar": true,
+            "userZoomingEnabled": false
+          },
+          "stack_type": "OIA",
+          "auto_group": false,
+          "oia_details": {
+            "oia_stream": "oia-incidents-stream",
+            "query": "timestamp later than -12 months",
+            "oia_id_attribute": "incident_id",
+            "node_id_attribute": "attrs_node_id",
+            "stack_name_attribute": "attrs_stack_name",
+            "stack_type": "OIA",
+            "stack": "{{STACK_NAME}}",
+            "alert_source": {
+              "stream": "oia-alerts-stream",
+              "group_by": [
+                "a_en_node_id",
+                "a_severity",
+                "a_status"
+              ],
+              "incident_id_attr": "a_incident_id",
+              "context_incident_id_attr": "incidentid",
+              "extra_filter": "a_source_systemname is not 'Alert Group' ",
+              "ts_column": "timestamp",
+              "duration_hours": 9000,
+              "agg": "value_count",
+              "column": "count_",
+              "type": "int"
+            }
+          },
+          "max_width": 12,
+          "min_width": 7,
+          "height": 12,
+          "widget_id": "0ff73e14"
+        },
+        {
+          "title": "Alerts",
+          "widget_type": "tabular",
+          "max_width": 12,
+          "height": 12,
+          "min_width": 5,
+          "sorting": [
+            {
+              "a_raised_ts": "desc"
+            }
+          ],
+          "stream": "oia-alerts-stream",
+          "extra_filter": "((a_incident_id is '{{INCIDENT_ID}}') or (a_incident_id is '{{A_INCIDENT_ID}}')) and a_source_systemname is not 'Alert Group' ",
+          "query": "*",
+          "duration_hours": 2160,
+          "columns": {
+            "a_alert_type": {
+              "title": "Alert Type",
+              "type": "GROUPED",
+              "group": {
+                "a_source_systemname": "Source",
+                "a_message": "Message",
+                "a_asset_ip_address": "Asset IP Address",
+                "a_status": "Status",
+                "a_asset_name": "Asset Name"
+              },
+              "color-column": "state_color"
+            },
+            "state_color": {
+              "type": "COLOR-MAP",
+              "source-column": "a_status",
+              "color-map": {
+                "ACTIVE": "#dd0000",
+                "CLEAR": "#00dd00",
+                "CLEARED": "#00dd00"
+              }
+            },
+            "a_raised_ts": {
+              "title": "Raised At",
+              "type": "DATETIME"
+            },
+            "a_severity": "Severity"
+          },
+          "severity_columns": [
+            "a_severity"
+          ],
+          "widget_id": "dc7103e1"
+        }
+      ]
     }
   ],
   "pstream_dashboards": [
     {
-      "title": "Example"
+      "title": "Topology",
+      "show_filter": false,
+      "widgets": [
+        {
+          "widget_type": "topology",
+          "title": "Topology",
+          "register_search_endpoints": true,
+          "impact_action_details": {
+            "impact_distance": 5,
+            "impact_conditional_field": "alert_count"
+          },
+          "chartProperties": {
+            "hasToolbar": true,
+            "shortToolbar": true,
+            "userZoomingEnabled": false
+          },
+          "stack_type": "OIA",
+          "auto_group": false,
+          "oia_details": {
+            "oia_stream": "oia-incidents-stream",
+            "query": "timestamp later than -12 months",
+            "oia_id_attribute": "incident_id",
+            "node_id_attribute": "attrs_node_id",
+            "stack_name_attribute": "attrs_stack_name",
+            "stack_type": "OIA",
+            "stack": "{{STACK_NAME}}",
+            "alert_source": {
+              "stream": "oia-alerts-stream",
+              "group_by": [
+                "a_en_node_id",
+                "a_severity",
+                "a_status"
+              ],
+              "incident_id_attr": "a_incident_id",
+              "context_incident_id_attr": "incidentid",
+              "extra_filter": "a_source_systemname is not 'Alert Group' ",
+              "ts_column": "timestamp",
+              "duration_hours": 9000,
+              "agg": "value_count",
+              "column": "count_",
+              "type": "int"
+            }
+          },
+          "max_width": 12,
+          "min_width": 7,
+          "height": 12,
+          "widget_id": "0ff73e14"
+        },
+        {
+          "title": "Alerts",
+          "widget_type": "tabular",
+          "max_width": 12,
+          "height": 12,
+          "min_width": 5,
+          "sorting": [
+            {
+              "a_raised_ts": "desc"
+            }
+          ],
+          "stream": "oia-alerts-stream",
+          "extra_filter": "((a_incident_id is '{{INCIDENT_ID}}') or (a_incident_id is '{{A_INCIDENT_ID}}')) and a_source_systemname is not 'Alert Group' ",
+          "query": "*",
+          "duration_hours": 2160,
+          "columns": {
+            "a_alert_type": {
+              "title": "Alert Type",
+              "type": "GROUPED",
+              "group": {
+                "a_source_systemname": "Source",
+                "a_message": "Message",
+                "a_asset_ip_address": "Asset IP Address",
+                "a_status": "Status",
+                "a_asset_name": "Asset Name"
+              },
+              "color-column": "state_color"
+            },
+            "state_color": {
+              "type": "COLOR-MAP",
+              "source-column": "a_status",
+              "color-map": {
+                "ACTIVE": "#dd0000",
+                "CLEAR": "#00dd00",
+                "CLEARED": "#00dd00"
+              }
+            },
+            "a_raised_ts": {
+              "title": "Raised At",
+              "type": "DATETIME"
+            },
+            "a_severity": "Severity"
+          },
+          "severity_columns": [
+            "a_severity"
+          ],
+          "widget_id": "dc7103e1"
+        }
+      ]
     }
   ]
 }
