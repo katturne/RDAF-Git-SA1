@@ -1,293 +1,307 @@
 {
-  "name": "rda-pstreams-current-usage-stats",
-  "label": "Persistent Stream Current Usage Stats",
-  "description": "Persistent Stream Current Usage Stats",
-  "version": "22.9.19.1",
+  "name": "device_SNMP_Traps_from_alerts_fault",
+  "label": "SNMP Traps",
+  "description": "SNMP traps dashboard",
+  "version": "2023-06-13-02",
   "enabled": true,
-  "dashboard_folder": "System",
-  "dashboard_type": "template",
-  "dashboard_style": "tabbed",
-  "dashboard_filters": {
-    "time_filter": true,
-    "columns_filter": [],
-    "group_filters": [
+  "dashboard_folder": "NetworkDevicePack",
+  "dashboard_style": "auto",
+  "template_variables": {
+    "CUST_ID": {
+      "contextId": "customer_id"
+    },
+    "PROJ_ID": {
+      "contextId": "project_id"
+    },
+    "CUST_TAG": {
+      "contextId": "customer_tag"
+    },
+    "DEVICE_IP": {
+      "contextId": "device_ip"
+    }
+  },
+  "status_poller": {
+    "stream": "snmp_trap_event_stream_all",
+    "frequency": 10,
+    "columns": [
+      "timestamp"
+    ],
+    "sorting": [
       {
-        "stream": "rda_system_pstream_current_usage_stats",
-        "title": "Datastore",
-        "group_by": [
-          "datastore"
-        ],
-        "ts_column": "timestamp",
-        "agg": "value_count",
-        "column": "name",
-        "type": "int"
-      },
-      {
-        "stream": "rda_system_pstream_current_usage_stats",
-        "title": "Read Only",
-        "group_by": [
-          "read_only"
-        ],
-        "ts_column": "timestamp",
-        "agg": "value_count",
-        "column": "name",
-        "type": "int"
+        "timestamp": "desc"
       }
     ],
+    "query": "timestamp is after '${timestamp}'",
+    "defaults": {
+      "timestamp": "$UTCNOW"
+    },
+    "action": "refresh"
+  },
+  "dashboard_filters": {
     "default_time_filter_labels": [
-      "Last 1 week"
-    ]
+      "Last 1 month"
+    ],
+    "extra_filter1": "(customer_tag is '{{CUST_TAG}}')",
+    "time_filter": true,
+    "columns_filter": [],
+    "group_filters": []
   },
   "dashboard_sections": [
     {
-      "title": "Usage Stats (updated once a day)",
+      "title": "snmp details",
       "show_filter": true,
       "widgets": [
         {
-          "widget_type": "custom_counter",
-          "title": "Number of Streams",
-          "stream": "rda_system_pstream_current_usage_stats",
-          "ts_column": "timestamp",
-          "min_width": 3,
-          "height": 3,
-          "max_width": 6,
-          "agg": "value_count",
-          "column": "name",
-          "type": "str",
-          "widget_id": "2faa4f31"
+          "widget_type": "label",
+          "max_width": 12,
+          "height": 0.5,
+          "min_width": 12,
+          "label": "<div style='text-align:center;width:100%;'><h1><a style='text-decoration:none;color:#0066ff;' target='_blank'>Device SNMP Traps</a></h1></div>",
+          "widget_id": "33317e49"
         },
         {
+          "title": "Total Traps",
           "widget_type": "custom_counter",
-          "title": "Docs Count",
           "formatter": "DescriptiveCountFormatter",
-          "stream": "rda_system_pstream_current_usage_stats",
+          "stream": "snmp_trap_event_stream_all",
           "ts_column": "timestamp",
-          "min_width": 3,
-          "height": 3,
-          "max_width": 6,
-          "agg": "sum",
-          "column": "docs_count",
+          "column": "_id",
+          "agg": "value_count",
           "type": "int",
-          "widget_id": "2faa4f32"
+          "max_width": 2,
+          "height": 4,
+          "min_width": 2,
+          "style": {
+            "color-list": [
+              "#215CC3"
+            ]
+          },
+          "widget_id": "df82078f"
         },
         {
+          "title": "Unique Traps by OID",
           "widget_type": "custom_counter",
-          "title": "Size (MB)",
-          "stream": "rda_system_pstream_current_usage_stats",
+          "formatter": "DescriptiveCountFormatter",
+          "stream": "snmp_trap_event_stream_all",
           "ts_column": "timestamp",
-          "min_width": 3,
-          "height": 3,
-          "max_width": 6,
-          "agg": "sum",
-          "column": "size_in_mb",
+          "column": "snmpTrapOID",
+          "agg": "cardinality",
           "type": "int",
-          "widget_id": "2faa4f33"
+          "max_width": 2,
+          "height": 4,
+          "min_width": 2,
+          "style": {
+            "color-list": [
+              "#21C374"
+            ]
+          },
+          "widget_id": "ed5e8ee0"
         },
         {
-          "widget_type": "custom_counter",
-          "title": "Total Shards",
-          "stream": "rda_system_pstream_current_usage_stats",
-          "ts_column": "timestamp",
-          "min_width": 3,
-          "height": 3,
-          "max_width": 6,
-          "agg": "sum",
-          "column": "shards_total",
-          "type": "int",
-          "widget_id": "2faa4f34"
-        },
-        {
-          "title": "Top 10 streams by doc count",
+          "title": "Distribution by OID",
           "widget_type": "bar_chart",
-          "stream": "rda_system_pstream_current_usage_stats",
+          "stream": "snmp_trap_event_stream_all",
           "ts_column": "timestamp",
           "chartProperties": {
-            "yAxisLabel": null,
-            "xAxisLabel": "Count",
-            "orientation": "horizontal",
-            "legendLocation": "none"
+            "yAxisLabel": "Count",
+            "xAxisLabel": "OID",
+            "stacked": true,
+            "legendLocation": "none",
+            "orientation": "vertical"
           },
-          "width": 6,
           "group_by": [
-            "name"
+            "snmpTrapOID"
           ],
-          "formatting": {
-            "notation": "compact"
-          },
-          "top_n": 10,
-          "column": "docs_count",
-          "agg": "sum",
+          "column": "_id",
+          "agg": "cardinality",
           "type": "int",
-          "widget_id": "f4786acz"
+          "min_width": 4,
+          "height": 4,
+          "max_width": 4,
+          "widget_id": "43799fef"
         },
         {
-          "title": "Top 10 streams by size",
-          "widget_type": "bar_chart",
-          "stream": "rda_system_pstream_current_usage_stats",
+          "title": "Traps by IP",
+          "widget_type": "pie_chart",
+          "stream": "snmp_trap_event_stream_all",
           "ts_column": "timestamp",
-          "chartProperties": {
-            "yAxisLabel": null,
-            "xAxisLabel": "Size",
-            "orientation": "horizontal",
-            "legendLocation": "none"
-          },
-          "formatting": {
-            "style": "unit",
-            "unit": "megabyte"
-          },
-          "width": 6,
+          "column": "rda_gw_client_ip",
+          "agg": "value_count",
           "group_by": [
-            "name"
+            "rda_gw_client_ip"
           ],
-          "top_n": 10,
-          "column": "size_in_mb",
-          "agg": "sum",
-          "type": "int",
-          "widget_id": "f4786azz"
+          "type": "str",
+          "min_width": 4,
+          "height": 4,
+          "max_width": 4,
+          "widget_id": "5d627f3e"
         },
         {
-          "title": "Usage Stats",
+          "title": "SNMP Traps",
           "widget_type": "tabular",
-          "showRowSummary": true,
           "max_width": 12,
           "height": 8,
           "min_width": 12,
-          "paginated": false,
-          "stream": "rda_system_pstream_current_usage_stats",
+          "stream": "snmp_trap_event_stream_all",
           "ts_column": "timestamp",
+          "resizableColumns": true,
+          "max_rows": 100,
+          "showRowSummary": true,
           "sorting": [
             {
-              "name": "asc"
+              "timestamp": "desc"
             }
           ],
-          "widget_id": "72498ed8"
+          "remote_searchable": true,
+          "remote_searchable_cols": [
+            "rda_gw_client_ip",
+            "snmpTrapName",
+            "snmpTrapOID"
+          ],
+          "columns": {
+            "timestamp": "Timestamp",
+            "rda_gw_client_ip": "Device",
+            "snmpTrapOID": "SNMP Trap OID",
+            "snmpTrapName": "SNMP Trap Name",
+            "snmpTrapDescription": "SNMP Trap Description",
+            "message": "Message",
+            "vb_oid_1": "SNMP OID 1",
+            "vb_value_1": "SNMP Value 1",
+            "vb_oid_2": "SNMP OID 2",
+            "vb_value_2": "SNMP Value 2"
+          },
+          "widget_id": "46a6b5b6"
         }
       ]
     }
   ],
+  "dashboard_type": "template",
+  "dashboard_pages": [],
   "pstream_dashboards": [
     {
-      "title": "Usage Stats (updated once a day)",
+      "title": "snmp details",
       "show_filter": true,
       "widgets": [
         {
-          "widget_type": "custom_counter",
-          "title": "Number of Streams",
-          "stream": "rda_system_pstream_current_usage_stats",
-          "ts_column": "timestamp",
-          "min_width": 3,
-          "height": 3,
-          "max_width": 6,
-          "agg": "value_count",
-          "column": "name",
-          "type": "str",
-          "widget_id": "2faa4f31"
+          "widget_type": "label",
+          "max_width": 12,
+          "height": 0.5,
+          "min_width": 12,
+          "label": "<div style='text-align:center;width:100%;'><h1><a style='text-decoration:none;color:#0066ff;' target='_blank'>Device SNMP Traps</a></h1></div>",
+          "widget_id": "33317e49"
         },
         {
+          "title": "Total Traps",
           "widget_type": "custom_counter",
-          "title": "Docs Count",
           "formatter": "DescriptiveCountFormatter",
-          "stream": "rda_system_pstream_current_usage_stats",
+          "stream": "snmp_trap_event_stream_all",
           "ts_column": "timestamp",
-          "min_width": 3,
-          "height": 3,
-          "max_width": 6,
-          "agg": "sum",
-          "column": "docs_count",
+          "column": "_id",
+          "agg": "value_count",
           "type": "int",
-          "widget_id": "2faa4f32"
+          "max_width": 2,
+          "height": 4,
+          "min_width": 2,
+          "style": {
+            "color-list": [
+              "#215CC3"
+            ]
+          },
+          "widget_id": "df82078f"
         },
         {
+          "title": "Unique Traps by OID",
           "widget_type": "custom_counter",
-          "title": "Size (MB)",
-          "stream": "rda_system_pstream_current_usage_stats",
+          "formatter": "DescriptiveCountFormatter",
+          "stream": "snmp_trap_event_stream_all",
           "ts_column": "timestamp",
-          "min_width": 3,
-          "height": 3,
-          "max_width": 6,
-          "agg": "sum",
-          "column": "size_in_mb",
+          "column": "snmpTrapOID",
+          "agg": "cardinality",
           "type": "int",
-          "widget_id": "2faa4f33"
+          "max_width": 2,
+          "height": 4,
+          "min_width": 2,
+          "style": {
+            "color-list": [
+              "#21C374"
+            ]
+          },
+          "widget_id": "ed5e8ee0"
         },
         {
-          "widget_type": "custom_counter",
-          "title": "Total Shards",
-          "stream": "rda_system_pstream_current_usage_stats",
-          "ts_column": "timestamp",
-          "min_width": 3,
-          "height": 3,
-          "max_width": 6,
-          "agg": "sum",
-          "column": "shards_total",
-          "type": "int",
-          "widget_id": "2faa4f34"
-        },
-        {
-          "title": "Top 10 streams by doc count",
+          "title": "Distribution by OID",
           "widget_type": "bar_chart",
-          "stream": "rda_system_pstream_current_usage_stats",
+          "stream": "snmp_trap_event_stream_all",
           "ts_column": "timestamp",
           "chartProperties": {
-            "yAxisLabel": null,
-            "xAxisLabel": "Count",
-            "orientation": "horizontal",
-            "legendLocation": "none"
+            "yAxisLabel": "Count",
+            "xAxisLabel": "OID",
+            "stacked": true,
+            "legendLocation": "none",
+            "orientation": "vertical"
           },
-          "width": 6,
           "group_by": [
-            "name"
+            "snmpTrapOID"
           ],
-          "formatting": {
-            "notation": "compact"
-          },
-          "top_n": 10,
-          "column": "docs_count",
-          "agg": "sum",
+          "column": "_id",
+          "agg": "cardinality",
           "type": "int",
-          "widget_id": "f4786acz"
+          "min_width": 4,
+          "height": 4,
+          "max_width": 4,
+          "widget_id": "43799fef"
         },
         {
-          "title": "Top 10 streams by size",
-          "widget_type": "bar_chart",
-          "stream": "rda_system_pstream_current_usage_stats",
+          "title": "Traps by IP",
+          "widget_type": "pie_chart",
+          "stream": "snmp_trap_event_stream_all",
           "ts_column": "timestamp",
-          "chartProperties": {
-            "yAxisLabel": null,
-            "xAxisLabel": "Size",
-            "orientation": "horizontal",
-            "legendLocation": "none"
-          },
-          "formatting": {
-            "style": "unit",
-            "unit": "megabyte"
-          },
-          "width": 6,
+          "column": "rda_gw_client_ip",
+          "agg": "value_count",
           "group_by": [
-            "name"
+            "rda_gw_client_ip"
           ],
-          "top_n": 10,
-          "column": "size_in_mb",
-          "agg": "sum",
-          "type": "int",
-          "widget_id": "f4786azz"
+          "type": "str",
+          "min_width": 4,
+          "height": 4,
+          "max_width": 4,
+          "widget_id": "5d627f3e"
         },
         {
-          "title": "Usage Stats",
+          "title": "SNMP Traps",
           "widget_type": "tabular",
-          "showRowSummary": true,
           "max_width": 12,
           "height": 8,
           "min_width": 12,
-          "paginated": false,
-          "stream": "rda_system_pstream_current_usage_stats",
+          "stream": "snmp_trap_event_stream_all",
           "ts_column": "timestamp",
+          "resizableColumns": true,
+          "max_rows": 100,
+          "showRowSummary": true,
           "sorting": [
             {
-              "name": "asc"
+              "timestamp": "desc"
             }
           ],
-          "widget_id": "72498ed8"
+          "remote_searchable": true,
+          "remote_searchable_cols": [
+            "rda_gw_client_ip",
+            "snmpTrapName",
+            "snmpTrapOID"
+          ],
+          "columns": {
+            "timestamp": "Timestamp",
+            "rda_gw_client_ip": "Device",
+            "snmpTrapOID": "SNMP Trap OID",
+            "snmpTrapName": "SNMP Trap Name",
+            "snmpTrapDescription": "SNMP Trap Description",
+            "message": "Message",
+            "vb_oid_1": "SNMP OID 1",
+            "vb_value_1": "SNMP Value 1",
+            "vb_oid_2": "SNMP OID 2",
+            "vb_value_2": "SNMP Value 2"
+          },
+          "widget_id": "46a6b5b6"
         }
       ]
     }
