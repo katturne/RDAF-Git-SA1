@@ -1,104 +1,18 @@
-folder: OI
-name: edc_enrich
-description: test pipeline
-data_path: draft-pipelines/data/edc_enrich/2025_06_17_01/data.json
-usecase: Only enrich data
-category: ''
-sources:
-  cfxaia:
-    name: cfxaia
-    type: cfxaia
-  rn:
-    name: rn
-    type: rn
-artifacts:
-- artifact_type: rda-network-stream
-  artifact_name: edc_oi_inventory_enriched
-  access: write
-- artifact_type: pipeline
-  artifact_name: edc_generate_token
-  access: read
-- artifact_type: pipeline
-  artifact_name: edc_sw_get_data
-  access: read
-- artifact_type: pipeline
-  artifact_name: edc_sweol_enrich
-  access: read
-- artifact_type: pipeline
-  artifact_name: edc_processing_sw_data
-  access: read
-- artifact_type: pipeline
-  artifact_name: edc_sweol_enrich
-  access: read
-- artifact_type: pipeline
-  artifact_name: edc_sa_run_scan
-  access: read
-- artifact_type: dataset
-  artifact_name: test-sweol-data
-  access: write
-- artifact_type: pipeline
-  artifact_name: edc_processing_sw_data
-  access: read
-- artifact_type: dataset
-  artifact_name: test-sw-eol-details
-  access: write
-- artifact_type: dataset
-  artifact_name: final-enrich
-  access: write
-- artifact_type: rda-network-stream
-  artifact_name: edc_sweol_data
-  access: write
-- artifact_type: dataset
-  artifact_name: test-sweol-data
-  access: write
-- artifact_type: pipeline
-  artifact_name: edc_processing_sw_data
-  access: read
-- artifact_type: dataset
-  artifact_name: test-sw-eol-details
-  access: write
-- artifact_type: dataset
-  artifact_name: final-enrich
-  access: write
-- artifact_type: rda-network-stream
-  artifact_name: edc_sweol_data
-  access: write
-- artifact_type: dataset
-  artifact_name: uploaded_data
-  access: read
-- artifact_type: dataset
-  artifact_name: generate_token_creds
-  access: read
-- artifact_type: pipeline
-  artifact_name: edc_generate_token
-  access: read
-- artifact_type: dataset
-  artifact_name: unique-sa-data
-  access: write
-- artifact_type: pipeline
-  artifact_name: edc_sw_get_data
-  access: read
-- artifact_type: dataset
-  artifact_name: new-sa-scan-38-1
-  access: write
-- artifact_type: dataset
-  artifact_name: enrich-sa-output-no-explode
-  access: write
-- artifact_type: dataset
-  artifact_name: exploded-sa-output
-  access: write
-- artifact_type: dataset
-  artifact_name: test-sec-adv-details
-  access: write
-- artifact_type: rda-network-stream
-  artifact_name: edc_sec_adv_data_raw
-  access: write
-- artifact_type: dataset
-  artifact_name: final-sa-hw-enrich
-  access: write
-- artifact_type: rda-network-stream
-  artifact_name: edc_sec_adv_data_enriched
-  access: write
-version: '2025_06_17_01'
-file_type: json
-checksum: d0b0cf52
+
+ ## Name: incident_notify_email
+@dm:empty
+ --> @agent:agent-irm:irmagent:getIncidentDetails roomId='$ROOM_ID' and incidentId='$INCIDENT_ID'
+ --> @dm:map to="email_recipients" & func="fixed" & value="$email_recipients"
+ --> @dm:map to="alertid" & func="fixed" & value="$alert_id"
+ --> @dm:map to="incident_url" & func="fixed" & value="$incident_url"
+ --> @dm:save name='temp-incident_details'
+ --> *dm:filter email_recipients is not None
+ --> @dm:skip-pipeline-if-shape row_count = 0
+ --> @dm:eval message=" 'IncidentId:' + str(incidentid) + ',\n<br>AlertId:' + str(alertid) + ',\n<br>Summary:' + json_dumps(summary) + '\n<br>' + incident_url + '\n<br>Powered by CloudFabrix RDAF' "
+ --> @dm:eval subject="'Incident ' + incidentid + ' shared by CFX OIA Application'"
+ --> @dm:map to="message_mime_type" & func="fixed" & value="html"
+ --> @email_sender:sendmail-bulk recipient_col="email_recipients" & subject_col="subject" & message_col="message"
+ --> @dm:eval notification_message="'Incident ' + incidentid + ' shared with ' +  email_recipients  + ' successfully'"
+ --> @dm:map to="notification_subject" & func="fixed" & value="Notification Message from Email-RDAPipeline"
+ --> @rn:write-stream name="oia-incident-collab-message-stream"
+ --> @dm:map to="pipeline_name" & func="fixed" & value="incident_notify_email"
