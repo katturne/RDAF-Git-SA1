@@ -1,310 +1,112 @@
 {
-  "name": "cml-topo-dashboard",
-  "label": "CML Network Topology",
-  "description": "CML Network Topology",
-  "dashboard_style": "auto",
-  "version": "23.6.12.1",
+  "name": "vmware-topology-app-without-graphdb",
+  "label": "VMWare Asset Navigator",
+  "description": "VMWare Asset Navigato",
+  "dashboard_folder": "VMWare",
+  "version": "23.4.14.1",
   "enabled": true,
-  "dashboard_type": "dashboard",
-  "custom_context": {
-    "alert-context": true,
-    "node_view_params": {
-      "stream": "oia-alerts-stream",
-      "extra_filter": "a_asset_ip_address is '${node_id}' and a_status = 'ACTIVE' and a_en_link_type is not empty and a_source_systemname is not 'Alert Group' and a_correlation_status is not 'AGGREGATE'",
-      "title": "Active Alerts ${node_id}",
-      "duration_hours": 1,
-      "columns": {
-        "a_asset_ip_address": {
-          "title": "Device"
-        },
-        "a_en_local_interface": {
-          "title": "Interface"
-        },
-        "a_en_remote_ip": {
-          "title": "Remote Device"
-        },
-        "a_en_remote_interface": {
-          "title": "Remote Interface"
-        },
-        "a_en_alert_name": {
-          "title": "Alert Name"
-        },
-        "a_en_link_type": {
-          "title": "Link Type"
-        },
-        "a_severity": {
-          "title": "Alert severity"
-        },
-        "a_incident_id": {
-          "title": "Incident ID"
-        },
-        "a_message": {
-          "title": "Message"
-        },
-        "timestamp": {
-          "title": "timestamp"
-        }
-      },
-      "severity_columns": [
-        "a_severity"
-      ]
-    },
-    "link_view_params": {
-      "stream": "oia-alerts-stream",
-      "extra_filter": "(a_asset_ip_address is '${source}' and a_en_remote_ip is '${target}') or (a_asset_ip_address is '${target}' and a_en_remote_ip is '${source}') and a_status = 'ACTIVE' and a_en_link_type is not empty and a_source_systemname is not 'Alert Group' and a_correlation_status is not 'AGGREGATE'",
-      "title": "Active Alerts on ${source} <-> ${target}",
-      "duration_hours": 1,
-      "columns": {
-        "a_asset_ip_address": {
-          "title": "Device"
-        },
-        "a_en_local_interface": {
-          "title": "Interface"
-        },
-        "a_en_remote_ip": {
-          "title": "Remote Device"
-        },
-        "a_en_remote_interface": {
-          "title": "Remote Interface"
-        },
-        "a_en_alert_name": {
-          "title": "Alert Name"
-        },
-        "a_en_link_type": {
-          "title": "Link Type"
-        },
-        "a_severity": {
-          "title": "Alert severity"
-        },
-        "a_incident_id": {
-          "title": "Incident ID"
-        },
-        "a_message": {
-          "title": "Message"
-        },
-        "timestamp": {
-          "title": "timestamp"
-        }
-      },
-      "severity_columns": [
-        "a_severity"
+  "short_label": "Stack",
+  "context_label_id": "stack_name",
+  "dashboard_type": "template",
+  "dashboard_style": "tabbed",
+  "dashboard_filters": {},
+  "template_variables": {
+    "NODE_ID": {
+      "contextId": [
+        "navigatorSelectionContexts",
+        "secondaryListSelection",
+        "node_id"
       ]
     }
   },
-  "dashboard_filters": {
-    "time_filter": true,
-    "columns_filter": []
+  "navigation_dashboards": {
+    "tree_data": {
+      "column_name": "node_type",
+      "pstream_name": "cfx_rdaf_topology_nodes",
+      "cfxql_query": "timestamp is after -12 months"
+    },
+    "tree_detail": {
+      "display_column": "node_label",
+      "selected_columns": {
+        "node_id": "Node Id",
+        "node_label": "Node Name"
+      },
+      "pstream_name": "cfx_rdaf_topology_nodes",
+      "cfxql_query": "timestamp is after -12 months"
+    },
+    "showNodeIcon": true,
+    "showSearchBox": false
   },
   "dashboard_sections": [
     {
-      "title": "Topology",
-      "show_filter": true,
+      "title": "Node Details",
       "widgets": [
         {
-          "widget_type": "topology",
+          "title": "Summary",
+          "widget_type": "portal_summary",
+          "reportId": "rda.saas.topology.node_details.report",
+          "max_width": 4,
+          "height": 5,
+          "min_width": 4,
+          "widget_id": "182229d8"
+        },
+        {
+          "title": "Edges Summary",
+          "widget_type": "tabular",
+          "stream": "cfx_rdaf_topology_edges",
+          "query": "timestamp is after -12 months and left_id is '{{NODE_ID}}' or right_id is '{{NODE_ID}}'",
+          "max_width": 8,
+          "height": 5,
+          "min_width": 8,
+          "widget_id": "4bc96241"
+        },
+        {
           "title": "Topology",
-          "actions": [
-            {
-              "actionCondition": {
-                "actionControl": "SHOW_IF",
-                "conditionalField": [
-                  {
-                    "conditionType": "EQUAL",
-                    "conditionValue": "Network",
-                    "fieldId": "layer"
-                  }
-                ]
-              },
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getReport",
-                "stringified-params": false,
-                "parse-output": false,
-                "params": [
-                  {
-                    "reportId": "rda.saas.topology.stream.nodes.alerts"
-                  }
-                ]
-              },
-              "icon": "mdi mdi-plus",
-              "identifier": "rda.saas.topology.stream.nodes.alerts.view",
-              "selectionType": "SINGLE",
-              "title": "Show Node Alerts",
-              "type": "POPUP_REPORT"
-            },
-            {
-              "actionCondition": {
-                "actionControl": "SHOW_IF",
-                "conditionalField": [
-                  {
-                    "conditionType": "EQUAL",
-                    "conditionValue": "connects-to",
-                    "fieldId": "edgeType"
-                  }
-                ]
-              },
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getReport",
-                "stringified-params": false,
-                "parse-output": false,
-                "params": [
-                  {
-                    "reportId": "rda.saas.topology.stream.links.alerts",
-                    "hello": "world SIRI"
-                  }
-                ]
-              },
-              "icon": "mdi mdi-plus",
-              "identifier": "rda.saas.topology.stream.links.alerts.view",
-              "selectionType": "SINGLE",
-              "title": "Show Link Alerts",
-              "type": "POPUP_REPORT"
-            }
-          ],
-          "chartProperties": {
-            "hasToolbar": true,
-            "shortToolbar": true,
-            "userZoomingEnabled": false
-          },
-          "stack": "cml_topo_stack",
-          "max_width": 12,
-          "min_width": 12,
-          "height": 12,
-          "alert_source": {
-            "stream": "oia-alerts-stream",
-            "group_by": [
-              "a_asset_ip_address",
-              "a_severity",
-              "a_status"
-            ],
-            "ts_column": "timestamp",
-            "duration_hours": 1,
-            "agg": "value_count",
-            "column": "_id",
-            "type": "int",
-            "extra_filter": "a_en_link_type is not empty and a_source_systemname is not 'Alert Group' and a_correlation_status is not 'AGGREGATE' and a_status = 'ACTIVE' and a_asset_ip_address is in ['9.3.252.38','9.3.252.32','9.3.252.35','9.3.252.36','9.3.252.37','9.3.252.31','9.3.252.33','9.3.252.34', '9.3.252.91', '9.3.252.92', '9.3.252.93', '9.3.252.94']"
-          },
-          "link_alert_source": {
-            "stream": "trap_alert_stream",
-            "group_by": [
-              "left_id",
-              "right_id"
-            ],
-            "agg": "min",
-            "column": "alert_severity_num",
-            "ts_column": "timestamp",
-            "duration_hours": 1440,
-            "extra_filter": "a_en_link_type is not empty and a_source_systemname is not 'Alert Group' and a_correlation_status is not 'AGGREGATE' and a_status = 'ACTIVE' and a_asset_ip_address is in ['9.3.252.38','9.3.252.32','9.3.252.35','9.3.252.36','9.3.252.37','9.3.252.31','9.3.252.33','9.3.252.34', '9.3.252.91', '9.3.252.92', '9.3.252.93', '9.3.252.94']"
-          },
-          "widget_id": "9db5a36f"
+          "widget_type": "topology",
+          "register_search_endpoints": true,
+          "auto_group": false,
+          "reportId": "rda.saas.stack.view.topo",
+          "stack": "vmware_vcenter_topology",
+          "height": 10,
+          "min_wdith": 12,
+          "widget_id": "182287d8"
         }
       ]
     }
   ],
   "pstream_dashboards": [
     {
-      "title": "Topology",
-      "show_filter": true,
+      "title": "Node Details",
       "widgets": [
         {
-          "widget_type": "topology",
+          "title": "Summary",
+          "widget_type": "portal_summary",
+          "reportId": "rda.saas.topology.node_details.report",
+          "max_width": 4,
+          "height": 5,
+          "min_width": 4,
+          "widget_id": "182229d8"
+        },
+        {
+          "title": "Edges Summary",
+          "widget_type": "tabular",
+          "stream": "cfx_rdaf_topology_edges",
+          "query": "timestamp is after -12 months and left_id is '{{NODE_ID}}' or right_id is '{{NODE_ID}}'",
+          "max_width": 8,
+          "height": 5,
+          "min_width": 8,
+          "widget_id": "4bc96241"
+        },
+        {
           "title": "Topology",
-          "actions": [
-            {
-              "actionCondition": {
-                "actionControl": "SHOW_IF",
-                "conditionalField": [
-                  {
-                    "conditionType": "EQUAL",
-                    "conditionValue": "Network",
-                    "fieldId": "layer"
-                  }
-                ]
-              },
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getReport",
-                "stringified-params": false,
-                "parse-output": false,
-                "params": [
-                  {
-                    "reportId": "rda.saas.topology.stream.nodes.alerts"
-                  }
-                ]
-              },
-              "icon": "mdi mdi-plus",
-              "identifier": "rda.saas.topology.stream.nodes.alerts.view",
-              "selectionType": "SINGLE",
-              "title": "Show Node Alerts",
-              "type": "POPUP_REPORT"
-            },
-            {
-              "actionCondition": {
-                "actionControl": "SHOW_IF",
-                "conditionalField": [
-                  {
-                    "conditionType": "EQUAL",
-                    "conditionValue": "connects-to",
-                    "fieldId": "edgeType"
-                  }
-                ]
-              },
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getReport",
-                "stringified-params": false,
-                "parse-output": false,
-                "params": [
-                  {
-                    "reportId": "rda.saas.topology.stream.links.alerts",
-                    "hello": "world SIRI"
-                  }
-                ]
-              },
-              "icon": "mdi mdi-plus",
-              "identifier": "rda.saas.topology.stream.links.alerts.view",
-              "selectionType": "SINGLE",
-              "title": "Show Link Alerts",
-              "type": "POPUP_REPORT"
-            }
-          ],
-          "chartProperties": {
-            "hasToolbar": true,
-            "shortToolbar": true,
-            "userZoomingEnabled": false
-          },
-          "stack": "cml_topo_stack",
-          "max_width": 12,
-          "min_width": 12,
-          "height": 12,
-          "alert_source": {
-            "stream": "oia-alerts-stream",
-            "group_by": [
-              "a_asset_ip_address",
-              "a_severity",
-              "a_status"
-            ],
-            "ts_column": "timestamp",
-            "duration_hours": 1,
-            "agg": "value_count",
-            "column": "_id",
-            "type": "int",
-            "extra_filter": "a_en_link_type is not empty and a_source_systemname is not 'Alert Group' and a_correlation_status is not 'AGGREGATE' and a_status = 'ACTIVE' and a_asset_ip_address is in ['9.3.252.38','9.3.252.32','9.3.252.35','9.3.252.36','9.3.252.37','9.3.252.31','9.3.252.33','9.3.252.34', '9.3.252.91', '9.3.252.92', '9.3.252.93', '9.3.252.94']"
-          },
-          "link_alert_source": {
-            "stream": "trap_alert_stream",
-            "group_by": [
-              "left_id",
-              "right_id"
-            ],
-            "agg": "min",
-            "column": "alert_severity_num",
-            "ts_column": "timestamp",
-            "duration_hours": 1440,
-            "extra_filter": "a_en_link_type is not empty and a_source_systemname is not 'Alert Group' and a_correlation_status is not 'AGGREGATE' and a_status = 'ACTIVE' and a_asset_ip_address is in ['9.3.252.38','9.3.252.32','9.3.252.35','9.3.252.36','9.3.252.37','9.3.252.31','9.3.252.33','9.3.252.34', '9.3.252.91', '9.3.252.92', '9.3.252.93', '9.3.252.94']"
-          },
-          "widget_id": "9db5a36f"
+          "widget_type": "topology",
+          "register_search_endpoints": true,
+          "auto_group": false,
+          "reportId": "rda.saas.stack.view.topo",
+          "stack": "vmware_vcenter_topology",
+          "height": 10,
+          "min_wdith": 12,
+          "widget_id": "182287d8"
         }
       ]
     }

@@ -1,174 +1,605 @@
 {
-  "name": "connectivity_chart_stream_data",
-  "label": "connectivity chart stream data",
-  "description": "connectivity Chart Pstream Data",
-  "dashboard_style": "tabbed",
-  "version": "1.0.0",
-  "dashboard_type": "dashboard",
-  "enabled": true,
-  "dashboard_filters": {
-    "time_filter": true,
-    "columns_filter": [],
-    "default_time_filter_labels": [
-      "All Time"
-    ]
+  "name": "network_collection_and_access_status",
+  "label": "Network Collection status",
+  "description": "Network collection and access verification status",
+  "dashboard_folder": "NetworkDevicePack",
+  "version": "1.0.3",
+  "enabled": false,
+  "live_edit": true,
+  "dashboard_type": "template",
+  "template_variables": {
+    "CUST_ID": {
+      "contextId": "customerId"
+    },
+    "PROJ_ID": {
+      "contextId": "projectId"
+    },
+    "CUST_TAG": {
+      "contextId": "customerTag"
+    }
   },
   "dashboard_sections": [
     {
-      "title": "Data Preview",
+      "title": "Access Verification Status",
       "show_filter": true,
       "widgets": [
         {
-          "widget_type": "custom_counter",
-          "title": "Row Count",
-          "stream": "main_enhanced",
+          "widget_type": "pie_chart",
+          "title": "Access Check by Status",
+          "stream": "network_access_verification",
+          "extra_filter": "customer_tag is '{{CUST_TAG}}' or customer_tag is empty",
           "ts_column": "timestamp",
-          "duration_hours": 24000,
-          "min_width": 3,
-          "style": {
-            "color-list": [
-              "#35b539"
-            ]
-          },
-          "height": 3,
-          "max_width": 6,
+          "column": "_id",
+          "min_width": 6,
+          "height": 4,
           "agg": "value_count",
-          "column": "timestamp",
-          "type": "int",
-          "widget_id": "376bc16d"
-        },
-        {
-          "widget_type": "timeseries",
-          "title": "Histogram",
-          "stream": "main_enhanced",
-          "ts_column": "timestamp",
-          "duration_hours": 24000,
-          "min_width": 9,
-          "height": 3,
-          "max_width": 12,
-          "interval": "15Min",
-          "series_spec": [
-            {
-              "agg": "cardinality",
-              "column": "_id",
-              "type": "int"
-            }
+          "group_by": [
+            "auth_state"
           ],
-          "chartProperties": {
-            "yAxisLabel": null,
-            "xAxisLabel": null,
-            "legendLocation": "none"
+          "style": {
+            "color-map": {
+              "Success": [
+                "#008000",
+                "#ffffff"
+              ],
+              "Failed": [
+                "#FF0000",
+                "#ffffff"
+              ]
+            }
           },
-          "widget_id": "faa7e361"
+          "type": "str",
+          "widget_id": "66dc2d8e"
         },
         {
-          "title": "Data Preview",
-          "widget_type": "tabular",
-          "max_width": 12,
-          "height": 8,
-          "min_width": 12,
-          "stream": "main_enhanced",
+          "widget_type": "pie_chart",
+          "title": "Access Check by Protocol",
+          "extra_filter": "customer_tag is '{{CUST_TAG}}' or customer_tag is empty",
+          "stream": "network_access_verification",
           "ts_column": "timestamp",
-          "max_rows": 100,
-          "duration_hours": 24000,
+          "column": "_id",
+          "agg": "value_count",
+          "min_width": 6,
+          "height": 4,
+          "group_by": [
+            "protocol"
+          ],
+          "type": "str",
+          "widget_id": "a07b4356"
+        },
+        {
+          "title": "Access Status",
+          "widget_type": "tabular",
+          "extra_filter": "customer_tag is '{{CUST_TAG}}' or customer_tag is empty",
+          "stream": "network_access_verification",
+          "duration_hours": 1080,
+          "showRowSummary": true,
+          "min_width": 12,
+          "height": 6,
+          "max_width": 12,
           "sorting": [
             {
-              "timestamp": "desc"
+              "auth_state": "desc"
             }
           ],
-          "widget_id": "70bfc508"
+          "paginated": true,
+          "remote_searchable": true,
+          "remote_searchable_cols": [
+            "ip_address",
+            "protocol",
+            "used_cred",
+            "auth_state"
+          ],
+          "max_rows": 50,
+          "columns": {
+            "ip_address": {
+              "title": "IP Address",
+              "defaultWidth": 150,
+              "key": true
+            },
+            "protocol": {
+              "title": "Protocol",
+              "defaultWidth": 150
+            },
+            "used_cred": {
+              "title": "Credential Name",
+              "defaultWidth": 200
+            },
+            "reason": {
+              "title": "Failure Reason",
+              "defaultWidth": 200
+            },
+            "auth_state": {
+              "title": "Authentication State",
+              "defaultWidth": 150,
+              "htmlTemplateForRow": "{% raw %}<span class='badge' style='background-color: {{ row.auth_state_color}}' > {{ row.auth_state }} </span>{% endraw %}"
+            },
+            "auth_state_color": {
+              "type": "COLOR-MAP",
+              "source-column": "auth_state",
+              "color-map": {
+                "Success": "#008000",
+                "Failed": "#FF0000",
+                "success": "#008000",
+                "failed": "#FF0000"
+              }
+            },
+            "timestamp": {
+              "title": "Verification Time",
+              "type": "DATETIME",
+              "visible": true
+            }
+          },
+          "widget_id": "4c2cfdd7"
         }
       ]
     },
     {
-      "title": "Metadata",
-      "show_filter": false,
+      "title": "Discovery Status",
+      "show_filter": true,
       "widgets": [
         {
-          "title": "Metadata",
-          "widget_type": "metadata",
-          "stream": "main_enhanced",
-          "widget_id": "2da925b4"
+          "title": "Discovery Runs",
+          "widget_type": "tabular",
+          "duration_hours": 1080,
+          "stream": "asset_inventory_collection_status_stream",
+          "extra_filter0": "customer_tag contains '{{CUST_TAG}}' or customer_tag is empty",
+          "extra_filter": "(jobname contains '{{CUST_TAG}}' or jobname contains 'job') and type_ is 'overall_status' and total is not empty and pending is 0",
+          "height": 4,
+          "max_width": 12,
+          "min_width": 12,
+          "columns": {
+            "collection_timestamp": {
+              "title": "Discovery End time",
+              "type": "DATETIME"
+            },
+            "total": "Total Devices",
+            "success": {
+              "title": "Total Successful",
+              "htmlTemplateForRow0": "<{%raw%}span class='badge' style='background-color: {{ row.response_colors}}' > {{ row.success}} </span>{%endraw%}"
+            },
+            "failed": {
+              "title": "Total Failed",
+              "htmlTemplateForRow0": "{%raw%}<span class='badge' style='background-color: {{ row.response_colorf}}' > {{ row.failed}} </span>{%endraw%}"
+            },
+            "jobname": {
+              "title": "Jobname",
+              "type": "TEXT",
+              "hidden": true
+            },
+            "jobid": {
+              "title": "job id",
+              "type": "TEXT",
+              "hidden": true
+            },
+            "duplicates": {
+              "title": "Duplicates(Serial Number)",
+              "type": "TEXT",
+              "hidden": false
+            }
+          },
+          "custom_columns": [
+            {
+              "id": "response_colors",
+              "label": "Enable Color",
+              "expr": "['#b3b3b3'] if success == 0 else ['#4CAF50']",
+              "hidden": true,
+              "visible": false,
+              "sortable": false
+            },
+            {
+              "id": "response_colorf",
+              "label": "Enable Color",
+              "expr": "['#b3b3b3'] if failed == 0 else ['#BB0000']",
+              "hidden": true,
+              "visible": false,
+              "sortable": false
+            },
+            {
+              "id": "status",
+              "label": "Status",
+              "expr": "'Success' if failed == 0 else 'Failed'",
+              "hidden": false,
+              "visible": true,
+              "sortable": false
+            }
+          ],
+          "actions": [
+            {
+              "permission": "aia:page:view",
+              "drillDownLinkField": "success",
+              "identifier": "success",
+              "selectionType": "SINGLE",
+              "stateName": "app.featureapp",
+              "title": "View Success",
+              "contextParamList": {
+                "contextParams": [
+                  {
+                    "paramKey": "jobid",
+                    "paramId": "jobid"
+                  }
+                ]
+              },
+              "actionCondition": {
+                "actionControl": "SHOW_IF",
+                "conditionalField": [
+                  {
+                    "conditionType": "IS_NOT_NULL",
+                    "fieldId": "success"
+                  }
+                ]
+              },
+              "type": "GO_TO_APP_STATE",
+              "appName": "user-dashboard/customer_discovery_runs_details_success"
+            },
+            {
+              "permission": "aia:page:view",
+              "drillDownLinkField": "duplicates",
+              "identifier": "duplicates",
+              "selectionType": "SINGLE",
+              "stateName": "app.featureapp",
+              "title": "View Duplicates",
+              "contextParamList": {
+                "contextParams": [
+                  {
+                    "paramKey": "jobid",
+                    "paramId": "jobid"
+                  }
+                ]
+              },
+              "actionCondition": {
+                "actionControl": "SHOW_IF",
+                "conditionalField": [
+                  {
+                    "conditionType": "IS_NOT_NULL",
+                    "fieldId": "duplicates"
+                  }
+                ]
+              },
+              "type": "GO_TO_APP_STATE",
+              "appName": "user-dashboard/customer_discovery_runs_details_duplicates"
+            },
+            {
+              "appName": "user-dashboard/customer_discovery_runs_details_failed",
+              "permission": "aia:page:view",
+              "drillDownContext": "failed",
+              "drillDownLinkField": "failed",
+              "identifier": "failed",
+              "selectionType": "SINGLE",
+              "stateName": "app.featureapp",
+              "title": "View Failed",
+              "contextParamList": {
+                "contextParams": [
+                  {
+                    "paramKey": "jobid",
+                    "paramId": "jobid"
+                  }
+                ]
+              },
+              "actionCondition": {
+                "actionControl": "SHOW_IF",
+                "conditionalField": [
+                  {
+                    "conditionType": "IS_NOT_NULL",
+                    "fieldId": "failed"
+                  }
+                ]
+              },
+              "type": "GO_TO_APP_STATE"
+            },
+            {
+              "appName": "user-dashboard/logs",
+              "permission": "aia:page:view",
+              "identifier": "failed",
+              "drillDownLinkField": "total",
+              "contextParamList": {
+                "contextParams": [
+                  {
+                    "paramKey": "jobid",
+                    "paramId": "jobid"
+                  }
+                ]
+              },
+              "selectionType": "SINGLE",
+              "stateName": "app.featureapp",
+              "title": "View Logs",
+              "type": "GO_TO_APP_STATE"
+            }
+          ],
+          "widget_id": "b2c8d81c"
         }
       ]
     }
   ],
   "pstream_dashboards": [
     {
-      "title": "Data Preview",
+      "title": "Access Verification Status",
       "show_filter": true,
       "widgets": [
         {
-          "widget_type": "custom_counter",
-          "title": "Row Count",
-          "stream": "main_enhanced",
+          "widget_type": "pie_chart",
+          "title": "Access Check by Status",
+          "stream": "network_access_verification",
+          "extra_filter": "customer_tag is '{{CUST_TAG}}' or customer_tag is empty",
           "ts_column": "timestamp",
-          "duration_hours": 24000,
-          "min_width": 3,
-          "style": {
-            "color-list": [
-              "#35b539"
-            ]
-          },
-          "height": 3,
-          "max_width": 6,
+          "column": "_id",
+          "min_width": 6,
+          "height": 4,
           "agg": "value_count",
-          "column": "timestamp",
-          "type": "int",
-          "widget_id": "376bc16d"
-        },
-        {
-          "widget_type": "timeseries",
-          "title": "Histogram",
-          "stream": "main_enhanced",
-          "ts_column": "timestamp",
-          "duration_hours": 24000,
-          "min_width": 9,
-          "height": 3,
-          "max_width": 12,
-          "interval": "15Min",
-          "series_spec": [
-            {
-              "agg": "cardinality",
-              "column": "_id",
-              "type": "int"
-            }
+          "group_by": [
+            "auth_state"
           ],
-          "chartProperties": {
-            "yAxisLabel": null,
-            "xAxisLabel": null,
-            "legendLocation": "none"
+          "style": {
+            "color-map": {
+              "Success": [
+                "#008000",
+                "#ffffff"
+              ],
+              "Failed": [
+                "#FF0000",
+                "#ffffff"
+              ]
+            }
           },
-          "widget_id": "faa7e361"
+          "type": "str",
+          "widget_id": "66dc2d8e"
         },
         {
-          "title": "Data Preview",
-          "widget_type": "tabular",
-          "max_width": 12,
-          "height": 8,
-          "min_width": 12,
-          "stream": "main_enhanced",
+          "widget_type": "pie_chart",
+          "title": "Access Check by Protocol",
+          "extra_filter": "customer_tag is '{{CUST_TAG}}' or customer_tag is empty",
+          "stream": "network_access_verification",
           "ts_column": "timestamp",
-          "max_rows": 100,
-          "duration_hours": 24000,
+          "column": "_id",
+          "agg": "value_count",
+          "min_width": 6,
+          "height": 4,
+          "group_by": [
+            "protocol"
+          ],
+          "type": "str",
+          "widget_id": "a07b4356"
+        },
+        {
+          "title": "Access Status",
+          "widget_type": "tabular",
+          "extra_filter": "customer_tag is '{{CUST_TAG}}' or customer_tag is empty",
+          "stream": "network_access_verification",
+          "duration_hours": 1080,
+          "showRowSummary": true,
+          "min_width": 12,
+          "height": 6,
+          "max_width": 12,
           "sorting": [
             {
-              "timestamp": "desc"
+              "auth_state": "desc"
             }
           ],
-          "widget_id": "70bfc508"
+          "paginated": true,
+          "remote_searchable": true,
+          "remote_searchable_cols": [
+            "ip_address",
+            "protocol",
+            "used_cred",
+            "auth_state"
+          ],
+          "max_rows": 50,
+          "columns": {
+            "ip_address": {
+              "title": "IP Address",
+              "defaultWidth": 150,
+              "key": true
+            },
+            "protocol": {
+              "title": "Protocol",
+              "defaultWidth": 150
+            },
+            "used_cred": {
+              "title": "Credential Name",
+              "defaultWidth": 200
+            },
+            "reason": {
+              "title": "Failure Reason",
+              "defaultWidth": 200
+            },
+            "auth_state": {
+              "title": "Authentication State",
+              "defaultWidth": 150,
+              "htmlTemplateForRow": "{% raw %}<span class='badge' style='background-color: {{ row.auth_state_color}}' > {{ row.auth_state }} </span>{% endraw %}"
+            },
+            "auth_state_color": {
+              "type": "COLOR-MAP",
+              "source-column": "auth_state",
+              "color-map": {
+                "Success": "#008000",
+                "Failed": "#FF0000",
+                "success": "#008000",
+                "failed": "#FF0000"
+              }
+            },
+            "timestamp": {
+              "title": "Verification Time",
+              "type": "DATETIME",
+              "visible": true
+            }
+          },
+          "widget_id": "4c2cfdd7"
         }
       ]
     },
     {
-      "title": "Metadata",
-      "show_filter": false,
+      "title": "Discovery Status",
+      "show_filter": true,
       "widgets": [
         {
-          "title": "Metadata",
-          "widget_type": "metadata",
-          "stream": "main_enhanced",
-          "widget_id": "2da925b4"
+          "title": "Discovery Runs",
+          "widget_type": "tabular",
+          "duration_hours": 1080,
+          "stream": "asset_inventory_collection_status_stream",
+          "extra_filter0": "customer_tag contains '{{CUST_TAG}}' or customer_tag is empty",
+          "extra_filter": "(jobname contains '{{CUST_TAG}}' or jobname contains 'job') and type_ is 'overall_status' and total is not empty and pending is 0",
+          "height": 4,
+          "max_width": 12,
+          "min_width": 12,
+          "columns": {
+            "collection_timestamp": {
+              "title": "Discovery End time",
+              "type": "DATETIME"
+            },
+            "total": "Total Devices",
+            "success": {
+              "title": "Total Successful",
+              "htmlTemplateForRow0": "<{%raw%}span class='badge' style='background-color: {{ row.response_colors}}' > {{ row.success}} </span>{%endraw%}"
+            },
+            "failed": {
+              "title": "Total Failed",
+              "htmlTemplateForRow0": "{%raw%}<span class='badge' style='background-color: {{ row.response_colorf}}' > {{ row.failed}} </span>{%endraw%}"
+            },
+            "jobname": {
+              "title": "Jobname",
+              "type": "TEXT",
+              "hidden": true
+            },
+            "jobid": {
+              "title": "job id",
+              "type": "TEXT",
+              "hidden": true
+            },
+            "duplicates": {
+              "title": "Duplicates(Serial Number)",
+              "type": "TEXT",
+              "hidden": false
+            }
+          },
+          "custom_columns": [
+            {
+              "id": "response_colors",
+              "label": "Enable Color",
+              "expr": "['#b3b3b3'] if success == 0 else ['#4CAF50']",
+              "hidden": true,
+              "visible": false,
+              "sortable": false
+            },
+            {
+              "id": "response_colorf",
+              "label": "Enable Color",
+              "expr": "['#b3b3b3'] if failed == 0 else ['#BB0000']",
+              "hidden": true,
+              "visible": false,
+              "sortable": false
+            },
+            {
+              "id": "status",
+              "label": "Status",
+              "expr": "'Success' if failed == 0 else 'Failed'",
+              "hidden": false,
+              "visible": true,
+              "sortable": false
+            }
+          ],
+          "actions": [
+            {
+              "permission": "aia:page:view",
+              "drillDownLinkField": "success",
+              "identifier": "success",
+              "selectionType": "SINGLE",
+              "stateName": "app.featureapp",
+              "title": "View Success",
+              "contextParamList": {
+                "contextParams": [
+                  {
+                    "paramKey": "jobid",
+                    "paramId": "jobid"
+                  }
+                ]
+              },
+              "actionCondition": {
+                "actionControl": "SHOW_IF",
+                "conditionalField": [
+                  {
+                    "conditionType": "IS_NOT_NULL",
+                    "fieldId": "success"
+                  }
+                ]
+              },
+              "type": "GO_TO_APP_STATE",
+              "appName": "user-dashboard/customer_discovery_runs_details_success"
+            },
+            {
+              "permission": "aia:page:view",
+              "drillDownLinkField": "duplicates",
+              "identifier": "duplicates",
+              "selectionType": "SINGLE",
+              "stateName": "app.featureapp",
+              "title": "View Duplicates",
+              "contextParamList": {
+                "contextParams": [
+                  {
+                    "paramKey": "jobid",
+                    "paramId": "jobid"
+                  }
+                ]
+              },
+              "actionCondition": {
+                "actionControl": "SHOW_IF",
+                "conditionalField": [
+                  {
+                    "conditionType": "IS_NOT_NULL",
+                    "fieldId": "duplicates"
+                  }
+                ]
+              },
+              "type": "GO_TO_APP_STATE",
+              "appName": "user-dashboard/customer_discovery_runs_details_duplicates"
+            },
+            {
+              "appName": "user-dashboard/customer_discovery_runs_details_failed",
+              "permission": "aia:page:view",
+              "drillDownContext": "failed",
+              "drillDownLinkField": "failed",
+              "identifier": "failed",
+              "selectionType": "SINGLE",
+              "stateName": "app.featureapp",
+              "title": "View Failed",
+              "contextParamList": {
+                "contextParams": [
+                  {
+                    "paramKey": "jobid",
+                    "paramId": "jobid"
+                  }
+                ]
+              },
+              "actionCondition": {
+                "actionControl": "SHOW_IF",
+                "conditionalField": [
+                  {
+                    "conditionType": "IS_NOT_NULL",
+                    "fieldId": "failed"
+                  }
+                ]
+              },
+              "type": "GO_TO_APP_STATE"
+            },
+            {
+              "appName": "user-dashboard/logs",
+              "permission": "aia:page:view",
+              "identifier": "failed",
+              "drillDownLinkField": "total",
+              "contextParamList": {
+                "contextParams": [
+                  {
+                    "paramKey": "jobid",
+                    "paramId": "jobid"
+                  }
+                ]
+              },
+              "selectionType": "SINGLE",
+              "stateName": "app.featureapp",
+              "title": "View Logs",
+              "type": "GO_TO_APP_STATE"
+            }
+          ],
+          "widget_id": "b2c8d81c"
         }
       ]
     }
