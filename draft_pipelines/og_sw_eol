@@ -1,76 +1,42 @@
 
- ## name: collab-db-to-pstream-main
-
- ## .
-
- ## Use this if we want to reset bookmark and re-run again
+ ## Generate token
 @c:new-block
- --> @dm:empty
- ## --> @dm:addrow i_created_ts="2023-08-01 00:00:00"
-
- ## --> @dm:save_bookmark name = 'irm_incident_bkmrk' & value_column = 'i_created_ts' & value_type = 'timestamp' & value_func = 'max'
-
- --> @dm:save name = "temp-1"
- ## .
-
- ## Main Driver is IRM's oia-incidents-stream.
-
- ## As one time activity, We pull all incidents from oia-incidents-stream and use them to migrate corresponding collab messages, and team incidents. we may have duplicates from last 90 days.
-
- ## .
+ --> @restclient:read url="https://int-id.cisco.com/oauth2/aussduh26AoUqMpmQ1d6/v1/token?grant_type=client_credentials&client_id=0oaknwhn14c4dkz131d7&client_secret=5uFg2IE0bCHKV75823fFZ-HYJGfIawA5UyZg_KrxArhLghWlLoTSV5EA6G_wjymB" and
+`method`="POST" and
+`Content-Type`='application/x-www-form-urlencoded' and
+`Accept`='*/*'
+ --> @dm:eval key="'key'"
+ --> @dm:save name="temp-token"
+ --> @dm:save name="original-token"
+ ## Build payload
 
  --> @c:new-block
  --> @dm:empty
- --> @dm:save name="temp-irm-incident-ids-concat"
- ## We can do read all in one go and split them up by 999 and use sql-in clause.
+ ## This payload is for Security Advisories
 
- ## or
+ ## --> @dm:addrow data='{"input":{"transaction_id":"6e86f3db55880afdc57e11c278637c19748faae7b","cloudStorage":true,"scanTrigger":"ManualScan","icTypes":["securityAdvisory"],"includePotentialVulnerableResults":true,"client_app":{"app_name":"OI","client_id":"0oaknwhn14c4dkz131d7"},"device_details":{"deviceType":"IOS-XE","model":"ASR9K","version":"6.5.3","serialNumber":"FXS2014Q1KG"}}}'
 
- ## Read in batches using bookmark and process them in batches
+ ## This payload is for SW EoX
 
- ## SQL IN clause might have limitation of max 999 IDs
+ --> @dm:addrow data='{"input": { "transaction_id": "6e86f3db89230afdc511221c278637c19748faae65","cloudStorage": true,"scanTrigger": "ManualScan","icTypes": ["softwareEoX"],"client_app": {"app_name": "OI","client_id": "0oaknwhn14c4dkz131d7"},"device_details": {"softwareType": "IOS XR","model": "CISCO2501","softwareVersionNumber":"12.0(21a)", "serialNumber": "coronas2"}}}'
+ --> @dm:eval key="'key'"
+ --> @dm:enrich dict ="temp-token" and src_key_cols="key" and dict_key_cols="key" and enrich_cols = "access_token"
+ ## --> @dm:save name="temp_scan_payload"
 
- --> @c:bookmark-loop bookmark="irm_incident_bkmrk" & initial_value ="2023-08-01 00:00:00" & max_iterations=1
- --> @dm:empty
- --> @dm:addrow name="oia-incidents-stream" & limit=999 & sort_by_col="i_created_ts" & sort_type="asc"
- --> #dm:query-persistent-stream i_created_ts is after '${bookmark}'
- --> @dm:skip-block-if-shape row_count=0
- --> @dm:check-columns must_contain="incident_id" & action="skip-block"
- ## .
+ --> @dm:save name="og_scan_payload"
+ ## Run Scan
 
- --> @dm:selectcolumns include="project_id|customer_id|incident_id|i_state|i_created_ts|i_updated_ts|timestamp"
- --> @dm:save name="temp-irm-incidents"
- ## .
+ --> @c:data-loop columns="access_token,data" and dataset="og_scan_payload"
+ --> @restclient:read url="https://api-cx.cisco.com/us/perf/ironbank/v1/scan/jobs/feb_device_scan/async" and payload = '$data' and method="POST" and Authorization= "Bearer $access_token"
+ --> @dm:eval key="'key'"
+ --> @dm:enrich dict ="og_scan_payload" and src_key_cols="key" and dict_key_cols="key" and enrich_cols = "access_token"
+ --> @dm:save name="og_scan_id"
+ --> @dm:sleep seconds = 5
+ ## Get results from scan
 
- --> @dm:selectcolumns include="incident_id|project_id"
- --> @dm:map to="name" & func="fixed" & value="incident"
- --> @dm:save name="temp-irm-incident-ids"
- ## .
-
- ## --> @exec:for-loop num_rows = 999
-
- --> @dm:eval incident_id="incident_id + '\',\''"
- --> @dm:eval project_id="project_id + '\',\''"
- --> @dm:groupby columns="name" & agg="sum"
- ## .
-
- --> @dm:eval incident_id="incident_id.replace('CFX', '\'CFX', 1)"
- --> @dm:eval incident_id="incident_id[:-2] if (incident_id.endswith(',\'')) else incident_id"
- ## .
-
- --> @dm:eval project_id="project_id.replace('', '\'', 1)"
- --> @dm:eval project_id="project_id[:-2] if (project_id.endswith(',\'')) else project_id"
- ## .
-
- --> @dm:save name="temp-irm-incident-ids-concat"
- ## --> @exec:end-loop & append="yes"
-
- ## .
-
- --> @exec:run-pipeline name="collab-db-to-pstream-processor" & ignore_failures="no"
- ## increment the bookmark
-
- --> @dm:recall name="temp-irm-incidents"
- --> @dm:change-time-format columns="i_created_ts" & from_format="ms" & to_format="datetimestr"
- --> @dm:save_bookmark name = 'irm_incident_bkmrk' & value_column = 'i_created_ts' & value_type = 'timestamp' & value_func = 'max'
- --> @dm:sleep seconds = 1
+ --> @c:data-loop columns="access_token,id" and dataset="og_scan_id"
+ --> @restclient:read url="https://api-cx.cisco.com/us/perf/ironbank/v1/scan/jobs/$id" and method="GET" and Authorization= "Bearer $access_token" and `Accept`="*/*" and Connection="keep-alive"
+ --> @dm:eval issues="json_dumps(issues)"
+ --> @dm:explode-json column="issues"
+ --> @dm:save name="temp-scan_result"
+ --> @dm:save name="og_scan_result"
