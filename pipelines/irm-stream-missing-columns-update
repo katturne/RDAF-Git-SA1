@@ -1,7 +1,16 @@
-@dm:empty
- --> @dm:addrow name='oia-incidents-stream'
- --> #dm:query-persistent-stream
- --> @dm:eval i_starred = "i_starred if (i_starred != '') else 'Not Starred'"
- --> @dm:eval i_alert_sources = "i_alert_sources if (i_alert_sources != '') else 'Not Available'"
- --> @dm:eval i_assigned_to = "i_assigned_to if (i_assigned_to != '') else 'Not Assigned'"
- --> @dm:fixnull-regex columns = '.*' and value='Not Available' and apply_for_empty='yes'
+
+ ## Get row input
+@c:new-block
+ --> @dm:empty
+ --> @exec:get-input
+ ## --> @dm:selectcolumns include='device_hostname|device_identifier|device_controller_id'
+
+ --> @dm:save name='temp-form-data'
+ --> @c:data-loop columns="customer_name" and dataset="temp-form-data"
+ --> @dm:empty
+ --> @dm:addrow name = "edc_oi_inventory_grouped" & conflicts = "proceed" & timeout = 1200
+ --> #dm:pstream-delete-data-by-query customer_name=="$customer_name"
+ --> @c:data-loop columns="customer_name" and dataset="temp-form-data"
+ --> @dm:empty
+ --> @dm:addrow name = "edc_oi_inventory_enriched" & conflicts = "proceed" & timeout = 1200
+ --> #dm:pstream-delete-data-by-query customer_name=="$customer_name"
