@@ -1,23 +1,19 @@
-folder: OI
-name: edc_oi_get_sweol_data
-description: test pipeline
-data_path: pipelines/data/edc_oi_get_sweol_data/2025_09_23_2/data.json
-usecase: groupby and enrich changes
-category: ''
-sources:
-  rn:
-    name: rn
-    type: rn
-artifacts:
-- artifact_type: pipeline
-  artifact_name: edc_oi_process_sw_data
-  access: read
-- artifact_type: rda-network-stream
-  artifact_name: edc_sweol_data
-  access: write
-- artifact_type: rda-network-stream
-  artifact_name: edc_oi_inventory_enriched
-  access: write
-version: '2025_09_23_2'
-file_type: json
-checksum: 26b17d5e
+@dm:empty
+ --> @exec:get-input
+ ## Save text input
+
+ --> @dm:save name="test_data_add"
+ --> @rn:write-stream name="test_data"
+ ## Uploaded file processing
+
+ --> @dm:save name="test_upload1"
+ --> @dm:selectcolumns include="fileUpload"
+ --> @dm:explode-json column="fileUpload"
+ --> @dm:save name="temp-test-upload2"
+ --> @dm:save name="test_upload2"
+ ## Loop over uploaded file info
+
+ --> @c:data-loop dataset="temp-test-upload2" and columns="bucketName,objectName,displayName"
+ --> @dm:get-from-location path="$bucketName/$objectName"
+ --> @dm:save name="test_upload3"
+ --> @rn:write-stream name="test_data"
