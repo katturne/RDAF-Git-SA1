@@ -1,117 +1,261 @@
 {
-  "name": "Upgrade_Steps",
-  "label": "Upgrade Steps",
-  "description": "Dashboard for Upgrade Steps",
-  "version": "1.0.0",
-  "enabled": false,
-  "dashboard_style": "auto",
-  "dataset": "router-history-view",
+  "name": "preview_performance_dashboard",
+  "label": "Performance Workbench",
+  "description": "Performance Workbench",
+  "dashboard_folder": "Default",
+  "enabled": true,
   "dashboard_type": "dashboard",
-  "live_edit": true,
   "dashboard_filters": {
     "time_filter": true,
-    "default_time_filter_labels": [
-      ""
-    ]
+    "default_time_filter_non_removable": true,
+    "show_default_time_filter": true
   },
   "dashboard_sections": [
     {
-      "title": "Upgrade Steps",
+      "title": "Ops Insights",
       "show_filter": true,
       "widgets": [
         {
-          "widget_type": "label",
-          "max_width": 12,
-          "height": 0.5,
-          "min_width": 12,
-          "label": "<div style='text-align:center;width:100%;'><h1><a style='text-decoration:none;color:#0066ff;' > UPGRADE STEPS</a></h1></div>",
-          "widget_id": "33317e49"
-        },
-        {
-          "title": "Upgrade Steps",
-          "widget_type": "tabular",
-          "max_width": 12,
-          "min_width": 12,
-          "height": 7,
-          "resizableColumns": true,
-          "remote_searchable": true,
-          "paginated": true,
-          "showRowSummary": true,
-          "dataset": "Router-upgrade-steps",
+          "title": "Time Series",
+          "widget_type": "timeseries",
+          "stream": "psl_kafka_data",
           "ts_column": "timestamp",
-          "extra_filter": null,
-          "columns": {
-            "Steps": {
-              "title": "Steps",
-              "type": "integer",
-              "hidden": false,
-              "key": true
-            },
-            "Milestone": {
-              "title": "Milestone",
-              "type": "TEXT",
-              "hidden": false,
-              "key": true
-            },
-            "Status": {
-              "title": "Status",
-              "type": "TEXT",
-              "hidden": false,
-              "key": true
-            }
+          "duration_hours": 720,
+          "max_width": 6,
+          "height": 6,
+          "min_width": 12,
+          "chartProperties": {
+            "yAxisLabel": "Count",
+            "xAxisLabel": "Date",
+            "legendLocation": "top"
           },
-          "widget_id": "f1ac1d16"
+          "interval": "1H",
+          "group_by": [
+            "instance"
+          ],
+          "series_spec": [
+            {
+              "column": "System_Calls_Active",
+              "agg": "max",
+              "type": "int",
+              "label": "System_Calls_Active"
+            }
+          ],
+          "widget_id": "ee43c826",
+          "extra_filter": "device in [\"'AKRNOHNF11G'\"] and `timestamp` is after -168 hours"
         }
       ]
     }
   ],
+  "dynamic_form": {
+    "formData": {},
+    "formDefinition": {
+      "id": "performance.benchmark.json",
+      "refreshRequired": true,
+      "formFieldList": [
+        {
+          "fieldId": "instance",
+          "label": "Device",
+          "help": "Devices",
+          "controlType": "SELECTOR_DIALOG",
+          "selectionType": "MULTIPLE",
+          "pstream": "psl_kafka_data_kpi",
+          "query_attributes": [
+            "instance"
+          ],
+          "server-validation": {
+            "clear_attributes": [
+              "ifName",
+              "name"
+            ],
+            "read_attributes": [
+              "ifName",
+              "name"
+            ]
+          }
+        },
+        {
+          "fieldId": "ifName",
+          "label": "Interface",
+          "help": "Device Interface",
+          "controlType": "SELECTOR_DIALOG",
+          "selectionType": "MULTIPLE",
+          "pstream": "psl_kafka_data_kpi",
+          "query_attributes": [
+            "instance",
+            "ifName"
+          ],
+          "server-validation": {
+            "clear_attributes": [
+              "name"
+            ],
+            "read_attributes": [
+              "name"
+            ]
+          }
+        },
+        {
+          "fieldId": "name",
+          "label": "Metrics",
+          "help": "Performance Metrics",
+          "isList": true,
+          "required": true,
+          "controlType": "SELECTOR_DIALOG",
+          "selectionType": "MULTIPLE",
+          "pstream": "psl_kafka_data_kpi",
+          "query_attributes": [
+            "instance",
+            "ifName",
+            "name"
+          ]
+        },
+        {
+          "dataType": "string",
+          "required": false,
+          "editable": true,
+          "label": "Combine All",
+          "controlType": "BOOLEAN_FIELD",
+          "hidden": false,
+          "fieldId": "combine"
+        },
+        {
+          "fieldId": "precision",
+          "label": "Rollup Precision",
+          "help": "Rollup Precision",
+          "dataType": "string",
+          "hidden": false,
+          "editable": true,
+          "required": true,
+          "controlType": "COMBO_BOX",
+          "lovValues": [
+            {
+              "identifier": "instance",
+              "displayName": "Device"
+            },
+            {
+              "identifier": "ifName",
+              "displayName": "Interface"
+            },
+            {
+              "identifier": "name",
+              "displayName": "Metric"
+            }
+          ]
+        },
+        {
+          "fieldId": "function",
+          "label": "Function",
+          "help": "Function",
+          "dataType": "string",
+          "hidden": false,
+          "editable": true,
+          "required": true,
+          "controlType": "COMBO_BOX",
+          "lovValues": [
+            {
+              "identifier": "max",
+              "displayName": "Maximum"
+            },
+            {
+              "identifier": "min",
+              "displayName": "Minimum"
+            },
+            {
+              "identifier": "mean",
+              "displayName": "Mean"
+            }
+          ]
+        },
+        {
+          "fieldId": "duration",
+          "label": "Duration",
+          "help": "Duration",
+          "dataType": "string",
+          "hidden": false,
+          "editable": true,
+          "required": true,
+          "controlType": "COMBO_BOX",
+          "lovValues": [
+            {
+              "identifier": "`timestamp` is after -24 hours",
+              "displayName": "1 Day"
+            },
+            {
+              "identifier": "`timestamp` is after -48 hours",
+              "displayName": "2 Days"
+            },
+            {
+              "identifier": "`timestamp` is after -168 hours",
+              "displayName": "7 Days"
+            },
+            {
+              "identifier": "`timestamp` is after -720 hours",
+              "displayName": "30 Days"
+            }
+          ]
+        }
+      ],
+      "formActionList": {
+        "formActions": [
+          {
+            "api-endpoint": {
+              "methodName": "submitForm",
+              "parse-output": false,
+              "params": [
+                {
+                  "formData": {},
+                  "formId": "kpi.benchmark.json"
+                }
+              ],
+              "service-name": "saas-reports",
+              "stringified-params": true
+            },
+            "actionLabel": "Save",
+            "type": "SUBMIT",
+            "identifier": "Submit"
+          },
+          {
+            "actionLabel": "Cancel",
+            "type": "CANCEL",
+            "identifier": "Cancel"
+          }
+        ]
+      }
+    }
+  },
   "pstream_dashboards": [
     {
-      "title": "Upgrade Steps",
+      "title": "Ops Insights",
       "show_filter": true,
       "widgets": [
         {
-          "widget_type": "label",
-          "max_width": 12,
-          "height": 0.5,
-          "min_width": 12,
-          "label": "<div style='text-align:center;width:100%;'><h1><a style='text-decoration:none;color:#0066ff;' > UPGRADE STEPS</a></h1></div>",
-          "widget_id": "33317e49"
-        },
-        {
-          "title": "Upgrade Steps",
-          "widget_type": "tabular",
-          "max_width": 12,
-          "min_width": 12,
-          "height": 7,
-          "resizableColumns": true,
-          "remote_searchable": true,
-          "paginated": true,
-          "showRowSummary": true,
-          "dataset": "Router-upgrade-steps",
+          "title": "Time Series",
+          "widget_type": "timeseries",
+          "stream": "psl_kafka_data",
           "ts_column": "timestamp",
-          "extra_filter": null,
-          "columns": {
-            "Steps": {
-              "title": "Steps",
-              "type": "integer",
-              "hidden": false,
-              "key": true
-            },
-            "Milestone": {
-              "title": "Milestone",
-              "type": "TEXT",
-              "hidden": false,
-              "key": true
-            },
-            "Status": {
-              "title": "Status",
-              "type": "TEXT",
-              "hidden": false,
-              "key": true
-            }
+          "duration_hours": 720,
+          "max_width": 6,
+          "height": 6,
+          "min_width": 12,
+          "chartProperties": {
+            "yAxisLabel": "Count",
+            "xAxisLabel": "Date",
+            "legendLocation": "top"
           },
-          "widget_id": "f1ac1d16"
+          "interval": "1H",
+          "group_by": [
+            "instance"
+          ],
+          "series_spec": [
+            {
+              "column": "System_Calls_Active",
+              "agg": "max",
+              "type": "int",
+              "label": "System_Calls_Active"
+            }
+          ],
+          "widget_id": "ee43c826",
+          "extra_filter": "device in [\"'AKRNOHNF11G'\"] and `timestamp` is after -168 hours"
         }
       ]
     }
