@@ -1,99 +1,132 @@
 {
-  "name": "training_node_details_app",
-  "label": "Node Details App",
-  "description": "Node Details App",
-  "dashboard_folder": "MSP",
-  "context_label_id": "a_asset_name",
-  "version": "24.1.13.1",
-  "debug": true,
+  "name": "data_flow_chart_test",
+  "label": "Data Flow chart ",
+  "description": "Dataflow Chart example",
+  "version": "10.12.24.1",
   "enabled": true,
-  "custom_context": {
-    "rda-dashboard-live-edit": true
+  "showTitle": true,
+  "dashboard_style": "auto",
+  "live_edit": true,
+  "status_poller": {},
+  "dashboard_type": "dashbiard",
+  "dashboard_generator": {
+    "attachment": "widget_code_generator"
   },
-  "context_enrichment": [
-    {
-      "stream": "training_topology_nodes",
-      "stream0": "mp_nodes",
-      "enrich_columns": [
-        "host_name",
-        "node_label",
-        "node_type"
-      ],
-      "query_template": "(device_ip = '$device_ip' or edge_ip is '$edge_ip')",
-      "quert_template0": "node_id='$node_id'",
-      "defaultValues": {}
-    },
-    {
-      "stream": "training_cisco_devices_inventory",
-      "enrich_columns": [
-        "device_serial_number"
-      ],
-      "query_template": "(device_ip = '$ip_address' or edgeName is '$a_asset_name' or edge_ip is '$edge_ip')",
-      "defaultValues": {}
-    }
-  ],
+  "dashboard_pages": [],
+  "dashboard_filters": {
+    "time_filter": true,
+    "default_time_filter_labels": [
+      "All Time"
+    ],
+    "columns_filter": [],
+    "group_filters": []
+  },
   "dashboard_sections": [
     {
-      "title": "Org Ops"
+      "title": "DataFlow Chart",
+      "show_filter": true,
+      "widgets": [
+        {
+          "title": "Incident Flow Graph",
+          "widget_type": "dataflow",
+          "max_width": 12,
+          "height": 8,
+          "duration_hours": 24000,
+          "min_width": 12,
+          "chartProperties": {
+            "layoutDirection": "horizontal",
+            "userZoomingEnabled": true,
+            "hasToolbar": false
+          },
+          "input": {
+            "label": "alerts",
+            "formatter": "DescriptiveCountFormatter",
+            "stream": "training-alerts-stream",
+            "extra_filter": "a_source_systemname is not 'Alert Group'",
+            "ts_column": "timestamp",
+            "duration_hours": 24000,
+            "group_by": [
+              "a_source_systemname"
+            ],
+            "column": "count_",
+            "agg": "sum",
+            "units": "Alerts",
+            "type": "int"
+          },
+          "output": {
+            "label": "Incidents",
+            "formatter": "DescriptiveCountFormatter",
+            "stream": "training-incidents-stream",
+            "ts_column": "timestamp",
+            "duration_hours": 24000,
+            "group_by": [
+              "i_priority"
+            ],
+            "column": "count_",
+            "agg": "sum",
+            "units": "Incidents",
+            "type": "int"
+          },
+          "widget_id": "2d7432a3"
+        }
+      ]
     }
   ],
-  "dashboard_type": "app",
-  "dashboard_groups": {
-    "from_to": {
-      "icon": "alert.svg",
-      "label": "Alerts"
-    },
-    "topo": {
-      "icon": "topology.svg",
-      "label": "Topology"
-    }
-  },
-  "dashboard_pages": [
+  "attachments": [
     {
-      "name": "training_device_inventory_from_alert",
-      "label": "Inventory",
-      "icon": "alert.svg"
-    },
-    {
-      "name": "training_device_alerts_from_alert",
-      "label": "Alerts",
-      "icon": "alert.svg"
-    },
-    {
-      "name": "training_device_metrics_from_alert",
-      "label": "Metrics",
-      "icon": "Analytics.svg",
-      "context_filter1": "node_type is 'CHASSIS'"
-    },
-    {
-      "name": "device_syslog_from_alert",
-      "label": "Syslogs",
-      "enabled": false,
-      "context_filter": "device_ip is in ['10.95.158.251','10.95.158.1','10.95.158.9']",
-      "icon": "trace.svg"
-    },
-    {
-      "name": "device_SNMP_Traps_from_alerts",
-      "label": "SNMP Traps",
-      "enabled": false,
-      "context_filter": "device_ip is in ['10.95.158.251','10.95.158.1','10.95.158.9']",
-      "icon": "trace.svg"
-    },
-    {
-      "name": "local_devices_topology_drilldown",
-      "label": "Topology",
-      "enabled": false,
-      "context_filter": "device_ip is in ['10.95.158.251','10.95.158.1','10.95.158.9']"
-    },
-    {
-      "name": "customer_view_config",
-      "enabled": false,
-      "label": "View Config"
+      "name": "widget_code_generator",
+      "value": "{%- set widgets =  dashboard[\"dashboard_sections\"][0][\"widgets\"] -%}\r\n{%- set new_widgets =  [] -%}\r\n{%- set ns =  namespace(count=0) -%}\r\n\r\n{%- for w in widgets -%}\r\n    {%- if w.get(\"widget_type\") -%}\r\n        {%-\r\n            set nw = {\r\n                \"title\": \"JSON\",\r\n                \"widget_group\": \"g\"+str(ns.count),\r\n                \"min_width\": w.get(\"min_width\", 6),\r\n                \"max_width\": w.get(\"max_width\", 6),\r\n                \"height\": w.get(\"height\", 4),\r\n                \"widget_type\": \"codeblock\",\r\n                \"content\": json_dumps_indent(w, 2),\r\n                \"lang\": \"json\",\r\n                \"widget_id\": w.get(\"widget_id\", str(ns.count)) + \"_code\"\r\n            }\r\n        -%}\r\n        {%- set _ = w.update({\"widget_group\":  \"g\"+str(ns.count) }) -%}\r\n        {%- set _ = new_widgets.append(nw) -%}\r\n        {%- set ns.count = ns.count + 1 -%}\r\n    {%- endif -%}\r\n{%- endfor -%}\r\n\r\n{%- set _ = widgets.extend(new_widgets) -%}"
     }
   ],
   "pstream_dashboards": [
     {
-      "title": "Org Ops"
+      "title": "DataFlow Chart",
+      "show_filter": true,
+      "widgets": [
+        {
+          "title": "Incident Flow Graph",
+          "widget_type": "dataflow",
+          "max_width": 12,
+          "height": 8,
+          "duration_hours": 24000,
+          "min_width": 12,
+          "chartProperties": {
+            "layoutDirection": "horizontal",
+            "userZoomingEnabled": true,
+            "hasToolbar": false
+          },
+          "input": {
+            "label": "alerts",
+            "formatter": "DescriptiveCountFormatter",
+            "stream": "training-alerts-stream",
+            "extra_filter": "a_source_systemname is not 'Alert Group'",
+            "ts_column": "timestamp",
+            "duration_hours": 24000,
+            "group_by": [
+              "a_source_systemname"
+            ],
+            "column": "count_",
+            "agg": "sum",
+            "units": "Alerts",
+            "type": "int"
+          },
+          "output": {
+            "label": "Incidents",
+            "formatter": "DescriptiveCountFormatter",
+            "stream": "training-incidents-stream",
+            "ts_column": "timestamp",
+            "duration_hours": 24000,
+            "group_by": [
+              "i_priority"
+            ],
+            "column": "count_",
+            "agg": "sum",
+            "units": "Incidents",
+            "type": "int"
+          },
+          "widget_id": "2d7432a3"
+        }
+      ]
     }
   ]
 }
