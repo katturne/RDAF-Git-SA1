@@ -1,16 +1,26 @@
 
- ## Get row input
+ ## declaring thrid level child pipelines
 @c:new-block
  --> @dm:empty
- --> @exec:get-input
- ## --> @dm:selectcolumns include='device_hostname|device_identifier|device_controller_id'
+ --> @exec:define-function name="define_child_pipelines"
+ --> @exec:run-pipeline name ="edc_generate_token" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_sw_get_data" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_sweol_enrich" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_processing_sw_data" & ignore_failures = "no"
+ --> @exec:end-function
+ --> @dm:empty
+ --> @dm:addrow name='edc_cust_pid_sw' and limit=0
+ --> #dm:query-persistent-stream
+ --> *dm:filter product_id is not null and sw_version is not null and sw_os_type is not null and contract_number is not null
+ --> @dm:add-missing-columns columns="source" and value='software'
+ --> @dm:save name='added-minio-file'
+ --> @exec:run-pipeline name ="edc_sw_run_scan" & ignore_failures = "no"
+ --> @dm:save name='temp-edc-sw-run-scan-op-exploded'
+ --> @c:new-block
+ --> @dm:recall name='temp-edc-sw-run-scan-op-exploded'
+ --> @rn:write-stream name='edc_sw_raw_data'
+ ## calling the enrich pipeline
 
- --> @dm:save name='temp-form-data'
- --> @c:data-loop columns="customer_name" and dataset="temp-form-data"
- --> @dm:empty
- --> @dm:addrow name = "edc_oi_inventory_grouped" & conflicts = "proceed" & timeout = 1200
- --> #dm:pstream-delete-data-by-query customer_name=="$customer_name"
- --> @c:data-loop columns="customer_name" and dataset="temp-form-data"
- --> @dm:empty
- --> @dm:addrow name = "edc_oi_inventory_enriched" & conflicts = "proceed" & timeout = 1200
- --> #dm:pstream-delete-data-by-query customer_name=="$customer_name"
+ --> @c:new-block
+ --> @dm:recall name='temp-edc-sw-run-scan-op-exploded'
+ --> @exec:run-pipeline name='edc_sweol_enrich' and ignore_failures = "no"
