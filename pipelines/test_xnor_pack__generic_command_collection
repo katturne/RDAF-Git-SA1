@@ -1,29 +1,9 @@
-
- ## declaring child pipelines
-@c:new-block
- --> @dm:empty
- --> @exec:define-function name="define_child_pipelines"
- --> @exec:run-pipeline name ="edc_oi_get_product_alerts" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_oi_product_alerts_raw" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_oi_product_alerts_run_scan" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_oi_generate_token" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_oi_process_sw_data" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_oi_get_sweol_data" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_oi_get_security_advisories_data" & ignore_failures = "no"
- --> @exec:end-function
- ## addingt the software and security advisories data
-
- --> @c:new-block
- --> @dm:empty
- --> @dm:addrow name='edc_sw_raw_data' and limit=0
- --> #dm:query-persistent-stream
- --> @dm:selectcolumns exclude='^(unique_key)$'
- --> @dm:save name='temp-edc-sw-raw-op-exploded'
- --> @exec:run-pipeline name='edc_oi_get_sweol_data' and ignore_failures = "no"
- --> @c:new-block
- --> @dm:empty
- --> @dm:addrow name='edc_sec_adv_data_raw' and limit=0
- --> #dm:query-persistent-stream
- --> @dm:selectcolumns exclude='^(unique_key)$'
- --> @dm:save name='temp-edc-sa-raw-op-exploded'
- --> @exec:run-pipeline name='edc_oi_get_security_advisories_data' and ignore_failures = "no"
+@dm:empty
+ --> @exec:get-input
+ --> @dm:explode-json column="Inventory"
+ --> @dm:add-missing-columns columns = 'order_id' & value = "'process_id'"
+ --> @dm:eval order_id="f'RunID_{uuid()[:8]}'"
+ --> @dm:selectcolumns include="^IP_Address$|^name$|^order_id$"
+ --> @dm:rename-columns collection_name = "name"
+ --> @exec:run-pipeline name = "test_xnor_pack_generic_main"
+ --> @dm:save name = "test-pack-input-data"
