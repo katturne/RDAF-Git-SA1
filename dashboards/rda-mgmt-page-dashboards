@@ -1,444 +1,669 @@
 {
-  "name": "onboarded_customer_list",
-  "label": "Onboarded Customers",
-  "description": "Onboarded Customers List",
-  "version": "2024.03.16",
+  "name": "rda-mgmt-page-dashboards",
+  "label": "Dashboards",
+  "description": " User Dashboard Management Page",
   "enabled": false,
-  "live_edit": true,
-  "dashboard_style": "auto",
-  "dashboard_type": "template",
-  "template_variables": {
-    "PROJ_ID": {
-      "contextId": "project_id"
-    },
-    "CUST_TAG": {
-      "contextId": "tag1"
-    }
-  },
-  "stream": "rda_system_organizations",
+  "dashboard_type": "dashboard",
+  "dashboard_folder": "System",
   "dashboard_filters": {
-    "time_filter": true,
-    "default_time_filter_labels": [
-      "Last 12 months"
-    ],
-    "default_time_filter_non_removable": true,
+    "time_filter": false,
     "columns_filter": [
       {
-        "id": "customerId",
-        "label": "ID",
-        "type": "TEXT"
+        "id": "saved_time",
+        "label": "Saved Time",
+        "type": "DATETIME"
       },
       {
-        "id": "customer_tag",
-        "label": "Customer",
-        "type": "TEXT"
-      },
-      {
-        "id": "tag1",
-        "label": "Customer Label",
-        "type": "TEXT"
-      },
-      {
-        "id": "projectId",
-        "label": "Project ID",
-        "type": "TEXT"
-      },
-      {
-        "id": "inventory",
-        "label": "Total Devices",
-        "type": "DOUBLE"
-      },
-      {
-        "id": "id",
-        "label": "ID",
-        "type": "FIXED_VALUE"
+        "id": "enabled",
+        "label": "Enabled",
+        "type": "BOOLEAN"
       }
     ]
   },
   "dashboard_sections": [
     {
-      "title": "Customers",
+      "title": "Dashboards",
       "show_filter": true,
       "widgets": [
         {
-          "widget_type": "label",
-          "max_width": 12,
-          "height": 0.5,
-          "min_width": 12,
-          "label": "<div style='text-align:center;width:100%;'><h1><a style='text-decoration:none;color:#0066ff;' target='_blank'>List of Customers</a></h1></div>",
-          "widget_id": "33317e49"
-        },
-        {
-          "title": "Customers",
+          "title": "Dashboards",
           "widget_type": "tabular",
-          "ts_column": "createdAt",
-          "stream": "rda_system_organizations",
-          "extra_filter": "customerName is not 'cfx_rda_quarantine'",
-          "max_width": 12,
-          "height": 12,
-          "min_width": 12,
+          "stream": "rda_dashboards_meta",
+          "timebased": false,
           "remote_searchable": true,
           "remote_searchable_cols": [
-            "tag1"
+            "name",
+            "dashboard_folder",
+            "dashboard_type",
+            "label",
+            "description"
           ],
+          "ts_column": "saved_time",
+          "paginated": true,
+          "height": 10,
+          "min_width": 12,
           "columns": {
-            "customerId": {
-              "title": "ID",
-              "type": "TEXT",
-              "key": true,
-              "visible": false
+            "name": {
+              "title": "Name",
+              "key": true
             },
-            "tag1": {
-              "title": "Customer",
-              "type": "TEXT",
-              "key": true,
-              "visible": true
+            "dashboard_folder": {
+              "title": "Dashboard Folder"
             },
-            "customer_tag": {
-              "title": "Customer Tag",
-              "type": "TEXT",
-              "key": true,
-              "visible": false
+            "type": {
+              "title": "Type",
+              "type": "FIXED_VALUE",
+              "value": "Dashboard",
+              "visible": false,
+              "sortable": false
             },
-            "projectId": {
-              "title": "Project ID",
-              "type": "TEXT",
-              "key": true,
-              "visible": false
+            "dashboard_type": {
+              "title": "Dashboard Type"
             },
-            "createdAt": {
-              "title": "Timestamp",
-              "type": "DATETIME",
-              "visible": false
+            "label": {
+              "title": "Label",
+              "key": true
+            },
+            "description": {
+              "title": "description"
+            },
+            "saved_time": {
+              "title": "Saved Time",
+              "type": "DATETIME"
+            },
+            "timestamp": {
+              "title": "When",
+              "type": "HUMANIZE_TIME_DELTA",
+              "source-column": "saved_time",
+              "sortable": false
             }
           },
           "custom_columns": [
             {
-              "id": "adminApp",
-              "label": "Customer Admin App",
-              "expr": "'Admin App'",
-              "visible": true,
-              "key": true
+              "id": "enabled",
+              "label": "Enabled",
+              "htmlTemplateForRow": "<span class='badge' style='background-color: {{ row.enableColor }}' > {{ row.enabled }} </span>"
             },
             {
-              "id": "opsApp",
-              "label": "Customer Ops App",
-              "expr": "'Ops App'",
-              "visible": true,
-              "key": true
+              "id": "id",
+              "label": "ID",
+              "expr": "'user-dashboard-' + name",
+              "visible": false,
+              "key": true,
+              "sortable": false
+            },
+            {
+              "id": "url",
+              "label": "URL",
+              "expr": "'/workspace/dashboard/user-dashboard-' + name",
+              "visible": false,
+              "sortable": false
+            },
+            {
+              "id": "enableColor",
+              "label": "Enable Color",
+              "expr": "['#4CAF50'] if enabled else ['#9E9E9E']",
+              "hidden": true,
+              "visible": false,
+              "sortable": false
+            },
+            {
+              "id": "rowStyleClass",
+              "hidden": true,
+              "visible": false,
+              "expr": "'bg-fading-blue' if time_now_as_ms() - isoformat_to_ms(saved_time) <= 120000 else None",
+              "sortable": false
             }
           ],
           "actions": [
             {
-              "appName": "user-dashboard/customer_ops_application",
-              "permission": "aia:page:view",
-              "contextParamList": {
-                "contextParams": [
+              "permission": "rda:user_dashboard:add",
+              "title": "Add",
+              "icon": "mdi mdi-plus",
+              "type": "POPUP_FORM",
+              "selectionType": "NONE",
+              "identifier": "saas-service-action:userdashboard-add-yaml",
+              "api-endpoint": {
+                "service-name": "saas-reports",
+                "methodName": "getForm",
+                "stringified-params": true,
+                "parse-output": false,
+                "params": [
                   {
-                    "paramKey": "projectId",
-                    "paramId": "project_id"
-                  },
-                  {
-                    "paramKey": "customerId",
-                    "paramId": "customer_id"
-                  },
-                  {
-                    "paramKey": "tag1",
-                    "paramId": "a_en_customer_tag"
-                  },
-                  {
-                    "paramKey": "tag1",
-                    "paramId": "attrs_customer_tag"
-                  },
-                  {
-                    "paramKey": "tag1",
-                    "paramId": "customerTag"
-                  },
-                  {
-                    "paramKey": "tag1",
-                    "paramId": "customer_tag"
-                  }
-                ]
-              },
-              "drillDownLinkField": "tag1",
-              "identifier": "tag1",
-              "selectionType": "SINGLE",
-              "stateName": "app.featureapp",
-              "title": "View Details",
-              "type": "GO_TO_APP_STATE"
-            },
-            {
-              "appName": "user-dashboard/customer_ops_application",
-              "permission": "rda:page:view",
-              "drillDownLinkField": "opsApp",
-              "identifier": "customerName",
-              "selectionType": "SINGLE",
-              "stateName": "app.featureapp",
-              "title": "Customer Ops App",
-              "type": "GO_TO_APP_STATE",
-              "contextParamList": {
-                "contextParams": [
-                  {
-                    "paramKey": "projectId",
-                    "paramId": "project_id"
-                  },
-                  {
-                    "paramKey": "customerId",
-                    "paramId": "customer_id"
-                  },
-                  {
-                    "paramKey": "tag1",
-                    "paramId": "a_en_customer_tag"
-                  },
-                  {
-                    "paramKey": "tag1",
-                    "paramId": "attrs_customer_tag"
-                  },
-                  {
-                    "paramKey": "tag1",
-                    "paramId": "customerTag"
-                  },
-                  {
-                    "paramKey": "tag1",
-                    "paramId": "customer_tag"
+                    "formId": "rda.saas.userdashboard.add.yaml"
                   }
                 ]
               }
             },
             {
-              "appName": "user-dashboard/rda-packs-customer-all",
-              "permission": "rda:page:view",
-              "identifier": "tag1",
+              "permission": "rda:user_dashboard:view",
+              "appName": "user-dashboard",
+              "displayLabelColumnId": "id",
+              "drillDownLinkField": "name",
+              "identifier": "user.dashboard.view",
               "selectionType": "SINGLE",
               "stateName": "app.featureapp",
-              "drillDownLinkField": "adminApp",
-              "title": "Customer Admin",
-              "type": "GO_TO_APP_STATE",
-              "contextParamList": {
-                "contextParams": [
+              "title": "Dashboard",
+              "type": "GO_TO_APP_STATE"
+            },
+            {
+              "permission": "rda:user_dashboard:view",
+              "title": "View YAML",
+              "type": "POPUP_FORM",
+              "selectionType": "SINGLE",
+              "identifier": "saas-service-action:userdashboard-view-yaml",
+              "api-endpoint": {
+                "service-name": "saas-reports",
+                "methodName": "getForm",
+                "stringified-params": true,
+                "parse-output": false,
+                "params": [
                   {
-                    "paramKey": "projectId",
-                    "paramId": "project_id"
-                  },
+                    "formId": "rda.saas.userdashboard.view.yaml"
+                  }
+                ]
+              }
+            },
+            {
+              "permission": "rda:user_dashboard:view",
+              "title": "View JSON",
+              "type": "POPUP_FORM",
+              "selectionType": "SINGLE",
+              "identifier": "saas-service-action:userdashboard-view-json",
+              "api-endpoint": {
+                "service-name": "saas-reports",
+                "methodName": "getForm",
+                "stringified-params": true,
+                "parse-output": false,
+                "params": [
                   {
-                    "paramKey": "customerId",
-                    "paramId": "customer_id"
-                  },
+                    "formId": "rda.saas.userdashboard.view.json"
+                  }
+                ]
+              }
+            },
+            {
+              "permission": "rda:user_dashboard:edit",
+              "title": "Edit YAML",
+              "icon": "mdi mdi-plus",
+              "type": "POPUP_FORM",
+              "selectionType": "SINGLE",
+              "identifier": "saas-service-action:userdashboard-edit-yaml",
+              "api-endpoint": {
+                "service-name": "saas-reports",
+                "methodName": "getForm",
+                "stringified-params": true,
+                "parse-output": false,
+                "params": [
                   {
-                    "paramKey": "tag1",
-                    "paramId": "a_en_customer_tag"
-                  },
+                    "formId": "rda.saas.userdashboard.edit.yaml"
+                  }
+                ]
+              },
+              "actionCondition": {
+                "actionControl": "HIDE_IF",
+                "conditionalField": [
                   {
-                    "paramKey": "tag1",
-                    "paramId": "attrs_customer_tag"
-                  },
+                    "conditionType": "EQUAL",
+                    "conditionValue": "System",
+                    "fieldId": "dashboard_folder"
+                  }
+                ]
+              }
+            },
+            {
+              "permission": "rda:user_dashboard:edit",
+              "title": "Edit JSON",
+              "icon": "mdi mdi-plus",
+              "type": "POPUP_FORM",
+              "selectionType": "SINGLE",
+              "identifier": "saas-service-action:userdashboard-edit-json",
+              "api-endpoint": {
+                "service-name": "saas-reports",
+                "methodName": "getForm",
+                "stringified-params": true,
+                "parse-output": false,
+                "params": [
                   {
-                    "paramKey": "tag1",
-                    "paramId": "customerTag"
-                  },
+                    "formId": "rda.saas.userdashboard.edit.json"
+                  }
+                ]
+              },
+              "actionCondition": {
+                "actionControl": "HIDE_IF",
+                "conditionalField": [
                   {
-                    "paramKey": "tag1",
-                    "paramId": "customer_tag"
+                    "conditionType": "EQUAL",
+                    "conditionValue": "System",
+                    "fieldId": "dashboard_folder"
+                  }
+                ]
+              }
+            },
+            {
+              "permission": "rda:user_dashboard:disable",
+              "title": "Disable",
+              "type": "POPUP_FORM",
+              "selectionType": "SINGLE",
+              "identifier": "saas-service-action:userdashboard-deactivate-dashboard",
+              "api-endpoint": {
+                "service-name": "saas-reports",
+                "methodName": "getForm",
+                "stringified-params": true,
+                "parse-output": false,
+                "params": [
+                  {
+                    "formId": "rda.saas.userdashboard.deactivate"
+                  }
+                ]
+              },
+              "actionCondition": {
+                "actionControl": "SHOW_IF",
+                "conditionalField": [
+                  {
+                    "conditionType": "EQUAL",
+                    "conditionValue": "yes",
+                    "fieldId": "enabled"
+                  }
+                ]
+              }
+            },
+            {
+              "permission": "rda:user_dashboard:enable",
+              "title": "Enable",
+              "type": "POPUP_FORM",
+              "selectionType": "SINGLE",
+              "identifier": "saas-service-action:userdashboard-activate-dashboard",
+              "api-endpoint": {
+                "service-name": "saas-reports",
+                "methodName": "getForm",
+                "stringified-params": true,
+                "parse-output": false,
+                "params": [
+                  {
+                    "formId": "rda.saas.userdashboard.activate"
+                  }
+                ]
+              },
+              "actionCondition": {
+                "actionControl": "SHOW_IF",
+                "conditionalField": [
+                  {
+                    "conditionType": "EQUAL",
+                    "conditionValue": "no",
+                    "fieldId": "enabled"
+                  }
+                ]
+              }
+            },
+            {
+              "permission": "rda:user_dashboard:delete",
+              "title": "Delete",
+              "type": "POPUP_FORM",
+              "selectionType": "SINGLE",
+              "identifier": "saas-service-action:userdashboard-delete-dashboard",
+              "api-endpoint": {
+                "service-name": "saas-reports",
+                "methodName": "getForm",
+                "stringified-params": true,
+                "parse-output": false,
+                "params": [
+                  {
+                    "formId": "rda.saas.userdashboard.delete"
+                  }
+                ]
+              },
+              "actionCondition": {
+                "actionControl": "HIDE_IF",
+                "conditionalField": [
+                  {
+                    "conditionType": "EQUAL",
+                    "conditionValue": "System",
+                    "fieldId": "dashboard_folder"
                   }
                 ]
               }
             }
           ],
-          "widget_id": "79ae514e"
+          "widget_id": "d5b2edf0"
+        }
+      ]
+    },
+    {
+      "title": "Dashboard Groups",
+      "show_filter": false,
+      "widgets": [
+        {
+          "title": "Dashboard Groups",
+          "widget_type": "portal_tabular",
+          "reportId": "dashboard.groups.list.tabular",
+          "height": 10,
+          "min_width": 12,
+          "widget_id": "c821f1a3"
         }
       ]
     }
   ],
   "pstream_dashboards": [
     {
-      "title": "Customers",
+      "title": "Dashboards",
       "show_filter": true,
       "widgets": [
         {
-          "widget_type": "label",
-          "max_width": 12,
-          "height": 0.5,
-          "min_width": 12,
-          "label": "<div style='text-align:center;width:100%;'><h1><a style='text-decoration:none;color:#0066ff;' target='_blank'>List of Customers</a></h1></div>",
-          "widget_id": "33317e49"
-        },
-        {
-          "title": "Customers",
+          "title": "Dashboards",
           "widget_type": "tabular",
-          "ts_column": "createdAt",
-          "stream": "rda_system_organizations",
-          "extra_filter": "customerName is not 'cfx_rda_quarantine'",
-          "max_width": 12,
-          "height": 12,
-          "min_width": 12,
+          "stream": "rda_dashboards_meta",
+          "timebased": false,
           "remote_searchable": true,
           "remote_searchable_cols": [
-            "tag1"
+            "name",
+            "dashboard_folder",
+            "dashboard_type",
+            "label",
+            "description"
           ],
+          "ts_column": "saved_time",
+          "paginated": true,
+          "height": 10,
+          "min_width": 12,
           "columns": {
-            "customerId": {
-              "title": "ID",
-              "type": "TEXT",
-              "key": true,
-              "visible": false
+            "name": {
+              "title": "Name",
+              "key": true
             },
-            "tag1": {
-              "title": "Customer",
-              "type": "TEXT",
-              "key": true,
-              "visible": true
+            "dashboard_folder": {
+              "title": "Dashboard Folder"
             },
-            "customer_tag": {
-              "title": "Customer Tag",
-              "type": "TEXT",
-              "key": true,
-              "visible": false
+            "type": {
+              "title": "Type",
+              "type": "FIXED_VALUE",
+              "value": "Dashboard",
+              "visible": false,
+              "sortable": false
             },
-            "projectId": {
-              "title": "Project ID",
-              "type": "TEXT",
-              "key": true,
-              "visible": false
+            "dashboard_type": {
+              "title": "Dashboard Type"
             },
-            "createdAt": {
-              "title": "Timestamp",
-              "type": "DATETIME",
-              "visible": false
+            "label": {
+              "title": "Label",
+              "key": true
+            },
+            "description": {
+              "title": "description"
+            },
+            "saved_time": {
+              "title": "Saved Time",
+              "type": "DATETIME"
+            },
+            "timestamp": {
+              "title": "When",
+              "type": "HUMANIZE_TIME_DELTA",
+              "source-column": "saved_time",
+              "sortable": false
             }
           },
           "custom_columns": [
             {
-              "id": "adminApp",
-              "label": "Customer Admin App",
-              "expr": "'Admin App'",
-              "visible": true,
-              "key": true
+              "id": "enabled",
+              "label": "Enabled",
+              "htmlTemplateForRow": "<span class='badge' style='background-color: {{ row.enableColor }}' > {{ row.enabled }} </span>"
             },
             {
-              "id": "opsApp",
-              "label": "Customer Ops App",
-              "expr": "'Ops App'",
-              "visible": true,
-              "key": true
+              "id": "id",
+              "label": "ID",
+              "expr": "'user-dashboard-' + name",
+              "visible": false,
+              "key": true,
+              "sortable": false
+            },
+            {
+              "id": "url",
+              "label": "URL",
+              "expr": "'/workspace/dashboard/user-dashboard-' + name",
+              "visible": false,
+              "sortable": false
+            },
+            {
+              "id": "enableColor",
+              "label": "Enable Color",
+              "expr": "['#4CAF50'] if enabled else ['#9E9E9E']",
+              "hidden": true,
+              "visible": false,
+              "sortable": false
+            },
+            {
+              "id": "rowStyleClass",
+              "hidden": true,
+              "visible": false,
+              "expr": "'bg-fading-blue' if time_now_as_ms() - isoformat_to_ms(saved_time) <= 120000 else None",
+              "sortable": false
             }
           ],
           "actions": [
             {
-              "appName": "user-dashboard/customer_ops_application",
-              "permission": "aia:page:view",
-              "contextParamList": {
-                "contextParams": [
+              "permission": "rda:user_dashboard:add",
+              "title": "Add",
+              "icon": "mdi mdi-plus",
+              "type": "POPUP_FORM",
+              "selectionType": "NONE",
+              "identifier": "saas-service-action:userdashboard-add-yaml",
+              "api-endpoint": {
+                "service-name": "saas-reports",
+                "methodName": "getForm",
+                "stringified-params": true,
+                "parse-output": false,
+                "params": [
                   {
-                    "paramKey": "projectId",
-                    "paramId": "project_id"
-                  },
-                  {
-                    "paramKey": "customerId",
-                    "paramId": "customer_id"
-                  },
-                  {
-                    "paramKey": "tag1",
-                    "paramId": "a_en_customer_tag"
-                  },
-                  {
-                    "paramKey": "tag1",
-                    "paramId": "attrs_customer_tag"
-                  },
-                  {
-                    "paramKey": "tag1",
-                    "paramId": "customerTag"
-                  },
-                  {
-                    "paramKey": "tag1",
-                    "paramId": "customer_tag"
-                  }
-                ]
-              },
-              "drillDownLinkField": "tag1",
-              "identifier": "tag1",
-              "selectionType": "SINGLE",
-              "stateName": "app.featureapp",
-              "title": "View Details",
-              "type": "GO_TO_APP_STATE"
-            },
-            {
-              "appName": "user-dashboard/customer_ops_application",
-              "permission": "rda:page:view",
-              "drillDownLinkField": "opsApp",
-              "identifier": "customerName",
-              "selectionType": "SINGLE",
-              "stateName": "app.featureapp",
-              "title": "Customer Ops App",
-              "type": "GO_TO_APP_STATE",
-              "contextParamList": {
-                "contextParams": [
-                  {
-                    "paramKey": "projectId",
-                    "paramId": "project_id"
-                  },
-                  {
-                    "paramKey": "customerId",
-                    "paramId": "customer_id"
-                  },
-                  {
-                    "paramKey": "tag1",
-                    "paramId": "a_en_customer_tag"
-                  },
-                  {
-                    "paramKey": "tag1",
-                    "paramId": "attrs_customer_tag"
-                  },
-                  {
-                    "paramKey": "tag1",
-                    "paramId": "customerTag"
-                  },
-                  {
-                    "paramKey": "tag1",
-                    "paramId": "customer_tag"
+                    "formId": "rda.saas.userdashboard.add.yaml"
                   }
                 ]
               }
             },
             {
-              "appName": "user-dashboard/rda-packs-customer-all",
-              "permission": "rda:page:view",
-              "identifier": "tag1",
+              "permission": "rda:user_dashboard:view",
+              "appName": "user-dashboard",
+              "displayLabelColumnId": "id",
+              "drillDownLinkField": "name",
+              "identifier": "user.dashboard.view",
               "selectionType": "SINGLE",
               "stateName": "app.featureapp",
-              "drillDownLinkField": "adminApp",
-              "title": "Customer Admin",
-              "type": "GO_TO_APP_STATE",
-              "contextParamList": {
-                "contextParams": [
+              "title": "Dashboard",
+              "type": "GO_TO_APP_STATE"
+            },
+            {
+              "permission": "rda:user_dashboard:view",
+              "title": "View YAML",
+              "type": "POPUP_FORM",
+              "selectionType": "SINGLE",
+              "identifier": "saas-service-action:userdashboard-view-yaml",
+              "api-endpoint": {
+                "service-name": "saas-reports",
+                "methodName": "getForm",
+                "stringified-params": true,
+                "parse-output": false,
+                "params": [
                   {
-                    "paramKey": "projectId",
-                    "paramId": "project_id"
-                  },
+                    "formId": "rda.saas.userdashboard.view.yaml"
+                  }
+                ]
+              }
+            },
+            {
+              "permission": "rda:user_dashboard:view",
+              "title": "View JSON",
+              "type": "POPUP_FORM",
+              "selectionType": "SINGLE",
+              "identifier": "saas-service-action:userdashboard-view-json",
+              "api-endpoint": {
+                "service-name": "saas-reports",
+                "methodName": "getForm",
+                "stringified-params": true,
+                "parse-output": false,
+                "params": [
                   {
-                    "paramKey": "customerId",
-                    "paramId": "customer_id"
-                  },
+                    "formId": "rda.saas.userdashboard.view.json"
+                  }
+                ]
+              }
+            },
+            {
+              "permission": "rda:user_dashboard:edit",
+              "title": "Edit YAML",
+              "icon": "mdi mdi-plus",
+              "type": "POPUP_FORM",
+              "selectionType": "SINGLE",
+              "identifier": "saas-service-action:userdashboard-edit-yaml",
+              "api-endpoint": {
+                "service-name": "saas-reports",
+                "methodName": "getForm",
+                "stringified-params": true,
+                "parse-output": false,
+                "params": [
                   {
-                    "paramKey": "tag1",
-                    "paramId": "a_en_customer_tag"
-                  },
+                    "formId": "rda.saas.userdashboard.edit.yaml"
+                  }
+                ]
+              },
+              "actionCondition": {
+                "actionControl": "HIDE_IF",
+                "conditionalField": [
                   {
-                    "paramKey": "tag1",
-                    "paramId": "attrs_customer_tag"
-                  },
+                    "conditionType": "EQUAL",
+                    "conditionValue": "System",
+                    "fieldId": "dashboard_folder"
+                  }
+                ]
+              }
+            },
+            {
+              "permission": "rda:user_dashboard:edit",
+              "title": "Edit JSON",
+              "icon": "mdi mdi-plus",
+              "type": "POPUP_FORM",
+              "selectionType": "SINGLE",
+              "identifier": "saas-service-action:userdashboard-edit-json",
+              "api-endpoint": {
+                "service-name": "saas-reports",
+                "methodName": "getForm",
+                "stringified-params": true,
+                "parse-output": false,
+                "params": [
                   {
-                    "paramKey": "tag1",
-                    "paramId": "customerTag"
-                  },
+                    "formId": "rda.saas.userdashboard.edit.json"
+                  }
+                ]
+              },
+              "actionCondition": {
+                "actionControl": "HIDE_IF",
+                "conditionalField": [
                   {
-                    "paramKey": "tag1",
-                    "paramId": "customer_tag"
+                    "conditionType": "EQUAL",
+                    "conditionValue": "System",
+                    "fieldId": "dashboard_folder"
+                  }
+                ]
+              }
+            },
+            {
+              "permission": "rda:user_dashboard:disable",
+              "title": "Disable",
+              "type": "POPUP_FORM",
+              "selectionType": "SINGLE",
+              "identifier": "saas-service-action:userdashboard-deactivate-dashboard",
+              "api-endpoint": {
+                "service-name": "saas-reports",
+                "methodName": "getForm",
+                "stringified-params": true,
+                "parse-output": false,
+                "params": [
+                  {
+                    "formId": "rda.saas.userdashboard.deactivate"
+                  }
+                ]
+              },
+              "actionCondition": {
+                "actionControl": "SHOW_IF",
+                "conditionalField": [
+                  {
+                    "conditionType": "EQUAL",
+                    "conditionValue": "yes",
+                    "fieldId": "enabled"
+                  }
+                ]
+              }
+            },
+            {
+              "permission": "rda:user_dashboard:enable",
+              "title": "Enable",
+              "type": "POPUP_FORM",
+              "selectionType": "SINGLE",
+              "identifier": "saas-service-action:userdashboard-activate-dashboard",
+              "api-endpoint": {
+                "service-name": "saas-reports",
+                "methodName": "getForm",
+                "stringified-params": true,
+                "parse-output": false,
+                "params": [
+                  {
+                    "formId": "rda.saas.userdashboard.activate"
+                  }
+                ]
+              },
+              "actionCondition": {
+                "actionControl": "SHOW_IF",
+                "conditionalField": [
+                  {
+                    "conditionType": "EQUAL",
+                    "conditionValue": "no",
+                    "fieldId": "enabled"
+                  }
+                ]
+              }
+            },
+            {
+              "permission": "rda:user_dashboard:delete",
+              "title": "Delete",
+              "type": "POPUP_FORM",
+              "selectionType": "SINGLE",
+              "identifier": "saas-service-action:userdashboard-delete-dashboard",
+              "api-endpoint": {
+                "service-name": "saas-reports",
+                "methodName": "getForm",
+                "stringified-params": true,
+                "parse-output": false,
+                "params": [
+                  {
+                    "formId": "rda.saas.userdashboard.delete"
+                  }
+                ]
+              },
+              "actionCondition": {
+                "actionControl": "HIDE_IF",
+                "conditionalField": [
+                  {
+                    "conditionType": "EQUAL",
+                    "conditionValue": "System",
+                    "fieldId": "dashboard_folder"
                   }
                 ]
               }
             }
           ],
-          "widget_id": "79ae514e"
+          "widget_id": "d5b2edf0"
+        }
+      ]
+    },
+    {
+      "title": "Dashboard Groups",
+      "show_filter": false,
+      "widgets": [
+        {
+          "title": "Dashboard Groups",
+          "widget_type": "portal_tabular",
+          "reportId": "dashboard.groups.list.tabular",
+          "height": 10,
+          "min_width": 12,
+          "widget_id": "c821f1a3"
         }
       ]
     }
