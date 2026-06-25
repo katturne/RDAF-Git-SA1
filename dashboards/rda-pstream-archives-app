@@ -1,90 +1,134 @@
 {
-  "name": "rda-pstream-archives-app",
-  "label": "{{PSTREAM_NAME}}",
-  "description": "{{PSTREAM_NAME}}",
+  "name": "rda-mgmt-page-store-objects",
+  "label": "Object Store",
+  "description": "Objects Management Page",
   "enabled": true,
-  "dashboard_type": "template",
+  "dashboard_type": "dashboard",
   "dashboard_style": "auto",
-  "template_variables": {
-    "PSTREAM_NAME": {
-      "contextId": "stream"
-    }
-  },
+  "stream": "rda_objects_meta",
+  "dashboard_folder": "System",
   "dashboard_filters": {
     "time_filter": true,
-    "default_time_filter_labels": [
-      "Last 12 months"
+    "additional_datetime_column_filters": [
+      {
+        "id": "saved_time",
+        "label": "Saved Time"
+      }
     ],
-    "app_filter": "stream is '{{PSTREAM_NAME}}'",
     "columns_filter": [
       {
-        "id": "archive_date",
-        "label": "Archive Date",
+        "id": "saved_time",
+        "label": "Dataset Saved",
+        "type": "DATETIME"
+      },
+      {
+        "id": "folder",
+        "label": "Folder",
         "type": "TEXT"
       },
       {
-        "id": "row_count",
-        "label": "Row Count",
+        "id": "name",
+        "label": "Name",
+        "type": "TEXT"
+      },
+      {
+        "id": "file_type",
+        "label": "File Type",
+        "type": "TEXT"
+      },
+      {
+        "id": "file_size",
+        "label": "Raw Size",
+        "type": "DOUBLE"
+      },
+      {
+        "id": "humansized_file_size",
+        "label": "Size",
+        "type": "TEXT"
+      },
+      {
+        "id": "description",
+        "label": "Description",
+        "type": "TEXT"
+      },
+      {
+        "id": "retention_days",
+        "label": "Retention Days",
         "type": "DOUBLE"
       }
     ]
   },
   "dashboard_sections": [
     {
-      "title": "Test time range",
+      "title": "Object Store",
       "show_filter": true,
       "widgets": [
         {
-          "title": "{{PSTREAM_NAME}}  Archives",
+          "title": "Object store",
+          "extra_filter": "folder is not null",
           "widget_type": "tabular",
-          "stream": "rda_system_pstream_archival_metadata",
-          "query": "stream is '{{PSTREAM_NAME}}'",
+          "stream": "rda_objects_meta",
+          "height": 10,
+          "min_wdith": 12,
+          "paginated": true,
+          "remote_searchable": true,
+          "remote_searchable_cols": [
+            "name",
+            "folder",
+            "file_type",
+            "humansized_file_size",
+            "description"
+          ],
+          "duration_hours": 87600,
           "columns": {
-            "stream": {
+            "name": {
               "title": "Name",
+              "key": true
+            },
+            "folder": {
+              "title": "Folder",
+              "key": true
+            },
+            "description": {
+              "title": "Description"
+            },
+            "saved_time": {
+              "title": "Saved Time",
+              "type": "DATETIME"
+            },
+            "file_type": {
+              "title": "File Type",
+              "key": true
+            },
+            "file_size": {
+              "title": "Raw Size"
+            },
+            "humansized_file_size": {
+              "title": "Size"
+            },
+            "data_path": {
+              "title": "File Path",
               "key": true,
               "visible": false
             },
-            "archive_date": {
-              "title": "Archive Date",
-              "key": true
-            },
-            "row_count": {
-              "title": "Row Count",
-              "key": true
-            },
-            "timestamp": {
-              "title": "Saved Time"
-            },
-            "chunk_objects": {
-              "title": "File Path",
+            "retention_days": {
+              "title": "Retention Days",
               "key": true
             }
           },
-          "paginated": true,
-          "height": 10,
-          "min_wdith": 12,
           "sorting": [
             {
-              "archive_date": "desc"
+              "saved_time": "desc"
             }
           ],
           "actions": [
             {
-              "permission": "rda:pstream:download-archive",
-              "title": "Download",
+              "permission": "rda:object:upload",
+              "title": "Upload",
+              "icon": "mdi mdi-plus",
               "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:pstream-download-archive",
-              "actionCondition": {
-                "actionControl": "SHOW_IF",
-                "conditionalField": [
-                  {
-                    "conditionType": "IS_NOT_NULL",
-                    "fieldId": "chunk_objects"
-                  }
-                ]
-              },
+              "selectionType": "NONE",
+              "identifier": "saas-service-action:add-object",
               "api-endpoint": {
                 "service-name": "saas-reports",
                 "methodName": "getForm",
@@ -92,73 +136,142 @@
                 "parse-output": false,
                 "params": [
                   {
-                    "formId": "rda:pstream:download-archive"
+                    "formId": "rda.saas.object.add"
+                  }
+                ]
+              }
+            },
+            {
+              "permission": "rda:object:download",
+              "title": "Download",
+              "type": "POPUP_FORM",
+              "selectionType": "SINGLE",
+              "identifier": "saas-service-action:download-object",
+              "api-endpoint": {
+                "service-name": "saas-reports",
+                "methodName": "getForm",
+                "stringified-params": true,
+                "parse-output": false,
+                "params": [
+                  {
+                    "formId": "rda.saas.object.download"
+                  }
+                ]
+              }
+            },
+            {
+              "permission": "rda:object:delete",
+              "title": "Delete",
+              "type": "POPUP_FORM",
+              "selectionType": "SINGLE",
+              "identifier": "saas-service-action:delete-object",
+              "api-endpoint": {
+                "service-name": "saas-reports",
+                "methodName": "getForm",
+                "stringified-params": true,
+                "parse-output": false,
+                "params": [
+                  {
+                    "formId": "rda.saas.object.delete"
+                  }
+                ]
+              }
+            },
+            {
+              "permission": "rda:object:update_retention",
+              "title": "Update",
+              "type": "POPUP_FORM",
+              "selectionType": "SINGLE",
+              "identifier": "saas-service-action:update-retention-days",
+              "api-endpoint": {
+                "service-name": "saas-reports",
+                "methodName": "getForm",
+                "stringified-params": true,
+                "parse-output": false,
+                "params": [
+                  {
+                    "formId": "rda.saas.object.update_retention"
                   }
                 ]
               }
             }
           ],
-          "widget_id": "748d9f49"
+          "widget_id": "01dc3a55"
         }
       ]
     }
   ],
   "pstream_dashboards": [
     {
-      "title": "Test time range",
+      "title": "Object Store",
       "show_filter": true,
       "widgets": [
         {
-          "title": "{{PSTREAM_NAME}}  Archives",
+          "title": "Object store",
+          "extra_filter": "folder is not null",
           "widget_type": "tabular",
-          "stream": "rda_system_pstream_archival_metadata",
-          "query": "stream is '{{PSTREAM_NAME}}'",
+          "stream": "rda_objects_meta",
+          "height": 10,
+          "min_wdith": 12,
+          "paginated": true,
+          "remote_searchable": true,
+          "remote_searchable_cols": [
+            "name",
+            "folder",
+            "file_type",
+            "humansized_file_size",
+            "description"
+          ],
+          "duration_hours": 87600,
           "columns": {
-            "stream": {
+            "name": {
               "title": "Name",
+              "key": true
+            },
+            "folder": {
+              "title": "Folder",
+              "key": true
+            },
+            "description": {
+              "title": "Description"
+            },
+            "saved_time": {
+              "title": "Saved Time",
+              "type": "DATETIME"
+            },
+            "file_type": {
+              "title": "File Type",
+              "key": true
+            },
+            "file_size": {
+              "title": "Raw Size"
+            },
+            "humansized_file_size": {
+              "title": "Size"
+            },
+            "data_path": {
+              "title": "File Path",
               "key": true,
               "visible": false
             },
-            "archive_date": {
-              "title": "Archive Date",
-              "key": true
-            },
-            "row_count": {
-              "title": "Row Count",
-              "key": true
-            },
-            "timestamp": {
-              "title": "Saved Time"
-            },
-            "chunk_objects": {
-              "title": "File Path",
+            "retention_days": {
+              "title": "Retention Days",
               "key": true
             }
           },
-          "paginated": true,
-          "height": 10,
-          "min_wdith": 12,
           "sorting": [
             {
-              "archive_date": "desc"
+              "saved_time": "desc"
             }
           ],
           "actions": [
             {
-              "permission": "rda:pstream:download-archive",
-              "title": "Download",
+              "permission": "rda:object:upload",
+              "title": "Upload",
+              "icon": "mdi mdi-plus",
               "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:pstream-download-archive",
-              "actionCondition": {
-                "actionControl": "SHOW_IF",
-                "conditionalField": [
-                  {
-                    "conditionType": "IS_NOT_NULL",
-                    "fieldId": "chunk_objects"
-                  }
-                ]
-              },
+              "selectionType": "NONE",
+              "identifier": "saas-service-action:add-object",
               "api-endpoint": {
                 "service-name": "saas-reports",
                 "methodName": "getForm",
@@ -166,13 +279,67 @@
                 "parse-output": false,
                 "params": [
                   {
-                    "formId": "rda:pstream:download-archive"
+                    "formId": "rda.saas.object.add"
+                  }
+                ]
+              }
+            },
+            {
+              "permission": "rda:object:download",
+              "title": "Download",
+              "type": "POPUP_FORM",
+              "selectionType": "SINGLE",
+              "identifier": "saas-service-action:download-object",
+              "api-endpoint": {
+                "service-name": "saas-reports",
+                "methodName": "getForm",
+                "stringified-params": true,
+                "parse-output": false,
+                "params": [
+                  {
+                    "formId": "rda.saas.object.download"
+                  }
+                ]
+              }
+            },
+            {
+              "permission": "rda:object:delete",
+              "title": "Delete",
+              "type": "POPUP_FORM",
+              "selectionType": "SINGLE",
+              "identifier": "saas-service-action:delete-object",
+              "api-endpoint": {
+                "service-name": "saas-reports",
+                "methodName": "getForm",
+                "stringified-params": true,
+                "parse-output": false,
+                "params": [
+                  {
+                    "formId": "rda.saas.object.delete"
+                  }
+                ]
+              }
+            },
+            {
+              "permission": "rda:object:update_retention",
+              "title": "Update",
+              "type": "POPUP_FORM",
+              "selectionType": "SINGLE",
+              "identifier": "saas-service-action:update-retention-days",
+              "api-endpoint": {
+                "service-name": "saas-reports",
+                "methodName": "getForm",
+                "stringified-params": true,
+                "parse-output": false,
+                "params": [
+                  {
+                    "formId": "rda.saas.object.update_retention"
                   }
                 ]
               }
             }
           ],
-          "widget_id": "748d9f49"
+          "widget_id": "01dc3a55"
         }
       ]
     }
