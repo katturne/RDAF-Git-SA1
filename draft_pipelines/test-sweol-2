@@ -1,39 +1,52 @@
-
- ## declaring thrid level child pipelines
 @c:new-block
+ --> @exec:get-input
+ --> @dm:add-missing-columns columns="key" and value='key'
+ --> @dm:save name='temp-sw-data'
+ --> @dm:save name='added-sw-data-1'
+ --> @c:new-block
  --> @dm:empty
- --> @exec:define-function name="define_child_pipelines"
+ --> @exec:define-function name="generate_access_token"
+ --> @dm:recall name='generate_token_creds'
+ ## --> @dm:empty
+
  --> @exec:run-pipeline name ="edc_generate_token" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_sw_get_data" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_sweol_enrich" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_processing_sw_data" & ignore_failures = "no"
+ --> @dm:addrow key='key'
+ --> @dm:eval current_time_ms="int(time_now_as_ms())"
+ --> @dm:eval token_expiry_time='current_time_ms+3000000'
+ --> @dm:save name='temp-expiry-time'
  --> @exec:end-function
  --> @c:new-block
+ --> @dm:recall name='temp-sw-data'
+ --> @dm:add-missing-columns columns="key" and value='key'
+ --> @dm:manipulate-string from="sw_version,sw_os_type" and func="concat_columns" and to="unique_payload_inputs"
+ --> @dm:dedup columns ='unique_payload_inputs'
+ --> @dm:eval id1='uuid()'
+ --> @dm:eval id2='uuid()'
+ --> @dm:eval id2="id2.strip().split('-')[0]"
+ --> @dm:eval id1="id1.replace('-', '')"
+ --> @dm:eval transaction_id ='id1+id2'
+ --> @dm:save name='temp-unique-sw-data'
+ --> @dm:save name='added-sw-data'
+ --> @c:new-block
  --> @dm:empty
- --> @dm:addrow name='edc_oi_inventory_enriched' and limit=0
- --> #dm:query-persistent-stream customer_name=='ATT'
- ## --> @dm:rename-columns product_id='product_id_x'
+ --> @exec:call-function name='generate_access_token'
+ --> @c:data-loop columns='sw_version,sw_os_type,transaction_id' and dataset='temp-unique-sw-data'
+ ## --> @dm:recall name='temp-unique-sw-data'
 
- --> @dm:save name='temp-hw-eol-details'
- --> @c:new-block
- --> @dm:recall name='temp-hw-eol-details'
- --> @dm:to-type columns='contract_number' and type='int'
- --> @dm:to-type columns='product_id' and type='str'
- --> @dm:to-type columns='customer_name' and type='str'
- --> @dm:save name='temp-hw-eol-details'
- --> @dm:save name='eol-details'
- --> @c:new-block
- --> @dm:recall name='test-pa-sec-adv-dedups'
- --> @dm:to-type columns='contract_number' and type='int'
- --> @dm:to-type columns='product_id' and type='str'
- --> @dm:to-type columns='customer' and type='str'
- --> @dm:save name='test-pa-sec-adv-dedups'
- --> @c:new-block
- --> @dm:recall name='test-pa-sec-adv-dedups'
- --> @dm:enrich dict='temp-hw-eol-details' and dict_key_cols='product_id,contract_number,customer_name' and  src_key_cols='product_id,contract_number,customer' and  enrich_cols='gu_name,savm_sales_level_4_name,coverage,covered_line_status,business_entity,business_sub_entity,bk_end_of_life_request_num,bk_eol_bulletin_product_typ_cd,hwEOL_endOfNewServiceAttachmentDate,hwEOL_endOfRoutineFailureAnalysisDate,hwEOL_endOfSoftwareMaintenanceReleasesDate,hwEOL_endOfServiceContractRenewalDate,hwEOL_endOfLifeAnnouncementDate,eol_product_name,item_type,hwEOL_endOfSaleDate,hwEOL_lastDayOfSupportDate,product_description,product_family,product_family_description,product_type,product_list_price,portfolio_desc,usage_code,combination_count,execution_status,total_product_list_price,unique_key,hw_status,hw_expiring_qtr,hw_expiring_year,last_updated_time,product_name,execution_reason,attempt_count,customer_name,sw_status,sw_expiring_qtr,sw_expiring_year,swEOL_lastDayOfSupportDate,swEOL_endOfSoftwareMaintenanceReleasesDate,swEOL_endOfSaleDate,swEOL_bulletinUrl,swEOL_bulletinNumber,swEOL_bulletinTitle,swEOL_softwareEOXId,PostDate,groups_0,source,icType_source,icType_bug,icType_fieldNotice,icType_psirt,icType_ciscoBestPractice,icType_compliance,icType_engineeringFailureAnalysis,icType_eoXAlert,icType_susceptibility,icType_thirdPartyBestPractice,icType_detectionType,icType_remediation_additionalTroubleshootingNeeded,icType_remediation_informOnly,icType_remediation_problemFix,icType_remediation_returnMaterialAuthorization,icType_remediation_workaround,icType_cliCommand,atticaStatus_result,atticaStatus_message,atticaStatus_timestamp,atticaStatus_environment,atticaStatus_alertId,retry_0,associatedGroups_0__id,associatedGroups_0_name,key,sw_version,sw_os_type,transaction_id,sw_status_score,timestamp,count_,_RDA_Id,icType_rmaAvoidance' and replace_values='yes' and how_type='inner'
- --> @dm:save name='enriched-sa-hw-enrich-left'
- --> @dm:selectcolumns include='^(gu_name|savm_sales_level_4_name|coverage|covered_line_status|business_entity|business_sub_entity|bk_end_of_life_request_num|bk_eol_bulletin_product_typ_cd|hwEOL_endOfNewServiceAttachmentDate|hwEOL_endOfRoutineFailureAnalysisDate|hwEOL_endOfSoftwareMaintenanceReleasesDate|hwEOL_endOfServiceContractRenewalDate|hwEOL_endOfLifeAnnouncementDate|eol_product_name|item_type|hwEOL_endOfSaleDate|hwEOL_lastDayOfSupportDate|product_description|product_family|product_family_description|product_type|product_list_price|portfolio_desc|usage_code|combination_count|execution_status|total_product_list_price|unique_key|hw_status|hw_expiring_qtr|hw_expiring_year|last_updated_time|product_name|execution_reason|attempt_count|customer_name|sw_status|sw_expiring_qtr|sw_expiring_year|secAdv_confidence_score|ID|securityAdvisoryId|bulletinTitle|secAdv_securityImpactRating|secAdv_matchConfidence|swEOL_endOfLifeAnnouncementDate|swEOL_endOfVulnerabilitySecuritySupportDate|swEOL_lastDayOfSupportDate|swEOL_endOfSoftwareMaintenanceReleasesDate|swEOL_endOfSaleDate|swEOL_bulletinUrl|swEOL_bulletinNumber|swEOL_bulletinTitle|swEOL_softwareEOXId|PostDate|groups_0|source|icType_source|icType_bug|icType_fieldNotice|icType_psirt|icType_ciscoBestPractice|icType_compliance|icType_engineeringFailureAnalysis|icType_eoXAlert|icType_susceptibility|icType_thirdPartyBestPractice|icType_detectionType|icType_remediation_additionalTroubleshootingNeeded|icType_remediation_informOnly|icType_remediation_problemFix|icType_remediation_returnMaterialAuthorization|icType_remediation_workaround|icType_cliCommand|atticaStatus_result|atticaStatus_message|atticaStatus_timestamp|atticaStatus_environment|atticaStatus_alertId|retry_0|associatedGroups_0__id|associatedGroups_0_name|key|sw_version|sw_os_type|transaction_id|sw_status_score|timestamp|count_|_RDA_Id|icType_rmaAvoidance)$'
- ## --> @rn:write-stream name='edc_oi_inventory_enriched' and direct_to_opensearch='yes'
-
- --> @dm:save name='temp-enriched-sa'
- --> @dm:save name='test-enriched-sa'
+ --> @dm:empty
+ --> @dm:addrow key='key'
+ --> @dm:eval current_time_ms_loop="int(time_now_as_ms())"
+ --> @dm:save name='temp-loop-time'
+ --> @dm:enrich dict='temp-expiry-time' and src_key_cols='key' and dict_key_cols='key' and enrich_cols='token_expiry_time,access_token,expires_in,token_type'
+ --> *exec:if-condition token_expiry_time is null or current_time_ms_loop  is greater than or equal to token_expiry_time
+ --> @exec:call-function name='generate_access_token'
+ --> @exec:end-if
+ --> @dm:add-missing-columns columns='sw_version' and value='$sw_version'
+ --> @dm:add-missing-columns columns='sw_os_type' and value='$sw_os_type'
+ --> @dm:eval sw_os_type="('IOS XR' if sw_os_type=='IOS-XR' else sw_os_type)"
+ --> @dm:add-missing-columns columns='transaction_id' and value='$transaction_id'
+ --> @exec:run-pipeline name ="edc_sw_get_data" & ignore_failures = "no"
+ --> @dm:save name='sweol-data-run-scan'
+ --> @dm:save name='test-sweol' and append='yes'
+ --> @dm:save name='temp-sweol'
+ --> @dm:save name='temp-expiry-time'
