@@ -1,150 +1,294 @@
 {
-  "name": "customer_access_status_failed_devices",
-  "description": "Customer Access Status",
-  "label": "Failed Devices",
-  "context_label_id": "ip_address",
-  "enabled": false,
-  "dashboard_type": "template",
-  "dashboard_folder": "NetworkDevicePack",
-  "template_variables": {
-    "PROJ_ID": {
-      "contextId": "project_id"
-    },
-    "PROJ_ID_SINGLE": {
-      "contextId": "project_id"
-    },
-    "DEVICE_IP": {
-      "contextId": "ip_address"
-    }
-  },
-  "version": "24.9.6.4",
+  "name": "ai-admin-page-personas",
+  "label": "AI Personas",
+  "description": "AI Personas",
+  "enabled": true,
+  "dashboard_type": "dashboard",
+  "dashboard_folder": "AI",
+  "live_edit": true,
+  "dashboard_style": "auto",
+  "stream": "rda_secret_meta",
   "dashboard_filters": {
-    "time_filter": true,
-    "default_time_filter_labels": [
-      "Last 1 month"
-    ],
-    "extra_filter": "source contains 'failed' and ip_address is '{{DEVICE_IP}}'"
+    "time_filter": false
   },
   "dashboard_sections": [
     {
-      "title": "Success",
+      "title": "Personas",
       "show_filter": true,
       "widgets": [
         {
-          "title": "Access Details",
+          "title": "Personas",
           "widget_type": "tabular",
-          "stream": "network_access_verification",
-          "duration_hours": 1080,
-          "showRowSummary": true,
-          "min_width": 12,
-          "height": 6,
-          "max_width": 12,
-          "paginated": true,
+          "stream": "rda_ai_admin_meta",
+          "duration_hours": 87600,
           "remote_searchable": true,
           "remote_searchable_cols": [
-            "ip_address",
-            "protocol",
-            "used_cred",
-            "collection_status"
+            "name"
           ],
-          "max_rows": 50,
+          "ts_column": "saved_time",
+          "paginated": true,
+          "height": 10,
+          "min_wdith": 12,
           "columns": {
-            "ip_address": {
-              "title": "IP Address",
-              "defaultWidth": 150
+            "name": {
+              "title": "Name",
+              "key": true
             },
-            "protocol": {
-              "title": "Protocol",
-              "defaultWidth": 150
+            "description": {
+              "title": "Description",
+              "key": false
             },
-            "used_cred": {
-              "title": "Credential Name",
-              "defaultWidth": 200
+            "llms": {
+              "title": "LLMs",
+              "htmlTemplateForRow": "<span class='badge' style='background-color: {{ row.static_color }}' > {{ row.llms }} </span>"
             },
-            "collection_status": {
-              "title": "Authentication State",
-              "defaultWidth": 150,
-              "htmlTemplateForRow": "{% raw %}<span class='badge' style='background-color: {{ row.collection_status_color}}' > {{ row.collection_status }} </span>{% endraw %}"
+            "guardrails": {
+              "title": "Guardrails",
+              "htmlTemplateForRow": "<span class='badge' style='background-color: {{ row.static_color }}' > {{ row.guardrails }} </span>"
             },
-            "collection_status_color": {
-              "type": "COLOR-MAP",
-              "source-column": "collection_status",
-              "color-map": {
-                "Success": "#008000",
-                "Failed": "#FF0000",
-                "success": "#008000",
-                "failed": "#FF0000"
+            "color": {
+              "title": "Color",
+              "key": true,
+              "type": "DYNAMIC_HTML",
+              "htmlTemplate": "<div class='d-flex'><div style='width:18px;height:18px;margin-right:8px;' :style='{backgroundColor:rowData.color}'></div></div>"
+            },
+            "saved_time": {
+              "title": "Saved Time",
+              "type": "DATETIME"
+            },
+            "timestamp": {
+              "title": "When",
+              "type": "HUMANIZE_TIME_DELTA",
+              "source-column": "saved_time",
+              "sortable": false
+            }
+          },
+          "custom_columns": [
+            {
+              "id": "static_color",
+              "expr": "['#3F51B5']",
+              "visible": false,
+              "hidden": true,
+              "label": "Static Color"
+            }
+          ],
+          "actions": [
+            {
+              "permission": "rda:credential:add",
+              "title": "Add",
+              "icon": "mdi mdi-plus",
+              "type": "POPUP_FORM",
+              "selectionType": "NONE",
+              "identifier": "saas-service-action:personas-add",
+              "api-endpoint": {
+                "service-name": "saas-reports",
+                "methodName": "getForm",
+                "stringified-params": true,
+                "parse-output": false,
+                "params": [
+                  {
+                    "formId": "rda.saas.aipersona.add"
+                  }
+                ]
               }
             },
-            "reason": {
-              "title": "Failure Reason",
-              "defaultWidth": 200
+            {
+              "permission": "rda:credential:edit",
+              "title": "Edit",
+              "type": "POPUP_FORM",
+              "selectionType": "SINGLE",
+              "identifier": "saas-service-action:personas-edit",
+              "api-endpoint": {
+                "service-name": "saas-reports",
+                "methodName": "getForm",
+                "stringified-params": true,
+                "parse-output": false,
+                "params": [
+                  {
+                    "formId": "rda.saas.aipersona.edit"
+                  }
+                ]
+              }
             },
-            "timestamp": "Last Access Check Time"
-          },
-          "widget_id": "4c2cfdd7"
+            {
+              "permission": "rda:credential:verify",
+              "title": "View",
+              "type": "POPUP_FORM",
+              "selectionType": "SINGLE",
+              "identifier": "saas-service-action:vault-persona-view",
+              "api-endpoint": {
+                "service-name": "saas-reports",
+                "methodName": "getForm",
+                "stringified-params": true,
+                "parse-output": false,
+                "params": [
+                  {
+                    "formId": "rda.saas.aipersona.view.json"
+                  }
+                ]
+              }
+            },
+            {
+              "permission": "rda:credential:verify",
+              "title": "Delete",
+              "type": "POPUP_FORM",
+              "selectionType": "SINGLE",
+              "identifier": "saas-service-action:vault-delete",
+              "api-endpoint": {
+                "service-name": "saas-reports",
+                "methodName": "getForm",
+                "stringified-params": true,
+                "parse-output": false,
+                "params": [
+                  {
+                    "formId": "rda.saas.aipersona.delete"
+                  }
+                ]
+              }
+            }
+          ],
+          "widget_id": "c9d555e3"
         }
       ]
     }
   ],
   "pstream_dashboards": [
     {
-      "title": "Success",
+      "title": "Personas",
       "show_filter": true,
       "widgets": [
         {
-          "title": "Access Details",
+          "title": "Personas",
           "widget_type": "tabular",
-          "stream": "network_access_verification",
-          "duration_hours": 1080,
-          "showRowSummary": true,
-          "min_width": 12,
-          "height": 6,
-          "max_width": 12,
-          "paginated": true,
+          "stream": "rda_ai_admin_meta",
+          "duration_hours": 87600,
           "remote_searchable": true,
           "remote_searchable_cols": [
-            "ip_address",
-            "protocol",
-            "used_cred",
-            "collection_status"
+            "name"
           ],
-          "max_rows": 50,
+          "ts_column": "saved_time",
+          "paginated": true,
+          "height": 10,
+          "min_wdith": 12,
           "columns": {
-            "ip_address": {
-              "title": "IP Address",
-              "defaultWidth": 150
+            "name": {
+              "title": "Name",
+              "key": true
             },
-            "protocol": {
-              "title": "Protocol",
-              "defaultWidth": 150
+            "description": {
+              "title": "Description",
+              "key": false
             },
-            "used_cred": {
-              "title": "Credential Name",
-              "defaultWidth": 200
+            "llms": {
+              "title": "LLMs",
+              "htmlTemplateForRow": "<span class='badge' style='background-color: {{ row.static_color }}' > {{ row.llms }} </span>"
             },
-            "collection_status": {
-              "title": "Authentication State",
-              "defaultWidth": 150,
-              "htmlTemplateForRow": "{% raw %}<span class='badge' style='background-color: {{ row.collection_status_color}}' > {{ row.collection_status }} </span>{% endraw %}"
+            "guardrails": {
+              "title": "Guardrails",
+              "htmlTemplateForRow": "<span class='badge' style='background-color: {{ row.static_color }}' > {{ row.guardrails }} </span>"
             },
-            "collection_status_color": {
-              "type": "COLOR-MAP",
-              "source-column": "collection_status",
-              "color-map": {
-                "Success": "#008000",
-                "Failed": "#FF0000",
-                "success": "#008000",
-                "failed": "#FF0000"
+            "color": {
+              "title": "Color",
+              "key": true,
+              "type": "DYNAMIC_HTML",
+              "htmlTemplate": "<div class='d-flex'><div style='width:18px;height:18px;margin-right:8px;' :style='{backgroundColor:rowData.color}'></div></div>"
+            },
+            "saved_time": {
+              "title": "Saved Time",
+              "type": "DATETIME"
+            },
+            "timestamp": {
+              "title": "When",
+              "type": "HUMANIZE_TIME_DELTA",
+              "source-column": "saved_time",
+              "sortable": false
+            }
+          },
+          "custom_columns": [
+            {
+              "id": "static_color",
+              "expr": "['#3F51B5']",
+              "visible": false,
+              "hidden": true,
+              "label": "Static Color"
+            }
+          ],
+          "actions": [
+            {
+              "permission": "rda:credential:add",
+              "title": "Add",
+              "icon": "mdi mdi-plus",
+              "type": "POPUP_FORM",
+              "selectionType": "NONE",
+              "identifier": "saas-service-action:personas-add",
+              "api-endpoint": {
+                "service-name": "saas-reports",
+                "methodName": "getForm",
+                "stringified-params": true,
+                "parse-output": false,
+                "params": [
+                  {
+                    "formId": "rda.saas.aipersona.add"
+                  }
+                ]
               }
             },
-            "reason": {
-              "title": "Failure Reason",
-              "defaultWidth": 200
+            {
+              "permission": "rda:credential:edit",
+              "title": "Edit",
+              "type": "POPUP_FORM",
+              "selectionType": "SINGLE",
+              "identifier": "saas-service-action:personas-edit",
+              "api-endpoint": {
+                "service-name": "saas-reports",
+                "methodName": "getForm",
+                "stringified-params": true,
+                "parse-output": false,
+                "params": [
+                  {
+                    "formId": "rda.saas.aipersona.edit"
+                  }
+                ]
+              }
             },
-            "timestamp": "Last Access Check Time"
-          },
-          "widget_id": "4c2cfdd7"
+            {
+              "permission": "rda:credential:verify",
+              "title": "View",
+              "type": "POPUP_FORM",
+              "selectionType": "SINGLE",
+              "identifier": "saas-service-action:vault-persona-view",
+              "api-endpoint": {
+                "service-name": "saas-reports",
+                "methodName": "getForm",
+                "stringified-params": true,
+                "parse-output": false,
+                "params": [
+                  {
+                    "formId": "rda.saas.aipersona.view.json"
+                  }
+                ]
+              }
+            },
+            {
+              "permission": "rda:credential:verify",
+              "title": "Delete",
+              "type": "POPUP_FORM",
+              "selectionType": "SINGLE",
+              "identifier": "saas-service-action:vault-delete",
+              "api-endpoint": {
+                "service-name": "saas-reports",
+                "methodName": "getForm",
+                "stringified-params": true,
+                "parse-output": false,
+                "params": [
+                  {
+                    "formId": "rda.saas.aipersona.delete"
+                  }
+                ]
+              }
+            }
+          ],
+          "widget_id": "c9d555e3"
         }
       ]
     }
