@@ -1,17 +1,69 @@
-folder: Default
-name: edc_cust_pid_grp
-description: test pipeline
-data_path: pipelines/data/edc_cust_pid_grp/2025-05-7_1/data.json
-usecase: ''
-category: ''
-sources: {}
-artifacts:
-- artifact_type: dataset
-  artifact_name: edc-cusomer_pid_form
-  access: write
-- artifact_type: dataset
-  artifact_name: edc_cust_contract_pid
-  access: write
-version: 2025-05-7_1
-file_type: json
-checksum: 1c24a113
+@c:new-block
+ --> @dm:recall name="edc_customer_names"
+ --> *dm:filter savm_level =="SAVM_SALES_LEVEL_4_NAME"
+ --> @dm:save name='temp-level4-name'
+ --> @c:new-block
+ --> @dm:recall name="edc_customer_names"
+ --> *dm:filter savm_level =="SAVM_SALES_LEVEL_5_NAME"
+ --> @dm:save name='temp-level5-name'
+ --> @c:new-block
+ --> @dm:recall name="edc_customer_names"
+ --> *dm:filter savm_level =="SAVM_SALES_LEVEL_6_NAME"
+ --> @dm:save name='temp-level6-name'
+ --> @c:new-block
+ --> @dm:recall name="edc_pid_ostype_dict"
+ --> @dm:save name='temp-pid-ostype'
+ --> @c:data-loop columns='savm_name,customer' and dataset='temp-level4-name'
+ --> @snowflake:native-query dbname is "CX_DB" and warehouse is "CX_DMP_RPT_WH" and query is "WITH ranked_rows AS ( SELECT GU_NAME, SAVM_SALES_LEVEL_4_NAME, CONTRACT_NUMBER, PRODUCT_NAME, COVERAGE, COVERED_LINE_STATUS, BUSINESS_ENTITY, BUSINESS_SUB_ENTITY, BK_END_OF_LIFE_REQUEST_NUM, BK_EOL_BULLETIN_PRODUCT_TYP_CD, END_OF_NEW_SVC_ATTACHMENT_DT, END_OF_ROUTINE_FAIL_ANLYSYS_DT, END_OF_SOFTWARE_MAINTENANCE_DT, END_OF_SVC_CONTRACT_RNWL_DT, EOL_EXTERNAL_ANNOUNCE_DT, EOL_PRODUCT_NAME, ITEM_TYPE, LAST_DATE_OF_SALE, LAST_DATE_OF_SUPPORT, PRODUCT_DESCRIPTION, PRODUCT_FAMILY, PRODUCT_FAMILY_DESCRIPTION, PRODUCT_TYPE, PRODUCT_LIST_PRICE, PORTFOLIO_DESC, SERIAL_NUMBER, ROW_NUMBER() OVER (PARTITION BY INSTANCE_ID ORDER BY CONTRACT_LINE_END_DATE DESC ) AS row_num  FROM CX_DB.CX_DMP_BR.PV_DMP_ASSET WHERE SAVM_SALES_LEVEL_4_NAME = '$savm_name' AND ASSET_TYPE = 'Hardware') SELECT view1.*, r.DEVICE_OSVERSION_NAME, r.SERVICE_CONTRACT_NUMBER, r.CONTRACT_BILL_TO_ID, r.CX_CUSTOMER_NAME, r.SALES_ORDER_NUMBER, r.DEVICE_LAST_COLLECTEDON_DT, r.TEL_RECORD_TYPE_CD, r.IS_STALE_TELEMTRY_FLAG FROM ranked_rows view1 LEFT JOIN ( SELECT DEVICE_OSVERSION_NAME, DEVICE_LAST_COLLECTEDON_DT, DEVICE_SERIAL_NUMBER, SERVICE_CONTRACT_NUMBER, CONTRACT_BILL_TO_ID, CX_CUSTOMER_NAME, SALES_ORDER_NUMBER, TEL_RECORD_TYPE_CD, IS_STALE_TELEMTRY_FLAG , EDWSF_SOURCE_DELETED_FLAG FROM CX_DB.CX_DMP_EBV.BV_TELMTRY_SERIAL_CUST_INFO) r ON view1.SERIAL_NUMBER = r.DEVICE_SERIAL_NUMBER WHERE SAVM_SALES_LEVEL_4_NAME = '$savm_name' AND row_num = 1 AND DEVICE_OSVERSION_NAME IS NOT NULL AND r.EDWSF_SOURCE_DELETED_FLAG != 'Y';"
+ --> @dm:add-missing-columns columns="execution_status"
+ --> *dm:filter execution_status =="Success"
+ --> @dm:skip-block-if-shape column_count = 3
+ --> @dm:to_type columns = 'product_list_price' & type  = 'int'
+ --> @dm:fixnull columns="product_list_price" and value="0" and apply_for_empty="yes"
+ --> @dm:save name="edc_telemetry"
+ --> @dm:fixnull columns="covered_line_status,coverage" and value="Not Available" and apply_for_empty="yes"
+ ## create column for unique customer
+
+ --> @dm:manipulate-string to="customer_name" and func="eval" and value="'$customer'"
+ --> @dm:enrich dict="temp-pid-ostype" and src_key_cols="product_name" and dict_key_cols="PID" and enrich_cols="device_os_type"
+ --> @dm:eval unique_key = "str(gu_name) + str(serial_number)  + str(contract_number) + str(product_name)"
+ --> @dm:change-time-format columns="end_of_new_svc_attachment_dt,end_of_routine_fail_anlysys_dt,end_of_software_maintenance_dt,end_of_svc_contract_rnwl_dt,eol_external_announce_dt,last_date_of_sale,last_date_of_support" and from_format="datetimestr" and to_format="%Y-%m-%d"
+ ## --> @dm:selectcolumns include="contract_number|product_name|coverage|covered_line_status|business_entity|business_sub_entity	bk_end_of_life_request_num|bk_eol_bulletin_product_typ_cd|end_of_new_svc_attachment_dt"
+
+ --> @rn:write-stream name="edc_telemetry_data" and direct_to_opensearch="yes"
+ ## Process customer names with LEVEL_5
+
+ --> @c:data-loop columns='savm_name,customer' and dataset='temp-level5-name'
+ --> @snowflake:native-query dbname is "CX_DB" and warehouse is "CX_DMP_RPT_WH" and query is "WITH ranked_rows AS ( SELECT GU_NAME, SAVM_SALES_LEVEL_5_NAME, CONTRACT_NUMBER, PRODUCT_NAME, COVERAGE, COVERED_LINE_STATUS, BUSINESS_ENTITY, BUSINESS_SUB_ENTITY, BK_END_OF_LIFE_REQUEST_NUM, BK_EOL_BULLETIN_PRODUCT_TYP_CD, END_OF_NEW_SVC_ATTACHMENT_DT, END_OF_ROUTINE_FAIL_ANLYSYS_DT, END_OF_SOFTWARE_MAINTENANCE_DT, END_OF_SVC_CONTRACT_RNWL_DT, EOL_EXTERNAL_ANNOUNCE_DT, EOL_PRODUCT_NAME, ITEM_TYPE, LAST_DATE_OF_SALE, LAST_DATE_OF_SUPPORT, PRODUCT_DESCRIPTION, PRODUCT_FAMILY, PRODUCT_FAMILY_DESCRIPTION, PRODUCT_TYPE, PRODUCT_LIST_PRICE, PORTFOLIO_DESC, SERIAL_NUMBER, ROW_NUMBER() OVER (PARTITION BY INSTANCE_ID ORDER BY CONTRACT_LINE_END_DATE DESC ) AS row_num  FROM CX_DB.CX_DMP_BR.PV_DMP_ASSET WHERE SAVM_SALES_LEVEL_5_NAME = '$savm_name' AND ASSET_TYPE = 'Hardware') SELECT view1.*, r.DEVICE_OSVERSION_NAME, r.SERVICE_CONTRACT_NUMBER, r.CONTRACT_BILL_TO_ID, r.CX_CUSTOMER_NAME, r.SALES_ORDER_NUMBER, r.DEVICE_LAST_COLLECTEDON_DT, r.TEL_RECORD_TYPE_CD, r.IS_STALE_TELEMTRY_FLAG FROM ranked_rows view1 LEFT JOIN ( SELECT DEVICE_OSVERSION_NAME, DEVICE_LAST_COLLECTEDON_DT, DEVICE_SERIAL_NUMBER, SERVICE_CONTRACT_NUMBER, CONTRACT_BILL_TO_ID, CX_CUSTOMER_NAME, SALES_ORDER_NUMBER, TEL_RECORD_TYPE_CD, IS_STALE_TELEMTRY_FLAG , EDWSF_SOURCE_DELETED_FLAG FROM CX_DB.CX_DMP_EBV.BV_TELMTRY_SERIAL_CUST_INFO) r ON view1.SERIAL_NUMBER = r.DEVICE_SERIAL_NUMBER WHERE SAVM_SALES_LEVEL_5_NAME = '$savm_name' AND row_num = 1 AND DEVICE_OSVERSION_NAME IS NOT NULL AND r.EDWSF_SOURCE_DELETED_FLAG != 'Y';"
+ --> @dm:add-missing-columns columns="execution_status"
+ --> *dm:filter execution_status =="Success"
+ --> @dm:skip-block-if-shape column_count = 3
+ --> @dm:to_type columns = 'product_list_price' & type  = 'int'
+ --> @dm:fixnull columns="product_list_price" and value="0" and apply_for_empty="yes"
+ --> @dm:save name="edc_telemetry"
+ --> @dm:fixnull columns="covered_line_status,coverage" and value="Not Available" and apply_for_empty="yes"
+ ## create column for unique customer
+
+ --> @dm:manipulate-string to="customer_name" and func="eval" and value="'$customer'"
+ --> @dm:enrich dict="temp-pid-ostype" and src_key_cols="product_name" and dict_key_cols="PID" and enrich_cols="device_os_type"
+ --> @dm:eval unique_key = "str(gu_name) + str(serial_number)  + str(contract_number) + str(product_name)"
+ --> @dm:change-time-format columns="end_of_new_svc_attachment_dt,end_of_routine_fail_anlysys_dt,end_of_software_maintenance_dt,end_of_svc_contract_rnwl_dt,eol_external_announce_dt,last_date_of_sale,last_date_of_support" and from_format="datetimestr" and to_format="%Y-%m-%d"
+ --> @rn:write-stream name="edc_telemetry_data" and direct_to_opensearch="yes"
+ ## Process customer names with LEVEL_6
+
+ --> @c:data-loop columns='savm_name,customer' and dataset='temp-level6-name'
+ --> @snowflake:native-query dbname is "CX_DB" and warehouse is "CX_DMP_RPT_WH" and query is "WITH ranked_rows AS ( SELECT GU_NAME, SAVM_SALES_LEVEL_6_NAME, CONTRACT_NUMBER, PRODUCT_NAME, COVERAGE, COVERED_LINE_STATUS, BUSINESS_ENTITY, BUSINESS_SUB_ENTITY, BK_END_OF_LIFE_REQUEST_NUM, BK_EOL_BULLETIN_PRODUCT_TYP_CD, END_OF_NEW_SVC_ATTACHMENT_DT, END_OF_ROUTINE_FAIL_ANLYSYS_DT, END_OF_SOFTWARE_MAINTENANCE_DT, END_OF_SVC_CONTRACT_RNWL_DT, EOL_EXTERNAL_ANNOUNCE_DT, EOL_PRODUCT_NAME, ITEM_TYPE, LAST_DATE_OF_SALE, LAST_DATE_OF_SUPPORT, PRODUCT_DESCRIPTION, PRODUCT_FAMILY, PRODUCT_FAMILY_DESCRIPTION, PRODUCT_TYPE, PRODUCT_LIST_PRICE, PORTFOLIO_DESC, SERIAL_NUMBER, ROW_NUMBER() OVER (PARTITION BY INSTANCE_ID ORDER BY CONTRACT_LINE_END_DATE DESC ) AS row_num  FROM CX_DB.CX_DMP_BR.PV_DMP_ASSET WHERE SAVM_SALES_LEVEL_6_NAME = '$savm_name' AND ASSET_TYPE = 'Hardware') SELECT view1.*, r.DEVICE_OSVERSION_NAME, r.SERVICE_CONTRACT_NUMBER, r.CONTRACT_BILL_TO_ID, r.CX_CUSTOMER_NAME, r.SALES_ORDER_NUMBER, r.DEVICE_LAST_COLLECTEDON_DT, r.TEL_RECORD_TYPE_CD, r.IS_STALE_TELEMTRY_FLAG FROM ranked_rows view1 LEFT JOIN ( SELECT DEVICE_OSVERSION_NAME, DEVICE_LAST_COLLECTEDON_DT, DEVICE_SERIAL_NUMBER, SERVICE_CONTRACT_NUMBER, CONTRACT_BILL_TO_ID, CX_CUSTOMER_NAME, SALES_ORDER_NUMBER, TEL_RECORD_TYPE_CD, IS_STALE_TELEMTRY_FLAG , EDWSF_SOURCE_DELETED_FLAG FROM CX_DB.CX_DMP_EBV.BV_TELMTRY_SERIAL_CUST_INFO) r ON view1.SERIAL_NUMBER = r.DEVICE_SERIAL_NUMBER WHERE SAVM_SALES_LEVEL_6_NAME = '$savm_name' AND row_num = 1 AND DEVICE_OSVERSION_NAME IS NOT NULL AND r.EDWSF_SOURCE_DELETED_FLAG != 'Y';"
+ --> @dm:add-missing-columns columns="execution_status"
+ --> *dm:filter execution_status =="Success"
+ --> @dm:skip-block-if-shape column_count = 3
+ --> @dm:to_type columns = 'product_list_price' & type  = 'int'
+ --> @dm:fixnull columns="product_list_price" and value="0" and apply_for_empty="yes"
+ --> @dm:save name="edc_telemetry"
+ --> @dm:fixnull columns="covered_line_status,coverage" and value="Not Available" and apply_for_empty="yes"
+ ## create column for unique customer
+
+ --> @dm:manipulate-string to="customer_name" and func="eval" and value="'$customer'"
+ --> @dm:enrich dict="temp-pid-ostype" and src_key_cols="product_name" and dict_key_cols="PID" and enrich_cols="device_os_type"
+ --> @dm:eval unique_key = "str(gu_name) + str(serial_number)  + str(contract_number) + str(product_name)"
+ --> @dm:change-time-format columns="end_of_new_svc_attachment_dt,end_of_routine_fail_anlysys_dt,end_of_software_maintenance_dt,end_of_svc_contract_rnwl_dt,eol_external_announce_dt,last_date_of_sale,last_date_of_support" and from_format="datetimestr" and to_format="%Y-%m-%d"
+ --> @rn:write-stream name="edc_telemetry_data" and direct_to_opensearch="yes"
