@@ -1,104 +1,29 @@
-folder: OI
-name: edc_enrich
-description: test pipeline
-data_path: draft-pipelines/data/edc_enrich/2025_06_17_01/data.json
-usecase: Only enrich data
-category: ''
-sources:
-  cfxaia:
-    name: cfxaia
-    type: cfxaia
-  rn:
-    name: rn
-    type: rn
-artifacts:
-- artifact_type: rda-network-stream
-  artifact_name: edc_oi_inventory_enriched
-  access: write
-- artifact_type: pipeline
-  artifact_name: edc_generate_token
-  access: read
-- artifact_type: pipeline
-  artifact_name: edc_sw_get_data
-  access: read
-- artifact_type: pipeline
-  artifact_name: edc_sweol_enrich
-  access: read
-- artifact_type: pipeline
-  artifact_name: edc_processing_sw_data
-  access: read
-- artifact_type: pipeline
-  artifact_name: edc_sweol_enrich
-  access: read
-- artifact_type: pipeline
-  artifact_name: edc_sa_run_scan
-  access: read
-- artifact_type: dataset
-  artifact_name: test-sweol-data
-  access: write
-- artifact_type: pipeline
-  artifact_name: edc_processing_sw_data
-  access: read
-- artifact_type: dataset
-  artifact_name: test-sw-eol-details
-  access: write
-- artifact_type: dataset
-  artifact_name: final-enrich
-  access: write
-- artifact_type: rda-network-stream
-  artifact_name: edc_sweol_data
-  access: write
-- artifact_type: dataset
-  artifact_name: test-sweol-data
-  access: write
-- artifact_type: pipeline
-  artifact_name: edc_processing_sw_data
-  access: read
-- artifact_type: dataset
-  artifact_name: test-sw-eol-details
-  access: write
-- artifact_type: dataset
-  artifact_name: final-enrich
-  access: write
-- artifact_type: rda-network-stream
-  artifact_name: edc_sweol_data
-  access: write
-- artifact_type: dataset
-  artifact_name: uploaded_data
-  access: read
-- artifact_type: dataset
-  artifact_name: generate_token_creds
-  access: read
-- artifact_type: pipeline
-  artifact_name: edc_generate_token
-  access: read
-- artifact_type: dataset
-  artifact_name: unique-sa-data
-  access: write
-- artifact_type: pipeline
-  artifact_name: edc_sw_get_data
-  access: read
-- artifact_type: dataset
-  artifact_name: new-sa-scan-38-1
-  access: write
-- artifact_type: dataset
-  artifact_name: enrich-sa-output-no-explode
-  access: write
-- artifact_type: dataset
-  artifact_name: exploded-sa-output
-  access: write
-- artifact_type: dataset
-  artifact_name: test-sec-adv-details
-  access: write
-- artifact_type: rda-network-stream
-  artifact_name: edc_sec_adv_data_raw
-  access: write
-- artifact_type: dataset
-  artifact_name: final-sa-hw-enrich
-  access: write
-- artifact_type: rda-network-stream
-  artifact_name: edc_sec_adv_data_enriched
-  access: write
-version: '2025_06_17_01'
-file_type: json
-checksum: d0b0cf52
+
+ ## external-to-oia-main
+
+ ## 
+
+ ## A work around is to mention all child and dependent pipelines here.
+@c:new-block
+ --> @dm:empty
+ --> @dm:skip-block-if-shape row_count = 0 & column_count = 0
+ --> @exec:run-pipeline name="oia-incident-status-tracker-stream" & ignore_failures="no"
+ --> @exec:run-pipeline name="snow-to-oia" & ignore_failures="no"
+ --> @c:bookmark-loop bookmark = 'external-to-oia-bkmrk' & initial_value = '-1 minute'
+ --> @dm:empty
+ --> @dm:addrow name="snow_ticket_notifications" & max_rows="1000"
+ ## Query records from Stream
+
+ --> #dm:query-persistent-stream timestamp is after '${bookmark}'
+ --> @dm:skip-block-if-shape row_count = 0 & column_count = 0
+ --> @rn:write-stream compression="auto" & name="debug-external-to-oia-main-1"
+ --> @dm:save_bookmark name = 'external-to-oia-bkmrk' & value_column = 'timestamp' & value_type = 'timestamp' & value_func = 'max'
+ ## Record The Step
+
+ --> @dm:eval pipeline="'external-to-oia-main'" & step="'query-persistent-stream'" & stage="'bookmark ${bookmark}'" & status_comments="''" & status="'SUCCESS'"
+ --> @exec:run-pipeline name="oia-incident-status-tracker-stream" & ignore_failures="yes"
+ ## Load the corresponding Handler
+
+ --> @dm:enrich-using-rule-dict dict='external-to-oia-dict' & enrich_columns='exec_pipeline,runName'
+ --> @dm:check-columns must_contain="exec_pipeline" & action="skip-block"
+ --> @exec:run-pipeline-by-row pipeline_col="exec_pipeline" & pipeline_type="Published"
