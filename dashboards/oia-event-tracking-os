@@ -1,186 +1,226 @@
 {
-  "name": "alert-trail",
-  "label": "Alert Trail",
-  "description": "OIA Alert Trail",
-  "version": "24.10.9",
+  "name": "oia-event-tracking-os",
+  "label": "Open Search Based Events",
+  "description": "Open Search Based OIA Event Tracking",
+  "version": "24.11.11",
   "enabled": true,
-  "exportable": false,
+  "stream": "oia-source-events-stream",
   "dashboard_style": "auto",
+  "status_poller": {},
   "dashboard_type": "template",
   "template_variables": {
     "PROJECT_ID": {
-      "default": null,
-      "contextId": "projectid"
-    },
-    "INCIDENT_ID": {
-      "default": null,
-      "contextId": "incidentid"
-    },
-    "EVENT_ID": {
-      "default": null,
-      "contextId": "a_event_id"
-    },
-    "SOURCE_DASHBOARD_ID": {
-      "default": "user-dashboard-incident-details-alerts",
-      "contextId": "sourceDashboardId"
-    },
-    "ALERT_ID": {
-      "default": null,
-      "contextId": "processedeventid"
-    },
-    "ALERT_KEY": {
-      "default": null,
-      "contextId": "eventkey"
+      "default": [
+        "61ed50a5-8634-4464-a17e-adf6b40225b2"
+      ],
+      "contextId": "projectId"
     }
-  },
-  "custom_context": {
-    "alert-context": true
   },
   "dashboard_filters": {
-    "time_filter": false,
-    "default_time_filter_non_removable": false,
-    "show_default_time_filter": false
+    "default_time_filter_labels": [
+      "Last 24 hours"
+    ],
+    "time_filter": true,
+    "default_time_filter_non_removable": true,
+    "show_default_time_filter": false,
+    "additional_datetime_column_filters": [
+      {
+        "id": "se_createdat",
+        "label": "Created At"
+      },
+      {
+        "id": "se_updatedat",
+        "label": "Updated At"
+      }
+    ],
+    "columns_filter": [
+      {
+        "id": "se_customerid",
+        "label": "Customer ID",
+        "type": "TEXT"
+      },
+      {
+        "id": "se_status",
+        "label": "Status",
+        "type": "TEXT"
+      },
+      {
+        "id": "se_sourcesystemname",
+        "label": "Source",
+        "type": "TEXT"
+      },
+      {
+        "id": "se_message",
+        "label": "Message",
+        "type": "TEXT"
+      },
+      {
+        "id": "se_projectid",
+        "label": "Organizations",
+        "type": "TEXT"
+      },
+      {
+        "id": "se_sourcereceivedat",
+        "label": "Received At",
+        "type": "DATETIME"
+      },
+      {
+        "id": "se_id",
+        "label": "Source Event Id",
+        "type": "TEXT"
+      },
+      {
+        "id": "se_numberofevents",
+        "label": "No. of events",
+        "type": "DOUBLE"
+      }
+    ],
+    "extra_filter": "se_projectid in {{PROJECT_ID}}",
+    "group_filters": [
+      {
+        "stream": "oia-source-events-stream",
+        "title": "Events By Source",
+        "group_by": [
+          "se_sourcesystemname"
+        ],
+        "ts_column": "se_updatedat",
+        "agg": "value_count",
+        "column": "se_id",
+        "type": "str"
+      },
+      {
+        "stream": "oia-source-events-stream",
+        "title": "Events By Status",
+        "group_by": [
+          "se_status"
+        ],
+        "ts_column": "se_updatedat",
+        "agg": "value_count",
+        "column": "se_id",
+        "type": "str"
+      },
+      {
+        "stream": "oia-source-events-stream",
+        "title": "Organizations",
+        "group_by": [
+          "project_id"
+        ],
+        "ts_column": "se_updatedat",
+        "agg": "value_count",
+        "column": "se_projectid",
+        "type": "str"
+      }
+    ]
   },
-  "import": [
-    {
-      "from": "oia-alerts-os",
-      "as": "alerts"
-    }
-  ],
   "dashboard_sections": [
     {
-      "title": "Alert Trail",
+      "title": "Events",
       "show_filter": true,
+      "projects": [
+        "ACME"
+      ],
       "widgets": [
         {
-          "title": "Alert Trail",
+          "title": "Events",
           "widget_type": "tabular",
-          "stream": "oia-event-trail-stream",
-          "reportId": "com.cfx.alert.trail",
-          "ts_column": "et_createdat",
-          "extra_filter": "et_eventid is '{{EVENT_ID}}'",
+          "stream": "oia-source-events-stream",
+          "ts_column": "se_updatedat",
+          "timebased": false,
           "min_width": 12,
-          "height": 4,
+          "height": 12,
           "max_width": 12,
           "paginated": true,
           "resizableColumns": false,
+          "refreshRequired": true,
           "remote_searchable": true,
           "remote_searchable_cols": [
-            "et_eventstate",
-            "et_status",
-            "et_message"
+            "se_sourcesystemname",
+            "se_status",
+            "se_message",
+            "se_projectid",
+            "se_id"
           ],
-          "refreshRequired": true,
-          "timebased": false,
           "max_rows": 50,
           "columns": {
-            "et_eventstate": {
-              "title": "Processing State",
-              "visible": true,
+            "se_id": {
+              "title": "Source Event ID",
+              "visible": false,
+              "key": true,
               "defaultWidth": 150
             },
-            "et_status": {
-              "title": "Status",
-              "visible": true,
+            "view_details_action_id": {
+              "title": "id",
+              "value": "user-dashboard-oia-event-tracking-view-alerts",
+              "key": true,
+              "type": "FIXED_VALUE",
+              "hidden": true,
+              "visible": false
+            },
+            "se_projectid": {
+              "title": "project Id",
+              "visible": false,
+              "key": true,
               "defaultWidth": 150
             },
-            "et_message": {
-              "title": "Message",
-              "visible": true,
-              "defaultWidth": 150
-            },
-            "et_createdat": {
-              "title": "Created At",
-              "type": "DATETIME",
-              "visible": true,
-              "defaultWidth": 150
-            }
-          },
-          "widget_id": "6dfc1c0d"
-        },
-        {
-          "title": "Source Event List",
-          "widget_type": "tabular",
-          "stream": "oia-events-stream",
-          "ts_column": "e_updatedat",
-          "extra_filter": "e_processedeventid is '{{ALERT_ID}}' and e_eventkey is '{{ALERT_KEY}}'",
-          "min_width": 12,
-          "height": 8,
-          "max_width": 12,
-          "paginated": true,
-          "resizableColumns": false,
-          "remote_searchable": true,
-          "remote_searchable_cols": [
-            "e_sourceeventid",
-            "e_id",
-            "e_processedeventid",
-            "e_eventkey",
-            "e_triggeredevent"
-          ],
-          "refreshRequired": true,
-          "timebased": false,
-          "max_rows": 50,
-          "sorting": [
-            {
-              "e_createdat": "desc"
-            }
-          ],
-          "columns": {
-            "e_sourceeventid": {
-              "title": "Source Event Id",
-              "visible": true,
-              "defaultWidth": 150
-            },
-            "e_id": {
-              "title": "Event Id",
-              "visible": true,
-              "defaultWidth": 150
-            },
-            "e_eventkey": {
-              "title": "Alert Key",
-              "visible": true,
-              "defaultWidth": 150
-            },
-            "e_processedeventid": {
-              "title": "Alert Id",
-              "visible": true,
-              "defaultWidth": 150
-            },
-            "e_triggeredevent": {
-              "title": "Event Type",
-              "visible": true,
-              "defaultWidth": 150
-            },
-            "e_sourcereceivedat": {
+            "se_sourcereceivedat": {
               "title": "Received At",
               "type": "DATETIME",
-              "visible": true,
               "defaultWidth": 150
             },
-            "e_createdat": {
+            "se_sourcesystemname": {
+              "title": "Source",
+              "defaultWidth": 150
+            },
+            "se_status": {
+              "title": "Status",
+              "defaultWidth": 150
+            },
+            "se_numberofevents": {
+              "title": "No of Events",
+              "defaultWidth": 150
+            },
+            "se_message": {
+              "title": "Message",
+              "defaultWidth": 270
+            },
+            "se_createdat": {
               "title": "Created At",
               "type": "DATETIME",
-              "visible": true,
-              "defaultWidth": 150
+              "defaultWidth": 180
+            },
+            "se_updatedat": {
+              "title": "Updated At",
+              "type": "DATETIME",
+              "defaultWidth": 180
             }
           },
           "actions": [
             {
-              "permission": "oia:event-tracking:alerts",
-              "title": "View Alert",
+              "title": "View Alerts",
               "type": "GO_TO_APP_STATE",
-              "stateName": "app.featureapp",
-              "appName": "user-dashboard/oia-event-tracking-view-alerts",
               "selectionType": "SINGLE",
-              "drillDownLinkField": "e_sourceeventid",
-              "drillDownContext": "e_sourceeventid",
-              "destinationContext": "e_sourceeventid",
-              "displayLabelColumnId": "e_sourceeventid",
+              "permission": "oia:event-tracking:view",
+              "identifier": "ingestion-tracker:View Alerts_GREATER_THAN_0",
+              "stateName": "app.featureapp",
+              "appName": "user-dashboard",
+              "drillDownLinkField": "se_sourcereceivedat",
+              "drillDownContext": "id",
+              "displayLabelColumnId": "se_sourcereceivedat",
               "contextParamList": {
                 "contextParams": [
                   {
-                    "paramId": "se_id",
-                    "paramKey": "e_sourceeventid"
+                    "paramKey": "view_details_action_id",
+                    "paramId": "id"
+                  }
+                ]
+              },
+              "actionCondition": {
+                "actionControl": "SHOW_IF",
+                "conditionalField": [
+                  {
+                    "conditionType": "GREATER_THAN",
+                    "conditionValue": "0",
+                    "fieldId": "se_numberofevents"
                   }
                 ]
               }
@@ -191,14 +231,6 @@
               "selectionType": "SINGLE",
               "permission": "oia:event-tracking:downloadSourcePayload",
               "identifier": "ingestion-tracker:com.cfx.form.view.sourceevent.payload",
-              "contextParamList": {
-                "contextParams": [
-                  {
-                    "paramId": "se_id",
-                    "paramKey": "e_sourceeventid"
-                  }
-                ]
-              },
               "api-endpoint": {
                 "service-name": "ingestion-tracker",
                 "namespace": "io.cfx.dimensions.app",
@@ -220,14 +252,6 @@
               "selectionType": "SINGLE",
               "permission": "oia:event-tracking:downloadSourcePayload",
               "identifier": "ingestion-tracker:com.cfx.form.download.sourceevent.payload",
-              "contextParamList": {
-                "contextParams": [
-                  {
-                    "paramId": "se_id",
-                    "paramKey": "e_sourceeventid"
-                  }
-                ]
-              },
               "api-endpoint": {
                 "service-name": "ingestion-tracker",
                 "namespace": "io.cfx.dimensions.app",
@@ -244,145 +268,200 @@
               }
             }
           ],
-          "widget_id": "5db15394"
+          "widget_id": "94a3fc11"
+        }
+      ]
+    },
+    {
+      "title": "Event Tracking Analytics",
+      "show_filter": true,
+      "projects": [
+        "ACME"
+      ],
+      "widgets": [
+        {
+          "title": "Total Events",
+          "widget_type": "counter",
+          "stream": "oia-source-events-stream",
+          "ts_column": "se_updatedat",
+          "column": "se_id",
+          "agg": "value_count",
+          "min_width": 12,
+          "height": 2.6,
+          "max_width": 12,
+          "type": "str",
+          "widget_id": "d226be94"
+        },
+        {
+          "title": "Hourly events by source",
+          "widget_type": "timeseries",
+          "stream": "oia-source-events-stream",
+          "ts_column": "se_updatedat",
+          "max_width": 12,
+          "height": 4,
+          "min_width": 12,
+          "chartProperties": {
+            "yAxisLabel": "Count",
+            "xAxisLabel": "Hourly Alerts",
+            "legendLocation": "top"
+          },
+          "interval": "60Min",
+          "group_by": [
+            "se_sourcesystemname"
+          ],
+          "series_spec": [
+            {
+              "column": "se_id",
+              "agg": "value_count",
+              "type": "int"
+            }
+          ],
+          "widget_id": "c116cc1d"
+        },
+        {
+          "widget_type": "pie_chart",
+          "title": "Events by Source",
+          "stream": "oia-source-events-stream",
+          "ts_column": "se_updatedat",
+          "min_width": 6,
+          "height": 4,
+          "max_width": 6,
+          "column": "se_id",
+          "agg": "value_count",
+          "group_by": [
+            "se_sourcesystemname"
+          ],
+          "type": "str",
+          "widget_id": "6db87cde"
+        },
+        {
+          "widget_type": "pie_chart",
+          "title": "Events by Status",
+          "stream": "oia-source-events-stream",
+          "ts_column": "se_updatedat",
+          "min_width": 6,
+          "height": 4,
+          "max_width": 6,
+          "column": "se_id",
+          "agg": "value_count",
+          "group_by": [
+            "se_status"
+          ],
+          "type": "str",
+          "widget_id": "83786f14"
         }
       ]
     }
   ],
   "pstream_dashboards": [
     {
-      "title": "Alert Trail",
+      "title": "Events",
       "show_filter": true,
+      "projects": [
+        "ACME"
+      ],
       "widgets": [
         {
-          "title": "Alert Trail",
+          "title": "Events",
           "widget_type": "tabular",
-          "stream": "oia-event-trail-stream",
-          "reportId": "com.cfx.alert.trail",
-          "ts_column": "et_createdat",
-          "extra_filter": "et_eventid is '{{EVENT_ID}}'",
+          "stream": "oia-source-events-stream",
+          "ts_column": "se_updatedat",
+          "timebased": false,
           "min_width": 12,
-          "height": 4,
+          "height": 12,
           "max_width": 12,
           "paginated": true,
           "resizableColumns": false,
+          "refreshRequired": true,
           "remote_searchable": true,
           "remote_searchable_cols": [
-            "et_eventstate",
-            "et_status",
-            "et_message"
+            "se_sourcesystemname",
+            "se_status",
+            "se_message",
+            "se_projectid",
+            "se_id"
           ],
-          "refreshRequired": true,
-          "timebased": false,
           "max_rows": 50,
           "columns": {
-            "et_eventstate": {
-              "title": "Processing State",
-              "visible": true,
+            "se_id": {
+              "title": "Source Event ID",
+              "visible": false,
+              "key": true,
               "defaultWidth": 150
             },
-            "et_status": {
-              "title": "Status",
-              "visible": true,
+            "view_details_action_id": {
+              "title": "id",
+              "value": "user-dashboard-oia-event-tracking-view-alerts",
+              "key": true,
+              "type": "FIXED_VALUE",
+              "hidden": true,
+              "visible": false
+            },
+            "se_projectid": {
+              "title": "project Id",
+              "visible": false,
+              "key": true,
               "defaultWidth": 150
             },
-            "et_message": {
-              "title": "Message",
-              "visible": true,
-              "defaultWidth": 150
-            },
-            "et_createdat": {
-              "title": "Created At",
-              "type": "DATETIME",
-              "visible": true,
-              "defaultWidth": 150
-            }
-          },
-          "widget_id": "6dfc1c0d"
-        },
-        {
-          "title": "Source Event List",
-          "widget_type": "tabular",
-          "stream": "oia-events-stream",
-          "ts_column": "e_updatedat",
-          "extra_filter": "e_processedeventid is '{{ALERT_ID}}' and e_eventkey is '{{ALERT_KEY}}'",
-          "min_width": 12,
-          "height": 8,
-          "max_width": 12,
-          "paginated": true,
-          "resizableColumns": false,
-          "remote_searchable": true,
-          "remote_searchable_cols": [
-            "e_sourceeventid",
-            "e_id",
-            "e_processedeventid",
-            "e_eventkey",
-            "e_triggeredevent"
-          ],
-          "refreshRequired": true,
-          "timebased": false,
-          "max_rows": 50,
-          "sorting": [
-            {
-              "e_createdat": "desc"
-            }
-          ],
-          "columns": {
-            "e_sourceeventid": {
-              "title": "Source Event Id",
-              "visible": true,
-              "defaultWidth": 150
-            },
-            "e_id": {
-              "title": "Event Id",
-              "visible": true,
-              "defaultWidth": 150
-            },
-            "e_eventkey": {
-              "title": "Alert Key",
-              "visible": true,
-              "defaultWidth": 150
-            },
-            "e_processedeventid": {
-              "title": "Alert Id",
-              "visible": true,
-              "defaultWidth": 150
-            },
-            "e_triggeredevent": {
-              "title": "Event Type",
-              "visible": true,
-              "defaultWidth": 150
-            },
-            "e_sourcereceivedat": {
+            "se_sourcereceivedat": {
               "title": "Received At",
               "type": "DATETIME",
-              "visible": true,
               "defaultWidth": 150
             },
-            "e_createdat": {
+            "se_sourcesystemname": {
+              "title": "Source",
+              "defaultWidth": 150
+            },
+            "se_status": {
+              "title": "Status",
+              "defaultWidth": 150
+            },
+            "se_numberofevents": {
+              "title": "No of Events",
+              "defaultWidth": 150
+            },
+            "se_message": {
+              "title": "Message",
+              "defaultWidth": 270
+            },
+            "se_createdat": {
               "title": "Created At",
               "type": "DATETIME",
-              "visible": true,
-              "defaultWidth": 150
+              "defaultWidth": 180
+            },
+            "se_updatedat": {
+              "title": "Updated At",
+              "type": "DATETIME",
+              "defaultWidth": 180
             }
           },
           "actions": [
             {
-              "permission": "oia:event-tracking:alerts",
-              "title": "View Alert",
+              "title": "View Alerts",
               "type": "GO_TO_APP_STATE",
-              "stateName": "app.featureapp",
-              "appName": "user-dashboard/oia-event-tracking-view-alerts",
               "selectionType": "SINGLE",
-              "drillDownLinkField": "e_sourceeventid",
-              "drillDownContext": "e_sourceeventid",
-              "destinationContext": "e_sourceeventid",
-              "displayLabelColumnId": "e_sourceeventid",
+              "permission": "oia:event-tracking:view",
+              "identifier": "ingestion-tracker:View Alerts_GREATER_THAN_0",
+              "stateName": "app.featureapp",
+              "appName": "user-dashboard",
+              "drillDownLinkField": "se_sourcereceivedat",
+              "drillDownContext": "id",
+              "displayLabelColumnId": "se_sourcereceivedat",
               "contextParamList": {
                 "contextParams": [
                   {
-                    "paramId": "se_id",
-                    "paramKey": "e_sourceeventid"
+                    "paramKey": "view_details_action_id",
+                    "paramId": "id"
+                  }
+                ]
+              },
+              "actionCondition": {
+                "actionControl": "SHOW_IF",
+                "conditionalField": [
+                  {
+                    "conditionType": "GREATER_THAN",
+                    "conditionValue": "0",
+                    "fieldId": "se_numberofevents"
                   }
                 ]
               }
@@ -393,14 +472,6 @@
               "selectionType": "SINGLE",
               "permission": "oia:event-tracking:downloadSourcePayload",
               "identifier": "ingestion-tracker:com.cfx.form.view.sourceevent.payload",
-              "contextParamList": {
-                "contextParams": [
-                  {
-                    "paramId": "se_id",
-                    "paramKey": "e_sourceeventid"
-                  }
-                ]
-              },
               "api-endpoint": {
                 "service-name": "ingestion-tracker",
                 "namespace": "io.cfx.dimensions.app",
@@ -422,14 +493,6 @@
               "selectionType": "SINGLE",
               "permission": "oia:event-tracking:downloadSourcePayload",
               "identifier": "ingestion-tracker:com.cfx.form.download.sourceevent.payload",
-              "contextParamList": {
-                "contextParams": [
-                  {
-                    "paramId": "se_id",
-                    "paramKey": "e_sourceeventid"
-                  }
-                ]
-              },
               "api-endpoint": {
                 "service-name": "ingestion-tracker",
                 "namespace": "io.cfx.dimensions.app",
@@ -446,7 +509,87 @@
               }
             }
           ],
-          "widget_id": "5db15394"
+          "widget_id": "94a3fc11"
+        }
+      ]
+    },
+    {
+      "title": "Event Tracking Analytics",
+      "show_filter": true,
+      "projects": [
+        "ACME"
+      ],
+      "widgets": [
+        {
+          "title": "Total Events",
+          "widget_type": "counter",
+          "stream": "oia-source-events-stream",
+          "ts_column": "se_updatedat",
+          "column": "se_id",
+          "agg": "value_count",
+          "min_width": 12,
+          "height": 2.6,
+          "max_width": 12,
+          "type": "str",
+          "widget_id": "d226be94"
+        },
+        {
+          "title": "Hourly events by source",
+          "widget_type": "timeseries",
+          "stream": "oia-source-events-stream",
+          "ts_column": "se_updatedat",
+          "max_width": 12,
+          "height": 4,
+          "min_width": 12,
+          "chartProperties": {
+            "yAxisLabel": "Count",
+            "xAxisLabel": "Hourly Alerts",
+            "legendLocation": "top"
+          },
+          "interval": "60Min",
+          "group_by": [
+            "se_sourcesystemname"
+          ],
+          "series_spec": [
+            {
+              "column": "se_id",
+              "agg": "value_count",
+              "type": "int"
+            }
+          ],
+          "widget_id": "c116cc1d"
+        },
+        {
+          "widget_type": "pie_chart",
+          "title": "Events by Source",
+          "stream": "oia-source-events-stream",
+          "ts_column": "se_updatedat",
+          "min_width": 6,
+          "height": 4,
+          "max_width": 6,
+          "column": "se_id",
+          "agg": "value_count",
+          "group_by": [
+            "se_sourcesystemname"
+          ],
+          "type": "str",
+          "widget_id": "6db87cde"
+        },
+        {
+          "widget_type": "pie_chart",
+          "title": "Events by Status",
+          "stream": "oia-source-events-stream",
+          "ts_column": "se_updatedat",
+          "min_width": 6,
+          "height": 4,
+          "max_width": 6,
+          "column": "se_id",
+          "agg": "value_count",
+          "group_by": [
+            "se_status"
+          ],
+          "type": "str",
+          "widget_id": "83786f14"
         }
       ]
     }
