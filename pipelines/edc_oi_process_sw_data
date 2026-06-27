@@ -1,257 +1,135 @@
-@c:new-block
- --> @agent:cfx-edgecollector:ec-group-01:createJob jobName = "cisco_ios_devices1" &
-seed_addresses = "9.3.252.91,9.3.252.92,9.3.252.93,9.3.252.94,9.3.252.38,9.3.252.32,9.3.252.35,9.3.252.36,9.3.252.37,9.3.252.31,9.3.252.33,9.3.252.34" &
-cli_access = true &
-extended_inventory = true &
-credentials ="cml-snmp,cml-ssh1,cml-ssh2,cml-ssh3"
- --> @agent:cfx-edgecollector:ec-group-01:updateJob jobName = "cisco_ios_devices1" & seed_addresses = "9.3.252.91,9.3.252.92,9.3.252.93,9.3.252.94,9.3.252.38,9.3.252.32,9.3.252.35,9.3.252.36,9.3.252.37,9.3.252.31,9.3.252.33,9.3.252.34"
- --> @c:new-block
- --> @agent:cfx-edgecollector:ec-group-01:runDiscovery jobName = "cisco_ios_devices1"
- --> @dm:save name = "temp-discovery-results"
- --> @c:data-loop dataset = "temp-discovery-results" and columns="Minio_location"
- --> @dm:recall name = "temp-discovery-results"
- --> @files:ec-get-discovery-results minio_file_location = "$Minio_location" & json_path = "base.data,system.data,entityPhysical.data,interfaces.data,entAliasMappingTable.data,cdpGlobal.data,ipAddrTable.data,cdpCache.data,cli_show_ether_channel_summary.data,management-target"
- --> @dm:save name="temp-df"
- --> @c:simple-loop loop_var="base.data,system.data,entityPhysical.data,interfaces.data,entAliasMappingTable.data,cdpGlobal.data,ipAddrTable.data,cdpCache.data,cli_show_ether_channel_summary.data,management-target"
- --> @dm:set-tracing-context __block__="$loop_var"
- --> @dm:recall name="temp-df"
- --> @dm:selectcolumns include="$loop_var|target"
- --> @dm:rename-columns data="$loop_var"
- --> @dm:add-missing-columns columns="data"
- --> *dm:filter data is not null
- --> @dm:eval-multi-proc data ="data.replace('[[','[') if str(data).startswith('[[') else data" and _max_procs=4
- --> @dm:eval-multi-proc data ="data.replace(']]',']') if str(data).endswith(']]') else data" and _max_procs=4
- --> @dm:explode-json column='data'
- --> @dm:save name="temp-Group-$loop_var"
- ## temp-ifindex-entPhysicalIndex DATASET: Create 'ifIndex' & 'entPhysicalIndex' mapping columns by reading entAliasMappingTable group
+@exec:get-input
+ --> @dm:save name='temp-sweol-data'
+ ## --> @dm:save name='test1-sweol-data'
 
- --> @c:new-block
- --> @dm:set-tracing-context __block__="entity-alias-mapping"
- --> @dm:recall name="temp-Group-entAliasMappingTable.data"
- --> @dm:skip-block-if-shape row_count='0'
- --> @dm:skip-block-if-shape column_count=1
- --> @dm:add-missing-columns columns="if_index,entPhysicalIndex"
- --> @dm:eval-multi-proc if_index=" entAliasMappingIdentifier[entAliasMappingIdentifier.rfind('.') + 1: len(entAliasMappingIdentifier)] if entAliasMappingIdentifier else None" and _max_procs=4
- --> *dm:filter if_index is not None
- --> @dm:selectcolumns include="target|if_index|entPhysicalIndex"
- --> @dm:to-type columns="entPhysicalIndex" and type="int"
- --> @dm:to-type columns="if_index" and type="int"
- --> @dm:save name="temp-ifindex-entPhysicalIndex"
- --> @c:new-block
- --> @dm:recall name="temp-Group-entityPhysical.data"
- --> @dm:skip-block-if-shape row_count='0'
- --> @dm:skip-block-if-shape column_count=1
- --> *dm:filter entPhysicalClassEnumeratedLabel in ["Port","port","PORT"]
- --> @dm:to-type columns="entPhysicalIndex" and type="int"
- --> @dm:enrich dict="temp-ifindex-entPhysicalIndex" and src_key_cols="target,entPhysicalIndex" and dict_key_cols="target,entPhysicalIndex" and enrich_cols="if_index"
- --> @dm:to-type columns="if_index" and type="int"
- --> @dm:save name="temp-entityPhysical_logical_data"
- ## Read interfaces data
+ --> @dm:add-missing-columns columns="customer,contract_number,product_id,sw_os_type,sw_version,Unique_id,ingestion_id,transaction_id,timestamp,count_,_RDA_Id,SoftwareEOXId,BulletinNumber,BulletinHeadline,BulletinURL,EndOfSaleDate,EndOfEngineeringDate,EndOfLifeDate,PostDate,EndOfLifeInternalAnnouncementDate,EndOfLifeExternalAnnouncementDate,EndOfLastHardwareShipDate,EndOfHardwareNewServiceAttachmentDate,EndOfHardwareRoutineFailureAnalysisDate,EndOfBUEngineeringSupportTACDate,EndOfHardwareServiceContractRenewalDate,EndOfSignatureReleasesDate,EndOfSoftwareAvailabilityDate,EndOfSoftwareLicenseAvailabilityDate,EndOfSoftwareVulnerabilityOrSecuritySupportDate,_id,created,customerVisible,external_text,external_title,firstIcAlertId,groups,icIssueId,icProblemId,ignored,lastIcAlertId,eoXAlertType,name,openedOn"
+ ## adding not available to null values and creating a unique key
 
- --> @c:new-block
- --> @dm:recall name="temp-Group-interfaces.data"
- --> @dm:skip-block-if-shape row_count='0'
- --> @dm:skip-block-if-shape column_count=1
- --> @dm:to-type columns="ifIndex" and type="int"
- --> @dm:enrich dict="temp-entityPhysical_logical_data" and src_key_cols="target,ifIndex" and dict_key_cols="target,if_index" and enrich_cols="entPhysicalDescr,entPhysicalContainedIn,entPhysicalClass,entPhysicalName,entPhysicalSoftwareRev,entPhysicalSerialNum,entPhysicalModelName,entPhysicalVendorName,entPhysicalClassEnumeratedLabel,entPhysicalAlias,entPhysicalIndex"
- --> @dm:to-type columns="ifIndex" and type="int"
- --> @dm:to-type columns="entPhysicalIndex" and type="int"
- --> @dm:eval type="'PORT_CHANNEL' if ifDescr and ifDescr.startswith('Port-channel') else 'PHYSICAL_PORT' if entPhysicalIndex else 'LOGICAL_PORT'"
- --> @dm:save name="temp-interface"
- ## Read cdp data
+ --> @dm:fixnull columns="customer,contract_number,product_id,sw_os_type,sw_version,Unique_id,ingestion_id,transaction_id,timestamp,count_,_RDA_Id,SoftwareEOXId,BulletinNumber,BulletinHeadline,BulletinURL,EndOfSaleDate,EndOfEngineeringDate,EndOfLifeDate,PostDate,EndOfLifeInternalAnnouncementDate,EndOfLifeExternalAnnouncementDate,EndOfLastHardwareShipDate,EndOfHardwareNewServiceAttachmentDate,EndOfHardwareRoutineFailureAnalysisDate,EndOfBUEngineeringSupportTACDate,EndOfHardwareServiceContractRenewalDate,EndOfSignatureReleasesDate,EndOfSoftwareAvailabilityDate,EndOfSoftwareLicenseAvailabilityDate,EndOfSoftwareVulnerabilityOrSecuritySupportDate,_id,created,customerVisible,external_text,external_title,firstIcAlertId,groups,icIssueId,icProblemId,ignored,lastIcAlertId,eoXAlertType,name,openedOn" and value="Not Available"  and apply_for_empty="yes"
+ ## --> @dm:manipulate-string from="gu_name,__uuid" and func="concat_columns" and to="unique_gu_name" and value="_"
 
- --> @c:new-block
- --> @dm:set-tracing-context __block__="parse-cdp-cache"
- --> @dm:recall name="temp-Group-cdpCache.data"
- --> @dm:add-missing-columns columns="data"
- --> *dm:filter data is not "[]"
- --> @dm:skip-block-if-shape row_count='0'
- --> @dm:skip-block-if-shape column_count=1
- --> @dm:to-type columns = 'cdpCacheIfIndex' & type = 'int'
- --> @dm:save name="temp-cdp"
- ## Enrich interface with cdp data
+ --> @dm:save name='temp-sw-eol-details'
+ ## ldos dataset for creating hw_status and sw_status
 
- --> @c:new-block
- --> @dm:recall name="temp-interface"
- --> @dm:enrich dict="temp-cdp" and dict_key_cols="target,cdpCacheIfIndex" and src_key_cols="target,ifIndex" and enrich_cols="cdpCacheAddress,cdpCacheDevicePort,cdpCacheDeviceId,cdpCachePlatform,cdpCacheCapabilitiesEnumeratedLabel"
- --> @dm:to-type columns="cdpCacheIfIndex" and type="int"
- --> @dm:to-type columns="ifIndex" and type="int"
- --> @dm:save name="temp-interface"
- ## Port Chassis SN
+ --> @dm:addrow key="dummy"
+ --> @dm:eval-multi-proc today='int(time_now_as_ms())' and _max_procs=4
+ --> @dm:copy-columns from="today,today,today" and to="t_date,t_month,t_year"
+ --> @dm:change-time-format columns = 't_date' & from_format = 'ms' & to_format = '%d'
+ --> @dm:change-time-format columns = 't_month' & from_format = 'ms' & to_format ='%m'
+ --> @dm:change-time-format columns = 't_year' & from_format = 'ms' & to_format ='%y'
+ --> @dm:to-type columns="t_month,t_year" and type="int"
+ --> @dm:manipulate-string to="major_unit" and value="t_month -1 + 24" and func="eval"
+ --> @dm:manipulate-string to="major_unit_year" and value="t_year + major_unit//12" and func="eval"
+ --> @dm:manipulate-string to="major_unit_month" and value="major_unit % 12 + 1" and func="eval"
+ --> @dm:to_type columns="major_unit_month,t_date,major_unit_year" and type="str"
+ --> @dm:manipulate-string to="major_eol_date" and value="/" and func="concat_columns" and from="major_unit_month,t_date,major_unit_year"
+ --> @dm:manipulate-string to="semi_critical" and value="t_month - 1 + 12" and func="eval"
+ --> @dm:manipulate-string to="semi_critical_unit_year" and value="t_year + semi_critical//12" and func="eval"
+ --> @dm:manipulate-string to="semi_critical_month" and value="semi_critical % 12 + 1" and func="eval"
+ --> @dm:to_type columns="semi_critical_month,t_date,semi_critical_unit_year" and type="str"
+ --> @dm:manipulate-string to="semi_critical_date" and value="/" and func="concat_columns" and from="semi_critical_month,t_date,semi_critical_unit_year"
+ --> @dm:manipulate-string to="very_critical" and value="t_month - 1 + 3" and func="eval"
+ --> @dm:manipulate-string to="very_critical_unit_year" and value="t_year + very_critical//12" and func="eval"
+ --> @dm:manipulate-string to="very_critical_month" and value="very_critical % 12 + 1" and func="eval"
+ --> @dm:to_type columns="very_critical_month,t_date,very_critical_unit_year" and type="str"
+ --> @dm:manipulate-string to="very_critical_date" and value="/" and func="concat_columns" and from="very_critical_month,t_date,very_critical_unit_year"
+ --> @dm:change-time-format columns="major_eol_date,semi_critical_date,very_critical_date" & from_format="datetimestr" and to_format="ms"
+ ## --> @dm:selectcolumns include="$column|^today$|^very_critical_date$|^semi_critical_date$|^major_eol_date$"
 
- --> @c:new-block
- --> @dm:set-tracing-context __block__="get-port-chassis-sr"
- --> @dm:recall name="temp-Group-entityPhysical.data"
- --> @dm:skip-block-if-shape row_count='0'
- --> @dm:skip-block-if-shape column_count=1
- --> *dm:filter entPhysicalClassEnumeratedLabel in ["chassis","Chassis","CHASSIS"]
- --> @dm:rename-columns chassis_phyindex="entPhysicalIndex" & chassis_containedin="entPhysicalContainedIn"
- --> @dm:selectcolumns include="chassis_phyindex|entPhysicalClassEnumeratedLabel|entPhysicalSerialNum|target|entPhysicalName"
- --> @dm:to-type columns="chassis_phyindex" and type="int"
- --> @dm:save name="temp-chassis"
- --> @dm:recall name="temp-Group-entityPhysical.data"
- --> @dm:skip-block-if-shape row_count='0'
- --> @dm:skip-block-if-shape column_count=1
- --> @dm:build-hierarchy entity_key_column = "entPhysicalIndex" and relation_key_column = "entPhysicalContainedIn" and hierarchy_end_key_column="entPhysicalClassEnumeratedLabel" and hierarchy_end_value="Chassis" and include_column_to_primary_key="target"
- --> @dm:copy-columns from="hierarchy" and to="chassis_phyindex" and func="split" and value="-"
- --> @dm:eval-multi-proc chassis_phyindex="chassis_phyindex[-1] if hierarchy else None" and _max_procs=4
- --> *dm:filter entPhysicalClassEnumeratedLabel in ["Port","PORT","port"]
- --> @dm:rename-columns port_phyindex="entPhysicalIndex"
- --> @dm:to-type columns="chassis_phyindex" and type="int"
- --> @dm:selectcolumns include="port_phyindex|chassis_phyindex|target"
- --> @dm:enrich dict="temp-chassis" and src_key_cols="chassis_phyindex,target" and dict_key_cols="chassis_phyindex,target" and enrich_cols="entPhysicalSerialNum"
- --> @dm:selectcolumns include="port_phyindex|entPhysicalSerialNum|entPhysicalClassEnumeratedLabel|target"
- --> @dm:rename-columns chassis_sn="entPhysicalSerialNum"
- --> @dm:to-type columns="port_phyindex" and type="int"
  --> @dm:gc
- --> @dm:save name="temp-port-chassis-sr"
- --> @c:new-block
- --> @dm:set-tracing-context __block__="merge-port-chassis-sr-to-if"
- --> @dm:recall name="temp-ifindex-entPhysicalIndex"
+ --> @dm:save name="temp-ldos"
+ ## calculating sw_status
+
+ --> @dm:recall name="temp-sw-eol-details"
+ --> @dm:dedup columns="EndOfLifeDate"
+ --> @dm:manipulate-string to="key" and value="'dummy'" and func="eval"
+ --> @dm:selectcolumns include="EndOfLifeDate|key"
+ --> @dm:enrich dict="temp-ldos" and src_key_cols="key" and dict_key_cols="key" and enrich_cols="today,very_critical_date,semi_critical_date,major_eol_date"
+ --> @dm:copy-columns from="EndOfLifeDate" and to="ldos"
+ --> @dm:change-time-format columns='ldos' & from_format="datetimestr" and to_format="ms"
+ --> @cfxaia:conditional-statement condition_column="ldos" and operator=">"  and check_value="yes" and value="0" and return_if="ldos"
+ --> @dm:to-type columns="ldos" and type="int"
+ --> @dm:manipulate-string to="sw_status" and func="eval" and value="None"
+ --> @cfxaia:conditional-statement condition_column="ldos,today" and operator="<" and return_if="Expired" and return_else="sw_status" and to_column="sw_status"
+ --> @cfxaia:conditional-statement condition_column="ldos,today" and operator=">" and return_if="yes" and to_column="sw_status1" and return_else="no"
+ --> @cfxaia:conditional-statement condition_column="ldos,very_critical_date" and operator="<=" and return_if="yes" and to_column="sw_status2" and  return_else="no"
+ --> @cfxaia:conditional-statement condition_column="sw_status1,sw_status2" and operator="=" and check_value="yes" and value="yes,yes" and return_if="Expiring in a Quarter" and return_else="sw_status" and to_column="sw_status"
+ --> @cfxaia:conditional-statement condition_column="ldos,semi_critical_date" and operator="<=" and return_if="yes" and to_column="sw_status2" and  return_else="no"
+ --> @cfxaia:conditional-statement condition_column="sw_status1,sw_status2" and operator="=" and check_value="yes" and value="yes,yes" and return_if="Expiring in 4 Quarters" and return_else="sw_status" and to_column="sw_status" and replace_if_null=True
+ --> @cfxaia:conditional-statement condition_column="ldos,major_eol_date" and operator="<=" and return_if="yes" and to_column="sw_status2" and return_else="no"
+ --> @cfxaia:conditional-statement condition_column="sw_status1,sw_status2" and operator="=" and check_value="yes" and value="yes,yes" and return_if="Expiring in 8 Quarters" and return_else="sw_status" and to_column="sw_status" and replace_if_null=True
+ --> @cfxaia:conditional-statement condition_column="ldos,major_eol_date" and operator=">" and return_if="yes" and to_column="sw_status2" and  return_else="no"
+ --> @cfxaia:conditional-statement condition_column="sw_status1,sw_status2" and operator="=" and check_value="yes" and value="yes,yes" and return_if="Expiring after 8 Quarters" and return_else="sw_status" and to_column="sw_status" and replace_if_null=True
+ --> @dm:selectcolumns exclude="sw_status1|sw_status2|^lods$"
+ --> @dm:fixnull columns="sw_status" and value="No EOL"
+ --> @dm:save name="temp-swldos"
+ ## Compute sw_expiring_year,sw_expiring_qtr
+
+ --> @dm:recall name="temp-sw-eol-details"
+ --> *dm:filter EndOfLifeDate is not null
  --> @dm:skip-block-if-shape row_count='0'
- --> @dm:skip-block-if-shape column_count=1
- --> @dm:recall name="temp-interface"
- --> @dm:enrich dict="temp-port-chassis-sr" and src_key_cols="entPhysicalIndex,target" and dict_key_cols="port_phyindex,target" and enrich_cols="chassis_sn"
- --> @dm:to-type columns="port_phyindex" and type="int"
- --> @dm:to-type columns="entPhysicalIndex" and type="int"
+ --> @dm:recall name="temp-sw-eol-details"
+ --> @dm:dedup columns="EndOfLifeDate"
+ --> @dm:manipulate-string to="key" and value="'dummy'" and func="eval"
+ --> @dm:selectcolumns include="EndOfLifeDate|key"
+ --> @dm:enrich dict="temp-ldos" and src_key_cols="key" and dict_key_cols="key" and enrich_cols="today,very_critical_date,semi_critical_date,major_eol_date"
+ --> @dm:copy-columns from="EndOfLifeDate,EndOfLifeDate" and to="ldos,YEAR"
+ ## --> @dm:map-multi-proc     from="sw_ldos" and to="ldos" and _max_procs=4
+
+ --> @dm:change-time-format columns='ldos' & from_format="datetimestr" and to_format="ms"
+ --> @cfxaia:conditional-statement condition_column="ldos" and operator=">"  and check_value="yes" and value="0" and return_if="ldos"
+ --> @dm:to-type columns="ldos" and type="int"
+ --> @dm:manipulate-string to="sw_status" and func="eval" and value="None"
+ --> @cfxaia:conditional-statement condition_column="ldos,today" and operator="<" and return_if="Expired" and return_else="sw_status" and to_column="sw_status"
+ --> @cfxaia:conditional-statement condition_column="ldos,today" and operator=">" and return_if="yes" and to_column="sw_status1" and  return_else="no"
+ --> @cfxaia:conditional-statement condition_column="ldos,very_critical_date" and operator="<=" and return_if="yes" and to_column="sw_status2" and  return_else="no"
+ --> @cfxaia:conditional-statement condition_column="sw_status1,sw_status2" and operator="=" and check_value="yes" and value="yes,yes" and return_if="Expiring in a Quarter" and return_else="sw_status" and to_column="sw_status"
+ --> @cfxaia:conditional-statement condition_column="ldos,semi_critical_date" and operator="<=" and return_if="yes" and to_column="sw_status2" and return_else="no"
+ --> @cfxaia:conditional-statement condition_column="sw_status1,sw_status2" and operator="=" and check_value="yes" and value="yes,yes" and return_if="Expiring in 4 Quarters" and return_else="sw_status" and to_column="sw_status" and replace_if_null=True
+ --> @cfxaia:conditional-statement condition_column="ldos,major_eol_date" and operator="<=" and return_if="yes" and to_column="sw_status2" and return_else="no"
+ --> @cfxaia:conditional-statement condition_column="sw_status1,sw_status2" and operator="=" and check_value="yes" and value="yes,yes" and return_if="Expiring in 8 Quarters" and return_else="sw_status" and to_column="sw_status" and replace_if_null=True
+ --> @cfxaia:conditional-statement condition_column="ldos,major_eol_date" and operator=">" and return_if="yes" and to_column="sw_status2" and return_else="no"
+ --> @cfxaia:conditional-statement condition_column="sw_status1,sw_status2" and operator="=" and check_value="yes" and value="yes,yes" and return_if="Expiring after 8 Quarters" and return_else="sw_status" and to_column="sw_status" and replace_if_null=True
+ ## --> @dm:eval-multi-proc     sw_status="'Expired' if(ldos and ldos>0 and ldos<today) else 'Expiring in a Quarter' if(ldos and ldos > today and ldos <= very_critical_date) else 'Expiring in 4 Quarters' if(ldos and ldos > today and ldos <= semi_critical_date) else 'Expiring in 8 Quarters' if(ldos and ldos > today and ldos <= major_eol_date) else 'Expiring after 8 Quarters' if(ldos and ldos > today and ldos > major_eol_date) else None" and _max_procs=4
+
+ --> @dm:rename-columns ldos_month="ldos"
+ --> @dm:change-time-format columns = 'ldos_month' & from_format = 'ms' & to_format ='%m'
+ --> @dm:manipulate-string from="YEAR" and value="[0-9]{4,7}" and func="match" and to="YEAR"
+ ## --> @dm:map-multi-proc     func = "match" & from = "sw_ldos" & to = "YEAR" & expr = ".*/.*/(.*)" and _max_procs=4
+
+ --> @dm:manipulate-string from="ldos_month" and value="0" and func="lstrip" and to="ldos_month"
+ --> @dm:fixnull columns="ldos_month" and value=0
+ --> @dm:to-type columns="ldos_month" and type="int"
+ --> @dm:manipulate-string to="qtr" and func="eval" and value="((ldos_month - 1) // 3 ) + 1"
+ --> @cfxaia:conditional-statement condition_column="ldos_month" and operator="<=" and check_value="yes" and value="0" and return_if="" and return_else="qtr" and to_column="qtr"
+ --> @dm:copy-columns from="qtr" and to="qtr" and prefix="Q" and func="append"
+ ## --> @dm:fixnull columns="YEAR" and value="Not Available"
+
+ --> @dm:manipulate-string to="sw_expiring_qtr" and func="concat_columns" and from="YEAR,qtr" and value=" "
+ ## --> @dm:manipulate-string from="sw_expiring_qtr" and to="sw_expiring_qtr" and func="replace" and value="Not Available  Q,Not Available"
+
+ --> @dm:copy-columns from="YEAR" and to="sw_expiring_year"
+ ## --> @dm:eval-multi-proc     qtr ="((int(ldos_month) - 1) // 3 ) + 1 if ldos_month else None" and _max_procs=4
+
+ ## --> @dm:eval-multi-proc     sw_expiring_qtr="str(YEAR) + ' Q' + str(int(qtr)) if YEAR else 'Not Available'" and _max_procs=4
+
+ ## --> @cfxaia:conditional-statement condition_column="YEAR" and return_if="YEAR" and return_else="Not Availabale" and to_column="sw_expiring_year"
+
+ ## --> @dm:eval-multi-proc     sw_expiring_year="str(YEAR) if YEAR else 'Not Available'" and _max_procs=4
+
+ ## --> @dm:selectcolumns include="$column"
+
  --> @dm:gc
- --> @dm:save name="temp-interface"
- ## device_additional_ips: Read 'ipAddrTable' group & create comma separated list of ipAdEntAddr based on target and merge it with temp-df
+ ## --> @dm:selectcolumns include="sw_expiring_year,sw_expiring_qtr,sw_status"
 
- --> @c:new-block
- --> @dm:set-tracing-context __block__="merge device_additional_ips"
- --> @dm:recall name="temp-Group-ipAddrTable.data"
- --> @dm:add-missing-columns columns="data"
- --> *dm:filter data is not "[]"
- --> @dm:skip-block-if-shape row_count=0
- --> @dm:skip-block-if-shape column_count=1
- --> @dm:fixnull columns="ipAdEntAddr" and value=''
- --> @dm:implode key_columns = "target" and merge_columns="ipAdEntAddr"
- --> @dm:save name="temp-additional-ip"
- --> @dm:recall name="temp-interface"
- --> @dm:enrich dict="temp-additional-ip" and src_key_cols="target" and dict_key_cols="target" and enrich_cols="ipAdEntAddr" and enrich_cols_as="device_additional_ips"
- --> @dm:save name="temp-interface"
- ## mgmt_ip: create mgmt_ip list by reading management-target group & merge with temp-df
+ --> @dm:save name="temp-swldos-yr"
+ --> @dm:recall name="temp-sw-eol-details"
+ --> @dm:enrich dict="temp-swldos" and replace_values="yes" and src_key_cols="EndOfLifeDate" and dict_key_cols="EndOfLifeDate" and enrich_cols="sw_status"
+ --> @dm:enrich dict="temp-swldos-yr" and replace_values="yes" and src_key_cols="EndOfLifeDate" and dict_key_cols="EndOfLifeDate" and enrich_cols="sw_expiring_qtr,sw_expiring_year"
+ --> @dm:fixnull columns="sw_status,sw_expiring_qtr,sw_expiring_year" and value="Not Available"  and apply_for_empty="yes"
+ ## --> @dm:save name='productAlerts-sw-eol-details'
 
- ## ip_address: Merge temp-df with management-target group & map mgmt ip to ip_address
-
- --> @c:new-block
- --> @dm:set-tracing-context __block__=" map mgmt ip to ip_address"
- --> @dm:recall name="temp-Group-management-target"
- --> @dm:skip-block-if-shape row_count=0
- --> @dm:skip-block-if-shape column_count=1
- --> @dm:sort columns="data,target"
- --> @dm:save name="temp-mgmt"
- --> @dm:implode key_columns="target" and merge_columns="data"
- --> @dm:save name="temp-mgmt-list"
- --> @dm:recall name="temp-interface"
- --> @dm:enrich dict="temp-mgmt-list" and src_key_cols="target" and dict_key_cols="target" and enrich_cols="data" and enrich_cols_as="mgmt_ip"
- --> @dm:enrich dict="temp-mgmt" and src_key_cols="target" and dict_key_cols="target" and enrich_cols="data" and enrich_cols_as="target_ip"
- --> @dm:selectcolumns exclude="^data$"
- --> @dm:save name="temp-interface"
- --> @c:data-loop dataset = "temp-discovery-results" and columns="Minio_location"
- --> @dm:recall name = "temp-discovery-results"
- --> @files:ec-get-discovery-results minio_file_location = "$Minio_location" &
-json_path = "system.data"
- --> @dm:rename-columns data="system.data"
- --> *dm:filter data is not null
- --> @dm:explode-json column= "data"
- --> @dm:selectcolumns exclude ='^sysObjectID$|^systemVendorSubID$'
- --> @dm:save name = "temp-system-info"
- --> @c:data-loop dataset = "temp-discovery-results" and columns="Minio_location"
- --> @dm:recall name = "temp-discovery-results"
- --> @files:ec-get-discovery-results minio_file_location = "$Minio_location" &
-json_path = "entityPhysical.data"
- --> @dm:rename-columns data="entityPhysical.data"
- --> *dm:filter data is not null
- --> @dm:explode-json column= "data"
- --> *dm:filter entPhysicalClassEnumeratedLabel in [ "Chassis" ]
- --> @dm:save name = "temp-ent-info"
- --> @c:data-loop dataset = "temp-discovery-results" and columns="Minio_location"
- --> @dm:recall name = "temp-discovery-results"
- --> @files:ec-get-discovery-results minio_file_location = "$Minio_location" &
-json_path = "base.data"
- --> @dm:rename-columns data="base.data"
- --> *dm:filter data is not null
- --> @dm:explode-json column= "data"
- --> *dm:filter sysDescr contains "Cisco"
- --> @dm:manipulate-string from="sysDescr" and func = "split" and value="Version" and to ="version"
- --> @dm:eval version= "version[1].split(',')[0].split('[')[0].split()[0] if sysDescr else None"
- --> @dm:save name="temp-base"
- --> *dm:filter * get target as 'device_ip',sysDescr as 'device_version_summary',systemManagerIP as 'device_mgmt_ip',systemVendorOS as 'device_fw_type',version as 'device_fw_version'
- --> @dm:save name = 'temp-base-updated-info'
- --> @c:new-block
- --> @dm:recall name = 'temp-system-info'
- --> *dm:filter * get sysContact as 'device_contact',sysLocation as 'device_location',sysName as 'device_hostname',target as 'device_ip'
- --> @dm:save name="temp-system-updated-info"
- --> @c:new-block
- --> @dm:recall name = 'temp-ent-info'
- --> @dm:save name = 'temp-ent-info'
- --> *dm:filter * get entPhysicalClassEnumeratedLabel as 'device_equip_type',entPhysicalDescr as 'device_eq_description',entPhysicalMfgName as 'device_vendor',entPhysicalModelName as 'device_model',entPhysicalSerialNum as 'device_serial_number',target as 'device_ip'
- --> @dm:enrich dict = 'temp-base-updated-info' & src_key_cols = 'device_ip' & dict_key_cols = 'device_ip' & enrich_cols = 'device_version_summary,device_mgmt_ip,device_fw_type,device_fw_version'
- --> @dm:enrich dict = 'temp-system-updated-info' & src_key_cols = 'device_ip' & dict_key_cols = 'device_ip' & enrich_cols = 'device_contact,device_location,device_hostname'
- --> @dm:save name = 'cml_cisco_device_chassis_dict'
- --> @c:new-block
- --> @dm:set-tracing-context __block__=" map source_ip"
- --> @dm:recall name="temp-interface"
- --> @dm:add-missing-columns columns="target_ip"
- --> @cfxaia:conditional-statement condition_column = "target_ip" and return_if = "target_ip" and return_else = "target" and to_column = "ip_address"
- --> @dm:selectcolumns exclude="target-ip|if_index"
- --> @dm:save name="temp-interface"
- --> *dm:filter * get target as 'device_ip',ifDescr as 'device_int_name',ifIndex as 'device_int_index',ifName as 'device_int_shortname',ifOperStatusEnumeratedLabel as 'device_interface_status',type as 'device_interface_type',cdpCacheIfIndex as 'remote_device_int_index',cdpCacheAddress as 'remote_device_ip',cdpCacheDevicePort as 'remote_device_int_name',cdpCacheDeviceId as 'remote_device_id',cdpCachePlatform as 'remote_device_model',cdpCacheCapabilitiesEnumeratedLabel as 'remote_device_capabilities',chassis_sn as 'device_serial_number'
- --> @dm:enrich dict = 'cisco_device_chassis_dict' & src_key_cols = 'device_ip' & dict_key_cols = 'device_ip' & enrich_cols = 'device_eq_description,device_mgmt_ip,device_fw_version,device_fw_type,device_model,device_vendor,device_hostname,device_contact,device_location,device_version_summary'
- --> @dm:eval cdp_device_order = "':'.join(sorted([device_ip, remote_device_ip]))"
- --> @dm:save name = 'cml_cisco_device_interface_data'
- --> *dm:filter remote_device_int_name is not empty get device_ip,device_int_name,device_int_shortname,remote_device_ip,remote_device_int_name
- --> @dm:eval cdp_device_order = "':'.join(sorted([device_ip, remote_device_ip]))"
- --> @dm:save name = 'cml_cisco_device_interface_cdp_dict'
- ## Adding Cisco Simulated devices
-
- ## Cisco Device Chassis
-
- --> @c:new-block
- --> @dm:recall name = "cml_cisco_device_chassis_dict"
- --> @dm:save name = "temp-chassis-1"
- --> *dm:filter device_ip = "9.3.140.7"
- --> @dm:eval device_ip = "'10.122.127.184'"
- --> @dm:eval device_mgmt_ip = "'10.122.127.184'"
- --> @dm:eval device_serial_number = "'FJC2535ACME'"
- --> @dm:eval device_hostname = "'CNXSSIM-C1100TG-4.attpsl.cisco.com'"
- --> @dm:save name = "temp-chassis-2"
- --> @c:new-block
- --> @dm:concat names = "temp-chassis-.*"
- ## Overwrite dataset
-
- --> @dm:save name = "cml_cisco_device_chassis_sim_dict"
- ## Cisco Device Interfaces
-
- --> @c:new-block
- --> @dm:recall name = "cml_cisco_device_interface_data"
- --> @dm:save name = "temp-chassis-1"
- --> *dm:filter device_ip = "9.3.140.7"
- --> @dm:eval device_ip = "'10.122.127.184'"
- ## --> @dm:evalMap values using evaluate function. Speciy one of more column = 'expression' pairs device_mgmt_ip = "'10.122.127.184'"
-
- --> @dm:eval device_serial_number = "'FJC2535ACME'"
- --> @dm:eval device_hostname = "'CNXSSIM-C1100TG-4.attpsl.cisco.com'"
- --> @dm:save name = "temp-chassis-2"
- --> @c:new-block
- --> @dm:concat names = "temp-chassis-.*"
- --> @dm:save name="temp-output"
- --> @dm:add-missing-columns columns="left_id"
- --> @dm:selectcolumns include="^left_id$|^device_ip$"
- --> @dm:add-checksum checksum_type="rows-only" and row_checksum_column="left_id" and key="yes"
- --> @dm:save name = "temp-node_id"
- --> @dm:recall name="temp-output"
- --> @dm:enrich dict="temp-node_id" and src_key_cols="device_ip" and dict_key_cols="device_ip" and enrich_cols="left_id"
- --> @dm:save name="cml_disc_output1"
- --> @dm:save name="temp-output"
- --> @dm:add-missing-columns columns="right_id"
- --> @dm:selectcolumns include="^right_id$|^remote_device_ip$"
- --> @dm:add-checksum checksum_type="rows-only" and row_checksum_column="right_id" and key="yes"
- --> @dm:save name = "temp-node_id"
- --> @dm:recall name="temp-output"
- --> @dm:enrich dict="temp-node_id" and src_key_cols="remote_device_ip" and dict_key_cols="device_ip" and enrich_cols="left_id" and enrich_cols_as="right_id"
- ## Overwrite dataset
-
- --> @dm:save name = "cml_cisco_device_interface_sim_data"
+ --> @dm:copy-columns from	='contract_number' and to ='contract_number_str'
+ --> @dm:to_type columns = 'contract_number_str' &
+type  = 'str'
+ --> @dm:save name='temp-sw-eol-details'
