@@ -1,1127 +1,1393 @@
 {
-  "name": "agentic-ai-analytics",
-  "label": "Agentic AI",
-  "description": "Agentic AI",
+  "name": "preview_topology_dashboard",
+  "label": "Network Path Viewer",
+  "description": "Network Path Viewer",
+  "dashboard_folder": "Default",
   "enabled": true,
-  "live_edit": true,
-  "version": "25.3.10.1",
   "dashboard_type": "template",
+  "dashboard_style": "tabbed",
   "dashboard_filters": {
-    "time_filter": false,
-    "group_filters": [
-      {
-        "stream": "rda_agentic_ai_agents",
-        "title": "Agents",
-        "group_by": [
-          "agent_name"
-        ],
-        "ts_column": "timestamp",
-        "duration_hours": 999999,
-        "agg": "value_count",
-        "column": "_id",
-        "type": "int",
-        "show_counts": false
-      }
-    ]
+    "time_filter": true,
+    "default_time_filter_non_removable": true,
+    "show_default_time_filter": true
+  },
+  "template_variables": {
+    "NODE_ID": {
+      "contextId": "node_id"
+    },
+    "NODE_LABEL": {
+      "contextId": "node_label"
+    },
+    "PROJ_ID": {
+      "contextId": "projectId"
+    },
+    "PROJ_ID_SINGLE": {
+      "contextId": "project_id"
+    },
+    "IN_UI_VIEW_NODES": {
+      "contextId": "inViewNodes"
+    }
   },
   "dashboard_sections": [
     {
-      "title": "Agents",
+      "title": "Network Path Viewer",
       "show_filter": true,
       "widgets": [
         {
-          "title": "Agents",
-          "widget_type": "tabular",
-          "min_width": 12,
-          "height": 6,
-          "max_width": 12,
-          "timebased": false,
-          "timestamp": "timestamp",
-          "stream": "rda_agentic_ai_agents",
-          "refreshOptions": {
-            "refreshType": "Periodic",
-            "refreshInterval": 30000
+          "title": "Path Visualization",
+          "widget_type": "path_visualization_graph",
+          "with_graphdb": true,
+          "graphdb_attributes": {
+            "gdb_creds": {
+              "db_name": "cfx_topo",
+              "graph_name": "cfx_topo_graph",
+              "collection": "cfx_topo_nodes_collection"
+            },
+            "aql_template": {
+              "name": "k_shortest_paths_template",
+              "bind_params": [
+                "from",
+                "to",
+                "graph",
+                "limit"
+              ]
+            },
+            "node_consolidation": "all",
+            "node_attrs": [
+              "_id",
+              "node_id",
+              "node_type",
+              "node_label",
+              "name"
+            ],
+            "edge_attrs": [
+              "_from",
+              "_to",
+              "left_id",
+              "right_id",
+              "relation_type",
+              "link_type"
+            ],
+            "display_attrs": [
+              {
+                "name": "name",
+                "label": "Name"
+              },
+              {
+                "name": "node_type",
+                "label": "Node Type"
+              },
+              {
+                "name": "node_label",
+                "label": "Node Label"
+              }
+            ]
           },
+          "alert_source": {
+            "stream": "oia-alerts-stream",
+            "extra_filter": "a_status is 'ACTIVE' ",
+            "group_by": [
+              "a_en_node_id",
+              "a_severity"
+            ],
+            "agg": "sum",
+            "column": "count_",
+            "show_only_paths_with_alerts": false
+          },
+          "color-map": {
+            "SEVERE": [
+              "#910101",
+              "#FFFFFF"
+            ],
+            "CRITICAL": [
+              "#FF0000",
+              "#FFFFFF"
+            ],
+            "MAJOR": [
+              "#FF9800",
+              "#FFFFFF"
+            ],
+            "MINOR": [
+              "#FDD835",
+              "#000000"
+            ],
+            "WARNING": [
+              "#9C27B0",
+              "#FFFFFF"
+            ]
+          },
+          "actions": [],
+          "widget_id": "f8c1c7d9"
+        },
+        {
+          "title": "Topology",
+          "widget_type": "topology",
+          "register_search_endpoints": true,
+          "reportId": "rda.saas.stack.view.topo",
+          "has_more_data_flag": false,
+          "expand_all": true,
+          "stack_type": "dynamic",
+          "stack_definition": {
+            "name": "Telco Stack",
+            "description": "",
+            "saved_time": "2023-09-12T21:08:31.418255",
+            "is_dynamic": true,
+            "hierarchical": true,
+            "dynamic_nodes": {
+              "stream": "cfx_rdaf_topology_nodes",
+              "limit": 0,
+              "sorting": null
+            },
+            "dynamic_relationships": {
+              "stream": "cfx_rdaf_topology_edges",
+              "query": "link_type is Not Empty",
+              "limit": 0,
+              "sorting": null
+            }
+          },
+          "nodes_report": {
+            "reportMetaData": {
+              "sorting": true,
+              "filtering": true,
+              "title": "Nodes",
+              "remote_searchable": false,
+              "remote_searchable_cols": [
+                "name",
+                "node_label",
+                "node_id",
+                "node_type"
+              ],
+              "actions": [],
+              "reportColumnDefinitionList": [
+                {
+                  "identifier": "node_label",
+                  "title": "Name",
+                  "key": false
+                },
+                {
+                  "identifier": "node_type",
+                  "key": false,
+                  "title": "node_type"
+                },
+                {
+                  "identifier": "name",
+                  "hidden": true,
+                  "key": false
+                },
+                {
+                  "identifier": "vcenter_name",
+                  "title": "vCenter Name",
+                  "key": false
+                },
+                {
+                  "identifier": "datacenter",
+                  "key": false,
+                  "title": "Data Center"
+                },
+                {
+                  "identifier": "esxi_cluster",
+                  "key": false,
+                  "title": "ESXI Cluster"
+                },
+                {
+                  "identifier": "vcenter_address",
+                  "key": false,
+                  "title": "vCenter Address"
+                },
+                {
+                  "identifier": "layer",
+                  "key": false,
+                  "title": "Layer"
+                },
+                {
+                  "identifier": "vcenter_object",
+                  "key": false,
+                  "title": "vCenter Object"
+                },
+                {
+                  "identifier": "vcenter_os_type",
+                  "key": false,
+                  "title": "vCenter OS type"
+                },
+                {
+                  "identifier": "phy_switch_name",
+                  "key": false,
+                  "title": "Physical Switch Name"
+                },
+                {
+                  "identifier": "node_id",
+                  "key": true,
+                  "hidden": true
+                }
+              ]
+            }
+          },
+          "nodes_asset_report1": {
+            "dashboardId": "Topology",
+            "reportId": "dynamic_v2_tabular_report_0_1",
+            "ignore_context_filter": true
+          },
+          "edges_report": {
+            "reportId": "rda.saas.topology.edges.report",
+            "reportMetaData": {
+              "sorting": true,
+              "filtering": true,
+              "title": "Edges",
+              "reportColumnDefinitionList": [
+                {
+                  "hidden": false,
+                  "id": "left_id",
+                  "identifier": "left_id",
+                  "key": true,
+                  "title": "Left Id",
+                  "type": "TEXT",
+                  "visible": false
+                },
+                {
+                  "hidden": false,
+                  "id": "left_label",
+                  "identifier": "left_label",
+                  "key": false,
+                  "title": "Source",
+                  "type": "TEXT",
+                  "visible": true
+                },
+                {
+                  "hidden": false,
+                  "id": "right_id",
+                  "identifier": "right_id",
+                  "key": true,
+                  "title": "Right Id",
+                  "type": "TEXT",
+                  "visible": false
+                },
+                {
+                  "hidden": false,
+                  "id": "right_label",
+                  "identifier": "right_label",
+                  "key": false,
+                  "title": "Destination",
+                  "type": "TEXT",
+                  "visible": true
+                },
+                {
+                  "hidden": false,
+                  "id": "relation_type",
+                  "identifier": "relation_type",
+                  "key": false,
+                  "title": "Relation",
+                  "type": "TEXT",
+                  "visible": true
+                }
+              ],
+              "actions": []
+            }
+          },
+          "height": 12,
+          "min_wdith": 12,
+          "widget_id": "182287d8"
+        },
+        {
+          "title": "Asset Details",
+          "widget_type": "tabular",
+          "stream": "cfx_rdaf_topology_nodes",
+          "height": 10,
+          "min_wdith": 12,
+          "widget_id": "56347327",
+          "paginated": true,
+          "duration_hours": 10000,
+          "max_rows": 50,
+          "ts_column": "timestamp",
+          "remote_searchable": true,
+          "virtual_scrolling": true,
+          "context_filter000": "customerRole is 'admin'",
+          "showRowSummary": true,
+          "remote_searchable_cols": [
+            "name",
+            "node_label",
+            "node_id"
+          ],
+          "custom_columns": [
+            {
+              "id": "isInUIView",
+              "label": "In UI View",
+              "expr": "str(_row.node_id) in {{IN_UI_VIEW_NODES}}",
+              "hidden": true,
+              "key": false,
+              "visible": false,
+              "sortable": false,
+              "filterable": false
+            }
+          ],
           "columns": {
-            "agent_id": {
-              "title": "Agent ID",
+            "isInUIView": {
+              "title": "In UI View",
+              "key": false,
+              "filterable": false,
+              "type": "DYNAMIC_HTML",
+              "htmlTemplate": "<div v-if='rowData.isInUIView'><v-icon icon>mdi-check</v-icon></div><div v-else> </div>"
+            },
+            "node_label": {
+              "title": "Name",
+              "key": true
+            },
+            "node_type": {
+              "key": false,
+              "title": "Node Type"
+            },
+            "vcenter_name": {
+              "hidden": false,
+              "title": "vCenter Name",
+              "key": true
+            },
+            "datacenter": {
+              "title": "Datacenter"
+            },
+            "esxi_cluster": {
+              "key": false,
+              "title": "ESXI Cluster"
+            },
+            "vcenter_address": {
+              "key": false,
+              "title": "vCenter Address"
+            },
+            "layer": {
+              "key": false,
+              "title": "Layer"
+            },
+            "vcenter_object": {
+              "key": false,
+              "title": "vCenter Object"
+            },
+            "vcenter_os_type": {
+              "key": false,
+              "title": "vCenter OS type"
+            },
+            "phy_switch_name": {
+              "key": false,
+              "title": "Physical Switch Name"
+            },
+            "node_id": {
               "key": true,
               "hidden": true
-            },
-            "agent_name": {
-              "title": "Name",
-              "defaultWidth": 150,
-              "key": true
-            },
-            "description": {
-              "title": "Agent Task",
-              "key": true
-            },
-            "status_color": {
-              "type": "COLOR-MAP",
-              "source-column": "status",
-              "color-map": {
-                "CREATED": "#4CAF50",
-                "CREATING": "#FF5722",
-                "FAILED": "#B71C1C"
-              }
-            },
-            "status": {
-              "title": "Status",
-              "htmlTemplateForRow": "<span class='badge' style='background-color: {{'{{ row.status_color }}'}}' > {{'{{ row.status }}'}} </span>"
-            },
-            "message": {
-              "title": "Message",
-              "key": false,
-              "formatter": "truncate"
             }
           },
-          "widget_id": "2630645f",
           "actions": [
             {
-              "permission": "rda:github:view",
-              "title": "Add Agent",
-              "type": "POPUP_FORM",
-              "selectionType": "NONE",
-              "identifier": "saas-service-action:agenticai-add-agent",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.agenticai.add.agent"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:github:view",
-              "title": "Edit Task Graph",
-              "type": "POPUP_FORM",
+              "permission1": "rda:user_dashboard:view",
+              "appName1": "user-dashboard",
+              "drillDownLinkField1": "node_label",
+              "identifier": "launch.dashboard.node_details_app",
               "selectionType": "SINGLE",
-              "identifier": "saas-service-action:agenticai-edit-task-graph",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.agenticai.edit.task.graph"
-                  }
-                ]
-              },
-              "actionCondition": {
-                "actionControl": "SHOW_IF",
-                "operator": "OR",
-                "conditionalField": [
-                  {
-                    "conditionType": "EQUAL",
-                    "conditionValue": "CREATED",
-                    "fieldId": "status"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:user_dashboard:view",
-              "appName": "user-dashboard/agentic-ai-agents-app",
-              "identifier": "launch.dashboard.agent.dashboard",
-              "drillDownLinkField": "agent_name",
+              "title": "Device Details",
               "contextParamList": {
                 "contextParams": [
                   {
-                    "paramKey": "agent_name",
-                    "paramId": "agent"
-                  }
-                ]
-              },
-              "selectionType": "SINGLE",
-              "title": "Dashboard",
-              "type": "GO_TO_APP_STATE",
-              "actionCondition": {
-                "actionControl": "SHOW_IF",
-                "operator": "OR",
-                "conditionalField": [
-                  {
-                    "conditionType": "EQUAL",
-                    "conditionValue": "CREATED",
-                    "fieldId": "status"
-                  }
-                ]
-              }
-            },
-            {
-              "permission1": "rda:github:view",
-              "title": "Execute Agent",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:agenticai-execute",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.dynamic.form",
-                    "formActionList": {
-                      "formActions": [
-                        {
-                          "identifier": "Submit",
-                          "actionLabel": "Execute"
-                        }
-                      ]
-                    },
-                    "formDefinition": {
-                      "id": "rda.saas.dynamic.form",
-                      "refreshRequired": true,
-                      "formFieldList": [
-                        {
-                          "help": "Are you sure you want to execute the agent?",
-                          "dataType": "string",
-                          "controlType": "LABEL",
-                          "required": false,
-                          "editable": false,
-                          "label": "Are you sure you want to execute the agent?",
-                          "hidden": false,
-                          "fieldId": "name"
-                        }
-                      ]
-                    },
-                    "actions": [
-                      {
-                        "type": "RUN_PIPELINE",
-                        "pipelineName": "execute-agent",
-                        "isSync": false
-                      }
-                    ]
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:github:view",
-              "title": "Delete",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:userdashboard-add-yaml",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.dynamic.form",
-                    "formDefinition": {
-                      "id": "rda.saas.dynamic.form",
-                      "refreshRequired": true,
-                      "formFieldList": [
-                        {
-                          "help": "Are you sure you want to delete the agent?",
-                          "dataType": "string",
-                          "controlType": "LABEL",
-                          "required": false,
-                          "editable": false,
-                          "label": "Are you sure you want to delete the agent?",
-                          "hidden": false,
-                          "fieldId": "name"
-                        }
-                      ]
-                    },
-                    "actions": [
-                      {
-                        "type": "UPDATE_PSTREAM",
-                        "pstreamName": "rda_agentic_ai_agents",
-                        "operation": "DELETE",
-                        "cfxql_query": "{% raw %}agent_id is '{{agent_id}}' and agent_name is '{{agent_name}}'{% endraw %}"
-                      }
-                    ],
-                    "formActionList": {
-                      "formActions": [
-                        {
-                          "actionLabel": "Delete",
-                          "type": "SUBMIT",
-                          "identifier": "Submit"
-                        }
-                      ]
-                    }
-                  }
-                ]
-              },
-              "actionCondition": {
-                "actionControl": "SHOW_IF",
-                "operator": "OR",
-                "conditionalField": [
-                  {
-                    "conditionType": "EQUAL",
-                    "conditionValue": "CREATED",
-                    "fieldId": "status"
+                    "paramKey": "projectId",
+                    "paramId": "projectId"
                   },
                   {
-                    "conditionType": "EQUAL",
-                    "conditionValue": "CREATING",
-                    "fieldId": "status"
+                    "paramKey": "project_id",
+                    "paramId": "project_id"
                   },
                   {
-                    "conditionType": "EQUAL",
-                    "conditionValue": "FAILED",
-                    "fieldId": "status"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:github:view",
-              "title": "Run Test",
-              "type": "POPUP_FORM",
-              "contextParamList": {
-                "contextParams": [
+                    "paramKey": "node_type",
+                    "paramId": "node_type"
+                  },
                   {
-                    "paramKey": "agent_id",
-                    "paramId": "agent_id"
+                    "paramKey": "serialNumber",
+                    "paramId": "serialNumber"
+                  },
+                  {
+                    "paramKey": "device_ip",
+                    "paramId": "device_ip"
+                  },
+                  {
+                    "paramKey": "parent_sn",
+                    "paramId": "parent_sn"
+                  },
+                  {
+                    "paramKey": "node_label",
+                    "paramId": "node_label"
                   }
                 ]
               },
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:userdashboard-add-yaml",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.dynamic.form",
-                    "formActionList": {
-                      "formActions": [
-                        {
-                          "identifier": "Submit",
-                          "actionLabel": "Run"
-                        }
-                      ]
-                    },
-                    "formDefinition": {
-                      "id": "rda.saas.dynamic.form",
-                      "refreshRequired": true,
-                      "formFieldList": [
-                        {
-                          "fieldId": "run_name",
-                          "label": "Run Name",
-                          "help": "This will let the user add the name to the Test",
-                          "dataType": "string",
-                          "controlType": "TEXT_FIELD",
-                          "hidden": false,
-                          "editable": true,
-                          "required": true,
-                          "controlPropertyList": [
-                            {
-                              "attribute": "layout-group-id",
-                              "value": "details"
-                            },
-                            {
-                              "attribute": "layout-percent",
-                              "value": "50"
-                            }
-                          ]
-                        },
-                        {
-                          "help": "Select the LLM to use.",
-                          "dataType": "string",
-                          "controlType": "COMBO_BOX",
-                          "required": true,
-                          "editable": true,
-                          "label": "LLM",
-                          "hidden": false,
-                          "fieldId": "llm",
-                          "lovSourceType": "pstream",
-                          "lovSourceParams": {
-                            "name": "rda_secrets_meta",
-                            "valueColumn": "name",
-                            "labelColumn": "name",
-                            "query": "type is llm"
-                          },
-                          "controlPropertyList": [
-                            {
-                              "attribute": "layout-group-id",
-                              "value": "details"
-                            },
-                            {
-                              "attribute": "layout-percent",
-                              "value": "50"
-                            }
-                          ]
-                        },
-                        {
-                          "help": "TestName",
-                          "dataType": "string",
-                          "required": false,
-                          "editable": true,
-                          "hidden": false,
-                          "fieldId": "selected_test",
-                          "controlType": "SELECTOR_TABLE",
-                          "controlPropertyList": [
-                            {
-                              "attribute": "column-key",
-                              "value": "test_name"
-                            },
-                            {
-                              "attribute": "selection",
-                              "value": "MULTIPLE"
-                            }
-                          ],
-                          "widget": {
-                            "title": "Tests",
-                            "timebased": false,
-                            "max_width": 12,
-                            "height": 8,
-                            "min_width": 12,
-                            "stream": "rda_agentic_ai_tests",
-                            "ts_column": "timestamp",
-                            "extra_filter": "agent_id is '$agent_id'",
-                            "sorting": [],
-                            "columns": {
-                              "test_name": {
-                                "title": "Test Name",
-                                "key": true
-                              },
-                              "test_description": {
-                                "title": "Test Description",
-                                "key": false
-                              },
-                              "test_id": {
-                                "title": "Test ID",
-                                "key": true
-                              }
-                            }
-                          }
-                        }
-                      ]
-                    },
-                    "actions": [
-                      {
-                        "type": "RUN_PIPELINE",
-                        "pipelineName": "execute-agent",
-                        "show_submission_prompt": true,
-                        "submission_title": "Executing Test Run",
-                        "submission_message": "The test run has been initiated and is currently executing in the background. Please check the Test Runs page in Test Details.",
-                        "isSync": false
-                      }
-                    ]
-                  }
-                ]
-              },
-              "actionCondition": {
-                "actionControl": "SHOW_IF",
-                "operator": "OR",
-                "conditionalField": [
-                  {
-                    "conditionType": "EQUAL",
-                    "conditionValue": "CREATED",
-                    "fieldId": "status"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:github:view",
-              "title": "Execute Agent",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:userdashboard-add-yaml",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "params": [
-                  {
-                    "formId": "rda.saas.dynamic.form",
-                    "formActionList": {
-                      "formActions": [
-                        {
-                          "identifier": "Submit",
-                          "actionLabel": "Execute"
-                        }
-                      ]
-                    },
-                    "formDefinition": {
-                      "id": "rda.saas.dynamic.form",
-                      "refreshRequired": true,
-                      "formFieldList": [
-                        {
-                          "fieldId": "run_name",
-                          "label": "Run Name",
-                          "help": "This will let the user add the name to the Test",
-                          "dataType": "string",
-                          "controlType": "TEXT_FIELD",
-                          "hidden": false,
-                          "editable": true,
-                          "required": true,
-                          "controlPropertyList": [
-                            {
-                              "attribute": "layout-group-id",
-                              "value": "details"
-                            },
-                            {
-                              "attribute": "layout-percent",
-                              "value": "50"
-                            }
-                          ]
-                        },
-                        {
-                          "help": "Select the LLM to use.",
-                          "dataType": "string",
-                          "controlType": "COMBO_BOX",
-                          "required": true,
-                          "editable": true,
-                          "label": "LLM",
-                          "hidden": false,
-                          "fieldId": "llm",
-                          "lovSourceType": "pstream",
-                          "lovSourceParams": {
-                            "name": "rda_secrets_meta",
-                            "valueColumn": "name",
-                            "labelColumn": "name",
-                            "query": "type is llm"
-                          },
-                          "controlPropertyList": [
-                            {
-                              "attribute": "layout-group-id",
-                              "value": "details"
-                            },
-                            {
-                              "attribute": "layout-percent",
-                              "value": "50"
-                            }
-                          ]
-                        },
-                        {
-                          "fieldId": "capture_mode",
-                          "label": "Capture Mode",
-                          "description": "Capture mode will download the stream query outputs and prepare a zip file so that it can be used for other tests.",
-                          "required": false,
-                          "default": false,
-                          "dataType": "boolean",
-                          "hidden": false,
-                          "fieldControlPropertyList": [
-                            {
-                              "fieldId": "download_label",
-                              "controlActions": [
-                                "ShowField"
-                              ],
-                              "condition": {
-                                "selectionValue": "true"
-                              }
-                            }
-                          ],
-                          "editable": true,
-                          "controlType": "BOOLEAN_FIELD"
-                        },
-                        {
-                          "help": "The output file will be availabe in My Downloads.",
-                          "dataType": "string",
-                          "controlType": "LABEL",
-                          "required": false,
-                          "editable": false,
-                          "label": "The output file will be availabe in My Downloads.",
-                          "hidden": true,
-                          "fieldId": "download_label"
-                        },
-                        {
-                          "fieldId": "dryrun_mode",
-                          "label": "Dry Run",
-                          "description": "",
-                          "help": "In dry run mode all the steps of type write_stream and run_pipeline will be skipped",
-                          "required": false,
-                          "default": false,
-                          "dataType": "boolean",
-                          "hidden": false,
-                          "editable": true,
-                          "controlType": "BOOLEAN_FIELD"
-                        }
-                      ]
-                    },
-                    "actions": [
-                      {
-                        "type": "RUN_PIPELINE",
-                        "pipelineName": "execute-agent",
-                        "show_submission_prompt": true,
-                        "submission_title": "Agent Execution in Progress",
-                        "submission_message": "The agent is currently executing in the background. If capture is enabled, the captured data will be available in MyDownloads upon completion.",
-                        "isSync": false
-                      }
-                    ]
-                  }
-                ]
-              },
-              "actionCondition": {
-                "actionControl": "SHOW_IF",
-                "operator": "OR",
-                "conditionalField": [
-                  {
-                    "conditionType": "EQUAL",
-                    "conditionValue": "CREATED",
-                    "fieldId": "status"
-                  }
-                ]
-              }
+              "type": "GO_TO_APP_STATE"
             }
           ]
+        },
+        {
+          "title": "Geomap",
+          "widget_type": "topology_geomap",
+          "widget_template": "common/geo-map",
+          "reportId": "myreportId",
+          "mapProperties": {
+            "initialMapZoom": 5,
+            "mapTableWidth": 250
+          },
+          "edge_colors": [
+            "#455a64",
+            "#f57c00",
+            "#fbc02d",
+            "#388e3c",
+            "#0097a7",
+            "#1976d2",
+            "#8e24aa",
+            "#d81b60",
+            "#d32f2f"
+          ],
+          "node_display_attrs": [
+            "node_id",
+            "device_ip",
+            "serialNumber"
+          ],
+          "has_more_data_flag": false,
+          "expand_all": false,
+          "auto_group": true,
+          "stack_type": "dynamic",
+          "stack_definition": {
+            "name": "Telco Stack",
+            "description": "",
+            "saved_time": "2023-09-12T21:08:31.418255",
+            "is_dynamic": true,
+            "hierarchical": true,
+            "dynamic_nodes": {
+              "stream": "cfx_rdaf_topology_nodes",
+              "limit": 0,
+              "sorting": null
+            },
+            "dynamic_relationships": {
+              "stream": "cfx_rdaf_topology_edges",
+              "limit": 0,
+              "sorting": null
+            }
+          },
+          "nodes_report": {
+            "reportMetaData": {
+              "sorting": true,
+              "filtering": true,
+              "title": "Nodes",
+              "remote_searchable": true,
+              "remote_searchable_cols": [
+                "name",
+                "node_label",
+                "node_id"
+              ],
+              "actions": [],
+              "reportColumnDefinitionList": [
+                {
+                  "identifier": "node_label",
+                  "title": "Name",
+                  "key": false
+                },
+                {
+                  "identifier": "name",
+                  "hidden": true,
+                  "key": false
+                },
+                {
+                  "identifier": "vcenter_name",
+                  "title": "vCenter Name",
+                  "key": false
+                },
+                {
+                  "identifier": "datacenter",
+                  "key": false,
+                  "title": "Data Center"
+                },
+                {
+                  "identifier": "esxi_cluster",
+                  "key": false,
+                  "title": "ESXI Cluster"
+                },
+                {
+                  "identifier": "vcenter_address",
+                  "key": false,
+                  "title": "vCenter Address"
+                },
+                {
+                  "identifier": "layer",
+                  "key": false,
+                  "title": "Layer"
+                },
+                {
+                  "identifier": "node_type",
+                  "key": false,
+                  "title": "node_type"
+                },
+                {
+                  "identifier": "vcenter_object",
+                  "key": false,
+                  "title": "vCenter Object"
+                },
+                {
+                  "identifier": "vcenter_os_type",
+                  "key": false,
+                  "title": "vCenter OS type"
+                },
+                {
+                  "identifier": "phy_switch_name",
+                  "key": false,
+                  "title": "Physical Switch Name"
+                },
+                {
+                  "identifier": "node_id",
+                  "key": true,
+                  "hidden": true
+                }
+              ]
+            }
+          },
+          "edges_report": {
+            "reportId": "rda.saas.topology.edges.report",
+            "reportMetaData": {
+              "sorting": true,
+              "filtering": true,
+              "title": "Edges",
+              "reportColumnDefinitionList": [
+                {
+                  "hidden": false,
+                  "id": "left_id",
+                  "identifier": "left_id",
+                  "key": true,
+                  "title": "Left Id",
+                  "type": "TEXT",
+                  "visible": false
+                },
+                {
+                  "hidden": false,
+                  "id": "left_label",
+                  "identifier": "left_label",
+                  "key": false,
+                  "title": "Source",
+                  "type": "TEXT",
+                  "visible": true
+                },
+                {
+                  "hidden": false,
+                  "id": "right_id",
+                  "identifier": "right_id",
+                  "key": true,
+                  "title": "Right Id",
+                  "type": "TEXT",
+                  "visible": false
+                },
+                {
+                  "hidden": false,
+                  "id": "right_label",
+                  "identifier": "right_label",
+                  "key": false,
+                  "title": "Destination",
+                  "type": "TEXT",
+                  "visible": true
+                },
+                {
+                  "hidden": false,
+                  "id": "link_type",
+                  "identifier": "link_type",
+                  "key": false,
+                  "title": "Link Type",
+                  "type": "TEXT",
+                  "visible": true
+                },
+                {
+                  "hidden": false,
+                  "id": "relation_type",
+                  "identifier": "relation_type",
+                  "key": false,
+                  "title": "Relation",
+                  "type": "TEXT",
+                  "visible": true
+                }
+              ],
+              "actions": []
+            }
+          },
+          "height": 8,
+          "max_width": 12,
+          "widget_id": "182657d8"
         }
-      ],
-      "saved_time": "2024-11-19T07:28:36.803725"
+      ]
     }
   ],
-  "pstream_dashboards": [
-    {
-      "title": "Agents",
-      "show_filter": true,
-      "widgets": [
+  "dynamic_form": {
+    "formData": {
+      "selector_dialog_from_node": [
         {
-          "title": "Agents",
-          "widget_type": "tabular",
-          "min_width": 12,
-          "height": 6,
-          "max_width": 12,
-          "timebased": false,
-          "timestamp": "timestamp",
-          "stream": "rda_agentic_ai_agents",
-          "refreshOptions": {
-            "refreshType": "Periodic",
-            "refreshInterval": 30000
+          "node_id": "{{NODE_ID}}",
+          "node_label": "{{NODE_LABEL}}"
+        }
+      ]
+    },
+    "formDefinition": {
+      "id": "kpi.benchmark.json",
+      "refreshRequired": true,
+      "formFieldList": [
+        {
+          "fieldId": "from_node",
+          "label": "From Node",
+          "help": "Device Source Node",
+          "controlType": "SELECTOR_DIALOG",
+          "selectionType": "SINGLE",
+          "pstream": "cfx_rdaf_topology_nodes",
+          "pstream_attribute": "node_label",
+          "key_attribute": false,
+          "query_attributes": [
+            "node_label"
+          ],
+          "server-validation": {
+            "clear_attributes": [
+              "to_node"
+            ]
           },
-          "columns": {
-            "agent_id": {
-              "title": "Agent ID",
-              "key": true,
-              "hidden": true
+          "controlPropertyList": [
+            {
+              "attribute": "layout-group-id",
+              "value": "nodes"
             },
-            "agent_name": {
-              "title": "Name",
-              "defaultWidth": 150,
-              "key": true
+            {
+              "attribute": "layout-percent",
+              "value": "30"
             },
-            "description": {
-              "title": "Agent Task",
-              "key": true
-            },
-            "status_color": {
-              "type": "COLOR-MAP",
-              "source-column": "status",
-              "color-map": {
-                "CREATED": "#4CAF50",
-                "CREATING": "#FF5722",
-                "FAILED": "#B71C1C"
-              }
-            },
-            "status": {
-              "title": "Status",
-              "htmlTemplateForRow": "<span class='badge' style='background-color: {{'{{ row.status_color }}'}}' > {{'{{ row.status }}'}} </span>"
-            },
-            "message": {
-              "title": "Message",
-              "key": false,
-              "formatter": "truncate"
+            {
+              "attribute": "paginated",
+              "value": true
             }
-          },
-          "widget_id": "2630645f",
-          "actions": [
+          ],
+          "additional_display_attributes": [
             {
-              "permission": "rda:github:view",
-              "title": "Add Agent",
-              "type": "POPUP_FORM",
-              "selectionType": "NONE",
-              "identifier": "saas-service-action:agenticai-add-agent",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.agenticai.add.agent"
-                  }
-                ]
-              }
+              "fieldId": "node_id",
+              "label": "Node ID",
+              "key_attribute": true,
+              "table_key_attribute": true,
+              "hide_field": false
             },
             {
-              "permission": "rda:github:view",
-              "title": "Edit Task Graph",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:agenticai-edit-task-graph",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.agenticai.edit.task.graph"
-                  }
-                ]
-              },
-              "actionCondition": {
-                "actionControl": "SHOW_IF",
-                "operator": "OR",
-                "conditionalField": [
-                  {
-                    "conditionType": "EQUAL",
-                    "conditionValue": "CREATED",
-                    "fieldId": "status"
-                  }
-                ]
-              }
+              "fieldId": "node_type",
+              "label": "Type",
+              "key_attribute": false,
+              "table_key_attribute": false,
+              "hide_field": false
+            }
+          ]
+        },
+        {
+          "fieldId": "from_node_key",
+          "label": "Source Node Key",
+          "help": "Source Node Key",
+          "controlType": "LABEL",
+          "hidden": true,
+          "editable": false,
+          "defaultValue": "node_id"
+        },
+        {
+          "fieldId": "to_node",
+          "label": "To Node",
+          "help": "Device Destination Node",
+          "key_attribute": false,
+          "controlType": "SELECTOR_DIALOG",
+          "selectionType": "SINGLE",
+          "pstream": "cfx_rdaf_topology_nodes",
+          "pstream_attribute": "node_label",
+          "query_attributes": [
+            "node_label"
+          ],
+          "controlPropertyList": [
+            {
+              "attribute": "layout-group-id",
+              "value": "nodes"
             },
             {
-              "permission": "rda:user_dashboard:view",
-              "appName": "user-dashboard/agentic-ai-agents-app",
-              "identifier": "launch.dashboard.agent.dashboard",
-              "drillDownLinkField": "agent_name",
-              "contextParamList": {
-                "contextParams": [
-                  {
-                    "paramKey": "agent_name",
-                    "paramId": "agent"
-                  }
-                ]
-              },
-              "selectionType": "SINGLE",
-              "title": "Dashboard",
-              "type": "GO_TO_APP_STATE",
-              "actionCondition": {
-                "actionControl": "SHOW_IF",
-                "operator": "OR",
-                "conditionalField": [
-                  {
-                    "conditionType": "EQUAL",
-                    "conditionValue": "CREATED",
-                    "fieldId": "status"
-                  }
-                ]
-              }
+              "attribute": "layout-percent",
+              "value": "30"
             },
             {
-              "permission1": "rda:github:view",
-              "title": "Execute Agent",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:agenticai-execute",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.dynamic.form",
-                    "formActionList": {
-                      "formActions": [
-                        {
-                          "identifier": "Submit",
-                          "actionLabel": "Execute"
-                        }
-                      ]
-                    },
-                    "formDefinition": {
-                      "id": "rda.saas.dynamic.form",
-                      "refreshRequired": true,
-                      "formFieldList": [
-                        {
-                          "help": "Are you sure you want to execute the agent?",
-                          "dataType": "string",
-                          "controlType": "LABEL",
-                          "required": false,
-                          "editable": false,
-                          "label": "Are you sure you want to execute the agent?",
-                          "hidden": false,
-                          "fieldId": "name"
-                        }
-                      ]
-                    },
-                    "actions": [
-                      {
-                        "type": "RUN_PIPELINE",
-                        "pipelineName": "execute-agent",
-                        "isSync": false
-                      }
-                    ]
-                  }
-                ]
-              }
+              "attribute": "paginated",
+              "value": true
+            }
+          ],
+          "additional_display_attributes": [
+            {
+              "fieldId": "node_id",
+              "label": "Node ID",
+              "key_attribute": true,
+              "table_key_attribute": true,
+              "hide_field": false
             },
             {
-              "permission": "rda:github:view",
-              "title": "Delete",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:userdashboard-add-yaml",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.dynamic.form",
-                    "formDefinition": {
-                      "id": "rda.saas.dynamic.form",
-                      "refreshRequired": true,
-                      "formFieldList": [
-                        {
-                          "help": "Are you sure you want to delete the agent?",
-                          "dataType": "string",
-                          "controlType": "LABEL",
-                          "required": false,
-                          "editable": false,
-                          "label": "Are you sure you want to delete the agent?",
-                          "hidden": false,
-                          "fieldId": "name"
-                        }
-                      ]
-                    },
-                    "actions": [
-                      {
-                        "type": "UPDATE_PSTREAM",
-                        "pstreamName": "rda_agentic_ai_agents",
-                        "operation": "DELETE",
-                        "cfxql_query": "{% raw %}agent_id is '{{agent_id}}' and agent_name is '{{agent_name}}'{% endraw %}"
-                      }
-                    ],
-                    "formActionList": {
-                      "formActions": [
-                        {
-                          "actionLabel": "Delete",
-                          "type": "SUBMIT",
-                          "identifier": "Submit"
-                        }
-                      ]
-                    }
-                  }
-                ]
-              },
-              "actionCondition": {
-                "actionControl": "SHOW_IF",
-                "operator": "OR",
-                "conditionalField": [
-                  {
-                    "conditionType": "EQUAL",
-                    "conditionValue": "CREATED",
-                    "fieldId": "status"
-                  },
-                  {
-                    "conditionType": "EQUAL",
-                    "conditionValue": "CREATING",
-                    "fieldId": "status"
-                  },
-                  {
-                    "conditionType": "EQUAL",
-                    "conditionValue": "FAILED",
-                    "fieldId": "status"
-                  }
-                ]
-              }
+              "fieldId": "node_type",
+              "label": "Type",
+              "key_attribute": false,
+              "table_key_attribute": false,
+              "hide_field": false
+            }
+          ]
+        },
+        {
+          "fieldId": "to_node_key",
+          "label": "Destination Node Key",
+          "help": "Destination Node Key",
+          "controlType": "LABEL",
+          "hidden": true,
+          "editable": false,
+          "defaultValue": "node_id"
+        },
+        {
+          "fieldId": "depth",
+          "label": "Path Visualization Depth",
+          "help": "Path Visualization Depth",
+          "dataType": "string",
+          "hidden": true,
+          "editable": true,
+          "required": true,
+          "controlType": "COMBO_BOX",
+          "defaultValue": "2",
+          "lovValues": [
+            {
+              "identifier": "-1",
+              "displayName": "Auto"
             },
             {
-              "permission": "rda:github:view",
-              "title": "Run Test",
-              "type": "POPUP_FORM",
-              "contextParamList": {
-                "contextParams": [
-                  {
-                    "paramKey": "agent_id",
-                    "paramId": "agent_id"
-                  }
-                ]
-              },
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:userdashboard-add-yaml",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.dynamic.form",
-                    "formActionList": {
-                      "formActions": [
-                        {
-                          "identifier": "Submit",
-                          "actionLabel": "Run"
-                        }
-                      ]
-                    },
-                    "formDefinition": {
-                      "id": "rda.saas.dynamic.form",
-                      "refreshRequired": true,
-                      "formFieldList": [
-                        {
-                          "fieldId": "run_name",
-                          "label": "Run Name",
-                          "help": "This will let the user add the name to the Test",
-                          "dataType": "string",
-                          "controlType": "TEXT_FIELD",
-                          "hidden": false,
-                          "editable": true,
-                          "required": true,
-                          "controlPropertyList": [
-                            {
-                              "attribute": "layout-group-id",
-                              "value": "details"
-                            },
-                            {
-                              "attribute": "layout-percent",
-                              "value": "50"
-                            }
-                          ]
-                        },
-                        {
-                          "help": "Select the LLM to use.",
-                          "dataType": "string",
-                          "controlType": "COMBO_BOX",
-                          "required": true,
-                          "editable": true,
-                          "label": "LLM",
-                          "hidden": false,
-                          "fieldId": "llm",
-                          "lovSourceType": "pstream",
-                          "lovSourceParams": {
-                            "name": "rda_secrets_meta",
-                            "valueColumn": "name",
-                            "labelColumn": "name",
-                            "query": "type is llm"
-                          },
-                          "controlPropertyList": [
-                            {
-                              "attribute": "layout-group-id",
-                              "value": "details"
-                            },
-                            {
-                              "attribute": "layout-percent",
-                              "value": "50"
-                            }
-                          ]
-                        },
-                        {
-                          "help": "TestName",
-                          "dataType": "string",
-                          "required": false,
-                          "editable": true,
-                          "hidden": false,
-                          "fieldId": "selected_test",
-                          "controlType": "SELECTOR_TABLE",
-                          "controlPropertyList": [
-                            {
-                              "attribute": "column-key",
-                              "value": "test_name"
-                            },
-                            {
-                              "attribute": "selection",
-                              "value": "MULTIPLE"
-                            }
-                          ],
-                          "widget": {
-                            "title": "Tests",
-                            "timebased": false,
-                            "max_width": 12,
-                            "height": 8,
-                            "min_width": 12,
-                            "stream": "rda_agentic_ai_tests",
-                            "ts_column": "timestamp",
-                            "extra_filter": "agent_id is '$agent_id'",
-                            "sorting": [],
-                            "columns": {
-                              "test_name": {
-                                "title": "Test Name",
-                                "key": true
-                              },
-                              "test_description": {
-                                "title": "Test Description",
-                                "key": false
-                              },
-                              "test_id": {
-                                "title": "Test ID",
-                                "key": true
-                              }
-                            }
-                          }
-                        }
-                      ]
-                    },
-                    "actions": [
-                      {
-                        "type": "RUN_PIPELINE",
-                        "pipelineName": "execute-agent",
-                        "show_submission_prompt": true,
-                        "submission_title": "Executing Test Run",
-                        "submission_message": "The test run has been initiated and is currently executing in the background. Please check the Test Runs page in Test Details.",
-                        "isSync": false
-                      }
-                    ]
-                  }
-                ]
-              },
-              "actionCondition": {
-                "actionControl": "SHOW_IF",
-                "operator": "OR",
-                "conditionalField": [
-                  {
-                    "conditionType": "EQUAL",
-                    "conditionValue": "CREATED",
-                    "fieldId": "status"
-                  }
-                ]
-              }
+              "identifier": "2",
+              "displayName": "2"
             },
             {
-              "permission": "rda:github:view",
-              "title": "Execute Agent",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:userdashboard-add-yaml",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "params": [
-                  {
-                    "formId": "rda.saas.dynamic.form",
-                    "formActionList": {
-                      "formActions": [
-                        {
-                          "identifier": "Submit",
-                          "actionLabel": "Execute"
-                        }
-                      ]
-                    },
-                    "formDefinition": {
-                      "id": "rda.saas.dynamic.form",
-                      "refreshRequired": true,
-                      "formFieldList": [
-                        {
-                          "fieldId": "run_name",
-                          "label": "Run Name",
-                          "help": "This will let the user add the name to the Test",
-                          "dataType": "string",
-                          "controlType": "TEXT_FIELD",
-                          "hidden": false,
-                          "editable": true,
-                          "required": true,
-                          "controlPropertyList": [
-                            {
-                              "attribute": "layout-group-id",
-                              "value": "details"
-                            },
-                            {
-                              "attribute": "layout-percent",
-                              "value": "50"
-                            }
-                          ]
-                        },
-                        {
-                          "help": "Select the LLM to use.",
-                          "dataType": "string",
-                          "controlType": "COMBO_BOX",
-                          "required": true,
-                          "editable": true,
-                          "label": "LLM",
-                          "hidden": false,
-                          "fieldId": "llm",
-                          "lovSourceType": "pstream",
-                          "lovSourceParams": {
-                            "name": "rda_secrets_meta",
-                            "valueColumn": "name",
-                            "labelColumn": "name",
-                            "query": "type is llm"
-                          },
-                          "controlPropertyList": [
-                            {
-                              "attribute": "layout-group-id",
-                              "value": "details"
-                            },
-                            {
-                              "attribute": "layout-percent",
-                              "value": "50"
-                            }
-                          ]
-                        },
-                        {
-                          "fieldId": "capture_mode",
-                          "label": "Capture Mode",
-                          "description": "Capture mode will download the stream query outputs and prepare a zip file so that it can be used for other tests.",
-                          "required": false,
-                          "default": false,
-                          "dataType": "boolean",
-                          "hidden": false,
-                          "fieldControlPropertyList": [
-                            {
-                              "fieldId": "download_label",
-                              "controlActions": [
-                                "ShowField"
-                              ],
-                              "condition": {
-                                "selectionValue": "true"
-                              }
-                            }
-                          ],
-                          "editable": true,
-                          "controlType": "BOOLEAN_FIELD"
-                        },
-                        {
-                          "help": "The output file will be availabe in My Downloads.",
-                          "dataType": "string",
-                          "controlType": "LABEL",
-                          "required": false,
-                          "editable": false,
-                          "label": "The output file will be availabe in My Downloads.",
-                          "hidden": true,
-                          "fieldId": "download_label"
-                        },
-                        {
-                          "fieldId": "dryrun_mode",
-                          "label": "Dry Run",
-                          "description": "",
-                          "help": "In dry run mode all the steps of type write_stream and run_pipeline will be skipped",
-                          "required": false,
-                          "default": false,
-                          "dataType": "boolean",
-                          "hidden": false,
-                          "editable": true,
-                          "controlType": "BOOLEAN_FIELD"
-                        }
-                      ]
-                    },
-                    "actions": [
-                      {
-                        "type": "RUN_PIPELINE",
-                        "pipelineName": "execute-agent",
-                        "show_submission_prompt": true,
-                        "submission_title": "Agent Execution in Progress",
-                        "submission_message": "The agent is currently executing in the background. If capture is enabled, the captured data will be available in MyDownloads upon completion.",
-                        "isSync": false
-                      }
-                    ]
-                  }
-                ]
-              },
-              "actionCondition": {
-                "actionControl": "SHOW_IF",
-                "operator": "OR",
-                "conditionalField": [
-                  {
-                    "conditionType": "EQUAL",
-                    "conditionValue": "CREATED",
-                    "fieldId": "status"
-                  }
-                ]
-              }
+              "identifier": "3",
+              "displayName": "3"
+            },
+            {
+              "identifier": "4",
+              "displayName": "4"
+            },
+            {
+              "identifier": "5",
+              "displayName": "5"
+            },
+            {
+              "identifier": "6",
+              "displayName": "6"
+            }
+          ],
+          "controlPropertyList": [
+            {
+              "attribute": "layout-group-id",
+              "value": "nodes"
+            },
+            {
+              "attribute": "layout-percent",
+              "value": "20"
             }
           ]
         }
       ],
-      "saved_time": "2024-11-19T07:28:36.803725"
+      "formActionList": {
+        "formActions": [
+          {
+            "api-endpoint": {
+              "methodName": "submitForm",
+              "parse-output": false,
+              "params": [
+                {
+                  "formData": {},
+                  "formId": "topology.benchmark.json"
+                }
+              ],
+              "service-name": "saas-reports",
+              "stringified-params": true
+            },
+            "actionLabel": "Save",
+            "type": "SUBMIT",
+            "identifier": "Submit"
+          },
+          {
+            "actionLabel": "Cancel",
+            "type": "CANCEL",
+            "identifier": "Cancel"
+          }
+        ]
+      }
+    }
+  },
+  "pstream_dashboards": [
+    {
+      "title": "Network Path Viewer",
+      "show_filter": true,
+      "widgets": [
+        {
+          "title": "Path Visualization",
+          "widget_type": "path_visualization_graph",
+          "with_graphdb": true,
+          "graphdb_attributes": {
+            "gdb_creds": {
+              "db_name": "cfx_topo",
+              "graph_name": "cfx_topo_graph",
+              "collection": "cfx_topo_nodes_collection"
+            },
+            "aql_template": {
+              "name": "k_shortest_paths_template",
+              "bind_params": [
+                "from",
+                "to",
+                "graph",
+                "limit"
+              ]
+            },
+            "node_consolidation": "all",
+            "node_attrs": [
+              "_id",
+              "node_id",
+              "node_type",
+              "node_label",
+              "name"
+            ],
+            "edge_attrs": [
+              "_from",
+              "_to",
+              "left_id",
+              "right_id",
+              "relation_type",
+              "link_type"
+            ],
+            "display_attrs": [
+              {
+                "name": "name",
+                "label": "Name"
+              },
+              {
+                "name": "node_type",
+                "label": "Node Type"
+              },
+              {
+                "name": "node_label",
+                "label": "Node Label"
+              }
+            ]
+          },
+          "alert_source": {
+            "stream": "oia-alerts-stream",
+            "extra_filter": "a_status is 'ACTIVE' ",
+            "group_by": [
+              "a_en_node_id",
+              "a_severity"
+            ],
+            "agg": "sum",
+            "column": "count_",
+            "show_only_paths_with_alerts": false
+          },
+          "color-map": {
+            "SEVERE": [
+              "#910101",
+              "#FFFFFF"
+            ],
+            "CRITICAL": [
+              "#FF0000",
+              "#FFFFFF"
+            ],
+            "MAJOR": [
+              "#FF9800",
+              "#FFFFFF"
+            ],
+            "MINOR": [
+              "#FDD835",
+              "#000000"
+            ],
+            "WARNING": [
+              "#9C27B0",
+              "#FFFFFF"
+            ]
+          },
+          "actions": [],
+          "widget_id": "f8c1c7d9"
+        },
+        {
+          "title": "Topology",
+          "widget_type": "topology",
+          "register_search_endpoints": true,
+          "reportId": "rda.saas.stack.view.topo",
+          "has_more_data_flag": false,
+          "expand_all": true,
+          "stack_type": "dynamic",
+          "stack_definition": {
+            "name": "Telco Stack",
+            "description": "",
+            "saved_time": "2023-09-12T21:08:31.418255",
+            "is_dynamic": true,
+            "hierarchical": true,
+            "dynamic_nodes": {
+              "stream": "cfx_rdaf_topology_nodes",
+              "limit": 0,
+              "sorting": null
+            },
+            "dynamic_relationships": {
+              "stream": "cfx_rdaf_topology_edges",
+              "query": "link_type is Not Empty",
+              "limit": 0,
+              "sorting": null
+            }
+          },
+          "nodes_report": {
+            "reportMetaData": {
+              "sorting": true,
+              "filtering": true,
+              "title": "Nodes",
+              "remote_searchable": false,
+              "remote_searchable_cols": [
+                "name",
+                "node_label",
+                "node_id",
+                "node_type"
+              ],
+              "actions": [],
+              "reportColumnDefinitionList": [
+                {
+                  "identifier": "node_label",
+                  "title": "Name",
+                  "key": false
+                },
+                {
+                  "identifier": "node_type",
+                  "key": false,
+                  "title": "node_type"
+                },
+                {
+                  "identifier": "name",
+                  "hidden": true,
+                  "key": false
+                },
+                {
+                  "identifier": "vcenter_name",
+                  "title": "vCenter Name",
+                  "key": false
+                },
+                {
+                  "identifier": "datacenter",
+                  "key": false,
+                  "title": "Data Center"
+                },
+                {
+                  "identifier": "esxi_cluster",
+                  "key": false,
+                  "title": "ESXI Cluster"
+                },
+                {
+                  "identifier": "vcenter_address",
+                  "key": false,
+                  "title": "vCenter Address"
+                },
+                {
+                  "identifier": "layer",
+                  "key": false,
+                  "title": "Layer"
+                },
+                {
+                  "identifier": "vcenter_object",
+                  "key": false,
+                  "title": "vCenter Object"
+                },
+                {
+                  "identifier": "vcenter_os_type",
+                  "key": false,
+                  "title": "vCenter OS type"
+                },
+                {
+                  "identifier": "phy_switch_name",
+                  "key": false,
+                  "title": "Physical Switch Name"
+                },
+                {
+                  "identifier": "node_id",
+                  "key": true,
+                  "hidden": true
+                }
+              ]
+            }
+          },
+          "nodes_asset_report1": {
+            "dashboardId": "Topology",
+            "reportId": "dynamic_v2_tabular_report_0_1",
+            "ignore_context_filter": true
+          },
+          "edges_report": {
+            "reportId": "rda.saas.topology.edges.report",
+            "reportMetaData": {
+              "sorting": true,
+              "filtering": true,
+              "title": "Edges",
+              "reportColumnDefinitionList": [
+                {
+                  "hidden": false,
+                  "id": "left_id",
+                  "identifier": "left_id",
+                  "key": true,
+                  "title": "Left Id",
+                  "type": "TEXT",
+                  "visible": false
+                },
+                {
+                  "hidden": false,
+                  "id": "left_label",
+                  "identifier": "left_label",
+                  "key": false,
+                  "title": "Source",
+                  "type": "TEXT",
+                  "visible": true
+                },
+                {
+                  "hidden": false,
+                  "id": "right_id",
+                  "identifier": "right_id",
+                  "key": true,
+                  "title": "Right Id",
+                  "type": "TEXT",
+                  "visible": false
+                },
+                {
+                  "hidden": false,
+                  "id": "right_label",
+                  "identifier": "right_label",
+                  "key": false,
+                  "title": "Destination",
+                  "type": "TEXT",
+                  "visible": true
+                },
+                {
+                  "hidden": false,
+                  "id": "relation_type",
+                  "identifier": "relation_type",
+                  "key": false,
+                  "title": "Relation",
+                  "type": "TEXT",
+                  "visible": true
+                }
+              ],
+              "actions": []
+            }
+          },
+          "height": 12,
+          "min_wdith": 12,
+          "widget_id": "182287d8"
+        },
+        {
+          "title": "Asset Details",
+          "widget_type": "tabular",
+          "stream": "cfx_rdaf_topology_nodes",
+          "height": 10,
+          "min_wdith": 12,
+          "widget_id": "56347327",
+          "paginated": true,
+          "duration_hours": 10000,
+          "max_rows": 50,
+          "ts_column": "timestamp",
+          "remote_searchable": true,
+          "virtual_scrolling": true,
+          "context_filter000": "customerRole is 'admin'",
+          "showRowSummary": true,
+          "remote_searchable_cols": [
+            "name",
+            "node_label",
+            "node_id"
+          ],
+          "custom_columns": [
+            {
+              "id": "isInUIView",
+              "label": "In UI View",
+              "expr": "str(_row.node_id) in {{IN_UI_VIEW_NODES}}",
+              "hidden": true,
+              "key": false,
+              "visible": false,
+              "sortable": false,
+              "filterable": false
+            }
+          ],
+          "columns": {
+            "isInUIView": {
+              "title": "In UI View",
+              "key": false,
+              "filterable": false,
+              "type": "DYNAMIC_HTML",
+              "htmlTemplate": "<div v-if='rowData.isInUIView'><v-icon icon>mdi-check</v-icon></div><div v-else> </div>"
+            },
+            "node_label": {
+              "title": "Name",
+              "key": true
+            },
+            "node_type": {
+              "key": false,
+              "title": "Node Type"
+            },
+            "vcenter_name": {
+              "hidden": false,
+              "title": "vCenter Name",
+              "key": true
+            },
+            "datacenter": {
+              "title": "Datacenter"
+            },
+            "esxi_cluster": {
+              "key": false,
+              "title": "ESXI Cluster"
+            },
+            "vcenter_address": {
+              "key": false,
+              "title": "vCenter Address"
+            },
+            "layer": {
+              "key": false,
+              "title": "Layer"
+            },
+            "vcenter_object": {
+              "key": false,
+              "title": "vCenter Object"
+            },
+            "vcenter_os_type": {
+              "key": false,
+              "title": "vCenter OS type"
+            },
+            "phy_switch_name": {
+              "key": false,
+              "title": "Physical Switch Name"
+            },
+            "node_id": {
+              "key": true,
+              "hidden": true
+            }
+          },
+          "actions": [
+            {
+              "permission1": "rda:user_dashboard:view",
+              "appName1": "user-dashboard",
+              "drillDownLinkField1": "node_label",
+              "identifier": "launch.dashboard.node_details_app",
+              "selectionType": "SINGLE",
+              "title": "Device Details",
+              "contextParamList": {
+                "contextParams": [
+                  {
+                    "paramKey": "projectId",
+                    "paramId": "projectId"
+                  },
+                  {
+                    "paramKey": "project_id",
+                    "paramId": "project_id"
+                  },
+                  {
+                    "paramKey": "node_type",
+                    "paramId": "node_type"
+                  },
+                  {
+                    "paramKey": "serialNumber",
+                    "paramId": "serialNumber"
+                  },
+                  {
+                    "paramKey": "device_ip",
+                    "paramId": "device_ip"
+                  },
+                  {
+                    "paramKey": "parent_sn",
+                    "paramId": "parent_sn"
+                  },
+                  {
+                    "paramKey": "node_label",
+                    "paramId": "node_label"
+                  }
+                ]
+              },
+              "type": "GO_TO_APP_STATE"
+            }
+          ]
+        },
+        {
+          "title": "Geomap",
+          "widget_type": "topology_geomap",
+          "widget_template": "common/geo-map",
+          "reportId": "myreportId",
+          "mapProperties": {
+            "initialMapZoom": 5,
+            "mapTableWidth": 250
+          },
+          "edge_colors": [
+            "#455a64",
+            "#f57c00",
+            "#fbc02d",
+            "#388e3c",
+            "#0097a7",
+            "#1976d2",
+            "#8e24aa",
+            "#d81b60",
+            "#d32f2f"
+          ],
+          "node_display_attrs": [
+            "node_id",
+            "device_ip",
+            "serialNumber"
+          ],
+          "has_more_data_flag": false,
+          "expand_all": false,
+          "auto_group": true,
+          "stack_type": "dynamic",
+          "stack_definition": {
+            "name": "Telco Stack",
+            "description": "",
+            "saved_time": "2023-09-12T21:08:31.418255",
+            "is_dynamic": true,
+            "hierarchical": true,
+            "dynamic_nodes": {
+              "stream": "cfx_rdaf_topology_nodes",
+              "limit": 0,
+              "sorting": null
+            },
+            "dynamic_relationships": {
+              "stream": "cfx_rdaf_topology_edges",
+              "limit": 0,
+              "sorting": null
+            }
+          },
+          "nodes_report": {
+            "reportMetaData": {
+              "sorting": true,
+              "filtering": true,
+              "title": "Nodes",
+              "remote_searchable": true,
+              "remote_searchable_cols": [
+                "name",
+                "node_label",
+                "node_id"
+              ],
+              "actions": [],
+              "reportColumnDefinitionList": [
+                {
+                  "identifier": "node_label",
+                  "title": "Name",
+                  "key": false
+                },
+                {
+                  "identifier": "name",
+                  "hidden": true,
+                  "key": false
+                },
+                {
+                  "identifier": "vcenter_name",
+                  "title": "vCenter Name",
+                  "key": false
+                },
+                {
+                  "identifier": "datacenter",
+                  "key": false,
+                  "title": "Data Center"
+                },
+                {
+                  "identifier": "esxi_cluster",
+                  "key": false,
+                  "title": "ESXI Cluster"
+                },
+                {
+                  "identifier": "vcenter_address",
+                  "key": false,
+                  "title": "vCenter Address"
+                },
+                {
+                  "identifier": "layer",
+                  "key": false,
+                  "title": "Layer"
+                },
+                {
+                  "identifier": "node_type",
+                  "key": false,
+                  "title": "node_type"
+                },
+                {
+                  "identifier": "vcenter_object",
+                  "key": false,
+                  "title": "vCenter Object"
+                },
+                {
+                  "identifier": "vcenter_os_type",
+                  "key": false,
+                  "title": "vCenter OS type"
+                },
+                {
+                  "identifier": "phy_switch_name",
+                  "key": false,
+                  "title": "Physical Switch Name"
+                },
+                {
+                  "identifier": "node_id",
+                  "key": true,
+                  "hidden": true
+                }
+              ]
+            }
+          },
+          "edges_report": {
+            "reportId": "rda.saas.topology.edges.report",
+            "reportMetaData": {
+              "sorting": true,
+              "filtering": true,
+              "title": "Edges",
+              "reportColumnDefinitionList": [
+                {
+                  "hidden": false,
+                  "id": "left_id",
+                  "identifier": "left_id",
+                  "key": true,
+                  "title": "Left Id",
+                  "type": "TEXT",
+                  "visible": false
+                },
+                {
+                  "hidden": false,
+                  "id": "left_label",
+                  "identifier": "left_label",
+                  "key": false,
+                  "title": "Source",
+                  "type": "TEXT",
+                  "visible": true
+                },
+                {
+                  "hidden": false,
+                  "id": "right_id",
+                  "identifier": "right_id",
+                  "key": true,
+                  "title": "Right Id",
+                  "type": "TEXT",
+                  "visible": false
+                },
+                {
+                  "hidden": false,
+                  "id": "right_label",
+                  "identifier": "right_label",
+                  "key": false,
+                  "title": "Destination",
+                  "type": "TEXT",
+                  "visible": true
+                },
+                {
+                  "hidden": false,
+                  "id": "link_type",
+                  "identifier": "link_type",
+                  "key": false,
+                  "title": "Link Type",
+                  "type": "TEXT",
+                  "visible": true
+                },
+                {
+                  "hidden": false,
+                  "id": "relation_type",
+                  "identifier": "relation_type",
+                  "key": false,
+                  "title": "Relation",
+                  "type": "TEXT",
+                  "visible": true
+                }
+              ],
+              "actions": []
+            }
+          },
+          "height": 8,
+          "max_width": 12,
+          "widget_id": "182657d8"
+        }
+      ]
     }
   ]
 }
