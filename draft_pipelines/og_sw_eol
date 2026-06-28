@@ -1,42 +1,54 @@
+@dm:empty
+ --> @dm:addrow name = 'edc_customer_inventory' and limit=0
+ --> #dm:query-persistent-stream project_name='Conexus' and sw_version!='Not Available'
+ --> @dm:selectcolumns exclude='PID'
+ --> @dm:save name='temp-contract_data'
+ --> @c:new-block
+ --> @dm:empty
+ --> @dm:save name = "enriched-sweol-values"
+ ## Generate unique list of PID-SW version to process
 
- ## Generate token
-@c:new-block
- --> @restclient:read url="https://int-id.cisco.com/oauth2/aussduh26AoUqMpmQ1d6/v1/token?grant_type=client_credentials&client_id=0oaknwhn14c4dkz131d7&client_secret=5uFg2IE0bCHKV75823fFZ-HYJGfIawA5UyZg_KrxArhLghWlLoTSV5EA6G_wjymB" and
-`method`="POST" and
-`Content-Type`='application/x-www-form-urlencoded' and
-`Accept`='*/*'
- --> @dm:eval key="'key'"
- --> @dm:save name="temp-token"
- --> @dm:save name="original-token"
- ## Build payload
+ --> @c:new-block
+ --> @dm:recall name="temp-contract_data"
+ --> *dm:filter sw_version!='Not Available'
+ --> *dm:filter sw_os_type is not null
+ ## new column product_id
+
+ --> @dm:copy-columns from="product_name" and to="product_id"
+ --> @dm:eval product_id = "product_id.replace('=', '')"
+ --> @dm:eval tokens = "product_id.rsplit('-', 1)"
+ --> @dm:eval product_id = "tokens[0] if len(tokens) > 1 and tokens[1] in ['RF'] else product_id"
+ --> @dm:selectcolumns exclude = "tokens"
+ --> @dm:save name = "temp-contract_data"
+ --> @dm:selectcolumns include="^product_id|sw_os_type|sw_version|instance_id"
+ --> @dm:groupby columns ="product_id,sw_os_type,sw_version"
+ --> @dm:rename-columns instance_id="total"
+ ## remove unnecessary characters from sw_version
+
+ --> @dm:eval sw_version = "sw_version.replace('Copyright', '')"
+ --> @dm:eval sw_version = "sw_version.replace('[Default]', '')"
+ --> @dm:eval sw_version = "str(sw_version).strip()"
+ --> @dm:eval unique_key = "str(product_id) + str(sw_os_type) + str(sw_version)"
+ --> @dm:save name="temp-input-dataset"
+ ## Process SW EoL
+
+ ## declaring thrid level child pipelines
 
  --> @c:new-block
  --> @dm:empty
- ## This payload is for Security Advisories
+ --> @exec:define-function name="define_child_pipelines"
+ --> @exec:run-pipeline name ="edc_generate_token" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_sw_get_data" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_sweol_enrich" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_processing_sw_data" & ignore_failures = "no"
+ --> @exec:end-function
+ ## collecting the file and storing it in edc_cust_pid_sw stream, collecting the API data and adding the processed data to edc_sw_raw_data
 
- ## --> @dm:addrow data='{"input":{"transaction_id":"6e86f3db55880afdc57e11c278637c19748faae7b","cloudStorage":true,"scanTrigger":"ManualScan","icTypes":["securityAdvisory"],"includePotentialVulnerableResults":true,"client_app":{"app_name":"OI","client_id":"0oaknwhn14c4dkz131d7"},"device_details":{"deviceType":"IOS-XE","model":"ASR9K","version":"6.5.3","serialNumber":"FXS2014Q1KG"}}}'
+ --> @c:new-block
+ --> @dm:recall name='temp-input-dataset'
+ ## --> @rn:write-stream name='edc_cust_pid_sw'
 
- ## This payload is for SW EoX
-
- --> @dm:addrow data='{"input": { "transaction_id": "6e86f3db89230afdc511221c278637c19748faae65","cloudStorage": true,"scanTrigger": "ManualScan","icTypes": ["softwareEoX"],"client_app": {"app_name": "OI","client_id": "0oaknwhn14c4dkz131d7"},"device_details": {"softwareType": "IOS XR","model": "CISCO2501","softwareVersionNumber":"12.0(21a)", "serialNumber": "coronas2"}}}'
- --> @dm:eval key="'key'"
- --> @dm:enrich dict ="temp-token" and src_key_cols="key" and dict_key_cols="key" and enrich_cols = "access_token"
- ## --> @dm:save name="temp_scan_payload"
-
- --> @dm:save name="og_scan_payload"
- ## Run Scan
-
- --> @c:data-loop columns="access_token,data" and dataset="og_scan_payload"
- --> @restclient:read url="https://api-cx.cisco.com/us/perf/ironbank/v1/scan/jobs/feb_device_scan/async" and payload = '$data' and method="POST" and Authorization= "Bearer $access_token"
- --> @dm:eval key="'key'"
- --> @dm:enrich dict ="og_scan_payload" and src_key_cols="key" and dict_key_cols="key" and enrich_cols = "access_token"
- --> @dm:save name="og_scan_id"
- --> @dm:sleep seconds = 5
- ## Get results from scan
-
- --> @c:data-loop columns="access_token,id" and dataset="og_scan_id"
- --> @restclient:read url="https://api-cx.cisco.com/us/perf/ironbank/v1/scan/jobs/$id" and method="GET" and Authorization= "Bearer $access_token" and `Accept`="*/*" and Connection="keep-alive"
- --> @dm:eval issues="json_dumps(issues)"
- --> @dm:explode-json column="issues"
- --> @dm:save name="temp-scan_result"
- --> @dm:save name="og_scan_result"
+ --> @dm:save name="temp-cust_pid_sw"
+ --> @exec:run-pipeline name ="edc_sw_run_scan" & ignore_failures = "no"
+ --> @dm:save name='enriched-sweol-values' and append="yes"
+ --> @dm:save name='temp-enriched-sweol-values' and append="yes"
