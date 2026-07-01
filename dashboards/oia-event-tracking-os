@@ -1,259 +1,216 @@
 {
-  "name": "rda-mgmt-page-dashboards",
-  "label": "Dashboards",
-  "description": " User Dashboard Management Page",
-  "enabled": false,
-  "dashboard_type": "dashboard",
-  "dashboard_folder": "System",
+  "name": "oia-event-tracking-os",
+  "label": "Open Search Based Events",
+  "description": "Open Search Based OIA Event Tracking",
+  "version": "24.11.11",
+  "enabled": true,
+  "stream": "oia-source-events-stream",
+  "dashboard_style": "auto",
+  "status_poller": {},
+  "dashboard_type": "template",
+  "template_variables": {
+    "PROJECT_ID": {
+      "default": [
+        "61ed50a5-8634-4464-a17e-adf6b40225b2"
+      ],
+      "contextId": "projectId"
+    }
+  },
   "dashboard_filters": {
-    "time_filter": false,
+    "default_time_filter_labels": [
+      "Last 24 hours"
+    ],
+    "time_filter": true,
+    "default_time_filter_non_removable": true,
+    "show_default_time_filter": false,
+    "additional_datetime_column_filters": [
+      {
+        "id": "se_createdat",
+        "label": "Created At"
+      },
+      {
+        "id": "se_updatedat",
+        "label": "Updated At"
+      }
+    ],
     "columns_filter": [
       {
-        "id": "saved_time",
-        "label": "Saved Time",
+        "id": "se_customerid",
+        "label": "Customer ID",
+        "type": "TEXT"
+      },
+      {
+        "id": "se_status",
+        "label": "Status",
+        "type": "TEXT"
+      },
+      {
+        "id": "se_sourcesystemname",
+        "label": "Source",
+        "type": "TEXT"
+      },
+      {
+        "id": "se_message",
+        "label": "Message",
+        "type": "TEXT"
+      },
+      {
+        "id": "se_projectid",
+        "label": "Organizations",
+        "type": "TEXT"
+      },
+      {
+        "id": "se_sourcereceivedat",
+        "label": "Received At",
         "type": "DATETIME"
       },
       {
-        "id": "enabled",
-        "label": "Enabled",
-        "type": "BOOLEAN"
+        "id": "se_id",
+        "label": "Source Event Id",
+        "type": "TEXT"
+      },
+      {
+        "id": "se_numberofevents",
+        "label": "No. of events",
+        "type": "DOUBLE"
+      }
+    ],
+    "extra_filter": "se_projectid in {{PROJECT_ID}}",
+    "group_filters": [
+      {
+        "stream": "oia-source-events-stream",
+        "title": "Events By Source",
+        "group_by": [
+          "se_sourcesystemname"
+        ],
+        "ts_column": "se_updatedat",
+        "agg": "value_count",
+        "column": "se_id",
+        "type": "str"
+      },
+      {
+        "stream": "oia-source-events-stream",
+        "title": "Events By Status",
+        "group_by": [
+          "se_status"
+        ],
+        "ts_column": "se_updatedat",
+        "agg": "value_count",
+        "column": "se_id",
+        "type": "str"
+      },
+      {
+        "stream": "oia-source-events-stream",
+        "title": "Organizations",
+        "group_by": [
+          "project_id"
+        ],
+        "ts_column": "se_updatedat",
+        "agg": "value_count",
+        "column": "se_projectid",
+        "type": "str"
       }
     ]
   },
   "dashboard_sections": [
     {
-      "title": "Dashboards",
+      "title": "Events",
       "show_filter": true,
+      "projects": [
+        "ACME"
+      ],
       "widgets": [
         {
-          "title": "Dashboards",
+          "title": "Events",
           "widget_type": "tabular",
-          "stream": "rda_dashboards_meta",
+          "stream": "oia-source-events-stream",
+          "ts_column": "se_updatedat",
           "timebased": false,
+          "min_width": 12,
+          "height": 12,
+          "max_width": 12,
+          "paginated": true,
+          "resizableColumns": false,
+          "refreshRequired": true,
           "remote_searchable": true,
           "remote_searchable_cols": [
-            "name",
-            "dashboard_folder",
-            "dashboard_type",
-            "label",
-            "description"
+            "se_sourcesystemname",
+            "se_status",
+            "se_message",
+            "se_projectid",
+            "se_id"
           ],
-          "ts_column": "saved_time",
-          "paginated": true,
-          "height": 10,
-          "min_width": 12,
+          "max_rows": 50,
           "columns": {
-            "name": {
-              "title": "Name",
-              "key": true
-            },
-            "dashboard_folder": {
-              "title": "Dashboard Folder"
-            },
-            "type": {
-              "title": "Type",
-              "type": "FIXED_VALUE",
-              "value": "Dashboard",
-              "visible": false,
-              "sortable": false
-            },
-            "dashboard_type": {
-              "title": "Dashboard Type"
-            },
-            "label": {
-              "title": "Label",
-              "key": true
-            },
-            "description": {
-              "title": "description"
-            },
-            "saved_time": {
-              "title": "Saved Time",
-              "type": "DATETIME"
-            },
-            "timestamp": {
-              "title": "When",
-              "type": "HUMANIZE_TIME_DELTA",
-              "source-column": "saved_time",
-              "sortable": false
-            }
-          },
-          "custom_columns": [
-            {
-              "id": "enabled",
-              "label": "Enabled",
-              "htmlTemplateForRow": "<span class='badge' style='background-color: {{ row.enableColor }}' > {{ row.enabled }} </span>"
-            },
-            {
-              "id": "id",
-              "label": "ID",
-              "expr": "'user-dashboard-' + name",
+            "se_id": {
+              "title": "Source Event ID",
               "visible": false,
               "key": true,
-              "sortable": false
+              "defaultWidth": 150
             },
-            {
-              "id": "url",
-              "label": "URL",
-              "expr": "'/workspace/dashboard/user-dashboard-' + name",
-              "visible": false,
-              "sortable": false
-            },
-            {
-              "id": "enableColor",
-              "label": "Enable Color",
-              "expr": "['#4CAF50'] if enabled else ['#9E9E9E']",
+            "view_details_action_id": {
+              "title": "id",
+              "value": "user-dashboard-oia-event-tracking-view-alerts",
+              "key": true,
+              "type": "FIXED_VALUE",
               "hidden": true,
-              "visible": false,
-              "sortable": false
+              "visible": false
             },
-            {
-              "id": "rowStyleClass",
-              "hidden": true,
+            "se_projectid": {
+              "title": "project Id",
               "visible": false,
-              "expr": "'bg-fading-blue' if time_now_as_ms() - isoformat_to_ms(saved_time) <= 120000 else None",
-              "sortable": false
+              "key": true,
+              "defaultWidth": 150
+            },
+            "se_sourcereceivedat": {
+              "title": "Received At",
+              "type": "DATETIME",
+              "defaultWidth": 150
+            },
+            "se_sourcesystemname": {
+              "title": "Source",
+              "defaultWidth": 150
+            },
+            "se_status": {
+              "title": "Status",
+              "defaultWidth": 150
+            },
+            "se_numberofevents": {
+              "title": "No of Events",
+              "defaultWidth": 150
+            },
+            "se_message": {
+              "title": "Message",
+              "defaultWidth": 270
+            },
+            "se_createdat": {
+              "title": "Created At",
+              "type": "DATETIME",
+              "defaultWidth": 180
+            },
+            "se_updatedat": {
+              "title": "Updated At",
+              "type": "DATETIME",
+              "defaultWidth": 180
             }
-          ],
+          },
           "actions": [
             {
-              "permission": "rda:user_dashboard:add",
-              "title": "Add",
-              "icon": "mdi mdi-plus",
-              "type": "POPUP_FORM",
-              "selectionType": "NONE",
-              "identifier": "saas-service-action:userdashboard-add-yaml",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.userdashboard.add.yaml"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:user_dashboard:view",
-              "appName": "user-dashboard",
-              "displayLabelColumnId": "id",
-              "drillDownLinkField": "name",
-              "identifier": "user.dashboard.view",
+              "title": "View Alerts",
+              "type": "GO_TO_APP_STATE",
               "selectionType": "SINGLE",
+              "permission": "oia:event-tracking:view",
+              "identifier": "ingestion-tracker:View Alerts_GREATER_THAN_0",
               "stateName": "app.featureapp",
-              "title": "Dashboard",
-              "type": "GO_TO_APP_STATE"
-            },
-            {
-              "permission": "rda:user_dashboard:view",
-              "title": "View YAML",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:userdashboard-view-yaml",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
+              "appName": "user-dashboard",
+              "drillDownLinkField": "se_sourcereceivedat",
+              "drillDownContext": "id",
+              "displayLabelColumnId": "se_sourcereceivedat",
+              "contextParamList": {
+                "contextParams": [
                   {
-                    "formId": "rda.saas.userdashboard.view.yaml"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:user_dashboard:view",
-              "title": "View JSON",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:userdashboard-view-json",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.userdashboard.view.json"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:user_dashboard:edit",
-              "title": "Edit YAML",
-              "icon": "mdi mdi-plus",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:userdashboard-edit-yaml",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.userdashboard.edit.yaml"
-                  }
-                ]
-              },
-              "actionCondition": {
-                "actionControl": "HIDE_IF",
-                "conditionalField": [
-                  {
-                    "conditionType": "EQUAL",
-                    "conditionValue": "System",
-                    "fieldId": "dashboard_folder"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:user_dashboard:edit",
-              "title": "Edit JSON",
-              "icon": "mdi mdi-plus",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:userdashboard-edit-json",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.userdashboard.edit.json"
-                  }
-                ]
-              },
-              "actionCondition": {
-                "actionControl": "HIDE_IF",
-                "conditionalField": [
-                  {
-                    "conditionType": "EQUAL",
-                    "conditionValue": "System",
-                    "fieldId": "dashboard_folder"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:user_dashboard:disable",
-              "title": "Disable",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:userdashboard-deactivate-dashboard",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.userdashboard.deactivate"
+                    "paramKey": "view_details_action_id",
+                    "paramId": "id"
                   }
                 ]
               },
@@ -261,323 +218,240 @@
                 "actionControl": "SHOW_IF",
                 "conditionalField": [
                   {
-                    "conditionType": "EQUAL",
-                    "conditionValue": "yes",
-                    "fieldId": "enabled"
+                    "conditionType": "GREATER_THAN",
+                    "conditionValue": "0",
+                    "fieldId": "se_numberofevents"
                   }
                 ]
               }
             },
             {
-              "permission": "rda:user_dashboard:enable",
-              "title": "Enable",
+              "title": "View Source Payload",
               "type": "POPUP_FORM",
               "selectionType": "SINGLE",
-              "identifier": "saas-service-action:userdashboard-activate-dashboard",
+              "permission": "oia:event-tracking:downloadSourcePayload",
+              "identifier": "ingestion-tracker:com.cfx.form.view.sourceevent.payload",
               "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
+                "service-name": "ingestion-tracker",
+                "namespace": "io.cfx.dimensions.app",
+                "methodName": "invokeAppApi:getFormById",
                 "stringified-params": true,
+                "useReportContext": true,
                 "parse-output": false,
                 "params": [
                   {
-                    "formId": "rda.saas.userdashboard.activate"
-                  }
-                ]
-              },
-              "actionCondition": {
-                "actionControl": "SHOW_IF",
-                "conditionalField": [
-                  {
-                    "conditionType": "EQUAL",
-                    "conditionValue": "no",
-                    "fieldId": "enabled"
+                    "form_id": "com.cfx.form.view.sourceevent.payload",
+                    "context": {}
                   }
                 ]
               }
             },
             {
-              "permission": "rda:user_dashboard:delete",
-              "title": "Delete",
+              "title": "Download Source Payload",
               "type": "POPUP_FORM",
               "selectionType": "SINGLE",
-              "identifier": "saas-service-action:userdashboard-delete-dashboard",
+              "permission": "oia:event-tracking:downloadSourcePayload",
+              "identifier": "ingestion-tracker:com.cfx.form.download.sourceevent.payload",
               "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
+                "service-name": "ingestion-tracker",
+                "namespace": "io.cfx.dimensions.app",
+                "methodName": "invokeAppApi:getFormById",
                 "stringified-params": true,
+                "useReportContext": true,
                 "parse-output": false,
                 "params": [
                   {
-                    "formId": "rda.saas.userdashboard.delete"
-                  }
-                ]
-              },
-              "actionCondition": {
-                "actionControl": "HIDE_IF",
-                "conditionalField": [
-                  {
-                    "conditionType": "EQUAL",
-                    "conditionValue": "System",
-                    "fieldId": "dashboard_folder"
+                    "form_id": "com.cfx.form.download.sourceevent.payload",
+                    "context": {}
                   }
                 ]
               }
             }
           ],
-          "widget_id": "d5b2edf0"
+          "widget_id": "94a3fc11"
         }
       ]
     },
     {
-      "title": "Dashboard Groups",
-      "show_filter": false,
+      "title": "Event Tracking Analytics",
+      "show_filter": true,
+      "projects": [
+        "ACME"
+      ],
       "widgets": [
         {
-          "title": "Dashboard Groups",
-          "widget_type": "portal_tabular",
-          "reportId": "dashboard.groups.list.tabular",
-          "height": 10,
+          "title": "Total Events",
+          "widget_type": "counter",
+          "stream": "oia-source-events-stream",
+          "ts_column": "se_updatedat",
+          "column": "se_id",
+          "agg": "value_count",
           "min_width": 12,
-          "widget_id": "c821f1a3"
+          "height": 2.6,
+          "max_width": 12,
+          "type": "str",
+          "widget_id": "d226be94"
+        },
+        {
+          "title": "Hourly events by source",
+          "widget_type": "timeseries",
+          "stream": "oia-source-events-stream",
+          "ts_column": "se_updatedat",
+          "max_width": 12,
+          "height": 4,
+          "min_width": 12,
+          "chartProperties": {
+            "yAxisLabel": "Count",
+            "xAxisLabel": "Hourly Alerts",
+            "legendLocation": "top"
+          },
+          "interval": "60Min",
+          "group_by": [
+            "se_sourcesystemname"
+          ],
+          "series_spec": [
+            {
+              "column": "se_id",
+              "agg": "value_count",
+              "type": "int"
+            }
+          ],
+          "widget_id": "c116cc1d"
+        },
+        {
+          "widget_type": "pie_chart",
+          "title": "Events by Source",
+          "stream": "oia-source-events-stream",
+          "ts_column": "se_updatedat",
+          "min_width": 6,
+          "height": 4,
+          "max_width": 6,
+          "column": "se_id",
+          "agg": "value_count",
+          "group_by": [
+            "se_sourcesystemname"
+          ],
+          "type": "str",
+          "widget_id": "6db87cde"
+        },
+        {
+          "widget_type": "pie_chart",
+          "title": "Events by Status",
+          "stream": "oia-source-events-stream",
+          "ts_column": "se_updatedat",
+          "min_width": 6,
+          "height": 4,
+          "max_width": 6,
+          "column": "se_id",
+          "agg": "value_count",
+          "group_by": [
+            "se_status"
+          ],
+          "type": "str",
+          "widget_id": "83786f14"
         }
       ]
     }
   ],
   "pstream_dashboards": [
     {
-      "title": "Dashboards",
+      "title": "Events",
       "show_filter": true,
+      "projects": [
+        "ACME"
+      ],
       "widgets": [
         {
-          "title": "Dashboards",
+          "title": "Events",
           "widget_type": "tabular",
-          "stream": "rda_dashboards_meta",
+          "stream": "oia-source-events-stream",
+          "ts_column": "se_updatedat",
           "timebased": false,
+          "min_width": 12,
+          "height": 12,
+          "max_width": 12,
+          "paginated": true,
+          "resizableColumns": false,
+          "refreshRequired": true,
           "remote_searchable": true,
           "remote_searchable_cols": [
-            "name",
-            "dashboard_folder",
-            "dashboard_type",
-            "label",
-            "description"
+            "se_sourcesystemname",
+            "se_status",
+            "se_message",
+            "se_projectid",
+            "se_id"
           ],
-          "ts_column": "saved_time",
-          "paginated": true,
-          "height": 10,
-          "min_width": 12,
+          "max_rows": 50,
           "columns": {
-            "name": {
-              "title": "Name",
-              "key": true
-            },
-            "dashboard_folder": {
-              "title": "Dashboard Folder"
-            },
-            "type": {
-              "title": "Type",
-              "type": "FIXED_VALUE",
-              "value": "Dashboard",
-              "visible": false,
-              "sortable": false
-            },
-            "dashboard_type": {
-              "title": "Dashboard Type"
-            },
-            "label": {
-              "title": "Label",
-              "key": true
-            },
-            "description": {
-              "title": "description"
-            },
-            "saved_time": {
-              "title": "Saved Time",
-              "type": "DATETIME"
-            },
-            "timestamp": {
-              "title": "When",
-              "type": "HUMANIZE_TIME_DELTA",
-              "source-column": "saved_time",
-              "sortable": false
-            }
-          },
-          "custom_columns": [
-            {
-              "id": "enabled",
-              "label": "Enabled",
-              "htmlTemplateForRow": "<span class='badge' style='background-color: {{ row.enableColor }}' > {{ row.enabled }} </span>"
-            },
-            {
-              "id": "id",
-              "label": "ID",
-              "expr": "'user-dashboard-' + name",
+            "se_id": {
+              "title": "Source Event ID",
               "visible": false,
               "key": true,
-              "sortable": false
+              "defaultWidth": 150
             },
-            {
-              "id": "url",
-              "label": "URL",
-              "expr": "'/workspace/dashboard/user-dashboard-' + name",
-              "visible": false,
-              "sortable": false
-            },
-            {
-              "id": "enableColor",
-              "label": "Enable Color",
-              "expr": "['#4CAF50'] if enabled else ['#9E9E9E']",
+            "view_details_action_id": {
+              "title": "id",
+              "value": "user-dashboard-oia-event-tracking-view-alerts",
+              "key": true,
+              "type": "FIXED_VALUE",
               "hidden": true,
-              "visible": false,
-              "sortable": false
+              "visible": false
             },
-            {
-              "id": "rowStyleClass",
-              "hidden": true,
+            "se_projectid": {
+              "title": "project Id",
               "visible": false,
-              "expr": "'bg-fading-blue' if time_now_as_ms() - isoformat_to_ms(saved_time) <= 120000 else None",
-              "sortable": false
+              "key": true,
+              "defaultWidth": 150
+            },
+            "se_sourcereceivedat": {
+              "title": "Received At",
+              "type": "DATETIME",
+              "defaultWidth": 150
+            },
+            "se_sourcesystemname": {
+              "title": "Source",
+              "defaultWidth": 150
+            },
+            "se_status": {
+              "title": "Status",
+              "defaultWidth": 150
+            },
+            "se_numberofevents": {
+              "title": "No of Events",
+              "defaultWidth": 150
+            },
+            "se_message": {
+              "title": "Message",
+              "defaultWidth": 270
+            },
+            "se_createdat": {
+              "title": "Created At",
+              "type": "DATETIME",
+              "defaultWidth": 180
+            },
+            "se_updatedat": {
+              "title": "Updated At",
+              "type": "DATETIME",
+              "defaultWidth": 180
             }
-          ],
+          },
           "actions": [
             {
-              "permission": "rda:user_dashboard:add",
-              "title": "Add",
-              "icon": "mdi mdi-plus",
-              "type": "POPUP_FORM",
-              "selectionType": "NONE",
-              "identifier": "saas-service-action:userdashboard-add-yaml",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.userdashboard.add.yaml"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:user_dashboard:view",
-              "appName": "user-dashboard",
-              "displayLabelColumnId": "id",
-              "drillDownLinkField": "name",
-              "identifier": "user.dashboard.view",
+              "title": "View Alerts",
+              "type": "GO_TO_APP_STATE",
               "selectionType": "SINGLE",
+              "permission": "oia:event-tracking:view",
+              "identifier": "ingestion-tracker:View Alerts_GREATER_THAN_0",
               "stateName": "app.featureapp",
-              "title": "Dashboard",
-              "type": "GO_TO_APP_STATE"
-            },
-            {
-              "permission": "rda:user_dashboard:view",
-              "title": "View YAML",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:userdashboard-view-yaml",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
+              "appName": "user-dashboard",
+              "drillDownLinkField": "se_sourcereceivedat",
+              "drillDownContext": "id",
+              "displayLabelColumnId": "se_sourcereceivedat",
+              "contextParamList": {
+                "contextParams": [
                   {
-                    "formId": "rda.saas.userdashboard.view.yaml"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:user_dashboard:view",
-              "title": "View JSON",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:userdashboard-view-json",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.userdashboard.view.json"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:user_dashboard:edit",
-              "title": "Edit YAML",
-              "icon": "mdi mdi-plus",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:userdashboard-edit-yaml",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.userdashboard.edit.yaml"
-                  }
-                ]
-              },
-              "actionCondition": {
-                "actionControl": "HIDE_IF",
-                "conditionalField": [
-                  {
-                    "conditionType": "EQUAL",
-                    "conditionValue": "System",
-                    "fieldId": "dashboard_folder"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:user_dashboard:edit",
-              "title": "Edit JSON",
-              "icon": "mdi mdi-plus",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:userdashboard-edit-json",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.userdashboard.edit.json"
-                  }
-                ]
-              },
-              "actionCondition": {
-                "actionControl": "HIDE_IF",
-                "conditionalField": [
-                  {
-                    "conditionType": "EQUAL",
-                    "conditionValue": "System",
-                    "fieldId": "dashboard_folder"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:user_dashboard:disable",
-              "title": "Disable",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:userdashboard-deactivate-dashboard",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.userdashboard.deactivate"
+                    "paramKey": "view_details_action_id",
+                    "paramId": "id"
                   }
                 ]
               },
@@ -585,85 +459,137 @@
                 "actionControl": "SHOW_IF",
                 "conditionalField": [
                   {
-                    "conditionType": "EQUAL",
-                    "conditionValue": "yes",
-                    "fieldId": "enabled"
+                    "conditionType": "GREATER_THAN",
+                    "conditionValue": "0",
+                    "fieldId": "se_numberofevents"
                   }
                 ]
               }
             },
             {
-              "permission": "rda:user_dashboard:enable",
-              "title": "Enable",
+              "title": "View Source Payload",
               "type": "POPUP_FORM",
               "selectionType": "SINGLE",
-              "identifier": "saas-service-action:userdashboard-activate-dashboard",
+              "permission": "oia:event-tracking:downloadSourcePayload",
+              "identifier": "ingestion-tracker:com.cfx.form.view.sourceevent.payload",
               "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
+                "service-name": "ingestion-tracker",
+                "namespace": "io.cfx.dimensions.app",
+                "methodName": "invokeAppApi:getFormById",
                 "stringified-params": true,
+                "useReportContext": true,
                 "parse-output": false,
                 "params": [
                   {
-                    "formId": "rda.saas.userdashboard.activate"
-                  }
-                ]
-              },
-              "actionCondition": {
-                "actionControl": "SHOW_IF",
-                "conditionalField": [
-                  {
-                    "conditionType": "EQUAL",
-                    "conditionValue": "no",
-                    "fieldId": "enabled"
+                    "form_id": "com.cfx.form.view.sourceevent.payload",
+                    "context": {}
                   }
                 ]
               }
             },
             {
-              "permission": "rda:user_dashboard:delete",
-              "title": "Delete",
+              "title": "Download Source Payload",
               "type": "POPUP_FORM",
               "selectionType": "SINGLE",
-              "identifier": "saas-service-action:userdashboard-delete-dashboard",
+              "permission": "oia:event-tracking:downloadSourcePayload",
+              "identifier": "ingestion-tracker:com.cfx.form.download.sourceevent.payload",
               "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
+                "service-name": "ingestion-tracker",
+                "namespace": "io.cfx.dimensions.app",
+                "methodName": "invokeAppApi:getFormById",
                 "stringified-params": true,
+                "useReportContext": true,
                 "parse-output": false,
                 "params": [
                   {
-                    "formId": "rda.saas.userdashboard.delete"
-                  }
-                ]
-              },
-              "actionCondition": {
-                "actionControl": "HIDE_IF",
-                "conditionalField": [
-                  {
-                    "conditionType": "EQUAL",
-                    "conditionValue": "System",
-                    "fieldId": "dashboard_folder"
+                    "form_id": "com.cfx.form.download.sourceevent.payload",
+                    "context": {}
                   }
                 ]
               }
             }
           ],
-          "widget_id": "d5b2edf0"
+          "widget_id": "94a3fc11"
         }
       ]
     },
     {
-      "title": "Dashboard Groups",
-      "show_filter": false,
+      "title": "Event Tracking Analytics",
+      "show_filter": true,
+      "projects": [
+        "ACME"
+      ],
       "widgets": [
         {
-          "title": "Dashboard Groups",
-          "widget_type": "portal_tabular",
-          "reportId": "dashboard.groups.list.tabular",
-          "height": 10,
+          "title": "Total Events",
+          "widget_type": "counter",
+          "stream": "oia-source-events-stream",
+          "ts_column": "se_updatedat",
+          "column": "se_id",
+          "agg": "value_count",
           "min_width": 12,
-          "widget_id": "c821f1a3"
+          "height": 2.6,
+          "max_width": 12,
+          "type": "str",
+          "widget_id": "d226be94"
+        },
+        {
+          "title": "Hourly events by source",
+          "widget_type": "timeseries",
+          "stream": "oia-source-events-stream",
+          "ts_column": "se_updatedat",
+          "max_width": 12,
+          "height": 4,
+          "min_width": 12,
+          "chartProperties": {
+            "yAxisLabel": "Count",
+            "xAxisLabel": "Hourly Alerts",
+            "legendLocation": "top"
+          },
+          "interval": "60Min",
+          "group_by": [
+            "se_sourcesystemname"
+          ],
+          "series_spec": [
+            {
+              "column": "se_id",
+              "agg": "value_count",
+              "type": "int"
+            }
+          ],
+          "widget_id": "c116cc1d"
+        },
+        {
+          "widget_type": "pie_chart",
+          "title": "Events by Source",
+          "stream": "oia-source-events-stream",
+          "ts_column": "se_updatedat",
+          "min_width": 6,
+          "height": 4,
+          "max_width": 6,
+          "column": "se_id",
+          "agg": "value_count",
+          "group_by": [
+            "se_sourcesystemname"
+          ],
+          "type": "str",
+          "widget_id": "6db87cde"
+        },
+        {
+          "widget_type": "pie_chart",
+          "title": "Events by Status",
+          "stream": "oia-source-events-stream",
+          "ts_column": "se_updatedat",
+          "min_width": 6,
+          "height": 4,
+          "max_width": 6,
+          "column": "se_id",
+          "agg": "value_count",
+          "group_by": [
+            "se_status"
+          ],
+          "type": "str",
+          "widget_id": "83786f14"
         }
       ]
     }
