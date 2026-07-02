@@ -1,318 +1,290 @@
 {
-  "name": "topology-details-with-html-and-pivot-report",
-  "label": "X-Leaf Workflow Results",
-  "description": "X-Leaf EVT Workflow Results",
+  "name": "customer_asset_navigator",
+  "label": "Asset Navigator",
+  "description": "Asset Navigator",
   "enabled": true,
   "dashboard_style": "auto",
   "dashboard_type": "template",
-  "dashboard_folder": "X-Leaf",
-  "version": "23.8.21.1",
-  "short_label": "X-Leaf EVT Workflow",
-  "dashboard_filters": {},
+  "dashboard_folder": "NetworkDevicePack",
+  "version": "24.1.27.2",
+  "short_label": "Stack",
+  "live_edit": true,
+  "context_label_id": "stack_name",
   "template_variables": {
     "NODE_ID": {
       "contextId": [
         "navigatorSelectionContexts",
         "secondaryListSelection",
-        "device_ip"
+        "node_id"
       ]
     },
-    "PRECHECK_NAME": {
-      "contextId": [
-        "navigatorSelectionContexts",
-        "secondaryListSelection",
-        "evt_check_name"
-      ]
+    "PROJ_ID": {
+      "contextId": "project_id"
     },
-    "COMMAND": {
-      "contextId": [
-        "navigatorSelectionContexts",
-        "secondaryListSelection",
-        "command"
-      ]
+    "CUST_TAG": {
+      "contextId": "customerTag"
     }
+  },
+  "dashboard_filters": {
+    "extra_filter0": "(customer_tag is '{{CUST_TAG}}' or customer_tag is empty or customer_tag is '' or customer_tag is 'None')"
   },
   "navigation_dashboards": {
     "tree_data": {
-      "column_name": "device_ip",
-      "pstream_name": "xleaf_evt_results_summary",
-      "cfxql_query": "timestamp is after -30d",
-      "show_counts": false
+      "column_name": "node_type",
+      "pstream_name": "cfx_rdaf_topology_nodes",
+      "cfxql_query0": "(project_id is '{{PROJ_ID}}' and node_type != 'Gateway')",
+      "cfxql_query": "(device_object is not 'Interface'  and node_type not in ['Components', 'Gateway'] and device_status is not 'UNMANAGED') and (customer_tag is '{{CUST_TAG}}' or customer_tag is empty)"
     },
     "tree_detail": {
-      "display_column": "evt_check_name",
-      "pstream_name": "xleaf_evt_results_summary",
-      "cfxql_query": "timestamp is after -30d",
-      "htmlTemplate": "<div style='overflow:hidden;'><div class='d-flex'><div style='flex-grow: 1' class='label1 text-truncate'><b>{{data.label1}}</b></div><div class='label2 text-truncate badge' :style='{backgroundColor: data.color}'>{{data.label2}}</div></div><div class='cfx-list-item-end-label'>{{data.label3}}</div></div>",
-      "report_definition": {
-        "title": "Validation Checks",
-        "widget_type": "tabular",
-        "stream": "xleaf_evt_results_summary",
-        "ts_column": "timestamp",
-        "timebased": false,
-        "columns": {
-          "evt_check_name": "evt_check_name",
-          "device_ip": "device_ip",
-          "status": "status",
-          "command": "command"
-        },
-        "sorting": [
-          {
-            "result_int_max": "desc"
-          }
-        ],
-        "cfxql_query": "device_ip is '{{NODE_ID}}' and timestamp is after -30d",
-        "pivot": {
-          "pivot_type": "advanced",
-          "series": [
-            {
-              "column": "evt_check_name",
-              "agg": "cardinality"
-            },
-            {
-              "column": "result_int",
-              "agg": "max"
-            }
-          ],
-          "group_by": [
-            "evt_check_name",
-            "device_ip",
-            "status",
-            "command"
-          ]
-        },
-        "paginated": true,
-        "enableVirtualScrolling": false,
-        "custom_columns": [
-          {
-            "id": "label1",
-            "expr": "str(evt_check_name)"
-          },
-          {
-            "id": "label2",
-            "expr": "'Pass' if int(result_int_max) == 0 else 'Fail' if int(result_int_max) == 1 else 'Run'"
-          },
-          {
-            "id": "label3",
-            "expr": "str(status)"
-          },
-          {
-            "id": "color",
-            "expr": "'#4caf50' if int(result_int_max) == 0 else '#E53935' if int(result_int_max) == 1 else '#FFD54F'"
-          }
-        ],
-        "widget_id": "5afc2391"
-      }
+      "display_column": "node_label",
+      "selected_columns": {
+        "node_id": "Node Id",
+        "node_label": "Node Name"
+      },
+      "pstream_name": "cfx_rdaf_topology_nodes",
+      "cfxql_query0": "node_type != 'Gateway'",
+      "cfxql_query": "(device_object is not 'Interface'  and node_type not in ['Components', 'Gateway'] and device_status is not 'UNMANAGED') and (customer_tag is '{{CUST_TAG}}' or customer_tag is empty)",
+      "duration_hours": 24
     },
-    "showNodeIcon": false,
-    "showSearchBox": true
+    "showNodeIcon": true,
+    "showSearchBox": false
+  },
+  "computedContext0": {
+    "customer_tag": {
+      "expr": "customer_tag if customer_tag else ''",
+      "defaultValue": ""
+    }
   },
   "dashboard_sections": [
     {
-      "title": "Passed",
+      "title": "Node Details",
       "widgets": [
         {
+          "widget_type": "launch_actions",
+          "dashboard_name_template": "{node_type}-view-dashboard",
+          "dashboard_name_template0": "{node_type}-alert_device_app",
+          "extra_filter": "(customer_tag is '{{CUST_TAG}}' or customer_tag is empty or customer_tag is 'None')",
+          "max_width": 12,
+          "height": 0.25,
+          "min_width": 12,
+          "widget_id": "181129d8",
+          "context_attributes": {
+            "CHASSIS": [
+              "parent_sn",
+              "device_ip"
+            ],
+            "Edge": [
+              "edgeName",
+              "edge_ip",
+              "serialNumber",
+              "edge_id"
+            ]
+          }
+        },
+        {
           "title": "Summary",
-          "widget_type": "tabular",
-          "stream": "xleaf_evt_results",
-          "ts_column": "timestamp",
-          "timebased": false,
-          "paginated": true,
-          "hide_columns": [
-            "collection_status",
-            "device_ip",
-            "evt_check_name",
-            "key",
-            "iconURL",
-            "timestamp",
-            "count_",
-            "_RDA_Id",
-            "jobid",
-            "result_int"
-          ],
-          "custom_columns": [
-            {
-              "id": "label1",
-              "expr": "str(evt_check_name)",
-              "hidden": true
-            }
-          ],
-          "ui_widget_type": "TABULAR",
+          "widget_type": "portal_summary",
+          "reportId": "rda.saas.topology.node_details.report",
+          "stream0": "cfx_rdaf_topology_nodes",
           "max_width": 4,
           "height": 5,
           "min_width": 4,
-          "widget_id": "182229d8",
-          "query": "device_ip is '{{NODE_ID}}' and evt_check_name is '{{PRECHECK_NAME}}' and result is 'Passed'"
-        }
-      ]
-    },
-    {
-      "title": "Failed",
-      "widgets": [
+          "widget_id": "182229d8"
+        },
         {
-          "title": "Summary",
+          "title": "Edges Summary",
           "widget_type": "tabular",
-          "stream": "xleaf_evt_results",
-          "ts_column": "timestamp",
-          "timebased": false,
-          "paginated": true,
-          "hide_columns": [
-            "collection_status",
-            "device_ip",
-            "evt_check_name",
-            "key",
-            "iconURL",
-            "timestamp",
-            "count_",
-            "_RDA_Id",
-            "jobid",
-            "result_int"
-          ],
-          "custom_columns": [
-            {
-              "id": "label1",
-              "expr": "str(evt_check_name)",
-              "hidden": true
-            }
-          ],
-          "ui_widget_type": "TABULAR",
-          "max_width": 4,
+          "extra_filter": "(customer_tag is '{{CUST_TAG}}' or customer_tag is empty or customer_tag is 'None')",
+          "max_width": 8,
           "height": 5,
-          "min_width": 4,
-          "widget_id": "06f22a21",
-          "query": "device_ip is '{{NODE_ID}}'and evt_check_name is '{{PRECHECK_NAME}}' and result is 'Failed'"
-        }
-      ]
-    },
-    {
-      "title": "Command output",
-      "widgets": [
-        {
-          "title": "Raw Output",
-          "widget_type": "tabular",
-          "stream": "xleaf_raw_outputs",
-          "ts_column": "timestamp",
+          "min_width": 8,
+          "stream": "cfx_rdaf_topology_edges",
           "timebased": false,
-          "paginated": true,
           "columns": {
-            "command": "command",
-            "raw_output": {
-              "title": "Output",
-              "htmlTemplateForRow": "{{'{%raw%}<pre>{{row.raw_output}}</pre>{%endraw%}'}}"
+            "left_label": {
+              "title": "Left Label",
+              "visible": true,
+              "key": true
+            },
+            "right_label": {
+              "title": "Right Label",
+              "visible": true,
+              "key": true
+            },
+            "relation_type": {
+              "title": "Relation",
+              "visible": true,
+              "key": true
             }
           },
-          "ui_widget_type": "TABULAR",
-          "max_width": 4,
-          "height": 5,
-          "min_width": 4,
-          "widget_id": "182229d9",
-          "max_rows": 1,
-          "query": "device_ip is '{{NODE_ID}}' and command is '{{COMMAND}}'"
+          "query": "(left_id is '{{NODE_ID}}' or right_id is '{{NODE_ID}}')",
+          "duration_hours": 2160,
+          "widget_id": "dc7103e1"
+        },
+        {
+          "title": "Topology",
+          "widget_type": "topology",
+          "register_search_endpoints": true,
+          "reportId": "rda.saas.stack.view.topo",
+          "context_attributes": {
+            "CHASSIS": [
+              "parent_sn",
+              "device_ip"
+            ],
+            "Edge": [
+              "edgeName",
+              "edge_ip",
+              "serialNumber",
+              "edge_id"
+            ]
+          },
+          "limit_to_node_types": [
+            "CHASSIS",
+            "Edge",
+            "Tunnel_end_point"
+          ],
+          "has_more_data_flag": false,
+          "stack_type": "dynamic",
+          "expand_all": true,
+          "stack_definition": {
+            "name": "Network Device Discovery Pack Stack",
+            "description": "",
+            "saved_time": "2023-09-12T21:08:31.418255",
+            "is_dynamic": true,
+            "hierarchical": false,
+            "dynamic_nodes": {
+              "stream": "cfx_rdaf_topology_nodes",
+              "query": "node_type != 'Gateway' and (customer_tag is '{{CUST_TAG}}' or customer_tag is empty or customer_tag is '')",
+              "limit": 0,
+              "sorting": null
+            },
+            "dynamic_relationships": {
+              "stream": "cfx_rdaf_topology_edges",
+              "query": "(customer_tag is '{{CUST_TAG}}' or customer_tag is empty or customer_tag is '')",
+              "limit": 0,
+              "sorting": null
+            }
+          },
+          "height": 10,
+          "min_wdith": 12,
+          "widget_id": "182287d8"
         }
       ]
     }
   ],
   "pstream_dashboards": [
     {
-      "title": "Passed",
+      "title": "Node Details",
       "widgets": [
         {
+          "widget_type": "launch_actions",
+          "dashboard_name_template": "{node_type}-view-dashboard",
+          "dashboard_name_template0": "{node_type}-alert_device_app",
+          "extra_filter": "(customer_tag is '{{CUST_TAG}}' or customer_tag is empty or customer_tag is 'None')",
+          "max_width": 12,
+          "height": 0.25,
+          "min_width": 12,
+          "widget_id": "181129d8",
+          "context_attributes": {
+            "CHASSIS": [
+              "parent_sn",
+              "device_ip"
+            ],
+            "Edge": [
+              "edgeName",
+              "edge_ip",
+              "serialNumber",
+              "edge_id"
+            ]
+          }
+        },
+        {
           "title": "Summary",
-          "widget_type": "tabular",
-          "stream": "xleaf_evt_results",
-          "ts_column": "timestamp",
-          "timebased": false,
-          "paginated": true,
-          "hide_columns": [
-            "collection_status",
-            "device_ip",
-            "evt_check_name",
-            "key",
-            "iconURL",
-            "timestamp",
-            "count_",
-            "_RDA_Id",
-            "jobid",
-            "result_int"
-          ],
-          "custom_columns": [
-            {
-              "id": "label1",
-              "expr": "str(evt_check_name)",
-              "hidden": true
-            }
-          ],
-          "ui_widget_type": "TABULAR",
+          "widget_type": "portal_summary",
+          "reportId": "rda.saas.topology.node_details.report",
+          "stream0": "cfx_rdaf_topology_nodes",
           "max_width": 4,
           "height": 5,
           "min_width": 4,
-          "widget_id": "182229d8",
-          "query": "device_ip is '{{NODE_ID}}' and evt_check_name is '{{PRECHECK_NAME}}' and result is 'Passed'"
-        }
-      ]
-    },
-    {
-      "title": "Failed",
-      "widgets": [
+          "widget_id": "182229d8"
+        },
         {
-          "title": "Summary",
+          "title": "Edges Summary",
           "widget_type": "tabular",
-          "stream": "xleaf_evt_results",
-          "ts_column": "timestamp",
-          "timebased": false,
-          "paginated": true,
-          "hide_columns": [
-            "collection_status",
-            "device_ip",
-            "evt_check_name",
-            "key",
-            "iconURL",
-            "timestamp",
-            "count_",
-            "_RDA_Id",
-            "jobid",
-            "result_int"
-          ],
-          "custom_columns": [
-            {
-              "id": "label1",
-              "expr": "str(evt_check_name)",
-              "hidden": true
-            }
-          ],
-          "ui_widget_type": "TABULAR",
-          "max_width": 4,
+          "extra_filter": "(customer_tag is '{{CUST_TAG}}' or customer_tag is empty or customer_tag is 'None')",
+          "max_width": 8,
           "height": 5,
-          "min_width": 4,
-          "widget_id": "06f22a21",
-          "query": "device_ip is '{{NODE_ID}}'and evt_check_name is '{{PRECHECK_NAME}}' and result is 'Failed'"
-        }
-      ]
-    },
-    {
-      "title": "Command output",
-      "widgets": [
-        {
-          "title": "Raw Output",
-          "widget_type": "tabular",
-          "stream": "xleaf_raw_outputs",
-          "ts_column": "timestamp",
+          "min_width": 8,
+          "stream": "cfx_rdaf_topology_edges",
           "timebased": false,
-          "paginated": true,
           "columns": {
-            "command": "command",
-            "raw_output": {
-              "title": "Output",
-              "htmlTemplateForRow": "{{'{%raw%}<pre>{{row.raw_output}}</pre>{%endraw%}'}}"
+            "left_label": {
+              "title": "Left Label",
+              "visible": true,
+              "key": true
+            },
+            "right_label": {
+              "title": "Right Label",
+              "visible": true,
+              "key": true
+            },
+            "relation_type": {
+              "title": "Relation",
+              "visible": true,
+              "key": true
             }
           },
-          "ui_widget_type": "TABULAR",
-          "max_width": 4,
-          "height": 5,
-          "min_width": 4,
-          "widget_id": "182229d9",
-          "max_rows": 1,
-          "query": "device_ip is '{{NODE_ID}}' and command is '{{COMMAND}}'"
+          "query": "(left_id is '{{NODE_ID}}' or right_id is '{{NODE_ID}}')",
+          "duration_hours": 2160,
+          "widget_id": "dc7103e1"
+        },
+        {
+          "title": "Topology",
+          "widget_type": "topology",
+          "register_search_endpoints": true,
+          "reportId": "rda.saas.stack.view.topo",
+          "context_attributes": {
+            "CHASSIS": [
+              "parent_sn",
+              "device_ip"
+            ],
+            "Edge": [
+              "edgeName",
+              "edge_ip",
+              "serialNumber",
+              "edge_id"
+            ]
+          },
+          "limit_to_node_types": [
+            "CHASSIS",
+            "Edge",
+            "Tunnel_end_point"
+          ],
+          "has_more_data_flag": false,
+          "stack_type": "dynamic",
+          "expand_all": true,
+          "stack_definition": {
+            "name": "Network Device Discovery Pack Stack",
+            "description": "",
+            "saved_time": "2023-09-12T21:08:31.418255",
+            "is_dynamic": true,
+            "hierarchical": false,
+            "dynamic_nodes": {
+              "stream": "cfx_rdaf_topology_nodes",
+              "query": "node_type != 'Gateway' and (customer_tag is '{{CUST_TAG}}' or customer_tag is empty or customer_tag is '')",
+              "limit": 0,
+              "sorting": null
+            },
+            "dynamic_relationships": {
+              "stream": "cfx_rdaf_topology_edges",
+              "query": "(customer_tag is '{{CUST_TAG}}' or customer_tag is empty or customer_tag is '')",
+              "limit": 0,
+              "sorting": null
+            }
+          },
+          "height": 10,
+          "min_wdith": 12,
+          "widget_id": "182287d8"
         }
       ]
     }
