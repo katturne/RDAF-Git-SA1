@@ -1,134 +1,310 @@
 {
-  "name": "customer_discovery_runs_details_success",
-  "label": "Success",
-  "description": "onboarded_devices: Insights",
-  "dashboard_folder": "NetworkDevicePack",
-  "version": "1.0.4",
-  "enabled": false,
-  "live_edi0t": true,
-  "dashboard_type": "template",
-  "template_variables": {
-    "CUST_ID": {
-      "contextId": "customerId"
+  "name": "cml-topo-dashboard",
+  "label": "CML Network Topology",
+  "description": "CML Network Topology",
+  "dashboard_style": "auto",
+  "version": "23.6.12.1",
+  "enabled": true,
+  "dashboard_type": "dashboard",
+  "custom_context": {
+    "alert-context": true,
+    "node_view_params": {
+      "stream": "oia-alerts-stream",
+      "extra_filter": "a_asset_ip_address is '${node_id}' and a_status = 'ACTIVE' and a_en_link_type is not empty and a_source_systemname is not 'Alert Group' and a_correlation_status is not 'AGGREGATE'",
+      "title": "Active Alerts ${node_id}",
+      "duration_hours": 1,
+      "columns": {
+        "a_asset_ip_address": {
+          "title": "Device"
+        },
+        "a_en_local_interface": {
+          "title": "Interface"
+        },
+        "a_en_remote_ip": {
+          "title": "Remote Device"
+        },
+        "a_en_remote_interface": {
+          "title": "Remote Interface"
+        },
+        "a_en_alert_name": {
+          "title": "Alert Name"
+        },
+        "a_en_link_type": {
+          "title": "Link Type"
+        },
+        "a_severity": {
+          "title": "Alert severity"
+        },
+        "a_incident_id": {
+          "title": "Incident ID"
+        },
+        "a_message": {
+          "title": "Message"
+        },
+        "timestamp": {
+          "title": "timestamp"
+        }
+      },
+      "severity_columns": [
+        "a_severity"
+      ]
     },
-    "PROJ_ID": {
-      "contextId": "project_id"
-    },
-    "PROJ_ID_SINGLE": {
-      "contextId": "project_id"
-    },
-    "CUST_TAG": {
-      "contextId": "customerTag"
-    },
-    "JOB_ID": {
-      "contextId": "jobid"
+    "link_view_params": {
+      "stream": "oia-alerts-stream",
+      "extra_filter": "(a_asset_ip_address is '${source}' and a_en_remote_ip is '${target}') or (a_asset_ip_address is '${target}' and a_en_remote_ip is '${source}') and a_status = 'ACTIVE' and a_en_link_type is not empty and a_source_systemname is not 'Alert Group' and a_correlation_status is not 'AGGREGATE'",
+      "title": "Active Alerts on ${source} <-> ${target}",
+      "duration_hours": 1,
+      "columns": {
+        "a_asset_ip_address": {
+          "title": "Device"
+        },
+        "a_en_local_interface": {
+          "title": "Interface"
+        },
+        "a_en_remote_ip": {
+          "title": "Remote Device"
+        },
+        "a_en_remote_interface": {
+          "title": "Remote Interface"
+        },
+        "a_en_alert_name": {
+          "title": "Alert Name"
+        },
+        "a_en_link_type": {
+          "title": "Link Type"
+        },
+        "a_severity": {
+          "title": "Alert severity"
+        },
+        "a_incident_id": {
+          "title": "Incident ID"
+        },
+        "a_message": {
+          "title": "Message"
+        },
+        "timestamp": {
+          "title": "timestamp"
+        }
+      },
+      "severity_columns": [
+        "a_severity"
+      ]
     }
   },
   "dashboard_filters": {
     "time_filter": true,
-    "extra_filter0": "source contains 'Run Details' and ingestion_id is '{{FILENAME}}' and (customer_tag is '{{CUST_TAG}}' or customer_tag is empty)",
-    "default_time_filter_labels0": [
-      "Last 1 month"
-    ],
-    "columns_filter": [
-      {
-        "id": "timestamp",
-        "label": "Timestamp",
-        "type": "DATETIME"
-      }
-    ],
-    "group_filters": []
+    "columns_filter": []
   },
   "dashboard_sections": [
     {
-      "title": "Onboarded Devices",
+      "title": "Topology",
       "show_filter": true,
       "widgets": [
         {
-          "title": "Discovery Details",
-          "widget_type": "tabular",
-          "stream": "asset_inventory_collection_status_stream",
-          "extra_filter": "(jobname contains '{{CUST_TAG}}' or jobname does not contains '{{CUST_TAG}}') and collection_status is 'Success' and target_type is 'DEVICE' and type_ is 'device_status' and jobid is '{{JOB_ID}}' and is_duplicate is 'false'",
-          "duration_hours": 1080,
-          "height": 4,
+          "widget_type": "topology",
+          "title": "Topology",
+          "actions": [
+            {
+              "actionCondition": {
+                "actionControl": "SHOW_IF",
+                "conditionalField": [
+                  {
+                    "conditionType": "EQUAL",
+                    "conditionValue": "Network",
+                    "fieldId": "layer"
+                  }
+                ]
+              },
+              "api-endpoint": {
+                "service-name": "saas-reports",
+                "methodName": "getReport",
+                "stringified-params": false,
+                "parse-output": false,
+                "params": [
+                  {
+                    "reportId": "rda.saas.topology.stream.nodes.alerts"
+                  }
+                ]
+              },
+              "icon": "mdi mdi-plus",
+              "identifier": "rda.saas.topology.stream.nodes.alerts.view",
+              "selectionType": "SINGLE",
+              "title": "Show Node Alerts",
+              "type": "POPUP_REPORT"
+            },
+            {
+              "actionCondition": {
+                "actionControl": "SHOW_IF",
+                "conditionalField": [
+                  {
+                    "conditionType": "EQUAL",
+                    "conditionValue": "connects-to",
+                    "fieldId": "edgeType"
+                  }
+                ]
+              },
+              "api-endpoint": {
+                "service-name": "saas-reports",
+                "methodName": "getReport",
+                "stringified-params": false,
+                "parse-output": false,
+                "params": [
+                  {
+                    "reportId": "rda.saas.topology.stream.links.alerts",
+                    "hello": "world SIRI"
+                  }
+                ]
+              },
+              "icon": "mdi mdi-plus",
+              "identifier": "rda.saas.topology.stream.links.alerts.view",
+              "selectionType": "SINGLE",
+              "title": "Show Link Alerts",
+              "type": "POPUP_REPORT"
+            }
+          ],
+          "chartProperties": {
+            "hasToolbar": true,
+            "shortToolbar": true,
+            "userZoomingEnabled": false
+          },
+          "stack": "cml_topo_stack",
           "max_width": 12,
           "min_width": 12,
-          "columns": {
-            "asset_ip": "IP Address",
-            "collection_status": {
-              "title": "Collection Status",
-              "type": "DATETIME",
-              "visible": true
-            },
-            "collection_timestamp": {
-              "title": "Collection Timestamp",
-              "type": "DATETIME",
-              "visible": true
-            },
-            "jobname": {
-              "title": "Jobname",
-              "type": "TEXT",
-              "hidden": true
-            },
-            "jobid": {
-              "title": "Job Id",
-              "type": "TEXT",
-              "hidden": true
-            },
-            "is_duplicate": {
-              "title": "Duplicates",
-              "type": "TEXT",
-              "hidden": true
-            }
+          "height": 12,
+          "alert_source": {
+            "stream": "oia-alerts-stream",
+            "group_by": [
+              "a_asset_ip_address",
+              "a_severity",
+              "a_status"
+            ],
+            "ts_column": "timestamp",
+            "duration_hours": 1,
+            "agg": "value_count",
+            "column": "_id",
+            "type": "int",
+            "extra_filter": "a_en_link_type is not empty and a_source_systemname is not 'Alert Group' and a_correlation_status is not 'AGGREGATE' and a_status = 'ACTIVE' and a_asset_ip_address is in ['9.3.252.38','9.3.252.32','9.3.252.35','9.3.252.36','9.3.252.37','9.3.252.31','9.3.252.33','9.3.252.34', '9.3.252.91', '9.3.252.92', '9.3.252.93', '9.3.252.94']"
           },
-          "widget_id": "b2c8d81c"
+          "link_alert_source": {
+            "stream": "trap_alert_stream",
+            "group_by": [
+              "left_id",
+              "right_id"
+            ],
+            "agg": "min",
+            "column": "alert_severity_num",
+            "ts_column": "timestamp",
+            "duration_hours": 1440,
+            "extra_filter": "a_en_link_type is not empty and a_source_systemname is not 'Alert Group' and a_correlation_status is not 'AGGREGATE' and a_status = 'ACTIVE' and a_asset_ip_address is in ['9.3.252.38','9.3.252.32','9.3.252.35','9.3.252.36','9.3.252.37','9.3.252.31','9.3.252.33','9.3.252.34', '9.3.252.91', '9.3.252.92', '9.3.252.93', '9.3.252.94']"
+          },
+          "widget_id": "9db5a36f"
         }
       ]
     }
   ],
   "pstream_dashboards": [
     {
-      "title": "Onboarded Devices",
+      "title": "Topology",
       "show_filter": true,
       "widgets": [
         {
-          "title": "Discovery Details",
-          "widget_type": "tabular",
-          "stream": "asset_inventory_collection_status_stream",
-          "extra_filter": "(jobname contains '{{CUST_TAG}}' or jobname does not contains '{{CUST_TAG}}') and collection_status is 'Success' and target_type is 'DEVICE' and type_ is 'device_status' and jobid is '{{JOB_ID}}' and is_duplicate is 'false'",
-          "duration_hours": 1080,
-          "height": 4,
+          "widget_type": "topology",
+          "title": "Topology",
+          "actions": [
+            {
+              "actionCondition": {
+                "actionControl": "SHOW_IF",
+                "conditionalField": [
+                  {
+                    "conditionType": "EQUAL",
+                    "conditionValue": "Network",
+                    "fieldId": "layer"
+                  }
+                ]
+              },
+              "api-endpoint": {
+                "service-name": "saas-reports",
+                "methodName": "getReport",
+                "stringified-params": false,
+                "parse-output": false,
+                "params": [
+                  {
+                    "reportId": "rda.saas.topology.stream.nodes.alerts"
+                  }
+                ]
+              },
+              "icon": "mdi mdi-plus",
+              "identifier": "rda.saas.topology.stream.nodes.alerts.view",
+              "selectionType": "SINGLE",
+              "title": "Show Node Alerts",
+              "type": "POPUP_REPORT"
+            },
+            {
+              "actionCondition": {
+                "actionControl": "SHOW_IF",
+                "conditionalField": [
+                  {
+                    "conditionType": "EQUAL",
+                    "conditionValue": "connects-to",
+                    "fieldId": "edgeType"
+                  }
+                ]
+              },
+              "api-endpoint": {
+                "service-name": "saas-reports",
+                "methodName": "getReport",
+                "stringified-params": false,
+                "parse-output": false,
+                "params": [
+                  {
+                    "reportId": "rda.saas.topology.stream.links.alerts",
+                    "hello": "world SIRI"
+                  }
+                ]
+              },
+              "icon": "mdi mdi-plus",
+              "identifier": "rda.saas.topology.stream.links.alerts.view",
+              "selectionType": "SINGLE",
+              "title": "Show Link Alerts",
+              "type": "POPUP_REPORT"
+            }
+          ],
+          "chartProperties": {
+            "hasToolbar": true,
+            "shortToolbar": true,
+            "userZoomingEnabled": false
+          },
+          "stack": "cml_topo_stack",
           "max_width": 12,
           "min_width": 12,
-          "columns": {
-            "asset_ip": "IP Address",
-            "collection_status": {
-              "title": "Collection Status",
-              "type": "DATETIME",
-              "visible": true
-            },
-            "collection_timestamp": {
-              "title": "Collection Timestamp",
-              "type": "DATETIME",
-              "visible": true
-            },
-            "jobname": {
-              "title": "Jobname",
-              "type": "TEXT",
-              "hidden": true
-            },
-            "jobid": {
-              "title": "Job Id",
-              "type": "TEXT",
-              "hidden": true
-            },
-            "is_duplicate": {
-              "title": "Duplicates",
-              "type": "TEXT",
-              "hidden": true
-            }
+          "height": 12,
+          "alert_source": {
+            "stream": "oia-alerts-stream",
+            "group_by": [
+              "a_asset_ip_address",
+              "a_severity",
+              "a_status"
+            ],
+            "ts_column": "timestamp",
+            "duration_hours": 1,
+            "agg": "value_count",
+            "column": "_id",
+            "type": "int",
+            "extra_filter": "a_en_link_type is not empty and a_source_systemname is not 'Alert Group' and a_correlation_status is not 'AGGREGATE' and a_status = 'ACTIVE' and a_asset_ip_address is in ['9.3.252.38','9.3.252.32','9.3.252.35','9.3.252.36','9.3.252.37','9.3.252.31','9.3.252.33','9.3.252.34', '9.3.252.91', '9.3.252.92', '9.3.252.93', '9.3.252.94']"
           },
-          "widget_id": "b2c8d81c"
+          "link_alert_source": {
+            "stream": "trap_alert_stream",
+            "group_by": [
+              "left_id",
+              "right_id"
+            ],
+            "agg": "min",
+            "column": "alert_severity_num",
+            "ts_column": "timestamp",
+            "duration_hours": 1440,
+            "extra_filter": "a_en_link_type is not empty and a_source_systemname is not 'Alert Group' and a_correlation_status is not 'AGGREGATE' and a_status = 'ACTIVE' and a_asset_ip_address is in ['9.3.252.38','9.3.252.32','9.3.252.35','9.3.252.36','9.3.252.37','9.3.252.31','9.3.252.33','9.3.252.34', '9.3.252.91', '9.3.252.92', '9.3.252.93', '9.3.252.94']"
+          },
+          "widget_id": "9db5a36f"
         }
       ]
     }
