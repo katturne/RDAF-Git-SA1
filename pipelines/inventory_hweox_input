@@ -1,29 +1,21 @@
-folder: OI
-name: edc_license_grp
-description: test pipeline
-data_path: pipelines/data/edc_license_grp/1.0.0/data.json
-usecase: Pipeline to collect and process license data
-category: ''
-sources:
-  snowflake:
-    name: snowflake
-    type: snowflake
-  rn:
-    name: rn
-    type: rn
-artifacts:
-- artifact_type: dataset
-  artifact_name: edc_license_domains
-  access: read
-- artifact_type: rda-network-stream
-  artifact_name: edc_license_details
-  access: write
-- artifact_type: dataset
-  artifact_name: license_tap_dict
-  access: read
-- artifact_type: rda-network-stream
-  artifact_name: edc_license_summary
-  access: write
-version: 1.0.0
-file_type: json
-checksum: 1d392c7d
+@c:new-block
+ --> @dm:empty
+ ## Get submitted form fields
+
+ --> @exec:get-input
+ ## Exclude label as it contains unneeded info that should not be written to stream later
+
+ --> @dm:selectcolumns exclude='.*_label'
+ --> @dm:save name='temp-input_data'
+ --> @dm:save name='check-input_data'
+ --> @dm:selectcolumns include="hweox_csv"
+ --> @dm:explode-json column="hweox_csv"
+ --> @dm:save name="input11-dataset"
+ --> @dm:save name="temp-input-dataset"
+ --> @c:data-loop dataset="temp-input-dataset" and columns="bucketName,objectName"
+ --> @dm:recall name="temp-input-dataset"
+ --> @dm:skip-block-if-shape row_count=0
+ --> @dm:get-from-location path="$bucketName/$objectName"
+ --> @dm:save name="temp-uploaded-file-data"
+ --> @dm:save name="uploaded-hweox-data"
+ --> @rn:write-stream name="test0-stream-input"
