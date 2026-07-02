@@ -1,29 +1,7 @@
-@exec:get-input
- --> @dm:save name='temp-sw-input'
- --> @dm:save name='cmd_ip'
- ## --> @dm:replace-data columns="fileUpload" and expr="'" and replace='"'
-
- ## --> @dm:eval fileUpload = "fileUpload.strip() if fileUpload else fileUpload"
-
- ## --> @dm:eval orders="eval(fileUpload)"
-
- --> @dm:eval fileUpload="json_dumps(fileUpload)"
- --> @dm:explode-json column="fileUpload"
- --> @dm:eval location="bucketName+'/'+objectName"
- --> @dm:save name='objesct_path'
- --> @dm:save name="temp-input-dataset"
- --> @c:new-block
- --> @dm:empty
- --> @exec:define-function name="define_child_pipelines"
- --> @exec:run-pipeline name ="edc_generate_token" & ignore_failures = "no"
- --> @exec:run-pipeline name ="test_get_sw_xor" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_sweol_enrich" & ignore_failures = "no"
- --> @exec:end-function
- --> @c:data-loop dataset="temp-input-dataset" and columns="objectName,location"
- --> @dm:empty
- --> @dm:get-from-location path='$location'
- --> @dm:rename-columns customer='Customer' and sw_version='SW_Version' and sw_os_type='SW_OS_Type' and product_id='Product_ID' and contract_number='Contract_Number'
- --> @dm:map from = 'contarct_number,customer,product_id' & to = 'ingestion_id' & func = 'join' & sep = '_'
- --> @rn:write-stream name='edc_cust_pid_sw'
- --> @dm:save name='added-minio-file'
- --> @exec:run-pipeline name ="edc_sw_run_scan" & ignore_failures = "no"
+@c:new-block
+ --> @dm:recall name='added-sw-data'
+ --> @dm:enrich dict='test-sweol' and src_key_cols='key' and dict_key_cols='key' and enrich_cols='SoftwareEOXId,BulletinNumber,BulletinHeadline,BulletinURL,EndOfSaleDate,EndOfEngineeringDate,EndOfLifeDate,PostDate,EndOfLifeInternalAnnouncementDate,EndOfLifeExternalAnnouncementDate,EndOfLastHardwareShipDate,EndOfHardwareNewServiceAttachmentDate,EndOfHardwareRoutineFailureAnalysisDate,EndOfBUEngineeringSupportTACDate,EndOfHardwareServiceContractRenewalDate,EndOfSignatureReleasesDate,EndOfSoftwareAvailabilityDate,EndOfSoftwareLicenseAvailabilityDate,EndOfSoftwareVulnerabilityOrSecuritySupportDate,created,customerVisible,external_text,external_title,firstIcAlertId,groups,icIssueId,icProblemId,ignored,lastIcAlertId,eoXAlertType,name,openedOn,resultType,severity,severityText,state,updated,deviceSN,source,runType,filename,icType,atticaStatus,cdetsList,retry,associatedGroups'
+and how_type='outer'
+ --> @dm:manipulate-string from="customer,contract_number,product_id" and func="concat_columns" and to="enrich_ingestion_id"
+ --> @dm:save name='test-enriched-sweol-values'
+ --> @exec:run-pipeline name='edc_sweol_enrich' and ignore_failures = "no"
