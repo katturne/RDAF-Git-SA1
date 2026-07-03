@@ -1,86 +1,71 @@
-folder: OI-C
-name: edc_customer_inventory
-description: test pipeline
-data_path: pipelines/data/edc_customer_inventory/2026-04-03_1/data.json
-usecase: OI for project based
-category: ''
-sources:
-  cfxaia:
-    name: cfxaia
-    type: cfxaia
-  snowflake:
-    name: snowflake
-    type: snowflake
-  rn:
-    name: rn
-    type: rn
-artifacts:
-- artifact_type: dataset
-  artifact_name: $sw_dataset
-  access: read
-- artifact_type: dataset
-  artifact_name: edc_pid_ostype_dict
-  access: read
-- artifact_type: dataset
-  artifact_name: normalized-network_inv
-  access: write
-- artifact_type: dataset
-  artifact_name: edc_network_pid_fix
-  access: read
-- artifact_type: dataset
-  artifact_name: test-contract_data
-  access: write
-- artifact_type: pipeline
-  artifact_name: edc_oi_get_product_alerts
-  access: read
-- artifact_type: pipeline
-  artifact_name: edc_oi_product_alerts_raw
-  access: read
-- artifact_type: pipeline
-  artifact_name: edc_oi_product_alerts_run_scan
-  access: read
-- artifact_type: pipeline
-  artifact_name: edc_oi_generate_token
-  access: read
-- artifact_type: pipeline
-  artifact_name: edc_oi_process_sw_data
-  access: read
-- artifact_type: pipeline
-  artifact_name: edc_oi_get_sweol_data
-  access: read
-- artifact_type: pipeline
-  artifact_name: edc_oi_get_security_advisories_data
-  access: read
-- artifact_type: dataset
-  artifact_name: customer_pid_sw
-  access: write
-- artifact_type: pipeline
-  artifact_name: edc_oi_product_alerts_raw
-  access: read
-- artifact_type: pipeline
-  artifact_name: edc_oi_process_sw_data
-  access: read
-- artifact_type: dataset
-  artifact_name: final-enrich
-  access: write
-- artifact_type: pipeline
-  artifact_name: edc_oi_product_alerts_raw
-  access: read
-- artifact_type: dataset
-  artifact_name: edc_processed_secadv-data
-  access: write
-- artifact_type: rda-network-stream
-  artifact_name: edc_customer_productAlerts
-  access: write
-- artifact_type: dataset
-  artifact_name: edc_customer_contract_names
-  access: read
-- artifact_type: dataset
-  artifact_name: contract_data_IB
-  access: write
-- artifact_type: rda-network-stream
-  artifact_name: edc_customer_inventory
-  access: write
-version: 2026-04-03_1
-file_type: json
-checksum: 094c5477
+@dm:create-persistent-stream name="dashboard_export_email_status" and unique_cols="job_id" and retention_days=1
+ --> @dm:empty
+ --> @dm:save name="temp-df"
+ --> @c:new-block
+ --> @dm:empty
+ --> @exec:define-function name="handle_error"
+ --> @dm:empty
+ --> @dm:addrow status="Failed" and reason="Error: email sending process failed to the email ID '{{recipient}}'" and job_id="{{job_id}}" and ingestion_id="{{ingestion_id}}"
+ --> @rn:write-stream name="rda_dashboard_schedule_logs"
+ --> @exec:end-function
+ ## --> @c:new-block
+
+ ## --> @dm:empty
+
+ ## --> @exec:retry-loop retries=3 & retry_delay_millis=5000 & on_failure_callback="handle_error"
+
+ ## --> @dm:addrow name="dashboard_export_email_status" & limit = '0'
+
+ ## --> #dm:query-persistent-stream job_id=="{{job_id}}"
+
+ ## --> @dm:save name="temp-original"
+
+ ## --> @dm:skip-block-if-shape row_count="0"
+
+ ## --> @dm:eval collection_timestamp = "int(time_now_as_ms())"
+
+ ## --> @dm:eval diff="collection_timestamp-rda_timestamp"
+
+ ## --> *dm:filter diff > 300000
+
+ ## --> @dm:save name="temp-df"
+
+ ## --> @dm:skip-block-if-shape row_count="0"
+
+ ## --> @dm:empty
+
+ ## --> @dm:addrow job_id="{{job_id}}"
+
+ ## --> @email:sendmail-data recipient="{{recipient}}" and minio_file_location="{{minio_path}}" and subject="{{subject}}"
+
+ ## --> @rn:write-stream name="dashboard_export_email_status"
+
+ ## --> @dm:empty
+
+ ## --> @dm:addrow status="The exported file is successfully sent to the email ID '{{recipient}}'"
+
+ ## --> @dm:eval reason=None
+
+ ## --> @dm:eval job_id="'{{job_id}}'" and ingestion_id="'{{ingestion_id}}'"
+
+ ## --> @rn:write-stream name="rda_dashboard_schedule_logs"
+
+ ## --> @exec:end-loop
+
+ --> @c:new-block
+ --> @dm:empty
+ --> @exec:retry-loop retries=3 & retry_delay_millis=5000 & on_failure_callback="handle_error"
+ ## --> @dm:recall name="temp-original"
+
+ --> @dm:empty
+ --> @dm:skip-block-if-shape row_count>0
+ --> @dm:empty
+ --> @dm:addrow job_id="{{job_id}}"
+ --> @email:sendmail-data recipient="{{recipient}}" and minio_file_location="{{minio_path}}" and subject="{{subject}}"
+ --> @rn:write-stream name="dashboard_export_email_status"
+ --> @dm:empty
+ --> @dm:addrow status="The exported file is successfully sent to the email ID '{{recipient}}'"
+ --> @dm:eval reason=None
+ --> @dm:eval job_id="'{{job_id}}'" and ingestion_id="'{{ingestion_id}}'"
+ --> @rn:write-stream name="rda_dashboard_schedule_logs"
+ --> @exec:end-loop
