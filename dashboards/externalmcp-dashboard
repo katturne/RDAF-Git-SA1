@@ -1,72 +1,137 @@
 {
-  "name": "externalmcp-dashboard",
-  "label": "External MCP",
-  "description": "External MCP details",
+  "name": "rda-mgmt-page-credentials",
+  "label": "Credentials",
+  "description": " Credentials Management Page",
   "enabled": true,
-  "dashboard_type": "template",
-  "dashboard_folder": "AI",
+  "dashboard_type": "dashboard",
+  "dashboard_folder": "System",
+  "dashboard_style": "auto",
+  "stream": "rda_secret_meta",
   "dashboard_filters": {
-    "time_filter": false
+    "time_filter": true,
+    "columns_filter": [
+      {
+        "id": "name",
+        "label": "Name",
+        "type": "TEXT"
+      },
+      {
+        "id": "type",
+        "label": "Type",
+        "type": "TEXT"
+      },
+      {
+        "id": "typeDescription",
+        "label": "Type Description",
+        "type": "TEXT"
+      },
+      {
+        "id": "checksum",
+        "label": "Checksum",
+        "type": "TEXT"
+      },
+      {
+        "id": "saved_time",
+        "label": "Saved Time",
+        "type": "DATETIME"
+      }
+    ]
   },
   "dashboard_sections": [
     {
-      "title": "AI",
-      "show_filter": false,
+      "title": "Credentials",
+      "show_filter": true,
       "widgets": [
         {
-          "title": "Domains",
+          "title": "Credentials",
           "widget_type": "tabular",
-          "min_width": 12,
-          "height": 6,
-          "max_width": 12,
-          "timebased": false,
-          "timestamp": "timestamp",
-          "stream": "mcp_external",
+          "stream": "rda_secrets_meta",
+          "duration_hours": 87600,
+          "remote_searchable": true,
+          "remote_searchable_cols": [
+            "name",
+            "type",
+            "typeDescription",
+            "checksum"
+          ],
+          "ts_column": "saved_time",
+          "paginated": true,
+          "extra_filter": "customerTag is empty",
+          "height": 10,
+          "min_wdith": 12,
           "columns": {
-            "domain": {
+            "name": {
               "title": "Name",
               "key": true
             },
-            "description": {
-              "title": "Description",
-              "key": false
-            },
-            "enabled_color": {
-              "type": "COLOR-MAP",
-              "source-column": "enabled",
-              "color-map": {
-                "yes": "#4CAF50",
-                "no": "#B71C1C"
-              }
-            },
-            "enabled": {
-              "title": "Enabled",
-              "htmlTemplateForRow": "<span class='badge' style='background-color: {{'{{ row.enabled_color }}'}}' > {{'{{ row.enabled }}'}} </span>",
-              "key": false
-            },
-            "tools": {
-              "title": "Tools",
-              "key": false
-            },
-            "textResources": {
-              "title": "Resources",
-              "key": false
-            },
-            "contents": {
-              "title": "YAML",
-              "defaultWidth": 500,
-              "visible": false,
+            "type": {
+              "title": "Type",
               "key": true
+            },
+            "typeDescription": {
+              "title": "description"
+            },
+            "has_credential_check": {
+              "title": "Credential Check",
+              "visible": false
+            },
+            "checksum": {
+              "title": "Checksum"
+            },
+            "tags": {
+              "title": "Tags",
+              "type": "TEXT",
+              "key": true
+            },
+            "customerTag": {
+              "title": "Customer Tag",
+              "type": "TEXT",
+              "key": true,
+              "hidden": true
+            },
+            "saved_time": {
+              "title": "Saved Time",
+              "type": "DATETIME"
+            },
+            "timestamp": {
+              "title": "When",
+              "type": "HUMANIZE_TIME_DELTA",
+              "source-column": "saved_time",
+              "sortable": false
             }
           },
-          "widget_id": "2630645a",
+          "custom_columns": [
+            {
+              "id": "rowStyleClass",
+              "hidden": true,
+              "visiblle": false,
+              "expr": "'bg-fading-blue' if time_now_as_ms() - isoformat_to_ms(saved_time) <= 120000 else None"
+            },
+            {
+              "id": "artifact_name",
+              "label": "Artifact Name",
+              "expr": "name",
+              "key": true,
+              "visible": false,
+              "sortable": false
+            },
+            {
+              "id": "artifact_type",
+              "label": "Artifact Type",
+              "expr": "'source'",
+              "key": true,
+              "visible": false,
+              "sortable": false
+            }
+          ],
           "actions": [
             {
-              "permission": "rda:github:view",
+              "permission": "rda:credential:add",
               "title": "Add",
+              "icon": "mdi mdi-plus",
               "type": "POPUP_FORM",
               "selectionType": "NONE",
-              "identifier": "saas-service-action:aiadministration-add-mcpserver",
+              "identifier": "saas-service-action:vault-add",
               "api-endpoint": {
                 "service-name": "saas-reports",
                 "methodName": "getForm",
@@ -74,69 +139,17 @@
                 "parse-output": false,
                 "params": [
                   {
-                    "formId": "rda.saas.dynamic.form",
-                    "formData": {
-                      "server_json": "{}"
-                    },
-                    "formDefinition": {
-                      "id": "rda.saas.dynamic.form",
-                      "formFieldList": [
-                        {
-                          "help": "Enter Domain Name",
-                          "dataType": "string",
-                          "required": true,
-                          "editable": true,
-                          "label": "MCP Domain Name",
-                          "controlType": "TEXT_FIELD",
-                          "hidden": false,
-                          "fieldId": "name",
-                          "controlPropertyList": [
-                            {
-                              "attribute": "layout-group-id",
-                              "value": "pstream-details"
-                            }
-                          ]
-                        },
-                        {
-                          "fieldId": "contents",
-                          "label": "Domain YAML",
-                          "description": "Domain YAML",
-                          "required": true,
-                          "isSecret": false,
-                          "dataType": "string",
-                          "hidden": false,
-                          "editable": true,
-                          "controlType": "PYTHON_EDITOR",
-                          "controlPropertyList": [
-                            {
-                              "attribute": "lang",
-                              "value": "yaml"
-                            }
-                          ]
-                        }
-                      ]
-                    },
-                    "actions": [
-                      {
-                        "permission": "rda:github:view",
-                        "title": "Add",
-                        "type": "UPDATE_PSTREAM",
-                        "selectionType": "NONE",
-                        "identifier": "saas-service-action:aiadministration-add-mcpserver-addaction",
-                        "pstreamName": "mcp_external",
-                        "operation": "ADD"
-                      }
-                    ]
+                    "formId": "rda.saas.vault.add"
                   }
                 ]
               }
             },
             {
-              "permission": "rda:github:view",
+              "permission": "rda:credential:edit",
               "title": "Edit",
               "type": "POPUP_FORM",
               "selectionType": "SINGLE",
-              "identifier": "saas-service-action:aiadministration-edit-mcpserver",
+              "identifier": "saas-service-action:vault-edit",
               "api-endpoint": {
                 "service-name": "saas-reports",
                 "methodName": "getForm",
@@ -144,55 +157,19 @@
                 "parse-output": false,
                 "params": [
                   {
-                    "formId": "rda.saas.dynamic.form",
-                    "form_data_field_mapping": {
-                      "contents": "contents"
-                    },
-                    "formData": {},
-                    "formDefinition": {
-                      "id": "rda.saas.dynamic.form",
-                      "formFieldList": [
-                        {
-                          "fieldId": "contents",
-                          "label": "Domain YAML",
-                          "description": "Domain YAML",
-                          "required": true,
-                          "isSecret": false,
-                          "dataType": "string",
-                          "hidden": false,
-                          "editable": true,
-                          "controlType": "PYTHON_EDITOR",
-                          "controlPropertyList": [
-                            {
-                              "attribute": "lang",
-                              "value": "yaml"
-                            }
-                          ]
-                        }
-                      ]
-                    },
-                    "actions": [
-                      {
-                        "permission": "rda:github:view",
-                        "title": "Edit",
-                        "type": "UPDATE_PSTREAM",
-                        "selectionType": "NONE",
-                        "identifier": "saas-service-action:aiadministration-edit-mcpserver-editaction",
-                        "pstreamName": "mcp_external",
-                        "operation": "UPDATE",
-                        "cfxql_query": "domain contains \"{{domain}}\""
-                      }
-                    ]
+                    "formId": "rda.saas.vault.edit"
                   }
                 ]
               }
             },
             {
-              "permission": "rda:github:view",
-              "title": "Delete",
+              "permission": "rda:credential:view",
+              "title": "View",
               "type": "POPUP_FORM",
               "selectionType": "SINGLE",
-              "identifier": "saas-service-action:aiadministration-delete-mcpserver",
+              "displayLabelColumnId": "name",
+              "drillDownLinkField": "name",
+              "identifier": "saas-service-action:vault-view",
               "api-endpoint": {
                 "service-name": "saas-reports",
                 "methodName": "getForm",
@@ -200,111 +177,200 @@
                 "parse-output": false,
                 "params": [
                   {
-                    "formId": "rda.saas.dynamic.form",
-                    "formData": {},
-                    "formDefinition": {
-                      "id": "rda.saas.dynamic.form",
-                      "formFieldList": [
-                        {
-                          "help": "Are you sure you want to delete this MCP domain?",
-                          "dataType": "string",
-                          "controlType": "LABEL",
-                          "required": false,
-                          "editable": false,
-                          "label": "Are you sure you want to delete this MCP domain?",
-                          "hidden": false,
-                          "fieldId": "delete_form_field"
-                        }
-                      ]
-                    },
-                    "actions": [
-                      {
-                        "permission": "rda:github:view",
-                        "title": "Delete",
-                        "type": "UPDATE_PSTREAM",
-                        "selectionType": "NONE",
-                        "identifier": "saas-service-action:aiadministration-add-mcpserver-deleteaction",
-                        "pstreamName": "mcp_external",
-                        "operation": "DELETE",
-                        "cfxql_query": "domain contains \"{{domain}}\""
-                      }
-                    ],
-                    "formActionList": {
-                      "formActions": [
-                        {
-                          "identifier": "Submit",
-                          "actionLabel": "Delete"
-                        }
-                      ]
-                    }
+                    "formId": "rda.saas.vault.view"
                   }
                 ]
               }
+            },
+            {
+              "permission": "rda:credential:verify",
+              "title": "Verify Credentials",
+              "type": "POPUP_FORM",
+              "selectionType": "SINGLE",
+              "identifier": "saas-service-action:vault-edit",
+              "actionCondition": {
+                "actionControl": "HIDE_IF",
+                "conditionalField": [
+                  {
+                    "conditionType": "EQUAL",
+                    "conditionValue": "false",
+                    "fieldId": "has_credential_check"
+                  }
+                ]
+              },
+              "api-endpoint": {
+                "service-name": "saas-reports",
+                "methodName": "getForm",
+                "stringified-params": true,
+                "parse-output": false,
+                "params": [
+                  {
+                    "formId": "rda.saas.vault.validateConenctivity"
+                  }
+                ]
+              }
+            },
+            {
+              "permission": "rda:credential:assign_tag",
+              "title": "Manage Tags",
+              "type": "POPUP_FORM",
+              "selectionType": "SINGLE",
+              "identifier": "saas-service-action:assign-tag",
+              "api-endpoint": {
+                "methodName": "getForm",
+                "params": [
+                  {
+                    "formId": "rda.saas.tags.assign"
+                  }
+                ],
+                "parse-output": false,
+                "service-name": "saas-reports",
+                "stringified-params": true
+              }
+            },
+            {
+              "permission": "rda:credential:verify",
+              "title": "Delete",
+              "type": "POPUP_FORM",
+              "selectionType": "SINGLE",
+              "identifier": "saas-service-action:vault-delete",
+              "api-endpoint": {
+                "service-name": "saas-reports",
+                "methodName": "getForm",
+                "stringified-params": true,
+                "parse-output": false,
+                "params": [
+                  {
+                    "formId": "rda.saas.vault.delete"
+                  }
+                ]
+              }
+            },
+            {
+              "permission": "rda:credential:view",
+              "appName": "user-dashboard/rda-artifact-dependencies-app",
+              "identifier": "launch.url.dashboard",
+              "selectionType": "SINGLE",
+              "stateName": "app.featureapp",
+              "title": "View Dependencies",
+              "type": "GO_TO_APP_STATE"
             }
-          ]
+          ],
+          "widget_id": "9a21b5c6"
+        }
+      ]
+    },
+    {
+      "title": "Site Profiles",
+      "show_filter": false,
+      "widgets": [
+        {
+          "title": "Site Profiles",
+          "widget_type": "portal_tabular",
+          "reportId": "siteprofiles.list.tabular",
+          "height": 10,
+          "min_wdith": 12,
+          "paginated": true,
+          "widget_id": "59969e8c"
         }
       ]
     }
   ],
   "pstream_dashboards": [
     {
-      "title": "AI",
-      "show_filter": false,
+      "title": "Credentials",
+      "show_filter": true,
       "widgets": [
         {
-          "title": "Domains",
+          "title": "Credentials",
           "widget_type": "tabular",
-          "min_width": 12,
-          "height": 6,
-          "max_width": 12,
-          "timebased": false,
-          "timestamp": "timestamp",
-          "stream": "mcp_external",
+          "stream": "rda_secrets_meta",
+          "duration_hours": 87600,
+          "remote_searchable": true,
+          "remote_searchable_cols": [
+            "name",
+            "type",
+            "typeDescription",
+            "checksum"
+          ],
+          "ts_column": "saved_time",
+          "paginated": true,
+          "extra_filter": "customerTag is empty",
+          "height": 10,
+          "min_wdith": 12,
           "columns": {
-            "domain": {
+            "name": {
               "title": "Name",
               "key": true
             },
-            "description": {
-              "title": "Description",
-              "key": false
-            },
-            "enabled_color": {
-              "type": "COLOR-MAP",
-              "source-column": "enabled",
-              "color-map": {
-                "yes": "#4CAF50",
-                "no": "#B71C1C"
-              }
-            },
-            "enabled": {
-              "title": "Enabled",
-              "htmlTemplateForRow": "<span class='badge' style='background-color: {{'{{ row.enabled_color }}'}}' > {{'{{ row.enabled }}'}} </span>",
-              "key": false
-            },
-            "tools": {
-              "title": "Tools",
-              "key": false
-            },
-            "textResources": {
-              "title": "Resources",
-              "key": false
-            },
-            "contents": {
-              "title": "YAML",
-              "defaultWidth": 500,
-              "visible": false,
+            "type": {
+              "title": "Type",
               "key": true
+            },
+            "typeDescription": {
+              "title": "description"
+            },
+            "has_credential_check": {
+              "title": "Credential Check",
+              "visible": false
+            },
+            "checksum": {
+              "title": "Checksum"
+            },
+            "tags": {
+              "title": "Tags",
+              "type": "TEXT",
+              "key": true
+            },
+            "customerTag": {
+              "title": "Customer Tag",
+              "type": "TEXT",
+              "key": true,
+              "hidden": true
+            },
+            "saved_time": {
+              "title": "Saved Time",
+              "type": "DATETIME"
+            },
+            "timestamp": {
+              "title": "When",
+              "type": "HUMANIZE_TIME_DELTA",
+              "source-column": "saved_time",
+              "sortable": false
             }
           },
-          "widget_id": "2630645a",
+          "custom_columns": [
+            {
+              "id": "rowStyleClass",
+              "hidden": true,
+              "visiblle": false,
+              "expr": "'bg-fading-blue' if time_now_as_ms() - isoformat_to_ms(saved_time) <= 120000 else None"
+            },
+            {
+              "id": "artifact_name",
+              "label": "Artifact Name",
+              "expr": "name",
+              "key": true,
+              "visible": false,
+              "sortable": false
+            },
+            {
+              "id": "artifact_type",
+              "label": "Artifact Type",
+              "expr": "'source'",
+              "key": true,
+              "visible": false,
+              "sortable": false
+            }
+          ],
           "actions": [
             {
-              "permission": "rda:github:view",
+              "permission": "rda:credential:add",
               "title": "Add",
+              "icon": "mdi mdi-plus",
               "type": "POPUP_FORM",
               "selectionType": "NONE",
-              "identifier": "saas-service-action:aiadministration-add-mcpserver",
+              "identifier": "saas-service-action:vault-add",
               "api-endpoint": {
                 "service-name": "saas-reports",
                 "methodName": "getForm",
@@ -312,69 +378,17 @@
                 "parse-output": false,
                 "params": [
                   {
-                    "formId": "rda.saas.dynamic.form",
-                    "formData": {
-                      "server_json": "{}"
-                    },
-                    "formDefinition": {
-                      "id": "rda.saas.dynamic.form",
-                      "formFieldList": [
-                        {
-                          "help": "Enter Domain Name",
-                          "dataType": "string",
-                          "required": true,
-                          "editable": true,
-                          "label": "MCP Domain Name",
-                          "controlType": "TEXT_FIELD",
-                          "hidden": false,
-                          "fieldId": "name",
-                          "controlPropertyList": [
-                            {
-                              "attribute": "layout-group-id",
-                              "value": "pstream-details"
-                            }
-                          ]
-                        },
-                        {
-                          "fieldId": "contents",
-                          "label": "Domain YAML",
-                          "description": "Domain YAML",
-                          "required": true,
-                          "isSecret": false,
-                          "dataType": "string",
-                          "hidden": false,
-                          "editable": true,
-                          "controlType": "PYTHON_EDITOR",
-                          "controlPropertyList": [
-                            {
-                              "attribute": "lang",
-                              "value": "yaml"
-                            }
-                          ]
-                        }
-                      ]
-                    },
-                    "actions": [
-                      {
-                        "permission": "rda:github:view",
-                        "title": "Add",
-                        "type": "UPDATE_PSTREAM",
-                        "selectionType": "NONE",
-                        "identifier": "saas-service-action:aiadministration-add-mcpserver-addaction",
-                        "pstreamName": "mcp_external",
-                        "operation": "ADD"
-                      }
-                    ]
+                    "formId": "rda.saas.vault.add"
                   }
                 ]
               }
             },
             {
-              "permission": "rda:github:view",
+              "permission": "rda:credential:edit",
               "title": "Edit",
               "type": "POPUP_FORM",
               "selectionType": "SINGLE",
-              "identifier": "saas-service-action:aiadministration-edit-mcpserver",
+              "identifier": "saas-service-action:vault-edit",
               "api-endpoint": {
                 "service-name": "saas-reports",
                 "methodName": "getForm",
@@ -382,55 +396,19 @@
                 "parse-output": false,
                 "params": [
                   {
-                    "formId": "rda.saas.dynamic.form",
-                    "form_data_field_mapping": {
-                      "contents": "contents"
-                    },
-                    "formData": {},
-                    "formDefinition": {
-                      "id": "rda.saas.dynamic.form",
-                      "formFieldList": [
-                        {
-                          "fieldId": "contents",
-                          "label": "Domain YAML",
-                          "description": "Domain YAML",
-                          "required": true,
-                          "isSecret": false,
-                          "dataType": "string",
-                          "hidden": false,
-                          "editable": true,
-                          "controlType": "PYTHON_EDITOR",
-                          "controlPropertyList": [
-                            {
-                              "attribute": "lang",
-                              "value": "yaml"
-                            }
-                          ]
-                        }
-                      ]
-                    },
-                    "actions": [
-                      {
-                        "permission": "rda:github:view",
-                        "title": "Edit",
-                        "type": "UPDATE_PSTREAM",
-                        "selectionType": "NONE",
-                        "identifier": "saas-service-action:aiadministration-edit-mcpserver-editaction",
-                        "pstreamName": "mcp_external",
-                        "operation": "UPDATE",
-                        "cfxql_query": "domain contains \"{{domain}}\""
-                      }
-                    ]
+                    "formId": "rda.saas.vault.edit"
                   }
                 ]
               }
             },
             {
-              "permission": "rda:github:view",
-              "title": "Delete",
+              "permission": "rda:credential:view",
+              "title": "View",
               "type": "POPUP_FORM",
               "selectionType": "SINGLE",
-              "identifier": "saas-service-action:aiadministration-delete-mcpserver",
+              "displayLabelColumnId": "name",
+              "drillDownLinkField": "name",
+              "identifier": "saas-service-action:vault-view",
               "api-endpoint": {
                 "service-name": "saas-reports",
                 "methodName": "getForm",
@@ -438,48 +416,101 @@
                 "parse-output": false,
                 "params": [
                   {
-                    "formId": "rda.saas.dynamic.form",
-                    "formData": {},
-                    "formDefinition": {
-                      "id": "rda.saas.dynamic.form",
-                      "formFieldList": [
-                        {
-                          "help": "Are you sure you want to delete this MCP domain?",
-                          "dataType": "string",
-                          "controlType": "LABEL",
-                          "required": false,
-                          "editable": false,
-                          "label": "Are you sure you want to delete this MCP domain?",
-                          "hidden": false,
-                          "fieldId": "delete_form_field"
-                        }
-                      ]
-                    },
-                    "actions": [
-                      {
-                        "permission": "rda:github:view",
-                        "title": "Delete",
-                        "type": "UPDATE_PSTREAM",
-                        "selectionType": "NONE",
-                        "identifier": "saas-service-action:aiadministration-add-mcpserver-deleteaction",
-                        "pstreamName": "mcp_external",
-                        "operation": "DELETE",
-                        "cfxql_query": "domain contains \"{{domain}}\""
-                      }
-                    ],
-                    "formActionList": {
-                      "formActions": [
-                        {
-                          "identifier": "Submit",
-                          "actionLabel": "Delete"
-                        }
-                      ]
-                    }
+                    "formId": "rda.saas.vault.view"
                   }
                 ]
               }
+            },
+            {
+              "permission": "rda:credential:verify",
+              "title": "Verify Credentials",
+              "type": "POPUP_FORM",
+              "selectionType": "SINGLE",
+              "identifier": "saas-service-action:vault-edit",
+              "actionCondition": {
+                "actionControl": "HIDE_IF",
+                "conditionalField": [
+                  {
+                    "conditionType": "EQUAL",
+                    "conditionValue": "false",
+                    "fieldId": "has_credential_check"
+                  }
+                ]
+              },
+              "api-endpoint": {
+                "service-name": "saas-reports",
+                "methodName": "getForm",
+                "stringified-params": true,
+                "parse-output": false,
+                "params": [
+                  {
+                    "formId": "rda.saas.vault.validateConenctivity"
+                  }
+                ]
+              }
+            },
+            {
+              "permission": "rda:credential:assign_tag",
+              "title": "Manage Tags",
+              "type": "POPUP_FORM",
+              "selectionType": "SINGLE",
+              "identifier": "saas-service-action:assign-tag",
+              "api-endpoint": {
+                "methodName": "getForm",
+                "params": [
+                  {
+                    "formId": "rda.saas.tags.assign"
+                  }
+                ],
+                "parse-output": false,
+                "service-name": "saas-reports",
+                "stringified-params": true
+              }
+            },
+            {
+              "permission": "rda:credential:verify",
+              "title": "Delete",
+              "type": "POPUP_FORM",
+              "selectionType": "SINGLE",
+              "identifier": "saas-service-action:vault-delete",
+              "api-endpoint": {
+                "service-name": "saas-reports",
+                "methodName": "getForm",
+                "stringified-params": true,
+                "parse-output": false,
+                "params": [
+                  {
+                    "formId": "rda.saas.vault.delete"
+                  }
+                ]
+              }
+            },
+            {
+              "permission": "rda:credential:view",
+              "appName": "user-dashboard/rda-artifact-dependencies-app",
+              "identifier": "launch.url.dashboard",
+              "selectionType": "SINGLE",
+              "stateName": "app.featureapp",
+              "title": "View Dependencies",
+              "type": "GO_TO_APP_STATE"
             }
-          ]
+          ],
+          "widget_id": "9a21b5c6"
+        }
+      ]
+    },
+    {
+      "title": "Site Profiles",
+      "show_filter": false,
+      "widgets": [
+        {
+          "title": "Site Profiles",
+          "widget_type": "portal_tabular",
+          "reportId": "siteprofiles.list.tabular",
+          "height": 10,
+          "min_wdith": 12,
+          "paginated": true,
+          "widget_id": "59969e8c"
         }
       ]
     }
