@@ -1,10 +1,29 @@
 
- ## One time Migration
+ ## external-to-oia-main
 
- ## teamincidents-to-stream
+ ## 
+
+ ## A work around is to mention all child and dependent pipelines here.
 @c:new-block
  --> @dm:empty
- --> @dm:addrow table is 'teamincident' and dbname is '335b7f8cb56d46419c3e7c70286c4b19_cfxdimensions_app_collaboratio'
- --> #mysqlv2:read order by shared_time desc
- --> @dm:change-time-format columns="shared_time" & from_format="datetimestr" & to_format="ms"
- --> @rn:write-stream name="oia-incidents-external-tickets-stream"
+ --> @dm:skip-block-if-shape row_count = 0 & column_count = 0
+ --> @exec:run-pipeline name="oia-incident-status-tracker-stream" & ignore_failures="no"
+ --> @exec:run-pipeline name="snow-to-oia" & ignore_failures="no"
+ --> @c:bookmark-loop bookmark = 'external-to-oia-bkmrk' & initial_value = '-1 minute'
+ --> @dm:empty
+ --> @dm:addrow name="snow_ticket_notifications" & max_rows="1000"
+ ## Query records from Stream
+
+ --> #dm:query-persistent-stream timestamp is after '${bookmark}'
+ --> @dm:skip-block-if-shape row_count = 0 & column_count = 0
+ --> @rn:write-stream compression="auto" & name="debug-external-to-oia-main-1"
+ --> @dm:save_bookmark name = 'external-to-oia-bkmrk' & value_column = 'timestamp' & value_type = 'timestamp' & value_func = 'max'
+ ## Record The Step
+
+ --> @dm:eval pipeline="'external-to-oia-main'" & step="'query-persistent-stream'" & stage="'bookmark ${bookmark}'" & status_comments="''" & status="'SUCCESS'"
+ --> @exec:run-pipeline name="oia-incident-status-tracker-stream" & ignore_failures="yes"
+ ## Load the corresponding Handler
+
+ --> @dm:enrich-using-rule-dict dict='external-to-oia-dict' & enrich_columns='exec_pipeline,runName'
+ --> @dm:check-columns must_contain="exec_pipeline" & action="skip-block"
+ --> @exec:run-pipeline-by-row pipeline_col="exec_pipeline" & pipeline_type="Published"
