@@ -1,13 +1,5 @@
-@dm:empty
- --> @dm:recall name='generate_token_creds'
- --> @dm:save name='temp-generate_token_creds'
- ## Generate token
-
- --> @c:data-loop columns='content_type,client_secret,client_id,grant_type' and dataset='temp-generate_token_creds'
- --> @restclient:read url="https://int-id.cisco.com/oauth2/aussduh26AoUqMpmQ1d6/v1/token?grant_type=$grant_type&client_id=$client_id&client_secret=$client_secret" and
-`method`="POST" and
-`Content-Type`='$content_type' and
-`Accept`='*/*'
- --> @dm:eval key="'key'"
- --> @dm:save name="temp-access-token"
- --> @dm:save name='test-token'
+@dm:query-persistent-stream-from-bookmark name='oia-incidents-stream' and query="i_recommendation_ts is empty" and bookmark='incidents-genai' and offset='latest'
+ --> @dm:dedup columns='incident_id'
+ --> @dm:eval fromTime="i_cfx_incident_occurred-(12*60*60*1000)" and toTime="i_cfx_incident_occurred+(4*60*60*1000)"
+ --> @dm:change-time-format from_format='ms' and to_format='datetimestr' and columns='fromTime,toTime'
+ --> @exec:run-pipeline name='genai-incident-recommendation-child'
