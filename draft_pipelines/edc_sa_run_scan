@@ -1,113 +1,62 @@
-@c:new-block
- --> @dm:recall name='uploaded_data'
- ## --> @dm:addrow name='edc_cust_pid_sw' and limit=0
+@dm:empty
+ ## --> @exec:get-input
 
- ## --> #dm:query-persistent-stream
+ --> @dm:recall name="test-retrieve-dataset"
+ --> @dm:save name="temp-retrieve-dataset"
+ --> @c:new-block
+ ## --> @dm:recall name="edc_customer_names"
 
- --> @dm:eval sw_os_type="('IOS XR' if sw_os_type=='IOS-XR' else sw_os_type)"
- --> @dm:add-missing-columns columns='source' and value='security_advisory'
- --> @dm:eval contract_number='str(contract_number)'
- ## --> @dm:head n=1
+ --> @dm:recall name="temp-retrieve-dataset"
+ --> *dm:filter savm_level =="SAVM_SALES_LEVEL_4_NAME"
+ --> @dm:save name='temp-level4-name'
+ --> @c:new-block
+ ## --> @dm:recall name="edc_customer_names"
 
- --> @dm:save name='temp-sa-data'
+ --> @dm:recall name="temp-retrieve-dataset"
+ --> *dm:filter savm_level =="SAVM_SALES_LEVEL_5_NAME"
+ --> @dm:save name='temp-level5-name'
+ --> @c:new-block
+ ## --> @dm:recall name="edc_customer_names"
+
+ --> @dm:recall name="temp-retrieve-dataset"
+ --> *dm:filter savm_level =="SAVM_SALES_LEVEL_6_NAME"
+ --> @dm:save name='temp-level6-name'
  --> @c:new-block
  --> @dm:empty
- --> @exec:define-function name="generate_access_token"
- --> @dm:recall name='generate_token_creds'
- ## --> @dm:empty
+ --> @dm:save name='edc_status'
+ --> @c:data-loop columns='savm_name,customer' and dataset='temp-level4-name' and return_empty='yes'
+ --> @dm:recall name='edc_status' and return_empty = 'yes'
+ --> @dm:addrow dummy='key'
+ --> @dm:add-missing-columns columns='customer_name' and  value="$customer"
+ --> @dm:manipulate-string to="status" and func="eval" and value="'starting to fetch the data'"
+ --> @rn:write-stream name ='edc_update_status'
+ --> @snowflake:native-query dbname is "CX_DB" and warehouse is "CX_DMP_RPT_WH" and query is "WITH UniqueCombinations AS (    SELECT GU_NAME, SAVM_SALES_LEVEL_3_NAME, SAVM_SALES_LEVEL_4_NAME, SAVM_SALES_LEVEL_5_NAME, SAVM_SALES_LEVEL_6_NAME, CONTRACT_NUMBER, PRODUCT_NAME, COVERAGE, COVERED_LINE_STATUS, BUSINESS_ENTITY, BUSINESS_SUB_ENTITY, PRODUCT_LIST_PRICE, COALESCE(CONTRACT_NUMBER, COVERED_LINE_STATUS, PRODUCT_LIST_PRICE), COUNT(*) AS combination_count    FROM CX_DB.CX_DMP_EBV.BV_ASSET    WHERE SAVM_SALES_LEVEL_4_NAME = '$savm_name'      AND ASSET_TYPE = 'Hardware'    GROUP BY GU_NAME, SAVM_SALES_LEVEL_3_NAME, SAVM_SALES_LEVEL_4_NAME, SAVM_SALES_LEVEL_5_NAME, SAVM_SALES_LEVEL_6_NAME, CONTRACT_NUMBER, PRODUCT_NAME, COVERAGE, COVERED_LINE_STATUS, BUSINESS_ENTITY, BUSINESS_SUB_ENTITY, PRODUCT_LIST_PRICE) SELECT DISTINCT a.GU_NAME, a.SAVM_SALES_LEVEL_3_NAME, a.SAVM_SALES_LEVEL_4_NAME, a.SAVM_SALES_LEVEL_5_NAME, a.SAVM_SALES_LEVEL_6_NAME, a.CONTRACT_NUMBER, a.PRODUCT_NAME, a.COVERAGE, a.COVERED_LINE_STATUS, a.BUSINESS_ENTITY, a.BUSINESS_SUB_ENTITY, a.BK_END_OF_LIFE_REQUEST_NUM, a.BK_EOL_BULLETIN_PRODUCT_TYP_CD, a.END_OF_NEW_SVC_ATTACHMENT_DT, a.END_OF_ROUTINE_FAIL_ANLYSYS_DT, a.END_OF_SOFTWARE_MAINTENANCE_DT, a.END_OF_SVC_CONTRACT_RNWL_DT, a.EOL_EXTERNAL_ANNOUNCE_DT, a.EOL_PRODUCT_NAME, a.ITEM_TYPE, a.LAST_DATE_OF_SALE, a.LAST_DATE_OF_SUPPORT, a.PRODUCT_DESCRIPTION, a.PRODUCT_FAMILY, a.PRODUCT_FAMILY_DESCRIPTION, a.PRODUCT_TYPE,  a.PRODUCT_LIST_PRICE , u.combination_count FROM CX_DB.CX_DMP_EBV.BV_ASSET a LEFT JOIN UniqueCombinations u ON a.GU_NAME = u.GU_NAME AND a.SAVM_SALES_LEVEL_3_NAME = u.SAVM_SALES_LEVEL_3_NAME AND a.SAVM_SALES_LEVEL_4_NAME = u.SAVM_SALES_LEVEL_4_NAME AND a.SAVM_SALES_LEVEL_5_NAME = u.SAVM_SALES_LEVEL_5_NAME AND a.SAVM_SALES_LEVEL_6_NAME = u.SAVM_SALES_LEVEL_6_NAME AND COALESCE(a.CONTRACT_NUMBER, 'NULL') = COALESCE(u.CONTRACT_NUMBER, 'NULL') AND a.PRODUCT_NAME = u.PRODUCT_NAME AND a.COVERAGE = u.COVERAGE AND COALESCE(a.COVERED_LINE_STATUS, 'NULL') = COALESCE(u.COVERED_LINE_STATUS, 'NULL') AND a.BUSINESS_ENTITY = u.BUSINESS_ENTITY AND a.BUSINESS_SUB_ENTITY = u.BUSINESS_SUB_ENTITY AND COALESCE(a.PRODUCT_LIST_PRICE, 0) = COALESCE(u.PRODUCT_LIST_PRICE, 0) WHERE a.SAVM_SALES_LEVEL_4_NAME = '$savm_name'  AND a.ASSET_TYPE = 'Hardware';"
+ --> @dm:eval timestamp = "int(time_now_as_ms())"
+ --> @dm:add-missing-columns columns="execution_status"
+ --> *dm:filter execution_status =="Success"
+ --> @dm:skip-block-if-shape column_count = 3
+ --> @dm:to_type columns = 'product_list_price,combination_count' & type  = 'int'
+ --> @dm:fixnull columns="product_list_price" and value="0" and apply_for_empty="yes"
+ ## --> @dm:save name="edc_inventory"
 
- --> @exec:run-pipeline name ="edc_generate_token" & ignore_failures = "no"
- --> @dm:addrow key='key'
- --> @dm:eval current_time_ms="int(time_now_as_ms())"
- --> @dm:eval token_expiry_time='current_time_ms+3000000'
- --> @dm:save name='temp-expiry-time'
- --> @exec:end-function
- --> @c:new-block
- --> @dm:recall name='temp-sa-data'
- --> @dm:add-missing-columns columns="key" and value='key'
- --> @dm:manipulate-string from="sw_version,sw_os_type,product_id" and func="concat_columns" and to="unique_payload_inputs"
- --> @dm:dedup columns ='unique_payload_inputs'
- --> @dm:save name='temp-unique-sa-data'
- --> @dm:save name='unique-sa-data'
- --> @c:new-block
+ --> @dm:fixnull columns="covered_line_status,coverage" and value="Not Available" and apply_for_empty="yes"
+ --> @dm:eval total_product_list_price = "(product_list_price * combination_count)"
+ ## create column for unique customer
+
+ --> @dm:manipulate-string to="customer_name" and func="eval" and value="'$customer'"
+ --> @dm:eval unique_key = "str(gu_name) + str(savm_sales_level_3_name) + str(savm_sales_level_4_name) + str(savm_sales_level_5_name) + str(savm_sales_level_6_name) + str(contract_number) + str(product_name) + str(coverage) + str (covered_line_status) + str(business_entity) + str (business_sub_entity) + str (product_list_price)"
+ --> @dm:change-time-format columns="end_of_new_svc_attachment_dt,end_of_routine_fail_anlysys_dt,end_of_software_maintenance_dt,end_of_svc_contract_rnwl_dt,eol_external_announce_dt,last_date_of_sale,last_date_of_support" and from_format="datetimestr" and to_format="%Y-%m-%d"
+ --> @dm:save name="temp-edc-inventory-level4"
+ --> @dm:save name="test-edc-inventory-level4"
+ ## --> @dm:selectcolumns include="contract_number|product_name|coverage|covered_line_status|business_entity|business_sub_entity	bk_end_of_life_request_num|bk_eol_bulletin_product_typ_cd|end_of_new_svc_attachment_dt"
+
+ ## --> @rn:write-stream name="edc_oi_inventory_grouped"
+
+ --> @rn:write-stream name="edc_oi_inventory_grouped_1" and direct_to_opensearch="yes"
  --> @dm:empty
- --> @exec:call-function name='generate_access_token'
- --> @c:data-loop columns='sw_version,sw_os_type,product_id,source,contract_number,customer' and dataset='temp-unique-sa-data'
- ## --> @dm:recall name='temp-unique-sa-data'
-
- --> @dm:empty
- --> @dm:addrow key='key'
- --> @dm:eval current_time_ms_loop="int(time_now_as_ms())"
- --> @dm:save name='temp-loop-time'
- --> @dm:enrich dict='temp-expiry-time' and src_key_cols='key' and dict_key_cols='key' and enrich_cols='token_expiry_time,access_token,expires_in,token_type'
- --> *exec:if-condition token_expiry_time is null or current_time_ms_loop  is greater than or equal to token_expiry_time
- --> @exec:call-function name='generate_access_token'
- --> @exec:end-if
- --> @dm:add-missing-columns columns='sw_version' and value='$sw_version'
- --> @dm:add-missing-columns columns='sw_os_type' and value='$sw_os_type'
- --> @dm:add-missing-columns columns='product_id' and value='$product_id'
- --> @dm:add-missing-columns columns='source' and value='$source'
- --> *exec:if-condition sw_version is not null and sw_os_type is not null and product_id is not null
- --> @exec:run-pipeline name ="edc_sw_get_data" & ignore_failures = "no"
- --> @dm:save name='temp-sa-token'
- --> @dm:save name='temp-sa-run-scan' and append='yes'
- --> @dm:save name='new-sa-scan-38-1' and append='yes'
- --> @exec:end-if
- ## --> @dm:add-missing-columns columns='contract_number' and value='$contract_number'
-
- ## --> @dm:add-missing-columns columns='customer' and value='$customer'
-
- --> @c:new-block
- --> @dm:recall name='temp-sa-run-scan'
- --> @c:new-block
- --> @dm:recall name="temp-sa-run-scan"
- --> @dm:enrich dict="temp-sa-data" and src_key_cols='product_id,sw_version,sw_os_type' and dict_key_cols='product_id,sw_version,sw_os_type' and enrich_cols="contract_number,customer" and dedup_dict='no' and how_type='outer'
- --> @dm:save name='temp-enriched-run-scan'
- --> @dm:save name='enrich-sa-output-no-explode'
- --> @c:new-block
- --> @dm:recall name='temp-enriched-run-scan'
- --> @dm:dedup columns='product_id'
- --> @dm:eval issues='json_dumps(issues)'
- --> @dm:explode-json column="issues"
- --> @dm:eval psirtAlert='json_dumps(psirtAlert)'
- --> @dm:explode-json column="psirtAlert"
- --> @dm:save name='temp-sa-run-scan-exploded'
- --> @dm:save name='exploded-sa-output'
- --> @c:new-block
- --> @dm:recall name="temp-sa-run-scan-exploded"
- ## --> @dm:enrich dict="temp-sa-data" and src_key_cols='product_id,sw_version,sw_os_type' and dict_key_cols='product_id,sw_version,sw_os_type' and enrich_cols="contract_number,customer"
-
- --> @dm:add-missing-columns columns="PsirtID,MatchConfidence,MatchReason,MatchDefinition,HeadlineName,AdvisoryId,BulletinURL,Summary,Details,RevisedDate,RevisionNumber,PublishedDate,SeverityLevelName,CvssScore,CveId,_id,advisoryId,created,customerVisible,external_text,external_title,firstIcAlertId,groups,icIssueId,icProblemId,ignored,lastIcAlertId,matchDefinition,matchInfo,matchConfidence,missingInfo,moreInfo,name,openedOn,resultType,resultSubType,severity,severityText,state,updated,deviceSN,source,runType,filename,icType,atticaStatus,cdetsList,retry,associatedGroups,key,current_time_ms_loop,token_expiry_time,access_token,expires_in,token_type,sw_version,sw_os_type,product_id,id1,id2,transaction_id,serial_number,eoXAlert,eoXAlertType,DocumentId"
- --> @dm:eval secAdv_confidence_score = "100 if matchConfidence == 'VUL' else 99 if matchConfidence == 'POTVUL' else 98 if matchConfidence == 'Not Vulnerable' else 0"
- --> @dm:fixnull columns="product_name,PsirtID,MatchConfidence,MatchReason,MatchDefinition,HeadlineName,AdvisoryId,BulletinURL,Summary,Details,RevisedDate,RevisionNumber,PublishedDate,SeverityLevelName,CvssScore,CveId,_id,advisoryId,created,customerVisible,external_text,external_title,firstIcAlertId,groups,icIssueId,icProblemId,ignored,lastIcAlertId,matchDefinition,matchInfo,matchConfidence,missingInfo,moreInfo,name,openedOn,resultType,resultSubType,severity,severityText,state,updated,deviceSN,source,runType,filename,icType,atticaStatus,cdetsList,retry,associatedGroups,key,current_time_ms_loop,token_expiry_time,access_token,expires_in,token_type,sw_version,sw_os_type,product_id,id1,id2,transaction_id,serial_number,eoXAlert,eoXAlertType,DocumentId,secAdv_confidence_score" and value="Not Available" and apply_for_empty="yes"
- --> @dm:fixnull-regex columns="Timestamp$|timestamp$"
- --> @dm:rename-columns secAdv_matchConfidence ='matchConfidence' and secAdv_securityImpactRating='SeverityLevelName' and bulletinTitle='external_title' and securityAdvisoryId='advisoryId' and ID = '_id'
- --> @dm:eval product_name="product_id if product_name is 'Not Available' else product_name"
- --> @dm:save name="temp-sec-adv-details"
- --> @dm:save name="test-sec-adv-details"
- --> @rn:write-stream name='edc_sec_adv_data_raw'
- ## creates a list of unique customers
-
- --> @c:new-block
- --> @dm:recall name='temp-sa-data'
- --> @dm:groupby columns='customer'
- ## --> @dm:to_type columns = 'contract_number' &
-
- ## type  = 'int'
-
- --> @dm:save name='temp-unique-cust-name'
- ## Queries data for the customer from edc_oi_enriched_stream
-
- --> @c:data-loop dataset='temp-unique-cust-name' and columns='customer'
- --> @dm:empty
- --> @dm:addrow name='edc_oi_inventory_enriched' and limit=0
- --> #dm:query-persistent-stream customer_name=='$customer'
- --> @dm:save name='temp-hw-eol-details' and append='yes'
- ## --> @dm:save name='test1-hw-eol-details' and append='yes'
-
- --> @c:new-block
- --> @dm:recall name='temp-hw-eol-details'
- --> @dm:enrich dict='temp-sec-adv-details' and src_key_cols='product_name,contract_number,customer_name' and dict_key_cols='product_name,contract_number,customer' and enrich_cols='secAdv_confidence_score,PsirtID,MatchReason,MatchDefinition,HeadlineName,AdvisoryId,BulletinURL,Summary,Details,RevisedDate,RevisionNumber,PublishedDate,CvssScore,CveId,ID,created,customerVisible,external_text,bulletinTitle,firstIcAlertId,groups,icIssueId,icProblemId,ignored,lastIcAlertId,matchDefinition,matchInfo,missingInfo,moreInfo,name,openedOn,resultType,resultSubType,severity,severityText,state,updated,deviceSN,source,runType,filename,icType,atticaStatus,cdetsList,retry,associatedGroups,key,current_time_ms_loop,token_expiry_time,access_token,expires_in,token_type,sw_version,sw_os_type,id1,id2,transaction_id,serial_number,eoXAlert,securityAdvisoryId,eoXAlertType,DocumentId,secAdv_matchConfidence,secAdv_securityImpactRating'  and how_type='outer' and dedup_dict='no' and replace_values='yes'
- --> @dm:save name='final-sa-hw-enrich'
- --> @dm:selectcolumns exclude='^(customer|product_id)$'
- --> @rn:write-stream name='edc_sec_adv_data_enriched'
+ --> @dm:manipulate-string to="status" and func="eval" and value="'Data fetch completed'"
+ --> @rn:write-stream name ='edc_update_status'
+ --> @dm:manipulate-string to="status" and func="eval" and value="'Processing EOL data'"
+ --> @dm:add-missing-columns columns='customer_name' and  value="$customer"
+ --> @rn:write-stream name ='edc_update_status'
+ --> @dm:recall name='temp-edc-inventory-level4'
