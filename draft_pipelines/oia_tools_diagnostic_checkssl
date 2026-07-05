@@ -1,7 +1,16 @@
-@exec:get-input
- --> @dm:explode-json column='node'
- --> @dm:add-missing-columns columns='vm_ip_address,switch_ip_address,app_comp_ip_address,port'
- --> @dm:to-type columns='port' and type='int'
- --> @dm:selectcolumns include='^vm_ip_address$|^switch_ip_address$|^app_comp_ip_address$|^port$'
- --> @dm:eval tool_ip_address = "vm_ip_address if vm_ip_address else (switch_ip_address if switch_ip_address else app_comp_ip_address)"
- --> @diagnostictools:checkssl column_name_host = 'tool_ip_address' and column_name_port = 'port' and json_output_flag = 'True'
+@dm:empty
+ --> @dm:addrow name='edc_cust_pid_sw' and limit=0
+ --> #dm:query-persistent-stream
+ --> @dm:dedup columns='product_id,sw_os_type,sw_version'
+ --> @dm:save name='temp-pid'
+ --> @c:new-block
+ --> @dm:empty
+ --> @dm:addrow name='edc_oi_inventory_enriched' and limit=0
+ --> #dm:query-persistent-stream customer_name equals 'ATT'
+ --> @dm:save name='temp-source'
+ --> @c:new-block
+ --> @dm:recall name='temp-source'
+ --> @dm:enrich dict='temp-pid' and src_key_cols='product_name,contract_number,customer_name' and dict_key_cols='product_id,contract_number,customer' and enrich_cols='_id'
+ --> @dm:save name='before-output'
+ --> @dm:dedup columns='product_name,contract_number,customer_name'
+ --> @dm:save name='after-output'

@@ -1,2 +1,16 @@
-@dm:recall name='fileupload_incidents'
- --> @cfxusml:logclustering columns='summary' and min_cluster_size = 30 and remove_vars = 'yes' and entityid_column = 'Incident Id' and job_name='FileUpload Incidents'
+@dm:empty
+ --> @dm:addrow name='edc_cust_pid_sw' and limit=0
+ --> #dm:query-persistent-stream
+ --> @dm:dedup columns='product_id,sw_os_type,sw_version'
+ --> @dm:save name='temp-pid'
+ --> @c:new-block
+ --> @dm:empty
+ --> @dm:addrow name='edc_oi_inventory_enriched' and limit=0
+ --> #dm:query-persistent-stream customer_name equals 'ATT'
+ --> @dm:save name='temp-source'
+ --> @c:new-block
+ --> @dm:recall name='temp-source'
+ --> @dm:enrich dict='temp-pid' and src_key_cols='product_name,contract_number,customer_name' and dict_key_cols='product_id,contract_number,customer' and enrich_cols='_id'
+ --> @dm:save name='before-output'
+ --> @dm:dedup columns='product_name,contract_number,customer_name'
+ --> @dm:save name='after-output'
