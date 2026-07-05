@@ -1,45 +1,51 @@
+@dm:empty
+ --> @exec:get-input
+ --> @dm:save name='temp-sweol-data'
+ ## --> @dm:eval contract_number='str(contract_number)'
 
- ## Bernie Wynia, Cisco Systems, 2025
+ --> @dm:save name='test-sweol-data'
+ ## creates a list of unique customers
 
- ## It doesn't seem to have trouble with the following error cases:
+ --> @c:new-block
+ --> @dm:recall name='temp-sweol-data'
+ --> @dm:groupby columns='customer'
+ --> @dm:save name='temp-unique-cust-name'
+ ## Queries data for the customer from edc_oi_enriched_stream
 
- ## -- no email addresses are found for template (valid template id)
+ --> @c:data-loop dataset='temp-unique-cust-name' and columns='customer'
+ --> @dm:empty
+ --> @dm:addrow name='edc_oi_inventory_enriched' and limit=0
+ --> #dm:query-persistent-stream customer_name=='$customer'
+ --> *dm:filter sw_os_type is 'Not Available'
+ --> @dm:to-type columns='contract_number' and type='int'
+ --> @dm:save name='temp-hw-eol-details' and append='yes'
+ ## --> @dm:save name='dataset-3'
 
- ## -- invalid template ID (passed in inpute stream)
+ ## processes the software columns for the customer
 
- ## -- malforemd email addressneed
+ --> @c:data-loop columns='customer' and dataset='temp-unique-cust-name'
+ --> @dm:recall name='temp-sweol-data'
+ --> *dm:filter customer == '$customer'
+ --> @exec:run-pipeline name='edc_processing_sw_data'
+ --> @dm:save name='temp-sw-eol-details'
+ --> @dm:save name='test-sw-eol-details'
+ ## enriches the processed columns to edc_oi_inventory_enriched
 
- ## Because there is always at least 1 row (potentially with empty columns), this didn't seem to have any impact --> *exec:if-shape num_rows > 0
+ --> @c:new-block
+ --> @dm:recall name='temp-sw-eol-details'
+ ## --> @dm:eval product_name="product_id if product_name is 'Not Available' else product_name"
 
- ## It doesn't seem to be needed because the apply-template and sendmail seem to complete regardless (so we resume on the read-stream)
+ --> @dm:enrich dict='temp-hw-eol-details' and dict_key_cols='contract_number,customer_name,product_id' and src_key_cols='contract_number,customer,product_id' and enrich_cols='gu_name,savm_sales_level_4_name,coverage,covered_line_status,business_entity,business_sub_entity,bk_end_of_life_request_num,bk_eol_bulletin_product_typ_cd,hwEOL_endOfNewServiceAttachmentDate,hwEOL_endOfRoutineFailureAnalysisDate,hwEOL_endOfSoftwareMaintenanceReleasesDate,hwEOL_endOfServiceContractRenewalDate,hwEOL_endOfLifeAnnouncementDate,eol_product_name,item_type,hwEOL_endOfSaleDate,hwEOL_lastDayOfSupportDate,product_description,product_family,product_family_description,product_type,product_list_price,portfolio_desc,usage_code,combination_count,execution_status,total_product_list_price,unique_key,hw_status,hw_expiring_qtr,hw_expiring_year,last_updated_time' and replace_values='yes' and how_type='inner'
+ --> @dm:save name='final-enrich'
+ ## --> @dm:rename-columns EndOfLifeDate='EndOfLifeDate_y'
 
- ## The one case it doesn't handle is if the GenericEmailTemplates references a Template Name that doesn't exist in "Formatting Templates"
-@c:new-block
- ## Wait for a request to send an email
+ ## --> @dm:fixnull columns='SoftwareEOXId,BulletinNumber,BulletinHeadline,BulletinURL,EndOfSaleDate,EndOfEngineeringDate,EndOfLifeDate,PostDate,EndOfLifeInternalAnnouncementDate,EndOfLifeExternalAnnouncementDate,EndOfLastHardwareShipDate,EndOfHardwareNewServiceAttachmentDate,EndOfHardwareRoutineFailureAnalysisDate,EndOfBUEngineeringSupportTACDate,EndOfHardwareServiceContractRenewalDate,EndOfSignatureReleasesDate,EndOfSoftwareAvailabilityDate,EndOfSoftwareLicenseAvailabilityDate,EndOfSoftwareVulnerabilityOrSecuritySupportDate,created,customerVisible,external_text,external_title,firstIcAlertId,groups,icIssueId,icProblemId,ignored,lastIcAlertId,eoXAlertType,name,openedOn,resultType,severity,severityText,state,updated,deviceSN,runType,filename,icType,atticaStatus,cdetsList,retry,associatedGroups,sw_expiring_qtr,sw_expiring_year,sw_status,sw_version,sw_os_type' and value="Not Available"  and apply_for_empty="yes"
 
- --> @rn:read-stream name = "genericEmailSender" & group = "group_genericEmailSender"
- ## When we get one, fetch the template details
+ --> @dm:rename-columns swEOL_softwareEOXId='SoftwareEOXId' and swEOL_bulletinNumber='BulletinNumber' and swEOL_bulletinTitle='BulletinHeadline' and swEOL_bulletinUrl='BulletinURL' and swEOL_endOfSaleDate='EndOfSaleDate' and
+swEOL_endOfSoftwareMaintenanceReleasesDate='EndOfEngineeringDate' and swEOL_lastDayOfSupportDate='EndOfLifeDate' and
+swEOL_endOfVulnerabilitySecuritySupportDate='EndOfSoftwareVulnerabilityOrSecuritySupportDate' and swEOL_endOfLifeAnnouncementDate='EndOfLifeExternalAnnouncementDate'
+ --> @rn:write-stream name='edc_sweol_data'
+ --> @dm:selectcolumns exclude='^(EndOfLifeInternalAnnouncementDate|EndOfLastHardwareShipDate|EndOfHardwareNewServiceAttachmentDate|EndOfHardwareRoutineFailureAnalysisDate|EndOfBUEngineeringSupportTACDate|EndOfHardwareServiceContractRenewalDate|EndOfSignatureReleasesDate|EndOfSoftwareAvailabilityDate|EndOfSoftwareLicenseAvailabilityDate|created|customerVisible|external_text|external_title|firstIcAlertId|groups|icIssueId|icProblemId|ignored|lastIcAlertId|eoXAlertType|name|openedOn|resultType|severity|severityText|state|updated|deviceSN|runType|filename|icType|atticaStatus|cdetsList|retry|associatedGroups)$'
+ ## --> @rn:write-stream name='edc_oi_inventory_enriched'
 
- --> @dm:enrich dict = 'GenericEmailTemplates' & src_key_cols = 'Template_Id' & dict_key_cols = 'Template_Id' & enrich_cols = "Subject,Template_Name"
- ## Formulate the Subject line by appending the Suffix, if provided
-
- --> @dm:add-missing-columns columns = 'Subject_Suffix' & value = ''
- --> @dm:eval Merged_Subject = "Subject + Subject_Suffix"
- ## Figure out who to send it to
-
- --> @dm:enrich dict = 'GenericEmailRecipients' & src_key_cols = 'Template_Id' & dict_key_cols = 'Template_Id' & enrich_cols = "Recipient,User_Enabled" & dedup_dict = "no"
- --> *dm:filter User_Enabled != 'no'
- ## Format the email content
-
- --> @dm:add-missing-columns columns = 'lType' & value = "html"
- --> @dm:apply-template-by-row template_name = "{{row.Template_Name}}" & output_col = "fMessage" & status_col = "Template_Result"
- ## Note that if we fetch an invald template name, the pipeline will abort in the above line (contrary to documentation)
-
- ## It may be helful to uncomment this line when debugging
-
- ## --> @dm:save name = "delete-me-email-working-data"
-
- --> *dm:filter Template_Result = 'ok'
- --> *exec:if-shape num_rows > 0
- --> @email:sendmail-bulk recipient_col = 'Recipient' & message_mime_type_col = 'lType' & subject_col = 'Merged_Subject' & message_col = 'fMessage'
- --> @exec:end-if
+ --> @dm:save name='temp-enriched-data'
