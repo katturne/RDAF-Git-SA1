@@ -1,16 +1,9 @@
-@dm:empty
- --> @dm:addrow name='edc_cust_pid_sw' and limit=0
- --> #dm:query-persistent-stream
- --> @dm:dedup columns='product_id,sw_os_type,sw_version'
- --> @dm:save name='temp-pid'
- --> @c:new-block
- --> @dm:empty
- --> @dm:addrow name='edc_oi_inventory_enriched' and limit=0
- --> #dm:query-persistent-stream customer_name equals 'ATT'
- --> @dm:save name='temp-source'
- --> @c:new-block
- --> @dm:recall name='temp-source'
- --> @dm:enrich dict='temp-pid' and src_key_cols='product_name,contract_number,customer_name' and dict_key_cols='product_id,contract_number,customer' and enrich_cols='_id'
- --> @dm:save name='before-output'
- --> @dm:dedup columns='product_name,contract_number,customer_name'
- --> @dm:save name='after-output'
+@dm:recall name='sa-raw-data'
+ --> @dm:eval unique_key="unique_key"
+ ## --> @dm:to-type columns='customer,product_name,product_id,sw_version,sw_os_type,advisoryId,PsirtID' and type='str'
+
+ --> @dm:implode key_columns='unique_key' and merge_columns='AdvisoryId,PsirtID,product_name,product_id' and dedup_merge_values='no' and keep_columns='AdvisoryId,PsirtID'
+ --> @dm:eval transaction_id_list="str(product_id).split(',')"
+ --> @dm:eval record_count = "len(transaction_id_list)"
+ --> *dm:filter record_count > 1
+ --> @dm:save name="test-implode-sw"
