@@ -1,2 +1,76 @@
-@snowflake:native-query dbname is "CX_DB" and warehouse is "CX_DMP_RPT_WH" and query is "WITH UniqueCombinations AS (SELECT CONTRACT_NUMBER, PRODUCT_NAME, COVERAGE, COVERED_LINE_STATUS, BUSINESS_ENTITY, BUSINESS_SUB_ENTITY, COUNT(*) AS combination_count FROM CX_DB.CX_DMP_EBV.BV_ASSET WHERE GU_NAME = 'AT&T INC' AND ASSET_TYPE = 'Hardware' GROUP BY CONTRACT_NUMBER, PRODUCT_NAME, COVERAGE, COVERED_LINE_STATUS, BUSINESS_ENTITY, BUSINESS_SUB_ENTITY ) SELECT DISTINCT a.BK_END_OF_LIFE_REQUEST_NUM, a.BK_EOL_BULLETIN_PRODUCT_TYP_CD, a.BUSINESS_ENTITY, a.BUSINESS_SUB_ENTITY, a.CONTRACT_NUMBER,a.COVERAGE, a.COVERED_LINE_STATUS, a.END_OF_NEW_SVC_ATTACHMENT_DT, a.END_OF_ROUTINE_FAIL_ANLYSYS_DT, a.END_OF_SOFTWARE_MAINTENANCE_DT, a.END_OF_SVC_CONTRACT_RNWL_DT, a.EOL_EXTERNAL_ANNOUNCE_DT, a.EOL_PRODUCT_NAME, a.GU_NAME,a.ITEM_TYPE, a.LAST_DATE_OF_SALE, a.LAST_DATE_OF_SUPPORT, a.PRODUCT_DESCRIPTION, a.PRODUCT_FAMILY, a.PRODUCT_FAMILY_DESCRIPTION, a.PRODUCT_NAME, a.PRODUCT_TYPE, u.combination_count FROM CX_DB.CX_DMP_EBV.BV_ASSET a JOIN UniqueCombinations u ON a.CONTRACT_NUMBER = u.CONTRACT_NUMBER AND a.PRODUCT_NAME = u.PRODUCT_NAME AND a.COVERAGE = u.COVERAGE AND a.COVERED_LINE_STATUS = u.COVERED_LINE_STATUS AND a.BUSINESS_ENTITY = u.BUSINESS_ENTITY AND a.BUSINESS_SUB_ENTITY = u.BUSINESS_SUB_ENTITY WHERE a.GU_NAME = 'AT&T INC' AND a.ASSET_TYPE = 'Hardware' LIMIT 10;"
- --> @rn:write-stream name is "test-stream"
+
+ ## name: collab-db-to-pstream-main
+
+ ## .
+
+ ## Use this if we want to reset bookmark and re-run again
+@c:new-block
+ --> @dm:empty
+ ## --> @dm:addrow i_created_ts="2023-08-01 00:00:00"
+
+ ## --> @dm:save_bookmark name = 'irm_incident_bkmrk' & value_column = 'i_created_ts' & value_type = 'timestamp' & value_func = 'max'
+
+ --> @dm:save name = "temp-1"
+ ## .
+
+ ## Main Driver is IRM's oia-incidents-stream.
+
+ ## As one time activity, We pull all incidents from oia-incidents-stream and use them to migrate corresponding collab messages, and team incidents. we may have duplicates from last 90 days.
+
+ ## .
+
+ --> @c:new-block
+ --> @dm:empty
+ --> @dm:save name="temp-irm-incident-ids-concat"
+ ## We can do read all in one go and split them up by 999 and use sql-in clause.
+
+ ## or
+
+ ## Read in batches using bookmark and process them in batches
+
+ ## SQL IN clause might have limitation of max 999 IDs
+
+ --> @c:bookmark-loop bookmark="irm_incident_bkmrk" & initial_value ="2023-08-01 00:00:00" & max_iterations=1
+ --> @dm:empty
+ --> @dm:addrow name="oia-incidents-stream" & limit=999 & sort_by_col="i_created_ts" & sort_type="asc"
+ --> #dm:query-persistent-stream i_created_ts is after '${bookmark}'
+ --> @dm:skip-block-if-shape row_count=0
+ --> @dm:check-columns must_contain="incident_id" & action="skip-block"
+ ## .
+
+ --> @dm:selectcolumns include="project_id|customer_id|incident_id|i_state|i_created_ts|i_updated_ts|timestamp"
+ --> @dm:save name="temp-irm-incidents"
+ ## .
+
+ --> @dm:selectcolumns include="incident_id|project_id"
+ --> @dm:map to="name" & func="fixed" & value="incident"
+ --> @dm:save name="temp-irm-incident-ids"
+ ## .
+
+ ## --> @exec:for-loop num_rows = 999
+
+ --> @dm:eval incident_id="incident_id + '\',\''"
+ --> @dm:eval project_id="project_id + '\',\''"
+ --> @dm:groupby columns="name" & agg="sum"
+ ## .
+
+ --> @dm:eval incident_id="incident_id.replace('CFX', '\'CFX', 1)"
+ --> @dm:eval incident_id="incident_id[:-2] if (incident_id.endswith(',\'')) else incident_id"
+ ## .
+
+ --> @dm:eval project_id="project_id.replace('', '\'', 1)"
+ --> @dm:eval project_id="project_id[:-2] if (project_id.endswith(',\'')) else project_id"
+ ## .
+
+ --> @dm:save name="temp-irm-incident-ids-concat"
+ ## --> @exec:end-loop & append="yes"
+
+ ## .
+
+ --> @exec:run-pipeline name="collab-db-to-pstream-processor" & ignore_failures="no"
+ ## increment the bookmark
+
+ --> @dm:recall name="temp-irm-incidents"
+ --> @dm:change-time-format columns="i_created_ts" & from_format="ms" & to_format="datetimestr"
+ --> @dm:save_bookmark name = 'irm_incident_bkmrk' & value_column = 'i_created_ts' & value_type = 'timestamp' & value_func = 'max'
+ --> @dm:sleep seconds = 1
