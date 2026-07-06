@@ -1,14 +1,20 @@
-folder: OI
-name: edc_oi_process_sw_data
-description: test pipeline
-data_path: pipelines/data/edc_oi_process_sw_data/2025_07_23_01/data.json
-usecase: ''
-category: ''
-sources:
-  cfxaia:
-    name: cfxaia
-    type: cfxaia
-artifacts: []
-version: '2025_07_23_01'
-file_type: json
-checksum: 7cc44d6f
+@c:new-block
+ --> @dm:empty
+ ## Get submitted form fields
+
+ --> @exec:get-input
+ ## Exclude label as it contains unneeded info that should not be written to stream later
+
+ --> @dm:selectcolumns exclude='.*_label'
+ --> @dm:save name='temp-input_data'
+ --> @dm:selectcolumns include="secadv_csv"
+ --> @dm:explode-json column="secadv_csv"
+ --> @dm:save name="temp-input-dataset"
+ --> @c:new-block
+ --> @c:data-loop dataset="temp-input-dataset" and columns="bucketName,objectName"
+ --> @dm:recall name="temp-input-dataset"
+ --> @dm:skip-block-if-shape row_count=0
+ --> @dm:get-from-location path="$bucketName/$objectName"
+ --> @dm:save name="temp-uploaded-file-data"
+ --> @dm:save name="uploaded-secadv-data"
+ --> @rn:write-stream name="test2-stream-input"
