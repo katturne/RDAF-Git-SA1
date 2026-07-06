@@ -1,449 +1,632 @@
 {
-  "name": "rda_system_single_snapshot_details",
-  "label": "Snapshot Details",
-  "description": "Snapshot Details",
-  "dashboard_folder": "System",
-  "version": "1.0.2",
-  "live_edit": true,
+  "name": "alert_analysis",
+  "label": "Alert Trend Analysis",
+  "description": "Alert Trend Analysis",
+  "dashboard_folder": "RDAF_Health_Trends",
+  "version": "1.0.0",
   "enabled": false,
-  "stream": "rda_system_snapshots_details",
   "dashboard_type": "template",
-  "template_variables": {
-    "SNAPSHOT_NAME": {
-      "contextId": "snapshot_name"
-    }
-  },
+  "stream": "oia-alerts-stream",
+  "live_edit": true,
   "dashboard_filters": {
     "time_filter": true,
     "default_time_filter_labels": [
-      "All Time"
+      "Last 1 week"
     ],
-    "extra_filter": "snapshot_name is '{{SNAPSHOT_NAME}}'",
-    "columns_filter": [
+    "columns_filters": [
       {
-        "id": "artifact_name",
-        "label": "Artifact Name",
+        "id": "a_rule_name",
+        "label": "Rule Name",
         "type": "TEXT"
       },
       {
-        "id": "artifact_type",
-        "label": "Artifact Type",
+        "id": "i_priority_label",
+        "label": "Priority",
         "type": "TEXT"
       },
       {
-        "id": "artifact_version_visibility",
-        "label": "Artifact Checksum In Snapshot Repo",
+        "id": "a_source_systemname",
+        "label": "Source",
         "type": "TEXT"
-      },
-      {
-        "id": "checksum",
-        "label": "Checksum",
-        "type": "TEXT"
-      },
-      {
-        "id": "object_name",
-        "label": "Object Name",
-        "type": "TEXT"
-      },
-      {
-        "id": "snapshot_name",
-        "label": "Snapshot Name",
-        "type": "TEXT"
-      },
-      {
-        "id": "snapshot_type",
-        "label": "Snapshot Type",
-        "type": "TEXT"
-      },
-      {
-        "id": "size",
-        "label": "Size",
-        "type": "DOUBLE"
       }
     ],
     "group_filters": [
       {
-        "stream": "rda_system_snapshots_details",
-        "title": "Artifact Type",
-        "duration_hours": 87600,
+        "stream": "oia-alerts-stream",
+        "extra_filter": "(a_source_systemname is  'Alert Group')",
+        "title": "Rule Name",
+        "duration_hours": 3240,
         "limit": 200,
-        "extra_filter": "snapshot_name is '{{SNAPSHOT_NAME}}'",
         "group_by": [
-          "artifact_type"
+          "a_rule_name"
         ],
         "ts_column": "timestamp",
-        "agg": "sum",
+        "agg": "cardinality",
         "column": "count_",
-        "type": "int"
+        "show_counts": false
       },
       {
-        "stream": "rda_system_snapshots_details",
-        "title": "Artifact Checksum In Snapshot Repo",
-        "duration_hours": 87600,
+        "stream": "oia-alerts-stream",
+        "extra_filter": "(a_source_systemname is not 'Alert Group')",
+        "title": "Source",
+        "duration_hours": 3240,
         "limit": 200,
-        "extra_filter": "snapshot_name is '{{SNAPSHOT_NAME}}'",
         "group_by": [
-          "artifact_version_visibility"
+          "a_source_systemname"
         ],
         "ts_column": "timestamp",
-        "agg": "sum",
+        "agg": "cardinality",
         "column": "count_",
-        "type": "int"
+        "show_counts": false
       }
     ]
   },
   "dashboard_sections": [
     {
-      "title": "rda_system_snapshots_details",
+      "title": "Alerts Analysis",
       "show_filter": true,
       "widgets": [
         {
           "widget_type": "label",
-          "min_width": 3,
-          "height": 3,
-          "max_width": 6,
-          "label": "{% raw %}<div><div style='color: #00aa00; font-size: 20px;'>Changes Since Last Snapshot: {{new_count|int}}</div><div style='color: #888888; font-size: 20px;'>Unchanged: {{unchanged_count|int}}</div></div>{% endraw %}",
-          "segments": [
-            {
-              "stream": "rda_system_snapshots_details",
-              "variable": "new_count",
-              "ts_column": "timestamp",
-              "extra_filter": "artifact_version_visibility == 'new' AND snapshot_name is '{{SNAPSHOT_NAME}}'",
-              "agg": "sum",
-              "group_by0": "artifact_version_visibility",
-              "column": "count_"
-            },
-            {
-              "stream": "rda_system_snapshots_details",
-              "variable": "unchanged_count",
-              "ts_column": "timestamp",
-              "extra_filter": "artifact_version_visibility == 'unchanged' AND snapshot_name is '{{SNAPSHOT_NAME}}'",
-              "agg": "sum",
-              "group_by0": "artifact_version_visibility",
-              "column": "count_"
-            }
-          ],
-          "widget_id": "23af24fa"
+          "max_width": 12,
+          "height": 0.5,
+          "min_width": 12,
+          "label": "<div style='text-align:center;width:100%;'><h1><a style='text-decoration:none;color:#0066ff;' target='_blank'> Alerts Trend Analysis </a></h1></div>",
+          "widget_id": "33317e49"
         },
         {
-          "widget_type": "pie_chart",
-          "title": "Artifact Type",
-          "stream": "rda_system_snapshots_details",
-          "ts_column": "timestamp",
-          "extra_filter": "snapshot_name is '{{SNAPSHOT_NAME}}'",
-          "column": "count_",
-          "agg": "sum",
+          "widget_type": "custom_counter",
+          "title": "Events (Alert Groups)",
+          "formatter": "K",
+          "ts_column": "a_updated_ts",
+          "duration_hours": 3240,
+          "stream": "oia-alerts-stream",
+          "extra_filter": "(a_source_systemname is not 'Alert Group') and  (a_rule_name is not 'Not Available')",
+          "column": "a_correlation_parent",
+          "agg": "cardinality",
+          "min_width": 3,
+          "height": 3,
+          "max_width": 3,
+          "widget_id": "ddeb719c"
+        },
+        {
+          "title": "Events by Rule Name",
+          "widget_type": "counter",
+          "formatter": "K",
+          "duration_hours": 3240,
+          "stream": "oia-alerts-stream",
+          "extra_filter": "(a_source_systemname is not 'Alert Group') and  (a_rule_name is not 'Not Available')",
+          "ts_column": "a_updated_ts",
+          "min_width": 9,
+          "height": 3,
+          "max_width": 9,
           "group_by": [
-            "artifact_type"
+            "a_rule_name"
           ],
+          "limit": 10,
+          "column": "a_correlation_parent",
+          "agg": "cardinality",
           "type": "int",
+          "widget_id": "AHhjvtpq"
+        },
+        {
+          "widget_type": "custom_counter",
+          "title": "Alerts",
+          "formatter": "K",
+          "ts_column": "a_updated_ts",
+          "duration_hours": 3240,
+          "stream": "oia-alerts-stream",
+          "extra_filter": "(a_source_systemname is not 'Alert Group')",
+          "column": "count_",
+          "agg": "value_count",
           "min_width": 3,
           "height": 3,
-          "max_width": 6,
-          "widget_id": "cc2794c5"
+          "max_width": 3,
+          "widget_id": "b9b42981"
         },
         {
-          "title": "Snapshot Manifest",
-          "widget_type": "tabular",
-          "duration_hours": 87600,
-          "max_width": 12,
-          "height": 8,
-          "min_width": 12,
-          "paginated": true,
-          "stream": "rda_system_snapshots_details",
-          "ts_column": "timestamp",
-          "extra_filter": "snapshot_name is '{{SNAPSHOT_NAME}}'",
-          "columns": {
-            "snapshot_type": {
-              "title": "Snapshot Type",
-              "type": "TEXT",
-              "hidden": false
-            },
-            "snapshot_name": {
-              "title": "Snapshot Name",
-              "type": "TEXT",
-              "hidden": false
-            },
-            "artifact_type": {
-              "title": "Artifact Type",
-              "type": "TEXT",
-              "hidden": false,
-              "key": true
-            },
-            "artifact_name": {
-              "title": "Artifact Name",
-              "type": "TEXT",
-              "hidden": false,
-              "key": true
-            },
-            "artifact_version_visibility": {
-              "title": "Artifact Checksum In Snapshot Repo",
-              "type": "TEXT",
-              "hidden": false
-            },
-            "size": {
-              "title": "Size",
-              "type": "DOUBLE",
-              "hidden": false
-            },
-            "checksum": {
-              "title": "Checksum",
-              "type": "TEXT",
-              "hidden": false
-            },
-            "object_name": {
-              "title": "Object Name",
-              "type": "TEXT",
-              "visible": false,
-              "key": true
-            },
-            "timestamp": {
-              "title": "Timestamp",
-              "type": "DATETIME"
-            }
+          "title": "Alerts by Source",
+          "widget_type": "counter",
+          "formatter": "K",
+          "duration_hours": 3240,
+          "stream": "oia-alerts-stream",
+          "extra_filter": "(a_source_systemname is not 'Alert Group')",
+          "ts_column": "a_updated_ts",
+          "min_width": 9,
+          "height": 3,
+          "max_width": 9,
+          "group_by": [
+            "a_source_systemname"
+          ],
+          "limit": 10,
+          "column": "count_",
+          "agg": "value_count",
+          "type": "int",
+          "widget_id": "23d1de1c"
+        },
+        {
+          "title": "Unique Devices",
+          "widget_type": "custom_counter",
+          "label": "",
+          "min_width": 3,
+          "max_width": 3,
+          "height": 3,
+          "unit": "",
+          "stream": "oia-alerts-stream",
+          "extra_filter": "(a_source_systemname is not 'Alert Group')",
+          "ts_column": "a_updated_ts",
+          "duration_hours": 3240,
+          "column": "a_asset_ip_address",
+          "agg": "cardinality",
+          "type": "int",
+          "widget_id": "d73e52ec8"
+        },
+        {
+          "title": "Top Noisy Alert Sources",
+          "description": "Alerts with repeat count > 1",
+          "widget_type": "bar_chart",
+          "stream": "oia-alerts-stream",
+          "ts_column": "a_updated_ts",
+          "duration_hours": 3240,
+          "extra_filter": "(a_source_systemname is not 'Alert Group') and (a_repeat_count >1)",
+          "group_by": [
+            "a_source_systemname"
+          ],
+          "chartProperties": {
+            "yAxisLabel": "Sources",
+            "xAxisLabel": "Unique Devices Count",
+            "legendLocation": "right",
+            "orientation": "horizontal"
           },
-          "actions": [
+          "descending_order": false,
+          "column": "a_asset_ip_address",
+          "agg": "cardinality",
+          "type": "int",
+          "max_width": 9,
+          "height": 4,
+          "min_width": 6,
+          "widget_id": "40c44086"
+        },
+        {
+          "widget_type": "multi_bar_chart",
+          "title": "Alerts per Source and  Alert Group",
+          "duration_hours": 3240,
+          "extra_filter": "(a_source_systemname is not 'Alert Group')",
+          "stream": "oia-alerts-stream",
+          "ts_column": "a_updated_ts",
+          "min_width": 6,
+          "height": 4,
+          "max_width": 6,
+          "group_by": [
+            "a_rule_name",
+            "a_source_systemname"
+          ],
+          "agg": "value_count",
+          "column": "count_",
+          "type": "int",
+          "chartProperties": {
+            "legendLocation": "bottom",
+            "stacked": true,
+            "xAxisLabel": "Source",
+            "yAxisLabel": "Count"
+          },
+          "widget_id": "8gp7ZgI2"
+        },
+        {
+          "title": "Events per Alert Group, Source and Class",
+          "widget_type": "tabular",
+          "duration_hours": 3240,
+          "extra_filter": "(a_source_systemname is not 'Alert Group')",
+          "stream": "oia-alerts-stream",
+          "ts_column": "a_updated_ts",
+          "paginated": true,
+          "remote_searchable": true,
+          "remote_searchable_cols": [
+            "a_rule_name",
+            "a_source_systemname",
+            "a_en_alarm_class"
+          ],
+          "sorting": [
             {
-              "title": "View",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "permission": "rda:dataset:view",
-              "identifier": "rda.saas.snapshot.obj.view",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.snapshot.obj.view"
-                  }
-                ]
-              }
+              "Count": "desc"
             }
           ],
-          "widget_id": "7089a9ae"
-        },
-        {
-          "title": "Snapshot Errors",
-          "widget_type": "tabular",
-          "max_width": 12,
-          "height": 8,
-          "min_width": 12,
-          "paginated": true,
-          "stream": "rda_system_snapshots_errors",
-          "ts_column": "timestamp",
-          "extra_filter0": "snapshot_name is '{{SNAPSHOT_NAME}}'",
+          "height": 7,
+          "min_width": 6,
+          "max_width": 6,
           "columns": {
-            "snapshot_type": {
-              "title": "Snapshot Type",
-              "type": "TEXT",
-              "hidden": false
+            "a_source_systemname": {
+              "title": "Alert Source",
+              "type": "TEXT"
             },
-            "snapshot_name": {
-              "title": "Snapshot Name",
-              "type": "TEXT",
-              "hidden": false
+            "a_rule_name": {
+              "title": "Alert Group",
+              "type": "TEXT"
             },
-            "artifact_type": {
-              "title": "Artifact Type",
-              "type": "TEXT",
-              "hidden": false
-            },
-            "artifact_name": {
-              "title": "Artifact Name",
-              "type": "TEXT",
-              "hidden": false
-            },
-            "message": {
-              "title": "Message",
-              "type": "TEXT",
-              "hidden": false
-            },
-            "timestamp": {
-              "title": "Timestamp",
-              "type": "DATETIME"
+            "a_en_alarm_class": {
+              "title": "Alert Class",
+              "type": "TEXT"
             }
           },
-          "widget_id": "53447b4f"
+          "pivot": {
+            "pivot_type": "advanced",
+            "group_by": [
+              "a_source_systemname",
+              "a_rule_name",
+              "a_en_alarm_class"
+            ],
+            "series": [
+              {
+                "column": "count_",
+                "agg": "value_count",
+                "type": "int",
+                "label": "Count"
+              }
+            ]
+          },
+          "widget_id": "a4852089"
+        },
+        {
+          "title": "Alert Trend",
+          "widget_type": "timeseries",
+          "stream": "oia-alerts-stream",
+          "ts_column": "a_updated_ts",
+          "duration_hours": 3240,
+          "extra_filter": "a_source_systemname is not 'Alert Group'",
+          "max_width": 12,
+          "height": 5,
+          "min_width": 12,
+          "propagateTimeFilter": {
+            "enabled": true,
+            "ts_column": "a_updated_ts"
+          },
+          "chartProperties": {
+            "yAxisLabel": "count",
+            "xAxisLabel": "time",
+            "stacked": true,
+            "legendLocation": "right",
+            "orientation": "horizontal",
+            "mode": "selection",
+            "column-id": "a_updated_ts"
+          },
+          "interval": "15m",
+          "group_by": [
+            "a_severity"
+          ],
+          "alert_markers": [
+            {
+              "stream": "oia-alerts-stream",
+              "ts_column": "a_updated_ts",
+              "message_column": "a_message",
+              "extra_filter": "a_severity is 'CRITICAL'",
+              "severity_column": "a_severity"
+            }
+          ],
+          "style": {
+            "color-map": {
+              "SEVERE": [
+                "#B71C1C",
+                "#ffffff"
+              ],
+              "CRITICAL": [
+                "#E53935",
+                "#ffffff"
+              ],
+              "MAJOR": [
+                "#F57C00",
+                "#ffffff"
+              ],
+              "MINOR": [
+                "#FFA726",
+                "#ffffff"
+              ],
+              "WARNING": [
+                "#FFD54F",
+                "#ffffff"
+              ],
+              "NOTIFICATION": [
+                "#4DD0E1",
+                "#ffffff"
+              ],
+              "INFORMATION": [
+                "#03A9F4",
+                "#ffffff"
+              ]
+            }
+          },
+          "series_spec": [
+            {
+              "column": "count_",
+              "agg": "sum",
+              "type": "int"
+            }
+          ],
+          "widget_id": "35903114"
         }
       ]
     }
   ],
   "pstream_dashboards": [
     {
-      "title": "rda_system_snapshots_details",
+      "title": "Alerts Analysis",
       "show_filter": true,
       "widgets": [
         {
           "widget_type": "label",
-          "min_width": 3,
-          "height": 3,
-          "max_width": 6,
-          "label": "{% raw %}<div><div style='color: #00aa00; font-size: 20px;'>Changes Since Last Snapshot: {{new_count|int}}</div><div style='color: #888888; font-size: 20px;'>Unchanged: {{unchanged_count|int}}</div></div>{% endraw %}",
-          "segments": [
-            {
-              "stream": "rda_system_snapshots_details",
-              "variable": "new_count",
-              "ts_column": "timestamp",
-              "extra_filter": "artifact_version_visibility == 'new' AND snapshot_name is '{{SNAPSHOT_NAME}}'",
-              "agg": "sum",
-              "group_by0": "artifact_version_visibility",
-              "column": "count_"
-            },
-            {
-              "stream": "rda_system_snapshots_details",
-              "variable": "unchanged_count",
-              "ts_column": "timestamp",
-              "extra_filter": "artifact_version_visibility == 'unchanged' AND snapshot_name is '{{SNAPSHOT_NAME}}'",
-              "agg": "sum",
-              "group_by0": "artifact_version_visibility",
-              "column": "count_"
-            }
-          ],
-          "widget_id": "23af24fa"
+          "max_width": 12,
+          "height": 0.5,
+          "min_width": 12,
+          "label": "<div style='text-align:center;width:100%;'><h1><a style='text-decoration:none;color:#0066ff;' target='_blank'> Alerts Trend Analysis </a></h1></div>",
+          "widget_id": "33317e49"
         },
         {
-          "widget_type": "pie_chart",
-          "title": "Artifact Type",
-          "stream": "rda_system_snapshots_details",
-          "ts_column": "timestamp",
-          "extra_filter": "snapshot_name is '{{SNAPSHOT_NAME}}'",
-          "column": "count_",
-          "agg": "sum",
+          "widget_type": "custom_counter",
+          "title": "Events (Alert Groups)",
+          "formatter": "K",
+          "ts_column": "a_updated_ts",
+          "duration_hours": 3240,
+          "stream": "oia-alerts-stream",
+          "extra_filter": "(a_source_systemname is not 'Alert Group') and  (a_rule_name is not 'Not Available')",
+          "column": "a_correlation_parent",
+          "agg": "cardinality",
+          "min_width": 3,
+          "height": 3,
+          "max_width": 3,
+          "widget_id": "ddeb719c"
+        },
+        {
+          "title": "Events by Rule Name",
+          "widget_type": "counter",
+          "formatter": "K",
+          "duration_hours": 3240,
+          "stream": "oia-alerts-stream",
+          "extra_filter": "(a_source_systemname is not 'Alert Group') and  (a_rule_name is not 'Not Available')",
+          "ts_column": "a_updated_ts",
+          "min_width": 9,
+          "height": 3,
+          "max_width": 9,
           "group_by": [
-            "artifact_type"
+            "a_rule_name"
           ],
+          "limit": 10,
+          "column": "a_correlation_parent",
+          "agg": "cardinality",
           "type": "int",
+          "widget_id": "AHhjvtpq"
+        },
+        {
+          "widget_type": "custom_counter",
+          "title": "Alerts",
+          "formatter": "K",
+          "ts_column": "a_updated_ts",
+          "duration_hours": 3240,
+          "stream": "oia-alerts-stream",
+          "extra_filter": "(a_source_systemname is not 'Alert Group')",
+          "column": "count_",
+          "agg": "value_count",
           "min_width": 3,
           "height": 3,
-          "max_width": 6,
-          "widget_id": "cc2794c5"
+          "max_width": 3,
+          "widget_id": "b9b42981"
         },
         {
-          "title": "Snapshot Manifest",
-          "widget_type": "tabular",
-          "duration_hours": 87600,
-          "max_width": 12,
-          "height": 8,
-          "min_width": 12,
-          "paginated": true,
-          "stream": "rda_system_snapshots_details",
-          "ts_column": "timestamp",
-          "extra_filter": "snapshot_name is '{{SNAPSHOT_NAME}}'",
-          "columns": {
-            "snapshot_type": {
-              "title": "Snapshot Type",
-              "type": "TEXT",
-              "hidden": false
-            },
-            "snapshot_name": {
-              "title": "Snapshot Name",
-              "type": "TEXT",
-              "hidden": false
-            },
-            "artifact_type": {
-              "title": "Artifact Type",
-              "type": "TEXT",
-              "hidden": false,
-              "key": true
-            },
-            "artifact_name": {
-              "title": "Artifact Name",
-              "type": "TEXT",
-              "hidden": false,
-              "key": true
-            },
-            "artifact_version_visibility": {
-              "title": "Artifact Checksum In Snapshot Repo",
-              "type": "TEXT",
-              "hidden": false
-            },
-            "size": {
-              "title": "Size",
-              "type": "DOUBLE",
-              "hidden": false
-            },
-            "checksum": {
-              "title": "Checksum",
-              "type": "TEXT",
-              "hidden": false
-            },
-            "object_name": {
-              "title": "Object Name",
-              "type": "TEXT",
-              "visible": false,
-              "key": true
-            },
-            "timestamp": {
-              "title": "Timestamp",
-              "type": "DATETIME"
-            }
+          "title": "Alerts by Source",
+          "widget_type": "counter",
+          "formatter": "K",
+          "duration_hours": 3240,
+          "stream": "oia-alerts-stream",
+          "extra_filter": "(a_source_systemname is not 'Alert Group')",
+          "ts_column": "a_updated_ts",
+          "min_width": 9,
+          "height": 3,
+          "max_width": 9,
+          "group_by": [
+            "a_source_systemname"
+          ],
+          "limit": 10,
+          "column": "count_",
+          "agg": "value_count",
+          "type": "int",
+          "widget_id": "23d1de1c"
+        },
+        {
+          "title": "Unique Devices",
+          "widget_type": "custom_counter",
+          "label": "",
+          "min_width": 3,
+          "max_width": 3,
+          "height": 3,
+          "unit": "",
+          "stream": "oia-alerts-stream",
+          "extra_filter": "(a_source_systemname is not 'Alert Group')",
+          "ts_column": "a_updated_ts",
+          "duration_hours": 3240,
+          "column": "a_asset_ip_address",
+          "agg": "cardinality",
+          "type": "int",
+          "widget_id": "d73e52ec8"
+        },
+        {
+          "title": "Top Noisy Alert Sources",
+          "description": "Alerts with repeat count > 1",
+          "widget_type": "bar_chart",
+          "stream": "oia-alerts-stream",
+          "ts_column": "a_updated_ts",
+          "duration_hours": 3240,
+          "extra_filter": "(a_source_systemname is not 'Alert Group') and (a_repeat_count >1)",
+          "group_by": [
+            "a_source_systemname"
+          ],
+          "chartProperties": {
+            "yAxisLabel": "Sources",
+            "xAxisLabel": "Unique Devices Count",
+            "legendLocation": "right",
+            "orientation": "horizontal"
           },
-          "actions": [
+          "descending_order": false,
+          "column": "a_asset_ip_address",
+          "agg": "cardinality",
+          "type": "int",
+          "max_width": 9,
+          "height": 4,
+          "min_width": 6,
+          "widget_id": "40c44086"
+        },
+        {
+          "widget_type": "multi_bar_chart",
+          "title": "Alerts per Source and  Alert Group",
+          "duration_hours": 3240,
+          "extra_filter": "(a_source_systemname is not 'Alert Group')",
+          "stream": "oia-alerts-stream",
+          "ts_column": "a_updated_ts",
+          "min_width": 6,
+          "height": 4,
+          "max_width": 6,
+          "group_by": [
+            "a_rule_name",
+            "a_source_systemname"
+          ],
+          "agg": "value_count",
+          "column": "count_",
+          "type": "int",
+          "chartProperties": {
+            "legendLocation": "bottom",
+            "stacked": true,
+            "xAxisLabel": "Source",
+            "yAxisLabel": "Count"
+          },
+          "widget_id": "8gp7ZgI2"
+        },
+        {
+          "title": "Events per Alert Group, Source and Class",
+          "widget_type": "tabular",
+          "duration_hours": 3240,
+          "extra_filter": "(a_source_systemname is not 'Alert Group')",
+          "stream": "oia-alerts-stream",
+          "ts_column": "a_updated_ts",
+          "paginated": true,
+          "remote_searchable": true,
+          "remote_searchable_cols": [
+            "a_rule_name",
+            "a_source_systemname",
+            "a_en_alarm_class"
+          ],
+          "sorting": [
             {
-              "title": "View",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "permission": "rda:dataset:view",
-              "identifier": "rda.saas.snapshot.obj.view",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.snapshot.obj.view"
-                  }
-                ]
-              }
+              "Count": "desc"
             }
           ],
-          "widget_id": "7089a9ae"
-        },
-        {
-          "title": "Snapshot Errors",
-          "widget_type": "tabular",
-          "max_width": 12,
-          "height": 8,
-          "min_width": 12,
-          "paginated": true,
-          "stream": "rda_system_snapshots_errors",
-          "ts_column": "timestamp",
-          "extra_filter0": "snapshot_name is '{{SNAPSHOT_NAME}}'",
+          "height": 7,
+          "min_width": 6,
+          "max_width": 6,
           "columns": {
-            "snapshot_type": {
-              "title": "Snapshot Type",
-              "type": "TEXT",
-              "hidden": false
+            "a_source_systemname": {
+              "title": "Alert Source",
+              "type": "TEXT"
             },
-            "snapshot_name": {
-              "title": "Snapshot Name",
-              "type": "TEXT",
-              "hidden": false
+            "a_rule_name": {
+              "title": "Alert Group",
+              "type": "TEXT"
             },
-            "artifact_type": {
-              "title": "Artifact Type",
-              "type": "TEXT",
-              "hidden": false
-            },
-            "artifact_name": {
-              "title": "Artifact Name",
-              "type": "TEXT",
-              "hidden": false
-            },
-            "message": {
-              "title": "Message",
-              "type": "TEXT",
-              "hidden": false
-            },
-            "timestamp": {
-              "title": "Timestamp",
-              "type": "DATETIME"
+            "a_en_alarm_class": {
+              "title": "Alert Class",
+              "type": "TEXT"
             }
           },
-          "widget_id": "53447b4f"
+          "pivot": {
+            "pivot_type": "advanced",
+            "group_by": [
+              "a_source_systemname",
+              "a_rule_name",
+              "a_en_alarm_class"
+            ],
+            "series": [
+              {
+                "column": "count_",
+                "agg": "value_count",
+                "type": "int",
+                "label": "Count"
+              }
+            ]
+          },
+          "widget_id": "a4852089"
+        },
+        {
+          "title": "Alert Trend",
+          "widget_type": "timeseries",
+          "stream": "oia-alerts-stream",
+          "ts_column": "a_updated_ts",
+          "duration_hours": 3240,
+          "extra_filter": "a_source_systemname is not 'Alert Group'",
+          "max_width": 12,
+          "height": 5,
+          "min_width": 12,
+          "propagateTimeFilter": {
+            "enabled": true,
+            "ts_column": "a_updated_ts"
+          },
+          "chartProperties": {
+            "yAxisLabel": "count",
+            "xAxisLabel": "time",
+            "stacked": true,
+            "legendLocation": "right",
+            "orientation": "horizontal",
+            "mode": "selection",
+            "column-id": "a_updated_ts"
+          },
+          "interval": "15m",
+          "group_by": [
+            "a_severity"
+          ],
+          "alert_markers": [
+            {
+              "stream": "oia-alerts-stream",
+              "ts_column": "a_updated_ts",
+              "message_column": "a_message",
+              "extra_filter": "a_severity is 'CRITICAL'",
+              "severity_column": "a_severity"
+            }
+          ],
+          "style": {
+            "color-map": {
+              "SEVERE": [
+                "#B71C1C",
+                "#ffffff"
+              ],
+              "CRITICAL": [
+                "#E53935",
+                "#ffffff"
+              ],
+              "MAJOR": [
+                "#F57C00",
+                "#ffffff"
+              ],
+              "MINOR": [
+                "#FFA726",
+                "#ffffff"
+              ],
+              "WARNING": [
+                "#FFD54F",
+                "#ffffff"
+              ],
+              "NOTIFICATION": [
+                "#4DD0E1",
+                "#ffffff"
+              ],
+              "INFORMATION": [
+                "#03A9F4",
+                "#ffffff"
+              ]
+            }
+          },
+          "series_spec": [
+            {
+              "column": "count_",
+              "agg": "sum",
+              "type": "int"
+            }
+          ],
+          "widget_id": "35903114"
         }
       ]
     }
