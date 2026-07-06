@@ -1,28 +1,26 @@
 
- ## 1 here we are taking command collection
-@dm:empty
- --> @exec:get-input
- --> @dm:explode-json column="commands"
- --> @dm:save name="temp-command-collction"
+ ## declaring thrid level child pipelines
+@c:new-block
+ --> @dm:empty
+ --> @exec:define-function name="define_child_pipelines"
+ --> @exec:run-pipeline name ="edc_generate_token" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_sw_get_data" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_sweol_enrich" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_processing_sw_data" & ignore_failures = "no"
+ --> @exec:end-function
+ --> @dm:empty
+ --> @dm:addrow name='edc_cust_pid_sw' and limit=0
+ --> #dm:query-persistent-stream
+ --> *dm:filter product_id is not null and sw_version is not null and sw_os_type is not null and contract_number is not null
+ --> @dm:add-missing-columns columns="source" and value='software'
+ --> @dm:save name='added-minio-file'
+ --> @exec:run-pipeline name ="edc_sw_run_scan" & ignore_failures = "no"
+ --> @dm:save name='temp-edc-sw-run-scan-op-exploded'
  --> @c:new-block
- --> @exec:get-input
- --> @dm:explode-json column="commands"
- --> @dm:explode-json column="rules" and prefix_parent_key="yes"
- --> @dm:save name="test-spilt-rules"
+ --> @dm:recall name='temp-edc-sw-run-scan-op-exploded'
+ --> @rn:write-stream name='edc_sw_raw_data'
+ ## calling the enrich pipeline
+
  --> @c:new-block
- --> @dm:recall name="temp-command-collction"
- --> @dm:explode-json column="Inventory"
- --> @dm:save name="temp-command-collction"
- --> @dm:add-missing-columns columns="Upgradeid,start_time,status,action_type"
- --> @dm:eval OrderId="f'ORDER_{uuid()[:8]}'"
- --> @dm:eval start_time="start_time or now().isoformat()"
- --> @dm:eval status="status or 'Triggered'"
- --> @dm:eval action_type="action_type or 'Upgrade'"
- --> @dm:selectcolumns include="^Node_Name$|^Node_Type$|^IP_Address$|^SW_Version$|^target$|^OrderId$|^status$|^__uuid$|^action_type$"
- --> @dm:save name = "xnor-upgrade-details"
- --> @c:new-block
- --> @dm:recall name="temp-command-collction"
- --> @dm:selectcolumns include="^IP_Address$|^command$|^id$|^rules$"
- --> @dm:save name="test-split-command"
- --> @c:new-block
- --> @exec:run-pipeline name = "xnor_pack_command_collection_main"
+ --> @dm:recall name='temp-edc-sw-run-scan-op-exploded'
+ --> @exec:run-pipeline name='edc_sweol_enrich' and ignore_failures = "no"
