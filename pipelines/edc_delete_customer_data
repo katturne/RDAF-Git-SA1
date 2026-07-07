@@ -1,15 +1,58 @@
-@dm:recall name='test-sec-adv-details'
- --> @dm:save name='temp-sec-adv-details'
+@dm:empty
+ --> @exec:get-input
+ --> @dm:save name="temp-dataset"
+ --> @c:new-block
+ --> @dm:recall name="temp-dataset"
+ --> @dm:check_columns must_contain = 'customer' &action ='skip-block'
+ ## --> @dm:save name="test-del-dataset"
+
+ --> @dm:save name="temp-del-dataset"
  --> @c:new-block
  --> @dm:empty
- --> @dm:addrow name='edc_oi_inventory_enriched' and limit=0
- --> #dm:query-persistent-stream customer_name=='ATT'
- --> @dm:save name='temp-hw-eol-details' and append='yes'
- ## --> @dm:save name='test1-hw-eol-details' and append='yes'
+ --> @dm:save name='edc_status'
+ ## delete enriched stream
 
+ --> @c:data-loop columns='customer' and dataset='temp-del-dataset' and return_empty='yes'
+ ## --> @dm:recall name="temp-row-del-dataset"
+
+ ## --> @dm:check_columns must_contain = 'customer' &action ='skip-block'
+
+ ## --> *dm:filter customer_name = '$customer_name'
+
+ --> @dm:recall name='edc_status' and return_empty = 'yes'
+ --> @dm:addrow dummy='key'
+ --> @dm:add-missing-columns columns='customer_name' and  value="$customer"
+ --> @dm:manipulate-string to="status" and func="eval" and value="'Starting to delete the data'"
+ --> @rn:write-stream name ='edc_update_status'
+ --> @dm:empty
+ --> @dm:addrow name = "edc_oi_inventory_grouped" & conflicts = "proceed" & timeout = 1200
+ --> #dm:pstream-delete-data-by-query customer_name=="$customer"
+ --> @dm:empty
+ --> @dm:addrow name = "edc_oi_inventory_enriched" & conflicts = "proceed" & timeout = 1200
+ --> #dm:pstream-delete-data-by-query customer_name=="$customer"
+ --> @dm:sleep seconds = 5
+ --> @dm:recall name='edc_status' and return_empty = 'yes'
+ --> @dm:addrow dummy='key'
+ --> @dm:add-missing-columns columns='customer_name' and  value="$customer"
+ --> @dm:manipulate-string to="status" and func="eval" and value="'Completed data deletion'"
+ --> @rn:write-stream name ='edc_update_status'
  --> @c:new-block
- --> @dm:recall name='temp-hw-eol-details'
- --> @dm:enrich dict='temp-sec-adv-details' and src_key_cols='product_name,contract_number,customer_name' and dict_key_cols='product_id,contract_number,customer' and enrich_cols='secAdv_confidence_score,PsirtID,MatchReason,MatchDefinition,HeadlineName,AdvisoryId,BulletinURL,Summary,Details,RevisedDate,RevisionNumber,PublishedDate,secAdv_securityImpactRating,CvssScore,CveId,_id,securityAdvisoryColdId,created,customerVisible,external_text,bulletinTitle,firstIcAlertId,groups,icIssueId,icProblemId,ignored,lastIcAlertId,matchDefinition,matchInfo,missingInfo,moreInfo,name,openedOn,resultType,resultSubType,severity,severityText,state,updated,deviceSN,source,runType,filename,icType,atticaStatus,cdetsList,retry,associatedGroups,key,current_time_ms_loop,token_expiry_time,access_token,expires_in,token_type,sw_version,sw_os_type,id1,id2,transaction_id,serial_number,eoXAlert,eoXAlertType,DocumentId,secAdv_matchConfidence'  and how_type='outer' and dedup_dict='no' and replace_values='yes'
- --> @dm:save name='final-sa-hw-enrich'
- --> @dm:selectcolumns exclude='^(customer|product_id)$'
- --> @rn:write-stream name='edc_sec_adv_data_enriched'
+ --> @dm:recall name="temp-del-dataset"  and return_empty='yes'
+ --> @dm:check_columns must_not_contain = 'customer' &action ='skip-block'
+ --> @dm:recall name='edc_status' and return_empty = 'yes'
+ --> @dm:addrow dummy='key'
+ --> @dm:add-missing-columns columns='customer_name' and  value="$customer"
+ --> @dm:manipulate-string to="status" and func="eval" and value="'Starting to delete data for all customers'"
+ --> @rn:write-stream name ='edc_update_status'
+ --> @dm:empty
+ --> @dm:addrow name = "edc_oi_inventory_grouped" & conflicts = "proceed" & timeout = 1200
+ --> #dm:pstream-delete-data-by-query count_ is 1
+ --> @dm:empty
+ --> @dm:addrow name = "edc_oi_inventory_enriched" & conflicts = "proceed" & timeout = 1200
+ --> #dm:pstream-delete-data-by-query count_ is 1
+ --> @dm:sleep seconds = 5
+ --> @dm:recall name='edc_status' and return_empty = 'yes'
+ --> @dm:addrow dummy='key'
+ --> @dm:add-missing-columns columns='customer_name' and  value="$customer"
+ --> @dm:manipulate-string to="status" and func="eval" and value="'Data deleted for all customers'"
+ --> @rn:write-stream name ='edc_update_status'
