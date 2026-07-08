@@ -1,58 +1,51 @@
-@c:new-block
- --> @dm:empty
- --> @dm:addrow name='edc_cust_pid_sw' and limit=5
- --> #dm:query-persistent-stream
- --> @dm:add-missing-columns columns="key" and value='key'
- --> @dm:add-missing-columns columns="source" and value='software'
- --> @dm:save name='temp-sw-data'
- --> @dm:save name='added-sw-data'
+
+ ## get the minio path for the uploaded file
+@exec:get-input
+ --> @dm:save name='temp-sw-input'
+ --> @dm:eval fileUpload="json_dumps(fileUpload)"
+ --> @dm:explode-json column="fileUpload"
+ --> @dm:eval location="bucketName+'/'+objectName"
+ --> @dm:save name="temp-input-dataset"
+ ## declaring child pipelines
+
  --> @c:new-block
  --> @dm:empty
- --> @exec:define-function name="generate_access_token"
- --> @dm:recall name='generate_token_creds'
- ## --> @dm:empty
-
- --> @exec:run-pipeline name ="edc_generate_token" & ignore_failures = "no"
- ## --> @dm:addrow key='key'
-
- --> @dm:add-missing-columns columns="key" and value='key'
- --> @dm:eval current_time_ms="int(time_now_as_ms())"
- --> @dm:eval token_expiry_time='current_time_ms+30000'
- --> @dm:save name='temp-expiry-time'
+ --> @exec:define-function name="define_child_pipelines"
+ --> @exec:run-pipeline name ="edc_oi_get_product_alerts" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_oi_product_alerts_raw" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_oi_product_alerts_run_scan" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_oi_generate_token" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_oi_process_sw_data" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_oi_get_sweol_data" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_oi_get_security_advisories_data" & ignore_failures = "no"
  --> @exec:end-function
- --> @c:new-block
- --> @dm:recall name='temp-sw-data'
- --> @dm:add-missing-columns columns="key" and value='key'
- --> @dm:manipulate-string from="sw_version,sw_os_type,product_id" and func="concat_columns" and to="unique_payload_inputs"
- --> @dm:dedup columns ='unique_payload_inputs'
- --> @dm:counter
- --> @dm:save name='temp-unique-sw-data'
- --> @dm:save name='unique-added-sw-data'
- --> @c:new-block
- --> @dm:empty
- --> @exec:call-function name='generate_access_token'
- --> @c:data-loop columns='sw_version,sw_os_type,product_id,source,COUNTER' and dataset='temp-unique-sw-data'
- ## --> @dm:recall name='temp-unique-sw-data'
+ ## collecting the file and storing it in edc_cust_pid_sw stream, collecting the API data and adding the processed data to edc_sw_raw_data
 
+ --> @c:data-loop dataset="temp-input-dataset" and columns="objectName,location"
  --> @dm:empty
- --> @dm:addrow key='key'
- --> @dm:eval current_time_ms_loop="int(time_now_as_ms())"
- --> @dm:save name='temp-loop-time'
- --> @dm:save name='test-loop-time'
- --> @dm:enrich dict='temp-expiry-time' and src_key_cols='key' and dict_key_cols='key' and enrich_cols='token_expiry_time,access_token,expires_in,token_type' and replace_values='yes'
- --> *exec:if-condition token_expiry_time is null or current_time_ms_loop  is greater than or equal to token_expiry_time
- --> @exec:call-function name='generate_access_token'
- --> @exec:end-if
- --> @dm:recall name='temp-expiry-time'
- --> @dm:add-missing-columns columns='sw_version' and value='$sw_version'
- --> @dm:add-missing-columns columns='sw_os_type' and value='$sw_os_type'
- --> @dm:eval sw_os_type="('IOS XR' if sw_os_type=='IOS-XR' else sw_os_type)"
- --> @dm:add-missing-columns columns='product_id' and value='$product_id'
- --> @dm:add-missing-columns columns='source' and value='$source'
- --> @exec:run-pipeline name ="edc_sw_get_data" & ignore_failures = "no"
- --> @dm:save name='temp-token'
- --> @dm:selectcolumns exclude='^(access_token)$'
- --> @dm:save name='temp-sweol' and append ='yes'
+ --> @dm:get-from-location path='$location'
+ --> @dm:rename-columns customer='Customer' and sw_version='SW_Version' and sw_os_type='SW_OS_Type' and product_id='Product_ID' and contract_number='Contract_Number' and product_name='Product_Name'
+ --> @dm:save name='temp-uploaded-file'
  --> @c:new-block
- --> @dm:recall name='temp-sweol'
- --> @dm:save name='test-sweol'
+ --> @dm:recall name="temp-uploaded-file"
+ --> @dm:check_columns must_contain = 'product_name' & action ='skip-block'
+ --> @dm:recall name="temp-uploaded-file"
+ --> @dm:to-type columns='contract_number,customer,product_id,sw_version,sw_os_type,product_name' and type='str'
+ --> @dm:map from = 'contract_number,customer,product_id,sw_version,sw_os_type,product_name' & to = 'unique_key' & func = 'join' & sep = '_'
+ --> @dm:save name='temp-user-uploaded-input'
+ --> @c:new-block
+ --> @dm:recall name="temp-uploaded-file"
+ --> @dm:to-type columns='contract_number,customer,product_id,sw_version,sw_os_type' and type='str'
+ --> @dm:map from = 'contract_number,customer,product_id,sw_version,sw_os_type' & to = 'unique_key' & func = 'join' & sep = '_'
+ --> @dm:save name='temp-user-uploaded-input'
+ --> @c:new-block
+ --> @dm:recall name='temp-user-uploaded-input'
+ --> @rn:write-stream name='edc_cust_pid_sw'
+ --> @c:new-block
+ --> @dm:recall name='temp-user-uploaded-input'
+ --> @dm:eval source="'software'"
+ --> @exec:run-pipeline name='edc_oi_get_product_alerts' and ignore_failures = "no"
+ --> @c:new-block
+ --> @dm:recall name='temp-user-uploaded-input'
+ --> @dm:eval source="'security_advisory'"
+ --> @exec:run-pipeline name='edc_oi_get_product_alerts' and ignore_failures = "no"
