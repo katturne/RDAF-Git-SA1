@@ -1,8 +1,138 @@
-@dm:empty
- --> @dm:addrow name='edc_oi_inventory_enriched' and limit=0
- --> #dm:query-persistent-stream
- --> @dm:save name='temp-edc-oi-inv-enriched'
+
+ ## BUILD OSPF EDGES
+@c:new-block
+ --> @dm:recall name = "cml-ospf-data"
+ --> @dm:rename-columns remote_ip="address"
+ --> @dm:rename-columns local_interface="interface"
+ --> @dm:rename-columns left_id="source_ip"
+ ## lookup remote device's interface and managemet ip address from the remote_ip
+
+ --> @dm:enrich dict="cml-interface-data" and src_key_cols="remote_ip" and dict_key_cols="ipaddr" and enrich_cols="intf,source_ip" and enrich_cols_as="neighbor_interface,right_id"
+ ## Lookup local ip address configured on the local_interface
+
+ --> @dm:enrich dict="cml-interface-data" and src_key_cols="local_interface,left_id" and dict_key_cols="intf,source_ip" and enrich_cols="ipaddr"
+ --> @dm:rename-columns local_ip="ipaddr_y"
+ --> @dm:eval link_type="'OSPF'"
+ --> @dm:eval style_color="'#3333BB'"
+ --> @dm:eval style_width="'3'"
+ --> @dm:add-missing-columns columns="priority,state,dead_time,neighbor_id" and value=""
+ ## Cleanup unnecessary columns that are not required
+
+ --> @dm:selectcolumns exclude="collection_status"
+ --> @dm:selectcolumns exclude="collection_timestamp"
+ --> @dm:selectcolumns exclude="local_interface.1"
+ --> @dm:selectcolumns exclude="local_interface.2"
+ --> @dm:selectcolumns exclude="local_interface.3"
+ --> @dm:selectcolumns exclude="reason"
+ --> @dm:selectcolumns exclude="command"
+ --> @dm:selectcolumns exclude="condition"
+ --> @dm:selectcolumns exclude="condition_matched"
+ --> @dm:selectcolumns exclude="reachability"
+ --> @dm:selectcolumns exclude="ipaddr_x"
+ --> @dm:selectcolumns exclude="ipaddr_y"
+ --> @dm:selectcolumns exclude="intf"
+ --> @dm:selectcolumns exclude="source_ip"
+ ## Declare attributes to show in the topology when the link is clicked
+
+ --> @dm:eval showAttrs="'^local_ip$|^local_interface$|^remote_ip$|^neighbor_interface$|^priority$|^state$|^dead_time$|^neighbor_id$'"
+ --> @dm:save name="temp-edges-ospf"
+ ## END OF OSPF TOPOLOGY CALCULATION
+
+ ## BUILD CDP EDGES
+
  --> @c:new-block
- --> @dm:recall name='temp-edc-oi-inv-enriched'
- --> @dm:selectcolumns exclude='^(EndOfLifeInternalAnnouncementDate|EndOfLastHardwareShipDate|EndOfHardwareNewServiceAttachmentDate|EndOfHardwareRoutineFailureAnalysisDate|EndOfBUEngineeringSupportTACDate|EndOfHardwareServiceContractRenewalDate|EndOfSignatureReleasesDate|EndOfSoftwareAvailabilityDate|EndOfSoftwareLicenseAvailabilityDate|created|customerVisible|external_text|external_title|firstIcAlertId|groups|icIssueId|icProblemId|ignored|lastIcAlertId|eoXAlertType|name|openedOn|resultType|severity|severityText|state|updated|deviceSN|runType|filename|icType|atticaStatus|cdetsList|retry|associatedGroups)$'
- --> @rn:write-stream name='edc_oi_inventory_enriched'
+ --> @dm:empty
+ --> @dm:recall name = "cml-cdp-data"
+ --> @dm:rename-columns remote_ip="mgmt_ip"
+ --> @dm:rename-columns local_interface="local_port"
+ --> @dm:rename-columns neighbor_interface="remote_port"
+ --> @dm:rename-columns left_id="source_ip"
+ --> @dm:rename-columns remote_hostname="dest_host"
+ --> @dm:rename-columns remote_platform="platform"
+ --> @dm:rename-columns remote_version="version"
+ ## lookup remote device's managemet ip address from the remote_ip and set it as right_id
+
+ --> @dm:enrich dict="cml-interface-data" and src_key_cols="neighbor_interface,remote_ip" and dict_key_cols="intf,ipaddr" and enrich_cols="source_ip" and enrich_cols_as="right_id"
+ ## Lookup local ip address configured on the local_interface
+
+ --> @dm:enrich dict="cml-interface-data" and src_key_cols="local_interface,left_id" and dict_key_cols="intf,source_ip" and enrich_cols="ipaddr"
+ --> @dm:rename-columns local_ip="ipaddr_y"
+ ## Cleanup unnecessary columns that are not required
+
+ --> @dm:selectcolumns exclude="collection_status"
+ --> @dm:selectcolumns exclude="collection_timestamp"
+ --> @dm:selectcolumns exclude="reason"
+ --> @dm:selectcolumns exclude="command"
+ --> @dm:selectcolumns exclude="condition"
+ --> @dm:selectcolumns exclude="condition_matched"
+ --> @dm:selectcolumns exclude="reachability"
+ --> @dm:selectcolumns exclude="sysname"
+ --> @dm:selectcolumns exclude="ipaddr_x"
+ --> @dm:selectcolumns exclude="ipaddr_y"
+ --> @dm:selectcolumns exclude="intf"
+ --> @dm:selectcolumns exclude="source_ip"
+ --> @dm:eval link_type="'CDP'"
+ --> @dm:eval style_color="'#4DD0E1'"
+ --> @dm:eval style_width="'2'"
+ ## Declare attributes to show in the topology when the link is clicked
+
+ --> @dm:eval showAttrs="'^local_ip$|^local_interface$|^remote_ip$|^neighbor_interface$|^remote_platform$|^remote_hostname$|^remote_version$'"
+ --> @dm:save name="temp-edges-cdp"
+ ## END OF CDP TOPOLOGY CALCULATION
+
+ ## BUILD BGP EDGES
+
+ --> @c:new-block
+ --> @dm:empty
+ --> @dm:recall name = "cml-bgp-data"
+ --> @dm:rename-columns left_id="source_ip"
+ --> @dm:rename-columns local_ip="localhost_ip"
+ --> @dm:selectcolumns exclude="remote_ip"
+ --> @dm:rename-columns remote_ip="neighbor"
+ ## lookup remote device's managemet ip address from the remote_ip and set it as right_id
+
+ --> @dm:enrich dict="cml-interface-data" and src_key_cols="remote_ip" and dict_key_cols="ipaddr" and enrich_cols="source_ip" and enrich_cols_as="right_id"
+ --> @dm:eval link_type="'BGP'"
+ --> @dm:eval style_color="'#837619'"
+ --> @dm:eval style_width="'4'"
+ --> @dm:add-missing-columns columns="local_ip,remote_ip,remote_router_id,vrf" and value=""
+ ## Cleanup unnecessary columns that are not required
+
+ --> @dm:selectcolumns exclude="collection_status"
+ --> @dm:selectcolumns exclude="collection_timestamp"
+ --> @dm:selectcolumns exclude="reason"
+ --> @dm:selectcolumns exclude="command"
+ --> @dm:selectcolumns exclude="condition"
+ --> @dm:selectcolumns exclude="condition_matched"
+ --> @dm:selectcolumns exclude="reachability"
+ --> @dm:selectcolumns exclude="ipaddr"
+ ## Declare attributes to show in the topology when the link is clicked
+
+ --> @dm:eval showAttrs="'^bgp_state$|^remote_as$|^local_ip$|^remote_ip$|^remote_router_id$'"
+ --> @dm:save name="temp-edges-bgp"
+ ## END OF BGP TOPOLOGY CALCULATION
+
+ ## Combine all the edges and publish it to stream
+
+ --> @c:new-block
+ --> @dm:concat names="^temp-edges-.*$"
+ --> @dm:eval relation_type="'connects-to'"
+ --> @dm:eval direction="'NO_DIRECTION'"
+ --> @dm:fixnull columns="dead_time,local_interface,neighbor_id,neighbor_interface,priority,state,bgp_state,local_ip,localhost_port,neighbor_uptime,remote_as,remote_port,remote_router_id,remote_as,neighbor_uptime,capabilities,remote_platform,remote_version,remote_hostname" and value="''"
+ --> @dm:save name="temp-edges"
+ ## -->  @rn:write-stream name="cml_topo_edges"
+
+ ## Calculate nodes
+
+ --> @dm:selectcolumns include="left_id"
+ --> @dm:dedup columns="left_id"
+ --> @dm:rename-columns node_id="left_id"
+ --> @dm:enrich dict="cml_cisco_device_chassis_dict" and src_key_cols="node_id" and dict_key_cols="device_ip" and enrich_cols="device_hostname,device_model,device_serial_number,device_fw_type,device_fw_version"
+ --> @dm:rename-columns node_label="device_ip"
+ --> @dm:eval layer="'Network'"
+ --> @dm:eval node_type="'Router'"
+ --> @dm:eval iconURL="'Router'"
+ --> @rn:write-stream name="cml_topo_nodes"
+ --> @c:new-block
+ --> @dm:recall name="temp-edges"
+ --> @rn:write-stream name="cml_topo_edges"

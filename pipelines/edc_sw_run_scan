@@ -1,144 +1,110 @@
-
- ## get the uploaded sw data
-@c:new-block
- --> @exec:get-input
- --> @dm:add-missing-columns columns="key" and value='key'
- --> @dm:add-missing-columns columns="source" and value='software'
- --> @dm:eval sw_os_type="('IOS XR' if sw_os_type=='IOS-XR' else sw_os_type)"
- --> @dm:save name='temp-sw-data'
- --> @dm:save name='added-sw-data'
- ## declaring thrid level child pipelines
-
+@dm:empty
+ --> @dm:addrow alert_severity_str="CRITICAL" and dict_alert_severity_num=0
+ --> @dm:addrow alert_severity_str="MAJOR" and dict_alert_severity_num=1
+ --> @dm:addrow alert_severity_str="HIGH" and dict_alert_severity_num=1
+ --> @dm:addrow alert_severity_str="MODERATE" and dict_alert_severity_num=2
+ --> @dm:addrow alert_severity_str="MINOR" and dict_alert_severity_num=2
+ --> @dm:addrow alert_severity_str="LOW" and dict_alert_severity_num=3
+ --> @dm:addrow alert_severity_str="WARNING" and dict_alert_severity_num=3
+ --> @dm:addrow alert_severity_str="NOTIFICATION" and dict_alert_severity_num=4
+ --> @dm:addrow alert_severity_str="PLANNING" and dict_alert_severity_num=5
+ --> @dm:addrow alert_severity_str="INFORMATION" and dict_alert_severity_num=5
+ --> @dm:addrow alert_severity_str="INFO" and dict_alert_severity_num=5
+ --> @dm:save name="temp-sev-mapping"
  --> @c:new-block
- --> @dm:empty
- --> @exec:define-function name="define_child_pipelines"
- --> @exec:run-pipeline name ="edc_generate_token" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_sw_get_data" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_sweol_enrich" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_processing_sw_data" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_get_sw_sa_details" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_sw_run_scan" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_sa_run_scan" & ignore_failures = "no"
- --> @exec:end-function
- ## function to generate the access token
+ --> @rn:read-stream name = 'snmp_trap_event_stream' & group = '06_15_2023'
+ --> @dm:map-snmp-trap-to-alert template_folder="trap2alert2"
+ ## For now, process this only for cml devices
 
- --> @c:new-block
- --> @dm:empty
- --> @exec:define-function name="generate_access_token"
- --> @dm:recall name='generate_token_creds'
- ## --> @dm:empty
+ --> *dm:filter rda_gw_client_ip contains '9.3.252'
+ ## Handle link up/down traps
 
- --> @exec:run-pipeline name ="edc_generate_token" & ignore_failures = "no"
- --> @dm:addrow key='key'
- --> @dm:eval current_time_ms="int(time_now_as_ms())"
- --> @dm:eval token_expiry_time='current_time_ms+3000000'
- --> @dm:save name='temp-expiry-time'
- --> @exec:end-function
- ## get the dataset with unique sw_version,sw_os_type,product_id combinations to make the API call
+ --> *exec:if-condition snmpTrapName is 'linkDown' or snmpTrapName is 'linkUp'
+ ## For some reason cisco sends the interface name as ifAdminStatus varbind
 
- --> @c:new-block
- --> @dm:recall name='temp-sw-data'
- --> @dm:add-missing-columns columns="key" and value='key'
- --> @dm:manipulate-string from="sw_version,sw_os_type,product_id" and func="concat_columns" and to="unique_payload_inputs"
- --> @dm:dedup columns ='unique_payload_inputs'
- --> @dm:save name='temp-unique-sw-data'
- --> @dm:save name='unique-added-sw-data'
- ## gneerate the access token
-
- --> @c:new-block
- --> @dm:empty
- --> @exec:call-function name='generate_access_token'
- ## get the API output for the above created dataset
-
- --> @c:data-loop columns='sw_version,sw_os_type,product_id,source' and dataset='temp-unique-sw-data'
- ## --> @dm:recall name='temp-unique-sw-data'
-
- --> @dm:empty
- --> @dm:addrow key='key'
- --> @dm:eval current_time_ms_loop="int(time_now_as_ms())"
- --> @dm:save name='temp-loop-time'
- --> @dm:enrich dict='temp-expiry-time' and src_key_cols='key' and dict_key_cols='key' and enrich_cols='token_expiry_time,access_token,expires_in,token_type'
- --> *exec:if-condition token_expiry_time is null or current_time_ms_loop  is greater than or equal to token_expiry_time
- --> @exec:call-function name='generate_access_token'
+ --> @dm:rename-columns local_interface="ifAdminStatus"
+ --> @dm:enrich dict="cml-cdp-data"
+and src_key_cols="ipAddress,local_interface"
+and dict_key_cols="source_ip,local_port"
+and enrich_cols="mgmt_ip,remote_port"
+ --> @dm:enrich dict="cml-interface-data"
+and src_key_cols="mgmt_ip,remote_port"
+and dict_key_cols="ipaddr,intf"
+and enrich_cols="source_ip"
+and enrich_cols_as="remote_ip"
+ --> @dm:selectcolumns exclude="mgmt_ip"
+ --> @dm:selectcolumns exclude="intf"
+ --> @dm:selectcolumns exclude="ipaddr"
+ --> @dm:selectcolumns exclude="source_ip"
+ --> @dm:rename-columns remote_interface="remote_port"
+ --> @dm:eval link_type="'CDP'"
+ --> @dm:enrich dict="temp-sev-mapping" and src_key_cols="alert_severity" and dict_key_cols="alert_severity_str" and enrich_cols="dict_alert_severity_num"
+ --> @dm:rename-columns severity="alert_severity"
+ --> @dm:rename-columns key="alert_key"
+ --> @dm:rename-columns snmp_trap_name="snmpTrapName"
+ --> @dm:rename-columns snmp_trap_oid="snmpTrapOID"
+ --> @dm:rename-columns state="alert_state"
+ --> @dm:eval dict_name = "'INTERFACE'"
+ --> @rn:write-stream name = 'new_cml_snmp_trap_alerts_debug'
+ --> @dm:map attr ="snmp_trap_timestamp" & func = 'ts_to_datetimestr' & unit = 'ms'
+ --> @dm:apply-template-by-row template_name = 'snmp_trap_alert_template' & output_col = 'payload'
+ --> @restclient:write url is "https://10.122.127.182:7443/webhooks/hookid/0427678a-fc73-453b-9ecb-fdb6ecab9d57" & envelope is '{{payload}}' & batch_size = 1
  --> @exec:end-if
- --> @dm:dropnull columns='access_token'
- --> @dm:add-missing-columns columns='sw_version' and value='$sw_version'
- --> @dm:add-missing-columns columns='sw_os_type' and value='$sw_os_type'
- --> @dm:add-missing-columns columns='product_id' and value='$product_id'
- --> @dm:add-missing-columns columns='source' and value='$source'
- ## --> *dm:filter sw_os_type is not null and product_id is not null and sw_version is not null
+ ## END link up/down traps
 
- --> *exec:if-condition sw_version is not null and sw_os_type is not null and product_id is not null
- --> @exec:run-pipeline name ="edc_sw_get_data" & ignore_failures = "yes"
- --> @dm:save name='temp-sw-token'
- --> @dm:save name='temp-sweol-before-explode' and append='yes'
- ## --> @rn:write-stream name='dummy_sweol_enriched'
+ ## Handle OSPF NBR CHANGE traps
 
- --> @dm:save name='sweol-data-run-scan-op-1' and append='yes'
+ --> *exec:if-condition snmpTrapName is 'ospfNbrStateChange'
+ --> @dm:eval link_type="'OSPF'"
+ --> @dm:enrich-using-pstream dict="cml_topo_edges"
+and src_key_cols="device,ospfNbrRtrId,link_type"
+and dict_key_cols="left_id,neighbor_id,link_type"
+and enrich_cols="right_id,local_interface,neighbor_interface"
+and enrich_cols_as="remote_ip,local_interface,remote_interface"
+ --> @dm:enrich dict="temp-sev-mapping"
+and src_key_cols="alert_severity"
+and dict_key_cols="alert_severity_str"
+and enrich_cols="dict_alert_severity_num"
+ --> @dm:rename-columns severity="alert_severity"
+ --> @dm:rename-columns key="alert_key"
+ --> @dm:rename-columns snmp_trap_name="snmpTrapName"
+ --> @dm:rename-columns snmp_trap_oid="snmpTrapOID"
+ --> @dm:rename-columns state="alert_state"
+ --> @dm:eval dict_name = "'OSPF'"
+ --> @rn:write-stream name = 'new_cml_snmp_trap_alerts_debug'
+ --> @dm:map attr ="snmp_trap_timestamp" & func = 'ts_to_datetimestr' & unit = 'ms'
+ --> @dm:apply-template-by-row template_name = 'snmp_trap_alert_template' & output_col = 'payload'
+ --> @restclient:write url is "https://10.122.127.182:7443/webhooks/hookid/0427678a-fc73-453b-9ecb-fdb6ecab9d57" & envelope is '{{payload}}' & batch_size = 1
  --> @exec:end-if
- ## filter out the rows whose API output is not empty
+ ## Handle BGP NBR CHANGE traps
 
- --> @c:new-block
- --> @dm:recall name='temp-sweol-before-explode'
- --> @dm:dedup columns='product_id,sw_os_type,sw_version'
- --> @dm:copy-columns from='issues' and to='issues_str'
- --> @dm:to-type columns='issues_str' and type='str'
- --> *dm:filter issues_str is not '[]'
- --> @dm:selectcolumns exclude='^issues_str$'
- --> @dm:save name='temp-sweol-before-explode-dedup'
- --> @dm:save name='sweol-data-run-scan-op-dedup'
- ## enrich to add API output to rows with same sw_version,sw_os_type,product_id combination but different contract_number
-
- --> @c:new-block
- --> @dm:recall name='temp-sw-data'
- --> @dm:enrich dict='temp-sweol-before-explode-dedup' and src_key_cols='product_id,sw_os_type,sw_version' and dict_key_cols='product_id,sw_os_type,sw_version' and enrich_cols='issues,transaction_id,id' and how_type='inner' and dedup_dict='no'
- ## --> @dm:save name='test-sweol_cn_enriched'
-
- --> @dm:save name='temp-edc-sw-run-scan-op-not-exploded'
- --> @c:new-block
- --> @dm:recall name='temp-edc-sw-run-scan-op-not-exploded'
- --> *exec:if-condition source=='software'
- --> @dm:recall name='temp-edc-sw-run-scan-op-not-exploded'
- ## --> @dm:eval issues='eval(issues)'
-
- --> @dm:eval issues='json_dumps(issues)'
- --> @dm:explode-json column="issues"
- --> @dm:eval eoXAlert='json_dumps(eoXAlert)'
- --> @dm:explode-json column="eoXAlert"
- --> @dm:save name='temp-sweol-exploded'
- --> @dm:save name='exploded-sweol'
+ --> *exec:if-condition snmpTrapOid is '1.3.6.1.4.1.9.9.187.0.1'
+ --> @dm:eval link_type="'BGP'"
+ --> @dm:eval neighbor_ip = "'.'.join(vb_oid_0.split('.')[-4:])"
+ --> @dm:eval snmpTrapName = "'cbgpFsmStateChange'"
+ --> @dm:copy-columns from="snmpTrapName" and to="alert_name"
+ --> @dm:eval snmpTrapMIB = "'ciscoBgp4MIB'"
+ --> @dm:rename-columns bgpPeerState = "vb_value_1"
+ --> @dm:copy-columns from="ipAddress" and to="device"
+ --> @dm:eval alert_key = "device + '_' + alert_name + '_' + neighbor_ip"
+ --> @dm:eval alert_severity = "'MAJOR'"
+ --> @dm:eval alert_state = "'CLEARED' if bgpPeerState  == 'established' else 'ACTIVE'"
+ --> @dm:enrich-using-pstream dict="cml_topo_edges"
+and src_key_cols="device,neighbor_ip,link_type"
+and dict_key_cols="left_id,remote_ip,link_type"
+and enrich_cols="right_id,local_interface,neighbor_interface,local_ip"
+and enrich_cols_as="remote_router_ip,local_interface,remote_interface,local_ip"
+ --> @dm:rename-columns remote_ip="remote_router_ip"
+ --> @dm:eval message="'SNMP cbgpFsmStateChange Trap received from ' + device + ', local_ip=' + local_ip + ', bgpPeerIp=' + neighbor_ip + ', bgpPeerState=' + bgpPeerState + ', cbgpPeerLastErrorTxt=' + vb_value_2 + ', cbgpPeerPrevState=' + vb_value_3"
+ --> @dm:enrich dict="temp-sev-mapping" and src_key_cols="alert_severity" and dict_key_cols="alert_severity_str" and enrich_cols="dict_alert_severity_num"
+ --> @dm:rename-columns severity="alert_severity"
+ --> @dm:rename-columns key="alert_key"
+ --> @dm:rename-columns snmp_trap_name="snmpTrapName"
+ --> @dm:rename-columns snmp_trap_oid="snmpTrapOID"
+ --> @dm:rename-columns state="alert_state"
+ --> @dm:eval dict_name = "'BGP'"
+ --> @rn:write-stream name = 'new_cml_snmp_trap_alerts_debug'
+ --> @dm:map attr ="snmp_trap_timestamp" & func = 'ts_to_datetimestr' & unit = 'ms'
+ --> @dm:apply-template-by-row template_name = 'snmp_trap_alert_template' & output_col = 'payload'
+ --> @restclient:write url is "https://10.122.127.182:7443/webhooks/hookid/0427678a-fc73-453b-9ecb-fdb6ecab9d57" & envelope is '{{payload}}' & batch_size = 1
  --> @exec:end-if
- ## Logging the repeated counts of the data from run scan api
-
- --> @c:new-block
- --> @dm:recall name='temp-edc-sw-run-scan-op-not-exploded'
- --> *exec:if-condition source=='software'
- --> @dm:recall name="temp-sweol-exploded"
- --> @dm:to-type columns="BulletinNumber" and type="str"
- --> @dm:implode key_columns='product_id,sw_version,sw_os_type' and merge_columns='BulletinNumber' and dedup_merge_values='no' and keep_columns='id,transaction_id'
- --> @dm:eval BulletinNumber="str(BulletinNumber).split(',')"
- --> @dm:eval total_records = "len(BulletinNumber)"
- --> *dm:filter total_records > 1
- --> @dm:skip-block-if-shape row_count=0
- --> @dm:eval duplicate_record_count="total_records-1"
- --> @dm:eval unique_key="str(product_id)+'_'+str(sw_version)+'_'+str(sw_os_type)"
- --> @rn:write-stream name="edc_run_scan_duplicate_records"
- --> @exec:end-if
- --> @c:new-block
- --> @dm:recall name='temp-edc-sw-run-scan-op-not-exploded'
- --> *exec:if-condition source=='security_advisory'
- --> @dm:recall name='temp-edc-sw-run-scan-op-not-exploded'
- --> @dm:dedup columns='product_id'
- --> @dm:eval issues='json_dumps(issues)'
- --> @dm:explode-json column="issues"
- --> @dm:eval psirtAlert='json_dumps(psirtAlert)'
- --> @dm:explode-json column="psirtAlert"
- ## --> @dm:to-type columns='contract_number,customer,product_id,advisoryId,PsirtID' and type='str'
-
- ## --> @dm:map from = 'contract_number,customer,product_id,advisoryId,PsirtID' & to = 'unique_key' & func = 'join' & sep = '_'
-
- --> @dm:save name='temp-sweol-exploded'
- --> @dm:save name='exploded-sa-output'
- --> @exec:end-if
- --> @c:new-block
- --> @dm:recall name="temp-sweol-exploded"
