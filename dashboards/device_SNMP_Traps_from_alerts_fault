@@ -1,307 +1,814 @@
 {
-  "name": "device_SNMP_Traps_from_alerts_fault",
-  "label": "SNMP Traps",
-  "description": "SNMP traps dashboard",
-  "version": "2023-06-13-02",
+  "name": "oia-alert-tracking-os",
+  "label": "Open Search Based OIA Alert Tracking",
+  "description": "Open Search Based OIA Alert Tracking",
+  "version": "23.1.2",
   "enabled": true,
-  "dashboard_folder": "NetworkDevicePack",
-  "dashboard_style": "auto",
+  "stream": "oia-events-stream",
+  "debug": true,
+  "dashboard_style": "tabbed",
+  "status_poller": {},
+  "dashboard_type": "template",
   "template_variables": {
-    "CUST_ID": {
-      "contextId": "customer_id"
-    },
-    "PROJ_ID": {
-      "contextId": "project_id"
-    },
-    "CUST_TAG": {
-      "contextId": "customer_tag"
-    },
-    "DEVICE_IP": {
-      "contextId": "device_ip"
+    "PROJECT_ID": {
+      "default": [
+        "61ed50a5-8634-4464-a17e-adf6b40225b2"
+      ],
+      "contextId": "projectId"
     }
   },
-  "status_poller": {
-    "stream": "snmp_trap_event_stream_all",
-    "frequency": 10,
-    "columns": [
-      "timestamp"
-    ],
-    "sorting": [
+  "dashboard_filters": {
+    "time_filter": true,
+    "default_time_filter_non_removable": true,
+    "show_default_time_filter": false,
+    "additional_datetime_column_filters": [
       {
-        "timestamp": "desc"
+        "id": "e_createdat",
+        "label": "Created At"
+      },
+      {
+        "id": "e_updatedat",
+        "label": "Updated At"
       }
     ],
-    "query": "timestamp is after '${timestamp}'",
-    "defaults": {
-      "timestamp": "$UTCNOW"
-    },
-    "action": "refresh"
-  },
-  "dashboard_filters": {
-    "default_time_filter_labels": [
-      "Last 1 month"
+    "columns_filter": [
+      {
+        "id": "e_label",
+        "label": "Message",
+        "type": "TEXT"
+      },
+      {
+        "id": "e_customerid",
+        "label": "Customer ID",
+        "type": "TEXT"
+      },
+      {
+        "id": "e_status",
+        "label": "Phase Status",
+        "type": "TEXT"
+      },
+      {
+        "id": "e_sourcesystemname",
+        "label": "Source",
+        "type": "TEXT"
+      },
+      {
+        "id": "e_message",
+        "label": "Comments",
+        "type": "TEXT"
+      },
+      {
+        "id": "e_projectid",
+        "label": "Organizations",
+        "type": "TEXT"
+      },
+      {
+        "id": "e_severity",
+        "label": "Severity",
+        "type": "TEXT"
+      },
+      {
+        "id": "e_sourceeventid",
+        "label": "Source Event Id",
+        "type": "TEXT"
+      },
+      {
+        "id": "e_eventstate",
+        "label": "Phase",
+        "type": "TEXT"
+      },
+      {
+        "id": "e_triggeredevent",
+        "label": "Event Type",
+        "type": "TEXT"
+      },
+      {
+        "id": "e_processedeventid",
+        "label": "Alert Id",
+        "type": "TEXT"
+      },
+      {
+        "id": "e_eventkey",
+        "label": "Alert Key",
+        "type": "TEXT"
+      }
     ],
-    "extra_filter1": "(customer_tag is '{{CUST_TAG}}')",
-    "time_filter": true,
-    "columns_filter": [],
-    "group_filters": []
+    "extra_filter": "e_projectid in {{PROJECT_ID}}",
+    "group_filters": [
+      {
+        "stream": "oia-events-stream",
+        "title": "Source",
+        "group_by": [
+          "e_sourcesystemname"
+        ],
+        "ts_column": "e_updatedat",
+        "agg": "value_count",
+        "column": "e_id",
+        "type": "str"
+      },
+      {
+        "stream": "oia-events-stream",
+        "title": "Severity",
+        "group_by": [
+          "e_severity"
+        ],
+        "ts_column": "e_updatedat",
+        "agg": "value_count",
+        "column": "e_id",
+        "type": "str"
+      },
+      {
+        "stream": "oia-events-stream",
+        "title": "Phase",
+        "group_by": [
+          "e_eventstate"
+        ],
+        "ts_column": "e_updatedat",
+        "agg": "value_count",
+        "column": "e_id",
+        "type": "str"
+      },
+      {
+        "stream": "oia-events-stream",
+        "title": "Phase Status",
+        "group_by": [
+          "e_status"
+        ],
+        "ts_column": "e_updatedat",
+        "agg": "value_count",
+        "column": "e_id",
+        "type": "str"
+      },
+      {
+        "stream": "oia-events-stream",
+        "title": "Organizations",
+        "group_by": [
+          "project_id"
+        ],
+        "ts_column": "e_updatedat",
+        "agg": "value_count",
+        "column": "e_projectid",
+        "type": "str"
+      }
+    ],
+    "default_time_filter_labels": [
+      "Last 24 hours"
+    ]
   },
   "dashboard_sections": [
     {
-      "title": "snmp details",
+      "title": "Alerts",
       "show_filter": true,
+      "projects": [
+        "ACME"
+      ],
       "widgets": [
         {
-          "widget_type": "label",
-          "max_width": 12,
-          "height": 0.5,
+          "title": "Alerts",
+          "widget_type": "tabular",
+          "stream": "oia-events-stream",
+          "ts_column": "e_updatedat",
+          "timebased": false,
           "min_width": 12,
-          "label": "<div style='text-align:center;width:100%;'><h1><a style='text-decoration:none;color:#0066ff;' target='_blank'>Device SNMP Traps</a></h1></div>",
-          "widget_id": "33317e49"
-        },
+          "height": 12,
+          "max_width": 12,
+          "paginated": true,
+          "resizableColumns": false,
+          "refreshRequired": true,
+          "remote_searchable": true,
+          "remote_searchable_cols": [
+            "e_processedeventid",
+            "e_label",
+            "e_severity",
+            "e_sourcesystemname",
+            "e_eventstate",
+            "e_status",
+            "e_message"
+          ],
+          "max_rows": 50,
+          "columns": {
+            "e_processedeventid": {
+              "title": "Alert ID",
+              "visible": false,
+              "key": true,
+              "defaultWidth": 150
+            },
+            "e_projectid": {
+              "title": "project Id",
+              "visible": false,
+              "key": true,
+              "defaultWidth": 150
+            },
+            "e_label": {
+              "title": "Message",
+              "formatter": "truncate",
+              "defaultWidth": 270
+            },
+            "e_id": {
+              "title": "Event Id",
+              "visible": false,
+              "key": true,
+              "defaultWidth": 150
+            },
+            "e_sourceeventid": {
+              "title": "Source Event ID",
+              "visible": false,
+              "key": true,
+              "defaultWidth": 150
+            },
+            "e_severity_color": {
+              "title": "Sev_2",
+              "type": "COLOR-MAP",
+              "source-column": "e_severity",
+              "color-map": {
+                "SEVERE": "#B71C1C",
+                "CRITICAL": "#E53935",
+                "MAJOR": "#F57C00",
+                "MINOR": "#FFA726",
+                "WARNING": "#FFD54F",
+                "NOTIFICATION": "#4DD0E1",
+                "INFORMATION": "#03A9F4"
+              }
+            },
+            "e_severity": {
+              "title": "Severity",
+              "htmlTemplateForRow": "<span class='badge' style='background-color: {{'{{ row.e_severity_color }}'}}' > {{'{{ row.e_severity }}'}} </span>",
+              "defaultWidth": 150
+            },
+            "e_sourcesystemname": {
+              "title": "Source",
+              "defaultWidth": 150
+            },
+            "e_createdat": {
+              "title": "Created At",
+              "type": "DATETIME",
+              "defaultWidth": 180
+            },
+            "e_updatedat": {
+              "title": "Updated At",
+              "type": "DATETIME",
+              "defaultWidth": 180
+            },
+            "e_eventstate": {
+              "title": "Phase",
+              "defaultWidth": 150
+            },
+            "e_status": {
+              "title": "Phase Status",
+              "defaultWidth": 150
+            },
+            "e_message": {
+              "title": "Comments",
+              "defaultWidth": 270
+            },
+            "e_triggeredevent": {
+              "title": "Event Type",
+              "visible": false,
+              "key": true,
+              "defaultWidth": 150
+            },
+            "e_eventkey": {
+              "title": "Alert Key",
+              "visible": false,
+              "key": true,
+              "defaultWidth": 150
+            }
+          },
+          "actions": [
+            {
+              "permission": "oia:alert:view",
+              "title": "Alert Details",
+              "type": "GO_TO_APP_STATE",
+              "stateName": "app.featureapp",
+              "appName": "user-dashboard/tracking-event-details-app",
+              "selectionType": "SINGLE",
+              "drillDownContext": "e_label",
+              "destinationContext": "e_label",
+              "displayLabelColumnId": "e_label",
+              "contextParamList": {
+                "contextParams": [
+                  {
+                    "paramKey": "e_projectid",
+                    "paramId": "projectId"
+                  },
+                  {
+                    "paramKey": "e_projectid",
+                    "paramId": "roomid"
+                  },
+                  {
+                    "paramKey": "e_projectid",
+                    "paramId": "projectid"
+                  },
+                  {
+                    "paramKey": "e_id",
+                    "paramId": "eventid"
+                  },
+                  {
+                    "paramKey": "e_sourceeventid",
+                    "paramId": "sourceeventid"
+                  },
+                  {
+                    "paramKey": "e_eventkey",
+                    "paramId": "eventkey"
+                  },
+                  {
+                    "paramKey": "e_processedeventid",
+                    "paramId": "processedeventid"
+                  }
+                ]
+              }
+            }
+          ],
+          "widget_id": "94a3fc11"
+        }
+      ]
+    },
+    {
+      "title": "Tracking Analytics",
+      "show_filter": true,
+      "projects": [
+        "ACME"
+      ],
+      "widgets": [
         {
-          "title": "Total Traps",
-          "widget_type": "custom_counter",
-          "formatter": "DescriptiveCountFormatter",
-          "stream": "snmp_trap_event_stream_all",
-          "ts_column": "timestamp",
-          "column": "_id",
+          "title": "Consumed Alerts",
+          "widget_type": "counter",
+          "stream": "oia-events-stream",
+          "ts_column": "e_updatedat",
+          "column": "e_id",
           "agg": "value_count",
-          "type": "int",
-          "max_width": 2,
-          "height": 4,
-          "min_width": 2,
-          "style": {
-            "color-list": [
-              "#215CC3"
-            ]
-          },
-          "widget_id": "df82078f"
+          "min_width": 6,
+          "height": 2.6,
+          "max_width": 6,
+          "type": "str",
+          "widget_id": "02be1e20"
         },
         {
-          "title": "Unique Traps by OID",
-          "widget_type": "custom_counter",
-          "formatter": "DescriptiveCountFormatter",
-          "stream": "snmp_trap_event_stream_all",
-          "ts_column": "timestamp",
-          "column": "snmpTrapOID",
-          "agg": "cardinality",
-          "type": "int",
-          "max_width": 2,
-          "height": 4,
-          "min_width": 2,
-          "style": {
-            "color-list": [
-              "#21C374"
-            ]
-          },
-          "widget_id": "ed5e8ee0"
+          "title": "Deduped Alerts",
+          "widget_type": "counter",
+          "stream": "oia-events-stream",
+          "extra_filter": "e_status is 'Deduped'",
+          "ts_column": "e_updatedat",
+          "column": "e_id",
+          "agg": "value_count",
+          "min_width": 6,
+          "height": 2.6,
+          "max_width": 6,
+          "type": "str",
+          "widget_id": "abbd680b"
         },
         {
-          "title": "Distribution by OID",
-          "widget_type": "bar_chart",
-          "stream": "snmp_trap_event_stream_all",
-          "ts_column": "timestamp",
+          "widget_type": "pie_chart",
+          "title": "Alerts By Phase Status",
+          "stream": "oia-events-stream",
+          "ts_column": "e_updatedat",
+          "min_width": 4,
+          "height": 4,
+          "max_width": 4,
+          "column": "e_id",
+          "agg": "value_count",
+          "group_by": [
+            "e_status"
+          ],
+          "type": "str",
+          "widget_id": "cb0706e6"
+        },
+        {
+          "widget_type": "pie_chart",
+          "title": "Alerts By Source",
+          "stream": "oia-events-stream",
+          "ts_column": "e_updatedat",
+          "min_width": 4,
+          "height": 4,
+          "max_width": 4,
+          "column": "e_id",
+          "agg": "value_count",
+          "group_by": [
+            "e_sourcesystemname"
+          ],
+          "type": "str",
+          "widget_id": "f2dc71c5"
+        },
+        {
+          "widget_type": "pie_chart",
+          "title": "Alerts By Phase",
+          "stream": "oia-events-stream",
+          "ts_column": "e_updatedat",
+          "min_width": 4,
+          "height": 4,
+          "max_width": 4,
+          "column": "e_id",
+          "agg": "value_count",
+          "group_by": [
+            "e_eventstate"
+          ],
+          "type": "str",
+          "widget_id": "89d660a9"
+        },
+        {
+          "title": "Alerts Status By Source",
+          "widget_type": "multi_bar_chart",
+          "stream": "oia-events-stream",
+          "ts_column": "e_updatedat",
+          "min_width": 4,
+          "height": 4,
+          "max_width": 4,
           "chartProperties": {
             "yAxisLabel": "Count",
-            "xAxisLabel": "OID",
+            "xAxisLabel": "Source",
             "stacked": true,
-            "legendLocation": "none",
+            "legendLocation": "right",
             "orientation": "vertical"
           },
           "group_by": [
-            "snmpTrapOID"
+            "e_status",
+            "e_sourcesystemname"
           ],
-          "column": "_id",
-          "agg": "cardinality",
-          "type": "int",
-          "min_width": 4,
-          "height": 4,
-          "max_width": 4,
-          "widget_id": "43799fef"
-        },
-        {
-          "title": "Traps by IP",
-          "widget_type": "pie_chart",
-          "stream": "snmp_trap_event_stream_all",
-          "ts_column": "timestamp",
-          "column": "rda_gw_client_ip",
+          "column": "e_id",
           "agg": "value_count",
-          "group_by": [
-            "rda_gw_client_ip"
-          ],
-          "type": "str",
-          "min_width": 4,
-          "height": 4,
-          "max_width": 4,
-          "widget_id": "5d627f3e"
+          "type": "int",
+          "widget_id": "172919af"
         },
         {
-          "title": "SNMP Traps",
-          "widget_type": "tabular",
-          "max_width": 12,
-          "height": 8,
-          "min_width": 12,
-          "stream": "snmp_trap_event_stream_all",
-          "ts_column": "timestamp",
-          "resizableColumns": true,
-          "max_rows": 100,
-          "showRowSummary": true,
-          "sorting": [
+          "title": "Hourly Alerts by Source",
+          "widget_type": "timeseries",
+          "stream": "oia-events-stream",
+          "ts_column": "e_updatedat",
+          "max_width": 4,
+          "height": 4,
+          "min_width": 4,
+          "chartProperties": {
+            "yAxisLabel": "Count",
+            "xAxisLabel": "Hourly Alerts",
+            "legendLocation": "top"
+          },
+          "interval": "60Min",
+          "group_by": [
+            "e_sourcesystemname"
+          ],
+          "series_spec": [
             {
-              "timestamp": "desc"
+              "column": "e_id",
+              "agg": "value_count",
+              "type": "int"
             }
           ],
-          "remote_searchable": true,
-          "remote_searchable_cols": [
-            "rda_gw_client_ip",
-            "snmpTrapName",
-            "snmpTrapOID"
-          ],
-          "columns": {
-            "timestamp": "Timestamp",
-            "rda_gw_client_ip": "Device",
-            "snmpTrapOID": "SNMP Trap OID",
-            "snmpTrapName": "SNMP Trap Name",
-            "snmpTrapDescription": "SNMP Trap Description",
-            "message": "Message",
-            "vb_oid_1": "SNMP OID 1",
-            "vb_value_1": "SNMP Value 1",
-            "vb_oid_2": "SNMP OID 2",
-            "vb_value_2": "SNMP Value 2"
+          "widget_id": "c29bb685"
+        },
+        {
+          "title": "Hourly Alerts by Severity",
+          "widget_type": "timeseries",
+          "stream": "oia-events-stream",
+          "ts_column": "e_updatedat",
+          "max_width": 4,
+          "height": 4,
+          "min_width": 4,
+          "chartProperties": {
+            "yAxisLabel": "Count",
+            "xAxisLabel": "Hourly Alerts",
+            "legendLocation": "top"
           },
-          "widget_id": "46a6b5b6"
+          "interval": "60Min",
+          "group_by": [
+            "e_severity"
+          ],
+          "series_spec": [
+            {
+              "column": "e_id",
+              "agg": "value_count",
+              "type": "int"
+            }
+          ],
+          "widget_id": "058d11cc"
         }
       ]
     }
   ],
-  "dashboard_type": "template",
-  "dashboard_pages": [],
   "pstream_dashboards": [
     {
-      "title": "snmp details",
+      "title": "Alerts",
       "show_filter": true,
+      "projects": [
+        "ACME"
+      ],
       "widgets": [
         {
-          "widget_type": "label",
-          "max_width": 12,
-          "height": 0.5,
+          "title": "Alerts",
+          "widget_type": "tabular",
+          "stream": "oia-events-stream",
+          "ts_column": "e_updatedat",
+          "timebased": false,
           "min_width": 12,
-          "label": "<div style='text-align:center;width:100%;'><h1><a style='text-decoration:none;color:#0066ff;' target='_blank'>Device SNMP Traps</a></h1></div>",
-          "widget_id": "33317e49"
-        },
+          "height": 12,
+          "max_width": 12,
+          "paginated": true,
+          "resizableColumns": false,
+          "refreshRequired": true,
+          "remote_searchable": true,
+          "remote_searchable_cols": [
+            "e_processedeventid",
+            "e_label",
+            "e_severity",
+            "e_sourcesystemname",
+            "e_eventstate",
+            "e_status",
+            "e_message"
+          ],
+          "max_rows": 50,
+          "columns": {
+            "e_processedeventid": {
+              "title": "Alert ID",
+              "visible": false,
+              "key": true,
+              "defaultWidth": 150
+            },
+            "e_projectid": {
+              "title": "project Id",
+              "visible": false,
+              "key": true,
+              "defaultWidth": 150
+            },
+            "e_label": {
+              "title": "Message",
+              "formatter": "truncate",
+              "defaultWidth": 270
+            },
+            "e_id": {
+              "title": "Event Id",
+              "visible": false,
+              "key": true,
+              "defaultWidth": 150
+            },
+            "e_sourceeventid": {
+              "title": "Source Event ID",
+              "visible": false,
+              "key": true,
+              "defaultWidth": 150
+            },
+            "e_severity_color": {
+              "title": "Sev_2",
+              "type": "COLOR-MAP",
+              "source-column": "e_severity",
+              "color-map": {
+                "SEVERE": "#B71C1C",
+                "CRITICAL": "#E53935",
+                "MAJOR": "#F57C00",
+                "MINOR": "#FFA726",
+                "WARNING": "#FFD54F",
+                "NOTIFICATION": "#4DD0E1",
+                "INFORMATION": "#03A9F4"
+              }
+            },
+            "e_severity": {
+              "title": "Severity",
+              "htmlTemplateForRow": "<span class='badge' style='background-color: {{'{{ row.e_severity_color }}'}}' > {{'{{ row.e_severity }}'}} </span>",
+              "defaultWidth": 150
+            },
+            "e_sourcesystemname": {
+              "title": "Source",
+              "defaultWidth": 150
+            },
+            "e_createdat": {
+              "title": "Created At",
+              "type": "DATETIME",
+              "defaultWidth": 180
+            },
+            "e_updatedat": {
+              "title": "Updated At",
+              "type": "DATETIME",
+              "defaultWidth": 180
+            },
+            "e_eventstate": {
+              "title": "Phase",
+              "defaultWidth": 150
+            },
+            "e_status": {
+              "title": "Phase Status",
+              "defaultWidth": 150
+            },
+            "e_message": {
+              "title": "Comments",
+              "defaultWidth": 270
+            },
+            "e_triggeredevent": {
+              "title": "Event Type",
+              "visible": false,
+              "key": true,
+              "defaultWidth": 150
+            },
+            "e_eventkey": {
+              "title": "Alert Key",
+              "visible": false,
+              "key": true,
+              "defaultWidth": 150
+            }
+          },
+          "actions": [
+            {
+              "permission": "oia:alert:view",
+              "title": "Alert Details",
+              "type": "GO_TO_APP_STATE",
+              "stateName": "app.featureapp",
+              "appName": "user-dashboard/tracking-event-details-app",
+              "selectionType": "SINGLE",
+              "drillDownContext": "e_label",
+              "destinationContext": "e_label",
+              "displayLabelColumnId": "e_label",
+              "contextParamList": {
+                "contextParams": [
+                  {
+                    "paramKey": "e_projectid",
+                    "paramId": "projectId"
+                  },
+                  {
+                    "paramKey": "e_projectid",
+                    "paramId": "roomid"
+                  },
+                  {
+                    "paramKey": "e_projectid",
+                    "paramId": "projectid"
+                  },
+                  {
+                    "paramKey": "e_id",
+                    "paramId": "eventid"
+                  },
+                  {
+                    "paramKey": "e_sourceeventid",
+                    "paramId": "sourceeventid"
+                  },
+                  {
+                    "paramKey": "e_eventkey",
+                    "paramId": "eventkey"
+                  },
+                  {
+                    "paramKey": "e_processedeventid",
+                    "paramId": "processedeventid"
+                  }
+                ]
+              }
+            }
+          ],
+          "widget_id": "94a3fc11"
+        }
+      ]
+    },
+    {
+      "title": "Tracking Analytics",
+      "show_filter": true,
+      "projects": [
+        "ACME"
+      ],
+      "widgets": [
         {
-          "title": "Total Traps",
-          "widget_type": "custom_counter",
-          "formatter": "DescriptiveCountFormatter",
-          "stream": "snmp_trap_event_stream_all",
-          "ts_column": "timestamp",
-          "column": "_id",
+          "title": "Consumed Alerts",
+          "widget_type": "counter",
+          "stream": "oia-events-stream",
+          "ts_column": "e_updatedat",
+          "column": "e_id",
           "agg": "value_count",
-          "type": "int",
-          "max_width": 2,
-          "height": 4,
-          "min_width": 2,
-          "style": {
-            "color-list": [
-              "#215CC3"
-            ]
-          },
-          "widget_id": "df82078f"
+          "min_width": 6,
+          "height": 2.6,
+          "max_width": 6,
+          "type": "str",
+          "widget_id": "02be1e20"
         },
         {
-          "title": "Unique Traps by OID",
-          "widget_type": "custom_counter",
-          "formatter": "DescriptiveCountFormatter",
-          "stream": "snmp_trap_event_stream_all",
-          "ts_column": "timestamp",
-          "column": "snmpTrapOID",
-          "agg": "cardinality",
-          "type": "int",
-          "max_width": 2,
-          "height": 4,
-          "min_width": 2,
-          "style": {
-            "color-list": [
-              "#21C374"
-            ]
-          },
-          "widget_id": "ed5e8ee0"
+          "title": "Deduped Alerts",
+          "widget_type": "counter",
+          "stream": "oia-events-stream",
+          "extra_filter": "e_status is 'Deduped'",
+          "ts_column": "e_updatedat",
+          "column": "e_id",
+          "agg": "value_count",
+          "min_width": 6,
+          "height": 2.6,
+          "max_width": 6,
+          "type": "str",
+          "widget_id": "abbd680b"
         },
         {
-          "title": "Distribution by OID",
-          "widget_type": "bar_chart",
-          "stream": "snmp_trap_event_stream_all",
-          "ts_column": "timestamp",
+          "widget_type": "pie_chart",
+          "title": "Alerts By Phase Status",
+          "stream": "oia-events-stream",
+          "ts_column": "e_updatedat",
+          "min_width": 4,
+          "height": 4,
+          "max_width": 4,
+          "column": "e_id",
+          "agg": "value_count",
+          "group_by": [
+            "e_status"
+          ],
+          "type": "str",
+          "widget_id": "cb0706e6"
+        },
+        {
+          "widget_type": "pie_chart",
+          "title": "Alerts By Source",
+          "stream": "oia-events-stream",
+          "ts_column": "e_updatedat",
+          "min_width": 4,
+          "height": 4,
+          "max_width": 4,
+          "column": "e_id",
+          "agg": "value_count",
+          "group_by": [
+            "e_sourcesystemname"
+          ],
+          "type": "str",
+          "widget_id": "f2dc71c5"
+        },
+        {
+          "widget_type": "pie_chart",
+          "title": "Alerts By Phase",
+          "stream": "oia-events-stream",
+          "ts_column": "e_updatedat",
+          "min_width": 4,
+          "height": 4,
+          "max_width": 4,
+          "column": "e_id",
+          "agg": "value_count",
+          "group_by": [
+            "e_eventstate"
+          ],
+          "type": "str",
+          "widget_id": "89d660a9"
+        },
+        {
+          "title": "Alerts Status By Source",
+          "widget_type": "multi_bar_chart",
+          "stream": "oia-events-stream",
+          "ts_column": "e_updatedat",
+          "min_width": 4,
+          "height": 4,
+          "max_width": 4,
           "chartProperties": {
             "yAxisLabel": "Count",
-            "xAxisLabel": "OID",
+            "xAxisLabel": "Source",
             "stacked": true,
-            "legendLocation": "none",
+            "legendLocation": "right",
             "orientation": "vertical"
           },
           "group_by": [
-            "snmpTrapOID"
+            "e_status",
+            "e_sourcesystemname"
           ],
-          "column": "_id",
-          "agg": "cardinality",
-          "type": "int",
-          "min_width": 4,
-          "height": 4,
-          "max_width": 4,
-          "widget_id": "43799fef"
-        },
-        {
-          "title": "Traps by IP",
-          "widget_type": "pie_chart",
-          "stream": "snmp_trap_event_stream_all",
-          "ts_column": "timestamp",
-          "column": "rda_gw_client_ip",
+          "column": "e_id",
           "agg": "value_count",
-          "group_by": [
-            "rda_gw_client_ip"
-          ],
-          "type": "str",
-          "min_width": 4,
-          "height": 4,
-          "max_width": 4,
-          "widget_id": "5d627f3e"
+          "type": "int",
+          "widget_id": "172919af"
         },
         {
-          "title": "SNMP Traps",
-          "widget_type": "tabular",
-          "max_width": 12,
-          "height": 8,
-          "min_width": 12,
-          "stream": "snmp_trap_event_stream_all",
-          "ts_column": "timestamp",
-          "resizableColumns": true,
-          "max_rows": 100,
-          "showRowSummary": true,
-          "sorting": [
+          "title": "Hourly Alerts by Source",
+          "widget_type": "timeseries",
+          "stream": "oia-events-stream",
+          "ts_column": "e_updatedat",
+          "max_width": 4,
+          "height": 4,
+          "min_width": 4,
+          "chartProperties": {
+            "yAxisLabel": "Count",
+            "xAxisLabel": "Hourly Alerts",
+            "legendLocation": "top"
+          },
+          "interval": "60Min",
+          "group_by": [
+            "e_sourcesystemname"
+          ],
+          "series_spec": [
             {
-              "timestamp": "desc"
+              "column": "e_id",
+              "agg": "value_count",
+              "type": "int"
             }
           ],
-          "remote_searchable": true,
-          "remote_searchable_cols": [
-            "rda_gw_client_ip",
-            "snmpTrapName",
-            "snmpTrapOID"
-          ],
-          "columns": {
-            "timestamp": "Timestamp",
-            "rda_gw_client_ip": "Device",
-            "snmpTrapOID": "SNMP Trap OID",
-            "snmpTrapName": "SNMP Trap Name",
-            "snmpTrapDescription": "SNMP Trap Description",
-            "message": "Message",
-            "vb_oid_1": "SNMP OID 1",
-            "vb_value_1": "SNMP Value 1",
-            "vb_oid_2": "SNMP OID 2",
-            "vb_value_2": "SNMP Value 2"
+          "widget_id": "c29bb685"
+        },
+        {
+          "title": "Hourly Alerts by Severity",
+          "widget_type": "timeseries",
+          "stream": "oia-events-stream",
+          "ts_column": "e_updatedat",
+          "max_width": 4,
+          "height": 4,
+          "min_width": 4,
+          "chartProperties": {
+            "yAxisLabel": "Count",
+            "xAxisLabel": "Hourly Alerts",
+            "legendLocation": "top"
           },
-          "widget_id": "46a6b5b6"
+          "interval": "60Min",
+          "group_by": [
+            "e_severity"
+          ],
+          "series_spec": [
+            {
+              "column": "e_id",
+              "agg": "value_count",
+              "type": "int"
+            }
+          ],
+          "widget_id": "058d11cc"
         }
       ]
     }
