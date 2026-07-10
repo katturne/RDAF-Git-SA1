@@ -1,635 +1,100 @@
 {
-  "name": "pipeline_failure_trends",
-  "label": "Health: Pipeline Failure Trend",
-  "description": "device_training: Insights",
-  "dashboard_folder": "RDAF_Health_Trends",
-  "version": "1.0.0",
-  "enabled": false,
-  "showTitle": false,
-  "title": "Dashboard Data",
-  "dashboard_type": "template",
-  "live_edit": true,
-  "debug": false,
-  "template_variables": {
-    "STREAM_NAME": {
-      "contextId": "stream_name",
-      "default": "rda_system_worker_traces"
-    }
-  },
+  "name": "rda-fabric-health-app",
+  "label": "Fabric Health",
+  "description": "Fabric Health Administration",
+  "version": "22.9.9.1",
+  "enabled": true,
   "computedContext": {
-    "show_traces": {
-      "expr": "'yes' if str(stream_name) in [ 'rda_system_worker_traces'] else 'no'",
-      "defaultValue": "yes"
+    "NOW": {
+      "expr": "now().replace(hour = 0, minute = 0, second = 0, microsecond = 0).isoformat()"
     },
-    "show_logs": {
-      "expr": "'yes' if str(stream_name) in [ 'rda_system_worker_logs'] else 'no'",
-      "defaultValue": "no"
+    "DAY_1_AGO": {
+      "expr": "now().replace(hour = 0, minute = 0, second = 0, microsecond = 0).isoformat()"
     },
-    "all_context": {
-      "expr": "",
-      "defaultValue": "Unknown"
+    "DAY_2_AGO": {
+      "expr": "(now().replace(hour = 0, minute = 0, second = 0, microsecond = 0) - timedelta(days=1)).isoformat()"
+    },
+    "DAY_3_AGO": {
+      "expr": "(now().replace(hour = 0, minute = 0, second = 0, microsecond = 0) - timedelta(days=2)).isoformat()"
+    },
+    "DAY_4_AGO": {
+      "expr": "(now().replace(hour = 0, minute = 0, second = 0, microsecond = 0) - timedelta(days=3)).isoformat()"
+    },
+    "TODAY": {
+      "expr": "now().strftime('%B %d, %Y')"
     }
   },
   "dashboard_filters": {
-    "time_filter": true,
-    "default_time_filter_labels": [
-      "Last 2 days"
-    ],
-    "columns_filter": [
-      {
-        "id": "timestamp",
-        "label": "Timestamp",
-        "type": "DATETIME"
-      },
-      {
-        "id": "pipeline_name",
-        "label": "Pipeline Name",
-        "type": "TEXT"
-      },
-      {
-        "id": "error_message",
-        "label": "Error Message",
-        "type": "TEXT"
-      }
-    ],
-    "group_filters": [
-      {
-        "stream": "rda_system_worker_traces",
-        "title": "Pipeline Name (Traces)",
-        "extra_filter": "status_type == 'failed' or levelname== 'ERROR'",
-        "limit": 50,
-        "group_by": [
-          "pipeline_name"
-        ],
-        "ts_column": "timestamp",
-        "agg": "cardinality",
-        "column": "pipeline_name",
-        "type": "int",
-        "show_counts": false
-      },
-      {
-        "stream": "rda_system_worker_logs",
-        "title": "Pipeline Name (Logs)",
-        "extra_filter": "status_type == 'failed' or levelname== 'ERROR'",
-        "limit": 50,
-        "group_by": [
-          "pipeline_name"
-        ],
-        "ts_column": "timestamp",
-        "agg": "cardinality",
-        "column": "pipeline_name",
-        "type": "int",
-        "show_counts": false
-      }
-    ]
+    "time_filter": false,
+    "columns_filter": []
   },
   "dashboard_sections": [
     {
-      "title": "Pipeline Failure",
-      "show_filter": true,
-      "widgets": [
-        {
-          "widget_type": "label",
-          "context_filter": "show_traces is 'yes'",
-          "max_width": 12,
-          "height": 0.5,
-          "min_width": 12,
-          "label": "<div style='text-align:center;width:100%;'><h1><a style='text-decoration:none;color:#0066ff;' target='_blank'> Pipeline Failure Trend (Worker Traces)</a></h1></div>",
-          "widget_id": "33317e49"
-        },
-        {
-          "widget_type": "label",
-          "context_filter": "show_logs is 'yes'",
-          "max_width": 12,
-          "height": 0.5,
-          "min_width": 12,
-          "label": "<div style='text-align:center;width:100%;'><h1><a style='text-decoration:none;color:#0066ff;' target='_blank'> Pipeline Failure Trend (Worker Logs) </a></h1></div>",
-          "widget_id": "af4f91d4"
-        },
-        {
-          "widget_type": "pie_chart",
-          "title": "Top pipelines failed ",
-          "duration_hours": 1080,
-          "stream": "{{STREAM_NAME}}",
-          "ts_column": "timestamp",
-          "extra_filter": "status_type == 'failed' or levelname== 'ERROR'",
-          "column": "count_",
-          "agg": "value_count",
-          "group_by": [
-            "pipeline_name"
-          ],
-          "min_width": 4,
-          "height": 4,
-          "max_width": 4,
-          "widget_id": "b015e2a2"
-        },
-        {
-          "title": "Unique Count Failing Pipelines (Daily)",
-          "widget_type": "timeseries",
-          "stream": "{{STREAM_NAME}}",
-          "ts_column": "timestamp",
-          "extra_filter": "status_type == 'failed' or levelname== 'ERROR'",
-          "duration_hours": 1080,
-          "max_width": 8,
-          "height": 4,
-          "min_width": 8,
-          "gap_interval": "keep",
-          "chartProperties": {
-            "yAxisLabel": "Failures",
-            "xAxisLabel": "Local Time",
-            "legendLocation": "none",
-            "isDownsamplingDisabled": true,
-            "mode": "selection",
-            "column-id": "timestamp",
-            "options": {
-              "axes": {
-                "display": false
-              }
-            }
-          },
-          "interval": "1d",
-          "series_spec": [
-            {
-              "column": "pipeline_name",
-              "agg": "cardinality",
-              "type": "int"
-            }
-          ],
-          "widget_id": "ed5ca8c1"
-        },
-        {
-          "title": "Top Pipelines",
-          "widget_type": "tabular",
-          "duration_hours": 1080,
-          "max_width": 4,
-          "max_rows": 10,
-          "height": 5,
-          "min_width": 4,
-          "stream": "{{STREAM_NAME}}",
-          "ts_column": "timestamp",
-          "extra_filter": "status_type == 'failed' or levelname== 'ERROR'",
-          "paginated": false,
-          "remote_searchable": true,
-          "remote_searchable_cols": [
-            "pipeline_name"
-          ],
-          "columns": {
-            "pipeline_name": {
-              "title": "Pipeline",
-              "key": true
-            }
-          },
-          "pivot": {
-            "pivot_type": "advanced",
-            "group_by": [
-              "pipeline_name"
-            ],
-            "series": [
-              {
-                "column": "count_",
-                "agg": "sum",
-                "type": "int",
-                "label": "Failure Count"
-              }
-            ]
-          },
-          "widget_id": "954ed85a"
-        },
-        {
-          "title": "Top Errors (Traces)",
-          "context_filter": "show_traces is 'yes'",
-          "widget_type": "tabular",
-          "duration_hours": 1080,
-          "max_width": 8,
-          "max_rows": 10,
-          "height": 6,
-          "min_width": 6,
-          "stream": "{{STREAM_NAME}}",
-          "ts_column": "timestamp",
-          "extra_filter": "status_type == 'failed' or levelname== 'ERROR'",
-          "paginated": false,
-          "remote_searchable_cols": [
-            "error_message"
-          ],
-          "columns": {
-            "error_message": {
-              "title": "Error",
-              "key": true
-            }
-          },
-          "pivot": {
-            "pivot_type": "advanced",
-            "group_by": [
-              "error_message"
-            ],
-            "series": [
-              {
-                "column": "count_",
-                "agg": "sum",
-                "type": "int",
-                "label": "Failure Count"
-              }
-            ]
-          },
-          "widget_id": "a329bffb"
-        },
-        {
-          "title": "Top Errors (Logs)",
-          "context_filter": "show_logs is 'yes'",
-          "widget_type": "tabular",
-          "duration_hours": 1080,
-          "max_width": 8,
-          "max_rows": 10,
-          "height": 6,
-          "min_width": 6,
-          "stream": "{{STREAM_NAME}}",
-          "ts_column": "timestamp",
-          "extra_filter": "status_type == 'failed' or levelname== 'ERROR'",
-          "paginated": false,
-          "remote_searchable_cols": [
-            "message"
-          ],
-          "columns": {
-            "message": {
-              "title": "Error",
-              "key": true
-            }
-          },
-          "pivot": {
-            "pivot_type": "advanced",
-            "group_by": [
-              "message"
-            ],
-            "series": [
-              {
-                "column": "count_",
-                "agg": "sum",
-                "type": "int",
-                "label": "Failure Count"
-              }
-            ]
-          },
-          "widget_id": "db9561ce"
-        },
-        {
-          "title": "Failed Pipeline Execution List (Traces)",
-          "context_filter": "show_traces is 'yes'",
-          "widget_type": "tabular",
-          "duration_hours": 1080,
-          "max_width": 12,
-          "height": 8,
-          "min_width": 12,
-          "stream": "{{STREAM_NAME}}",
-          "ts_column": "timestamp",
-          "extra_filter": "status_type == 'failed' or levelname== 'ERROR'",
-          "paginated": false,
-          "remote_searchable_cols": [
-            "pipeline_name",
-            "error_message"
-          ],
-          "columns": {
-            "pipeline_name": {
-              "title": "Pipeline Name",
-              "type": "TEXT"
-            },
-            "error_message": {
-              "title": "Error Message",
-              "type": "TEXT",
-              "visible": true
-            },
-            "timestamp": {
-              "title": "Timestamp",
-              "type": "DATETIME",
-              "visible": true
-            }
-          },
-          "widget_id": "b9e3d8a1"
-        },
-        {
-          "title": "Failed Pipeline Execution List (Logs)",
-          "context_filter": "show_logs is 'yes'",
-          "widget_type": "tabular",
-          "duration_hours": 1080,
-          "max_width": 12,
-          "height": 8,
-          "min_width": 12,
-          "stream": "{{STREAM_NAME}}",
-          "ts_column": "timestamp",
-          "extra_filter": "status_type == 'failed' or levelname== 'ERROR'",
-          "paginated": false,
-          "remote_searchable_cols": [
-            "pipeline_name",
-            "message"
-          ],
-          "columns": {
-            "pipeline_name": {
-              "title": "Pipeline Name",
-              "type": "TEXT"
-            },
-            "message": {
-              "title": "Error Message",
-              "type": "TEXT",
-              "visible": true
-            },
-            "timestamp": {
-              "title": "Timestamp",
-              "type": "DATETIME",
-              "visible": true
-            }
-          },
-          "widget_id": "58205089"
-        }
-      ]
+      "title": "Example"
     }
   ],
-  "dynamic_form": {
-    "formData": {},
-    "controlPanelFormDefinition": {
-      "title": "Select Data Source",
-      "buttonLabel": "Apply",
-      "id": "kpi.benchmark.json",
-      "refreshRequired": true,
-      "openByDefault": false,
-      "formFieldList": [
-        {
-          "fieldId": "stream_name",
-          "label": "Select Source",
-          "hidden": false,
-          "editable": true,
-          "required": true,
-          "controlType": "COMBO_BOX",
-          "defaultValue": "rda_system_worker_traces",
-          "lovValues": [
-            {
-              "identifier": "rda_system_worker_traces",
-              "displayName": "RDAF Worker Traces"
-            },
-            {
-              "identifier": "rda_system_worker_logs",
-              "displayName": "RDAF Worker Logs"
-            }
-          ]
-        }
-      ]
+  "dashboard_type": "app",
+  "dashboard_folder": "System",
+  "dashboard_pages": [
+    {
+      "name": "rda-health-workers",
+      "label": "Workers",
+      "icon": "Analytics.svg"
+    },
+    {
+      "name": "rda-health-agents",
+      "label": "Agents",
+      "icon": "datasource.svg"
+    },
+    {
+      "name": "rda-health-microservices",
+      "label": "Microservices",
+      "icon": "gateway.svg"
+    },
+    {
+      "name": "rda-microservice-traces_page_Traces",
+      "label": "Traces",
+      "icon": "pipeline.svg"
+    },
+    {
+      "name": "rda-operations-page-jobs",
+      "label": "Jobs",
+      "icon": "templates.svg"
+    },
+    {
+      "name": "rda-operations-page-trends",
+      "label": "Trends",
+      "icon": "stack.svg"
+    },
+    {
+      "name": "fabric-usage",
+      "label": "Fabric Usage",
+      "icon": "experiment.svg"
+    },
+    {
+      "name": "pipeline_failure_trend",
+      "label": "Pipeline Failure Trend",
+      "icon": "bots.svg"
+    },
+    {
+      "name": "stream_error_trend",
+      "label": "Stream Error Trend",
+      "icon": "library.svg"
+    },
+    {
+      "name": "user_activity_trend",
+      "label": "User Activity",
+      "icon": "customer.svg"
+    },
+    {
+      "name": "artifact_change_trend",
+      "label": "Artifact Change Trend",
+      "icon": "file.svg"
     }
-  },
+  ],
   "pstream_dashboards": [
     {
-      "title": "Pipeline Failure",
-      "show_filter": true,
-      "widgets": [
-        {
-          "widget_type": "label",
-          "context_filter": "show_traces is 'yes'",
-          "max_width": 12,
-          "height": 0.5,
-          "min_width": 12,
-          "label": "<div style='text-align:center;width:100%;'><h1><a style='text-decoration:none;color:#0066ff;' target='_blank'> Pipeline Failure Trend (Worker Traces)</a></h1></div>",
-          "widget_id": "33317e49"
-        },
-        {
-          "widget_type": "label",
-          "context_filter": "show_logs is 'yes'",
-          "max_width": 12,
-          "height": 0.5,
-          "min_width": 12,
-          "label": "<div style='text-align:center;width:100%;'><h1><a style='text-decoration:none;color:#0066ff;' target='_blank'> Pipeline Failure Trend (Worker Logs) </a></h1></div>",
-          "widget_id": "af4f91d4"
-        },
-        {
-          "widget_type": "pie_chart",
-          "title": "Top pipelines failed ",
-          "duration_hours": 1080,
-          "stream": "{{STREAM_NAME}}",
-          "ts_column": "timestamp",
-          "extra_filter": "status_type == 'failed' or levelname== 'ERROR'",
-          "column": "count_",
-          "agg": "value_count",
-          "group_by": [
-            "pipeline_name"
-          ],
-          "min_width": 4,
-          "height": 4,
-          "max_width": 4,
-          "widget_id": "b015e2a2"
-        },
-        {
-          "title": "Unique Count Failing Pipelines (Daily)",
-          "widget_type": "timeseries",
-          "stream": "{{STREAM_NAME}}",
-          "ts_column": "timestamp",
-          "extra_filter": "status_type == 'failed' or levelname== 'ERROR'",
-          "duration_hours": 1080,
-          "max_width": 8,
-          "height": 4,
-          "min_width": 8,
-          "gap_interval": "keep",
-          "chartProperties": {
-            "yAxisLabel": "Failures",
-            "xAxisLabel": "Local Time",
-            "legendLocation": "none",
-            "isDownsamplingDisabled": true,
-            "mode": "selection",
-            "column-id": "timestamp",
-            "options": {
-              "axes": {
-                "display": false
-              }
-            }
-          },
-          "interval": "1d",
-          "series_spec": [
-            {
-              "column": "pipeline_name",
-              "agg": "cardinality",
-              "type": "int"
-            }
-          ],
-          "widget_id": "ed5ca8c1"
-        },
-        {
-          "title": "Top Pipelines",
-          "widget_type": "tabular",
-          "duration_hours": 1080,
-          "max_width": 4,
-          "max_rows": 10,
-          "height": 5,
-          "min_width": 4,
-          "stream": "{{STREAM_NAME}}",
-          "ts_column": "timestamp",
-          "extra_filter": "status_type == 'failed' or levelname== 'ERROR'",
-          "paginated": false,
-          "remote_searchable": true,
-          "remote_searchable_cols": [
-            "pipeline_name"
-          ],
-          "columns": {
-            "pipeline_name": {
-              "title": "Pipeline",
-              "key": true
-            }
-          },
-          "pivot": {
-            "pivot_type": "advanced",
-            "group_by": [
-              "pipeline_name"
-            ],
-            "series": [
-              {
-                "column": "count_",
-                "agg": "sum",
-                "type": "int",
-                "label": "Failure Count"
-              }
-            ]
-          },
-          "widget_id": "954ed85a"
-        },
-        {
-          "title": "Top Errors (Traces)",
-          "context_filter": "show_traces is 'yes'",
-          "widget_type": "tabular",
-          "duration_hours": 1080,
-          "max_width": 8,
-          "max_rows": 10,
-          "height": 6,
-          "min_width": 6,
-          "stream": "{{STREAM_NAME}}",
-          "ts_column": "timestamp",
-          "extra_filter": "status_type == 'failed' or levelname== 'ERROR'",
-          "paginated": false,
-          "remote_searchable_cols": [
-            "error_message"
-          ],
-          "columns": {
-            "error_message": {
-              "title": "Error",
-              "key": true
-            }
-          },
-          "pivot": {
-            "pivot_type": "advanced",
-            "group_by": [
-              "error_message"
-            ],
-            "series": [
-              {
-                "column": "count_",
-                "agg": "sum",
-                "type": "int",
-                "label": "Failure Count"
-              }
-            ]
-          },
-          "widget_id": "a329bffb"
-        },
-        {
-          "title": "Top Errors (Logs)",
-          "context_filter": "show_logs is 'yes'",
-          "widget_type": "tabular",
-          "duration_hours": 1080,
-          "max_width": 8,
-          "max_rows": 10,
-          "height": 6,
-          "min_width": 6,
-          "stream": "{{STREAM_NAME}}",
-          "ts_column": "timestamp",
-          "extra_filter": "status_type == 'failed' or levelname== 'ERROR'",
-          "paginated": false,
-          "remote_searchable_cols": [
-            "message"
-          ],
-          "columns": {
-            "message": {
-              "title": "Error",
-              "key": true
-            }
-          },
-          "pivot": {
-            "pivot_type": "advanced",
-            "group_by": [
-              "message"
-            ],
-            "series": [
-              {
-                "column": "count_",
-                "agg": "sum",
-                "type": "int",
-                "label": "Failure Count"
-              }
-            ]
-          },
-          "widget_id": "db9561ce"
-        },
-        {
-          "title": "Failed Pipeline Execution List (Traces)",
-          "context_filter": "show_traces is 'yes'",
-          "widget_type": "tabular",
-          "duration_hours": 1080,
-          "max_width": 12,
-          "height": 8,
-          "min_width": 12,
-          "stream": "{{STREAM_NAME}}",
-          "ts_column": "timestamp",
-          "extra_filter": "status_type == 'failed' or levelname== 'ERROR'",
-          "paginated": false,
-          "remote_searchable_cols": [
-            "pipeline_name",
-            "error_message"
-          ],
-          "columns": {
-            "pipeline_name": {
-              "title": "Pipeline Name",
-              "type": "TEXT"
-            },
-            "error_message": {
-              "title": "Error Message",
-              "type": "TEXT",
-              "visible": true
-            },
-            "timestamp": {
-              "title": "Timestamp",
-              "type": "DATETIME",
-              "visible": true
-            }
-          },
-          "widget_id": "b9e3d8a1"
-        },
-        {
-          "title": "Failed Pipeline Execution List (Logs)",
-          "context_filter": "show_logs is 'yes'",
-          "widget_type": "tabular",
-          "duration_hours": 1080,
-          "max_width": 12,
-          "height": 8,
-          "min_width": 12,
-          "stream": "{{STREAM_NAME}}",
-          "ts_column": "timestamp",
-          "extra_filter": "status_type == 'failed' or levelname== 'ERROR'",
-          "paginated": false,
-          "remote_searchable_cols": [
-            "pipeline_name",
-            "message"
-          ],
-          "columns": {
-            "pipeline_name": {
-              "title": "Pipeline Name",
-              "type": "TEXT"
-            },
-            "message": {
-              "title": "Error Message",
-              "type": "TEXT",
-              "visible": true
-            },
-            "timestamp": {
-              "title": "Timestamp",
-              "type": "DATETIME",
-              "visible": true
-            }
-          },
-          "widget_id": "58205089"
-        }
-      ]
+      "title": "Example"
     }
   ]
 }
