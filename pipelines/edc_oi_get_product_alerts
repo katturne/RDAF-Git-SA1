@@ -1,71 +1,81 @@
-@dm:create-persistent-stream name="dashboard_export_email_status" and unique_cols="job_id" and retention_days=1
- --> @dm:empty
- --> @dm:save name="temp-df"
+
+ ## get the minio path for the uploaded file
+@exec:get-input
+ --> @dm:save name='temp-user-uploaded-data'
+ ## declaring child pipelines
+
  --> @c:new-block
  --> @dm:empty
- --> @exec:define-function name="handle_error"
- --> @dm:empty
- --> @dm:addrow status="Failed" and reason="Error: email sending process failed to the email ID '{{recipient}}'" and job_id="{{job_id}}" and ingestion_id="{{ingestion_id}}"
- --> @rn:write-stream name="rda_dashboard_schedule_logs"
+ --> @exec:define-function name="define_child_pipelines"
+ --> @exec:run-pipeline name ="edc_oi_get_product_alerts" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_oi_product_alerts_raw" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_oi_product_alerts_run_scan" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_oi_generate_token" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_oi_process_sw_data" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_oi_get_sweol_data" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_oi_get_security_advisories_data" & ignore_failures = "no"
  --> @exec:end-function
- ## --> @c:new-block
+ --> @c:new-block
+ --> @dm:recall name='temp-user-uploaded-data'
+ ## --> @dm:add-missing-columns columns="source" and value='software'
+
+ --> @exec:run-pipeline name ="edc_oi_product_alerts_raw" & ignore_failures = "no"
+ --> @dm:save name='temp-edc-raw-op-exploded'
+ ## Creating the ingestion id
+
+ ## -->@c:new-block
 
  ## --> @dm:empty
 
- ## --> @exec:retry-loop retries=3 & retry_delay_millis=5000 & on_failure_callback="handle_error"
+ ## --> @dm:addrow key="key"
 
- ## --> @dm:addrow name="dashboard_export_email_status" & limit = '0'
+ ## --> @dm:eval start_time="time_now_as_ms()"
 
- ## --> #dm:query-persistent-stream job_id=="{{job_id}}"
+ ## --> @dm:add-checksum key="start_time" and row_checksum_column="ingestion_id"
 
- ## --> @dm:save name="temp-original"
+ ## --> @dm:save name="temp-ingestion_id"
 
- ## --> @dm:skip-block-if-shape row_count="0"
-
- ## --> @dm:eval collection_timestamp = "int(time_now_as_ms())"
-
- ## --> @dm:eval diff="collection_timestamp-rda_timestamp"
-
- ## --> *dm:filter diff > 300000
-
- ## --> @dm:save name="temp-df"
-
- ## --> @dm:skip-block-if-shape row_count="0"
-
- ## --> @dm:empty
-
- ## --> @dm:addrow job_id="{{job_id}}"
-
- ## --> @email:sendmail-data recipient="{{recipient}}" and minio_file_location="{{minio_path}}" and subject="{{subject}}"
-
- ## --> @rn:write-stream name="dashboard_export_email_status"
-
- ## --> @dm:empty
-
- ## --> @dm:addrow status="The exported file is successfully sent to the email ID '{{recipient}}'"
-
- ## --> @dm:eval reason=None
-
- ## --> @dm:eval job_id="'{{job_id}}'" and ingestion_id="'{{ingestion_id}}'"
-
- ## --> @rn:write-stream name="rda_dashboard_schedule_logs"
-
- ## --> @exec:end-loop
+ ## adds the output to the respective streams
 
  --> @c:new-block
- --> @dm:empty
- --> @exec:retry-loop retries=3 & retry_delay_millis=5000 & on_failure_callback="handle_error"
- ## --> @dm:recall name="temp-original"
+ --> @dm:recall name='temp-edc-raw-op-exploded'
+ --> *exec:if-condition source=='software'
+ --> @dm:recall name='temp-edc-raw-op-exploded'
+ ## --> @dm:eval key="'key'"
 
- --> @dm:empty
- --> @dm:skip-block-if-shape row_count>0
- --> @dm:empty
- --> @dm:addrow job_id="{{job_id}}"
- --> @email:sendmail-data recipient="{{recipient}}" and minio_file_location="{{minio_path}}" and subject="{{subject}}"
- --> @rn:write-stream name="dashboard_export_email_status"
- --> @dm:empty
- --> @dm:addrow status="The exported file is successfully sent to the email ID '{{recipient}}'"
- --> @dm:eval reason=None
- --> @dm:eval job_id="'{{job_id}}'" and ingestion_id="'{{ingestion_id}}'"
- --> @rn:write-stream name="rda_dashboard_schedule_logs"
- --> @exec:end-loop
+ ## --> @dm:enrich dict="temp-ingestion_id" and src_key_cols="key" and dict_key_cols="key" and enrich_cols="ingestion_id"
+
+ ## --> @dm:selectcolumns exclude="^key$"
+
+ --> @dm:to-type columns='contract_number,product_id,customer,product_name,sw_version,sw_os_type' and type='str'
+ --> @dm:map from = 'contract_number,customer,product_name,product_id,sw_version,sw_os_type' & to = 'unique_key' & func = 'join' & sep = '_'
+ --> @rn:write-stream name='edc_sw_raw_data'
+ --> @exec:end-if
+ --> @c:new-block
+ --> @dm:recall name='temp-edc-raw-op-exploded'
+ --> *exec:if-condition source=='security_advisory'
+ --> @dm:recall name='temp-edc-raw-op-exploded'
+ ## --> @dm:eval key="'key'"
+
+ ## --> @dm:enrich dict="temp-ingestion_id" and src_key_cols="key" and dict_key_cols="key" and enrich_cols="ingestion_id"
+
+ ## --> @dm:selectcolumns exclude="^key$"
+
+ --> @dm:to-type columns='customer,product_name,product_id,sw_version,sw_os_type,advisoryId,PsirtID,contract_number' and type='str'
+ --> @dm:map from = 'advisoryId,PsirtID,customer,product_name,product_id,sw_version,sw_os_type,contract_number' & to = 'unique_key' & func = 'join' & sep = '_'
+ --> @rn:write-stream name='edc_sec_adv_data_raw'
+ --> @exec:end-if
+ ## calling the enrich pipeline
+
+ --> @c:new-block
+ --> @dm:recall name='temp-edc-raw-op-exploded'
+ --> *exec:if-condition source=='software'
+ --> @dm:recall name='temp-edc-raw-op-exploded'
+ --> @exec:run-pipeline name='edc_oi_get_sweol_data' and ignore_failures = "no"
+ --> @exec:end-if
+ --> @c:new-block
+ --> @dm:recall name='temp-edc-raw-op-exploded'
+ --> *exec:if-condition source=='security_advisory'
+ --> @dm:recall name='temp-edc-raw-op-exploded'
+ --> @exec:run-pipeline name='edc_oi_get_security_advisories_data' and ignore_failures = "no"
+ --> @exec:end-if
