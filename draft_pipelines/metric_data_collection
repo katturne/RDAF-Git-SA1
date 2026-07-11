@@ -1,90 +1,85 @@
-@c:data-loop dataset="oia-meapm-metrics-list" & columns="asset_id,RESOURCEID,AttributeID,metric_label,unit"
- --> @me-apm:metrics resourceid = '$RESOURCEID' and attributeid='$AttributeID' and timestamp is after -60 min
- --> @dm:add-missing-columns columns='collection_timestamp,AvgValue'
- --> @dm:dropnull columns='collection_timestamp,AvgValue'
- --> @dm:to-type columns='AvgValue' and type='float'
- --> *dm:filter AvgValue > 0.0
- --> @dm:skip-block-if-shape row_count=0
- --> @dm:rename-columns metric_timestamp='collection_timestamp'
- --> @dm:rename-columns value='AvgValue'
- --> @dm:eval metric_source="'ManageEngine'"
- --> @dm:eval asset_id = "'$asset_id'"
- --> @dm:eval RESOURCEID = "'$RESOURCEID'"
- --> @dm:eval AttributeID = "'$AttributeID'"
- --> @dm:eval metric_label = `str("$metric_label")`
- --> @dm:eval metric_name = "metric_label"
- --> @dm:eval unit = "'$unit'"
- --> @dm:map from = 'RESOURCEID,AttributeID' and to = 'metric_id' and func = "join" and sep = ' - '
- --> @dm:eval metric_source="'ManageEngine'"
- --> @dm:change-time-format columns='metric_timestamp' & from_format='ms' & to_format='%Y-%m-%dT%H:%M:%S'
- --> @dm:add-missing-columns columns='asset_name' and value='Not Available'
- --> @dm:add-missing-columns columns='customer' and value='ACME'
- --> @dm:selectcolumns include="^asset_id$|^asset_name$|^metric_id$|^metric_label$|^metric_name$|^metric_source$|^metric_timestamp$|^unit$|^value$|^customer$"
- --> @rn:write-stream name='oia-metrics-data'
- --> @dm:selectcolumns include="^asset_id$|^asset_name$|^metric_id$|^metric_label$|^metric_name$|^metric_source$|^unit$|^customer$"
- --> @rn:write-stream name='oia-selected-metrics'
- --> @c:data-loop dataset="oia-prometheus-metrics-list" & columns="asset_id,metric_id,instance,metric_label,unit"
- --> @prometheus:metric-range metric is `$metric_id{instance="$instance"}` and timestamp is after -60 min
- --> @dm:add-missing-columns columns='timestamp,value'
- --> @dm:dropnull columns='timestamp,value'
- --> @dm:to-type columns='value' and type='float'
- --> *dm:filter value > 0.0
- --> @dm:skip-block-if-shape row_count=0
- --> @dm:rename-columns metric_timestamp='timestamp'
- --> @dm:eval metric_source = "'Prometheus'"
- --> @dm:eval asset_id = "'$asset_id'"
- --> @dm:eval metric_id = "'$metric_id'"
- --> @dm:eval metric_label = `str("$metric_label")`
- --> @dm:eval metric_name = "metric_label"
- --> @dm:eval unit = "'$unit'"
- --> @dm:change-time-format columns='metric_timestamp' & from_format='ms' & to_format='%Y-%m-%dT%H:%M:%S'
- --> @dm:add-missing-columns columns='asset_name' and value='Not Available'
- --> @dm:add-missing-columns columns='customer' and value='ACME'
- --> @dm:selectcolumns include="^asset_id$|^asset_name$|^metric_id$|^metric_label$|^metric_name$|^metric_source$|^metric_timestamp$|^unit$|^value$|^customer$"
- --> @rn:write-stream name='oia-metrics-data'
- --> @dm:selectcolumns include="^asset_id$|^asset_name$|^metric_id$|^metric_label$|^metric_name$|^metric_source$|^unit$|^customer$"
- --> @rn:write-stream name='oia-selected-metrics'
- --> @c:data-loop dataset='oia-vrops-metrics-list' & columns='metric_id,resource_id,asset_id,asset_name,metric_label,unit'
- --> @vrops:metrics resource_id= '$resource_id' & metric_name='$metric_id' & timestamp is after -60 min & interval is '15min' and skip_on_error='yes'
- --> *dm:filter rda_status is 'Success'
- --> @dm:skip-block-if-shape row_count=0
- --> @dm:dropnull columns='timestamps,data'
- --> @dm:to-type columns='data' and type='float'
- --> *dm:filter data > 0.0
- --> @dm:skip-block-if-shape row_count=0
- --> @dm:rename-columns metric_timestamp='timestamps' & value='data'
- --> @dm:eval metric_source = "'vROps'"
- --> @dm:eval asset_id = "'$asset_id'"
- --> @dm:eval asset_name = "'$asset_name'"
- --> @dm:eval metric_id = "'$metric_id'"
- --> @dm:eval metric_label = `str("$metric_label")`
- --> @dm:eval metric_name = "metric_label"
- --> @dm:eval unit = "'$unit'"
- --> @dm:change-time-format columns='metric_timestamp' & from_format='ms' & to_format='%Y-%m-%dT%H:%M:%S'
- --> @dm:add-missing-columns columns='asset_name' and value='Not Available'
- --> @dm:add-missing-columns columns='customer' and value='ACME'
- --> @dm:selectcolumns include="^asset_id$|^asset_name$|^metric_id$|^metric_label$|^metric_name$|^metric_source$|^metric_timestamp$|^unit$|^value$|^customer$"
- --> @rn:write-stream name='oia-metrics-data'
- --> @dm:selectcolumns include="^asset_id$|^asset_name$|^metric_id$|^metric_label$|^metric_name$|^metric_source$|^unit$|^customer$"
- --> @rn:write-stream name='oia-selected-metrics'
+@dm:empty
+ --> @dm:addrow name = 'edc_customer_inventory' and limit=0
+ --> #dm:query-persistent-stream project_name='CRS' and sw_version!='Not Available'
+ --> @dm:selectcolumns exclude='PID'
+ --> @dm:manipulate-string to="customer" and func="eval" and value="'ATT'"
+ --> @dm:save name='temp-contract_data'
  --> @dm:empty
- --> @dm:recall name='oia-dynatrace-metrics-list'
- --> @dynatrace:dynatrace-bulk-metric-collection entity_id_col='asset_id' and metric_col='metric_id' and timestamp is after -1month
- --> @dm:skip-block-if-shape row_count=0
- --> @dm:dropnull columns='timestamp,value'
- --> @dm:to-type columns='value' and type='float'
- --> *dm:filter value > 0.0
- --> @dm:add-missing-columns columns='timestamp,value'
- --> @dm:rename-columns metric_timestamp='timestamp'
- --> @dm:eval-multi-proc metric_source="'Dynatrace'"
- --> @dm:enrich dict='oia-dynatrace-metrics-list' and src_key_cols='metric' and dict_key_cols='metric_id' and enrich_cols='metric_label'
- --> @dm:map-multi-proc from = 'component' and to = 'asset_id' and func = 'split' and sep = ':'
- --> @dm:eval-multi-proc asset_id = 'asset_id[0]'
- --> @dm:eval-multi-proc metric_name = "metric_label"
- --> @dm:change-time-format columns='metric_timestamp' & from_format='ms' & to_format='%Y-%m-%dT%H:%M:%S'
- --> @dm:add-missing-columns columns='asset_name' and value='Not Available'
- --> @dm:add-missing-columns columns='customer' and value='ACME'
- --> @dm:selectcolumns include="^asset_id$|^asset_name$|^metric_id$|^metric_label$|^metric_name$|^metric_source$|^metric_timestamp$|^unit$|^value$|^customer$"
- --> @rn:write-stream name='oia-metrics-data'
- --> @dm:selectcolumns include="^asset_id$|^asset_name$|^metric_id$|^metric_label$|^metric_name$|^metric_source$|^unit$|^customer$"
- --> @rn:write-stream name='oia-selected-metrics'
+ --> @dm:empty
+ --> @dm:save name = "project-enriched-sweol-values"
+ ## Generate unique list of PID-SW version to process
+
+ --> @c:new-block
+ --> @dm:recall name="temp-contract_data"
+ --> *dm:filter sw_version!='Not Available'
+ --> *dm:filter sw_os_type is not null
+ --> @dm:selectcolumns include="customer|^product_id|sw_os_type|sw_version|instance_id"
+ --> @dm:groupby columns ="customer,product_id,sw_os_type,sw_version"
+ --> @dm:rename-columns instance_id="total"
+ --> @dm:eval unique_key = "str(product_id) + str(sw_os_type) + str(sw_version)"
+ --> @dm:save name="temp-input-dataset"
+ ## Process SW EoL
+
+ ## declaring thrid level child pipelines
+
+ --> @c:new-block
+ --> @dm:empty
+ --> @exec:define-function name="define_child_pipelines"
+ --> @exec:run-pipeline name ="edc_generate_token" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_sw_get_data" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_sweol_enrich" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_processing_sw_data" & ignore_failures = "no"
+ --> @exec:end-function
+ ## collecting the file and storing it in edc_cust_pid_sw stream, collecting the API data and adding the processed data to edc_sw_raw_data
+
+ --> @c:new-block
+ --> @dm:recall name='temp-input-dataset'
+ ## --> @rn:write-stream name='edc_cust_pid_sw'
+
+ --> @dm:save name="temp-cust_pid_sw"
+ --> @exec:run-pipeline name ="edc_sw_run_scan" & ignore_failures = "no"
+ --> @dm:save name='project-enriched-sweol-values'
+ --> @dm:save name='temp-enriched-sweol-values'
+ ## Process SWEoL
+
+ --> @c:new-block
+ --> @dm:recall name='temp-enriched-sweol-values'
+ --> @dm:save name='temp-sweol-data'
+ ## creates a list of unique customers
+
+ --> @c:new-block
+ --> @dm:recall name='temp-sweol-data'
+ --> @dm:groupby columns='customer'
+ --> @dm:save name='temp-unique-cust-name'
+ ## Queries data for the customer from edc_customer inventory
+
+ --> @c:data-loop dataset='temp-unique-cust-name' and columns='customer'
+ --> @dm:recall name='temp-contract_data'
+ --> *dm:filter customer == '$customer'
+ --> @dm:save name='temp-hw-eol-details' and append='yes'
+ ## processes the software columns for the customer
+
+ --> @c:data-loop columns='customer' and dataset='temp-unique-cust-name'
+ --> @dm:recall name='temp-sweol-data'
+ --> *dm:filter customer == '$customer'
+ --> @exec:run-pipeline name='edc_processing_sw_data'
+ --> @dm:save name='temp-sw-eol-details'
+ --> @dm:save name='test-sw-eol-details'
+ ## enriches the processed columns to  edc_customer inventory
+
+ --> @c:new-block
+ --> @dm:recall name='temp-hw-eol-details'
+ ## --> @dm:selectcolumns exclude='sw_status_x|sw_expiring_qtr_x|sw_expiring_year_x'
+
+ --> @dm:enrich dict='temp-sw-eol-details' and src_key_cols='contract_number,customer,product_id' and dict_key_cols='contract_number_str,customer,product_id' and enrich_cols='SoftwareEOXId,BulletinNumber,BulletinHeadline,BulletinURL,EndOfSaleDate,EndOfEngineeringDate,EndOfLifeDate,PostDate,EndOfLifeInternalAnnouncementDate,EndOfLifeExternalAnnouncementDate,EndOfLastHardwareShipDate,EndOfHardwareNewServiceAttachmentDate,EndOfHardwareRoutineFailureAnalysisDate,EndOfBUEngineeringSupportTACDate,EndOfHardwareServiceContractRenewalDate,EndOfSignatureReleasesDate,EndOfSoftwareAvailabilityDate,EndOfSoftwareLicenseAvailabilityDate,EndOfSoftwareVulnerabilityOrSecuritySupportDate,created,customerVisible,external_text,external_title,firstIcAlertId,groups,icIssueId,icProblemId,ignored,lastIcAlertId,eoXAlertType,name,openedOn,resultType,severity,severityText,state,updated,deviceSN,runType,filename,icType,atticaStatus,cdetsList,retry,associatedGroups,sw_expiring_qtr,sw_expiring_year,sw_status' and replace_values='yes'
+ --> @dm:save name='final-enrich'
+ --> @dm:rename-columns EndOfLifeDate='EndOfLifeDate_y'
+ --> @dm:fixnull columns='SoftwareEOXId,BulletinNumber,BulletinHeadline,BulletinURL,EndOfSaleDate,EndOfEngineeringDate,EndOfLifeDate,PostDate,EndOfLifeInternalAnnouncementDate,EndOfLifeExternalAnnouncementDate,EndOfLastHardwareShipDate,EndOfHardwareNewServiceAttachmentDate,EndOfHardwareRoutineFailureAnalysisDate,EndOfBUEngineeringSupportTACDate,EndOfHardwareServiceContractRenewalDate,EndOfSignatureReleasesDate,EndOfSoftwareAvailabilityDate,EndOfSoftwareLicenseAvailabilityDate,EndOfSoftwareVulnerabilityOrSecuritySupportDate,created,customerVisible,external_text,external_title,firstIcAlertId,groups,icIssueId,icProblemId,ignored,lastIcAlertId,eoXAlertType,name,openedOn,resultType,severity,severityText,state,updated,deviceSN,runType,filename,icType,atticaStatus,cdetsList,retry,associatedGroups,sw_expiring_qtr,sw_expiring_year,sw_status' and value="Not Available"  and apply_for_empty="yes"
+ --> @dm:rename-columns swEOL_softwareEOXId='SoftwareEOXId' and swEOL_bulletinNumber='BulletinNumber' and swEOL_bulletinTitle='BulletinHeadline' and swEOL_bulletinUrl='BulletinURL' and swEOL_endOfSaleDate='EndOfSaleDate' and
+swEOL_endOfSoftwareMaintenanceReleasesDate='EndOfEngineeringDate' and swEOL_lastDayOfSupportDate='EndOfLifeDate' and
+swEOL_endOfVulnerabilitySecuritySupportDate='EndOfSoftwareVulnerabilityOrSecuritySupportDate' and swEOL_endOfLifeAnnouncementDate='EndOfLifeExternalAnnouncementDate'
+ --> @rn:write-stream name='edc_sweol_data'
+ --> @dm:selectcolumns exclude='^(EndOfLifeInternalAnnouncementDate|EndOfLastHardwareShipDate|EndOfHardwareNewServiceAttachmentDate|EndOfHardwareRoutineFailureAnalysisDate|EndOfBUEngineeringSupportTACDate|EndOfHardwareServiceContractRenewalDate|EndOfSignatureReleasesDate|EndOfSoftwareAvailabilityDate|EndOfSoftwareLicenseAvailabilityDate|created|customerVisible|external_text|external_title|firstIcAlertId|groups|icIssueId|icProblemId|ignored|lastIcAlertId|eoXAlertType|name|openedOn|resultType|severity|severityText|state|updated|deviceSN|runType|filename|icType|atticaStatus|cdetsList|retry|associatedGroups)$'
+ --> @dm:save name='temp-enriched-data'
+ --> @dm:save name='test-contract_data'
+ --> *dm:filter sw_version!='Not Available'
