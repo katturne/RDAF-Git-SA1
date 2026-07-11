@@ -1,62 +1,109 @@
-@dm:empty
- ## --> @exec:get-input
 
- --> @dm:recall name="test-retrieve-dataset"
- --> @dm:save name="temp-retrieve-dataset"
+ ## # Configure AppDynamics Extension Name in RDA as: AppDynamics
+
+ ## AppDynamics Application and DB Discovery for Application Dependency and Relationships
+
+ ## AppDynamics - Get Applications
+@c:new-block
+ --> *AppDynamics:appdynamics_apps * get app_name,app_id
+ --> @dm:map to = 'layer' & func = 'fixed' & value = 'Application'
+ --> @dm:map to = 'node_type' & func = 'fixed' & value = 'Application'
+ --> @dm:map from = 'app_name' & to = 'node_label'
+ --> @dm:map from = 'app_id' & to = 'node_id'
+ --> @dm:save name = 'temp_appd_applications_logical_nodes'
+ --> *dm:filter * get node_label as 'right_label',node_id as 'right_id',layer as 'right_layer',node_type as 'right_type',app_name,app_id
+ --> @dm:save name = 'temp_appd_applications'
+ ## AppDynamics Process - Database nodes
+
  --> @c:new-block
- ## --> @dm:recall name="edc_customer_names"
-
- --> @dm:recall name="temp-retrieve-dataset"
- --> *dm:filter savm_level =="SAVM_SALES_LEVEL_4_NAME"
- --> @dm:save name='temp-level4-name'
+ --> @AppDynamics:appdynamics_apps_backends
+ --> *dm:filter exitPointType contains 'DB|JDBC' get HOST,app_name
+ --> @dm:dedup columns = 'HOST'
+ --> @dm:save name = 'temp_appd_db_backends'
  --> @c:new-block
- ## --> @dm:recall name="edc_customer_names"
-
- --> @dm:recall name="temp-retrieve-dataset"
- --> *dm:filter savm_level =="SAVM_SALES_LEVEL_5_NAME"
- --> @dm:save name='temp-level5-name'
+ --> *AppDynamics:appdynamics_db_servers
+ --> *dm:filter * get host as 'db_dns_name',ipAddress as 'db_ip_address',name as 'db_hostname'
+ --> @dm:dedup columns = 'db_ip_address'
+ --> @dm:save name = 'temp_db_identity'
  --> @c:new-block
- ## --> @dm:recall name="edc_customer_names"
+ --> @dm:recall name = 'temp_db_identity'
+ --> @dm:enrich dict = 'temp_appd_db_backends' and src_key_cols = 'db_ip_address' and dict_key_cols = 'HOST' and enrich_cols = 'app_name'
+ --> @dm:map to = 'layer' & func = 'fixed' & value = 'Application Component'
+ --> @dm:map to = 'node_type' & func = 'fixed' & value = 'Database'
+ --> @dm:map from = 'db_dns_name,node_type' & to = 'db_identity' & func = 'join' & sep = '_'
+ --> @dm:map from = 'db_identity' & to = 'node_label'
+ --> @dm:map from = 'db_identity' & to = 'node_id'
+ --> @dm:selectcolumns exclude = '^db_identity$'
+ ## --> @dm:enrich dict = 'cfx-vm-inventory-nodes-table' & src_key_cols = 'db_ip_address' & dict_key_cols = 'vm_ip_address' & enrich_cols = 'vm_name,vm_bios_id'
 
- --> @dm:recall name="temp-retrieve-dataset"
- --> *dm:filter savm_level =="SAVM_SALES_LEVEL_6_NAME"
- --> @dm:save name='temp-level6-name'
+ --> *dm:filter * get app_name,layer,node_label,node_id,node_type,db_ip_address as 'app_comp_ip_address',db_dns_name as 'app_comp_dns_name',db_hostname as 'app_comp_hostname'
+ --> @dm:enrich dict = 'temp_appd_applications' & src_key_cols = 'app_name' & dict_key_cols = 'app_name' & enrich_cols = 'app_id'
+ --> @dm:save name = 'cfx-appd-db-table'
+ ## AppDynamics Process - Application nodes
+
+ --> @c:new-block
+ --> @AppDynamics:appdynamics_apps_nodes
+ --> *dm:filter * get name as 'app_hostname',tierName as 'app_tier',ipAddress as 'app_ipAddress',app_name
+ --> *dm:filter app_ipAddress does not contain ':' and app_ipAddress does not contain '172.17.0.1'
+ --> *dm:filter app_tier = 'Web'
+ --> @dm:dns_ip_to_name from_cols = 'app_ipAddress' and to_cols = 'app_dns_name'
+ --> @dm:map to = 'layer' & func = 'fixed' & value = 'Application Component'
+ --> @dm:map to = 'node_type' & func = 'fixed' & value = 'Webserver'
+ --> @dm:map from = 'app_dns_name,node_type' & to = 'app_identity' & func = 'join' & sep = '_'
+ --> @dm:map from = 'app_identity' & to = 'node_label'
+ --> @dm:map from = 'app_identity' & to = 'node_id'
+ ## --> @dm:enrich dict = 'cfx-vm-inventory-nodes-table' & src_key_cols = 'app_ipAddress' & dict_key_cols = 'vm_ip_address' & enrich_cols = 'vm_name,vm_bios_id'
+
+ --> *dm:filter * get app_name,layer,node_label,node_id,node_type,app_ipAddress as 'app_comp_ip_address',app_dns_name as 'app_comp_dns_name',app_hostname as 'app_comp_hostname'
+ --> @dm:enrich dict = 'temp_appd_applications' & src_key_cols = 'app_name' & dict_key_cols = 'app_name' & enrich_cols = 'app_id'
+ --> @dm:save name = 'cfx-appd-app-table'
+ ## AppDynamics Application Inventory Consolidated Output
+
+ --> @c:new-block
+ --> @dm:concat names = 'cfx-appd-db-table|cfx-appd-app-table|temp_appd_applications_logical_nodes'
+ --> @dm:save name = 'cfx-appd-app-db-table'
+ ## #############################################################################################
+
+ ## AppDynamics Application Dependency Relationship - Topology
+
+ --> @c:new-block
+ --> @dm:recall name = 'cfx-appd-app-db-table' & empty_as_null = 'no'
+ --> *dm:filter node_type = 'Webserver'
+ --> @dm:map to = 'relation_type' & func = 'fixed' & value = 'member-of'
+ --> *dm:filter * get node_id as 'left',relation_type,app_id as 'right'
+ --> @dm:save name = 'temp_webserver_to_app_relationship'
+ --> @dm:recall name = 'cfx-appd-app-db-table' & empty_as_null = 'no'
+ --> *dm:filter node_type = 'Database'
+ --> @dm:map to = 'relation_type' & func = 'fixed' & value = 'member-of'
+ --> *dm:filter * get node_id as 'left',relation_type,app_id as 'right'
+ --> @dm:save name = 'temp_database_to_app_relationship'
+ --> @c:new-block
+ --> @dm:recall name = 'cfx-appd-app-table' & empty_as_null = 'no'
+ --> @dm:enrich dict = 'cfx-appd-db-table' & src_key_cols = 'app_name' & dict_key_cols = 'app_name' & enrich_cols = 'node_id' & enrich_cols_as = 'db_comp_node_id'
+ --> @dm:map to = 'relation_type' & func = 'fixed' & value = 'depended-by'
+ --> *dm:filter * get db_comp_node_id as 'left',relation_type,node_id as 'right'
+ --> @dm:save name = 'temp_web_to_db_relationship'
+ --> @c:new-block
+ --> @dm:concat names = 'temp_webserver_to_app_relationship|temp_database_to_app_relationship|temp_web_to_db_relationship'
+ --> @dm:map from = 'left' & to = 'left_id'
+ --> @dm:map from = 'right' & to = 'right_id'
+ --> @dm:save name = 'cfx-appd-app-web-db-relationship-table'
+ ## #########################################
+
+ ## # AppDynamics Stacks - Topology Pipeline
+
+ ## #########################################
+
+ --> @c:new-block
+ --> @dm:stack-create topology_nodes="cfx-appd-app-db-table" and topology_edges="cfx-appd-app-web-db-relationship-table" and name = "appdynamics_stack"
+ --> @dm:stack-save name="appdynamics_topology_stacks"
+ ## Enrichment Block
+
  --> @c:new-block
  --> @dm:empty
- --> @dm:save name='edc_status'
- --> @c:data-loop columns='savm_name,customer' and dataset='temp-level4-name' and return_empty='yes'
- --> @dm:recall name='edc_status' and return_empty = 'yes'
- --> @dm:addrow dummy='key'
- --> @dm:add-missing-columns columns='customer_name' and  value="$customer"
- --> @dm:manipulate-string to="status" and func="eval" and value="'starting to fetch the data'"
- --> @rn:write-stream name ='edc_update_status'
- --> @snowflake:native-query dbname is "CX_DB" and warehouse is "CX_DMP_RPT_WH" and query is "WITH UniqueCombinations AS (    SELECT GU_NAME, SAVM_SALES_LEVEL_3_NAME, SAVM_SALES_LEVEL_4_NAME, SAVM_SALES_LEVEL_5_NAME, SAVM_SALES_LEVEL_6_NAME, CONTRACT_NUMBER, PRODUCT_NAME, COVERAGE, COVERED_LINE_STATUS, BUSINESS_ENTITY, BUSINESS_SUB_ENTITY, PRODUCT_LIST_PRICE, COALESCE(CONTRACT_NUMBER, COVERED_LINE_STATUS, PRODUCT_LIST_PRICE), COUNT(*) AS combination_count    FROM CX_DB.CX_DMP_EBV.BV_ASSET    WHERE SAVM_SALES_LEVEL_4_NAME = '$savm_name'      AND ASSET_TYPE = 'Hardware'    GROUP BY GU_NAME, SAVM_SALES_LEVEL_3_NAME, SAVM_SALES_LEVEL_4_NAME, SAVM_SALES_LEVEL_5_NAME, SAVM_SALES_LEVEL_6_NAME, CONTRACT_NUMBER, PRODUCT_NAME, COVERAGE, COVERED_LINE_STATUS, BUSINESS_ENTITY, BUSINESS_SUB_ENTITY, PRODUCT_LIST_PRICE) SELECT DISTINCT a.GU_NAME, a.SAVM_SALES_LEVEL_3_NAME, a.SAVM_SALES_LEVEL_4_NAME, a.SAVM_SALES_LEVEL_5_NAME, a.SAVM_SALES_LEVEL_6_NAME, a.CONTRACT_NUMBER, a.PRODUCT_NAME, a.COVERAGE, a.COVERED_LINE_STATUS, a.BUSINESS_ENTITY, a.BUSINESS_SUB_ENTITY, a.BK_END_OF_LIFE_REQUEST_NUM, a.BK_EOL_BULLETIN_PRODUCT_TYP_CD, a.END_OF_NEW_SVC_ATTACHMENT_DT, a.END_OF_ROUTINE_FAIL_ANLYSYS_DT, a.END_OF_SOFTWARE_MAINTENANCE_DT, a.END_OF_SVC_CONTRACT_RNWL_DT, a.EOL_EXTERNAL_ANNOUNCE_DT, a.EOL_PRODUCT_NAME, a.ITEM_TYPE, a.LAST_DATE_OF_SALE, a.LAST_DATE_OF_SUPPORT, a.PRODUCT_DESCRIPTION, a.PRODUCT_FAMILY, a.PRODUCT_FAMILY_DESCRIPTION, a.PRODUCT_TYPE,  a.PRODUCT_LIST_PRICE , u.combination_count FROM CX_DB.CX_DMP_EBV.BV_ASSET a LEFT JOIN UniqueCombinations u ON a.GU_NAME = u.GU_NAME AND a.SAVM_SALES_LEVEL_3_NAME = u.SAVM_SALES_LEVEL_3_NAME AND a.SAVM_SALES_LEVEL_4_NAME = u.SAVM_SALES_LEVEL_4_NAME AND a.SAVM_SALES_LEVEL_5_NAME = u.SAVM_SALES_LEVEL_5_NAME AND a.SAVM_SALES_LEVEL_6_NAME = u.SAVM_SALES_LEVEL_6_NAME AND COALESCE(a.CONTRACT_NUMBER, 'NULL') = COALESCE(u.CONTRACT_NUMBER, 'NULL') AND a.PRODUCT_NAME = u.PRODUCT_NAME AND a.COVERAGE = u.COVERAGE AND COALESCE(a.COVERED_LINE_STATUS, 'NULL') = COALESCE(u.COVERED_LINE_STATUS, 'NULL') AND a.BUSINESS_ENTITY = u.BUSINESS_ENTITY AND a.BUSINESS_SUB_ENTITY = u.BUSINESS_SUB_ENTITY AND COALESCE(a.PRODUCT_LIST_PRICE, 0) = COALESCE(u.PRODUCT_LIST_PRICE, 0) WHERE a.SAVM_SALES_LEVEL_4_NAME = '$savm_name'  AND a.ASSET_TYPE = 'Hardware';"
- --> @dm:eval timestamp = "int(time_now_as_ms())"
- --> @dm:add-missing-columns columns="execution_status"
- --> *dm:filter execution_status =="Success"
- --> @dm:skip-block-if-shape column_count = 3
- --> @dm:to_type columns = 'product_list_price,combination_count' & type  = 'int'
- --> @dm:fixnull columns="product_list_price" and value="0" and apply_for_empty="yes"
- ## --> @dm:save name="edc_inventory"
-
- --> @dm:fixnull columns="covered_line_status,coverage" and value="Not Available" and apply_for_empty="yes"
- --> @dm:eval total_product_list_price = "(product_list_price * combination_count)"
- ## create column for unique customer
-
- --> @dm:manipulate-string to="customer_name" and func="eval" and value="'$customer'"
- --> @dm:eval unique_key = "str(gu_name) + str(savm_sales_level_3_name) + str(savm_sales_level_4_name) + str(savm_sales_level_5_name) + str(savm_sales_level_6_name) + str(contract_number) + str(product_name) + str(coverage) + str (covered_line_status) + str(business_entity) + str (business_sub_entity) + str (product_list_price)"
- --> @dm:change-time-format columns="end_of_new_svc_attachment_dt,end_of_routine_fail_anlysys_dt,end_of_software_maintenance_dt,end_of_svc_contract_rnwl_dt,eol_external_announce_dt,last_date_of_sale,last_date_of_support" and from_format="datetimestr" and to_format="%Y-%m-%d"
- --> @dm:save name="temp-edc-inventory-level4"
- --> @dm:save name="test-edc-inventory-level4"
- ## --> @dm:selectcolumns include="contract_number|product_name|coverage|covered_line_status|business_entity|business_sub_entity	bk_end_of_life_request_num|bk_eol_bulletin_product_typ_cd|end_of_new_svc_attachment_dt"
-
- ## --> @rn:write-stream name="edc_oi_inventory_grouped"
-
- --> @rn:write-stream name="edc_oi_inventory_grouped_1" and direct_to_opensearch="yes"
+ --> @dm:addrow datasetname = 'cfx-appd-app-db-table' & condition = "(app_comp_ip_address == '$assetIpAddress' or app_comp_hostname == '$assetName')" &  enrichcolumns = ''
+ --> @dm:save name = 'alert-enrichment-definition-appdynamics'
+ --> @c:new-block
  --> @dm:empty
- --> @dm:manipulate-string to="status" and func="eval" and value="'Data fetch completed'"
- --> @rn:write-stream name ='edc_update_status'
- --> @dm:manipulate-string to="status" and func="eval" and value="'Processing EOL data'"
- --> @dm:add-missing-columns columns='customer_name' and  value="$customer"
- --> @rn:write-stream name ='edc_update_status'
- --> @dm:recall name='temp-edc-inventory-level4'
+ --> @dm:addrow datasetname = 'alert-enrichment-definition-appdynamics'
+ --> @rn:write-stream name = "alert-enrichment-pipeline-changes"
