@@ -1,14 +1,20 @@
-@dm:empty
- --> @dm:recall name='att_mobility_rma'
- --> @dm:fixcolumns
- --> @dm:to-type columns="product_total_rma_2024_count,product_total_rma_2025_count,product_total_stock_forecast" and type="int"
- --> @dm:save name="temp-rma-devices"
- --> @c:new-block
+@c:new-block
  --> @dm:empty
- --> @dm:addrow name="edc_customer_inventory" & limit = '0' and sort_by_col='timestamp' and sort_type='desc'
- --> #dm:query-persistent-stream project_name = 'ATT-Mobility'
- --> @dm:selectcolumns exclude ="product_total_rma_2024_count|product_total_rma_2025_count|product_total_stock_forecast|product_id_rma_2025|product_id_rma_2024"
- --> @dm:enrich dict="temp-rma-devices" and src_key_cols="product_id" and dict_key_cols="product_id" and enrich_cols="product_total_rma_2024_count,product_total_rma_2025_count,product_total_stock_forecast" and case_insensitive="yes"
- --> @dm:fixnull columns="product_total_rma_2024_count,product_total_rma_2025_count,product_total_stock_forecast" and value=0 and apply_for_empty="yes"
- --> @dm:save name="temp-devices"
- --> @rn:write-stream name='edc_customer_inventory' and direct_to_opensearch="yes"
+ ## Get submitted form fields
+
+ --> @exec:get-input
+ ## Exclude label as it contains unneeded info that should not be written to stream later
+
+ --> @dm:selectcolumns exclude='.*_label'
+ --> @dm:save name='temp-input_data'
+ --> @dm:selectcolumns include="secadv_csv"
+ --> @dm:explode-json column="secadv_csv"
+ --> @dm:save name="temp-input-dataset"
+ --> @c:new-block
+ --> @c:data-loop dataset="temp-input-dataset" and columns="bucketName,objectName"
+ --> @dm:recall name="temp-input-dataset"
+ --> @dm:skip-block-if-shape row_count=0
+ --> @dm:get-from-location path="$bucketName/$objectName"
+ --> @dm:save name="temp-uploaded-file-data"
+ --> @dm:save name="uploaded-secadv-data"
+ --> @rn:write-stream name="test2-stream-input"
