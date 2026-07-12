@@ -1,85 +1,42 @@
 
- ## collab-db-to-pstream-migration
-
- ## ========================MAKE SURE TO RUN THE FOLLOWING BEFORE PIPELINE EXECUTION
-
- ## mysql> alter table irmessagesharing add column if not exists migration_status varchar(100);
-
  ## .
 
- ## mysql> alter table message add column if not exists migration_status varchar(100);
-
- ## .
-
- ## mysql> alter table teamincident add column if not exists migration_status varchar(100);
-
- ## ================================================================================
-
- ## .
-
- ## MESSAGE
+ ## collab-db-to-pstream-bydate
 
  ## .
 @c:new-block
+ ## .
+
  --> @dm:empty
- --> @dm:addrow table="message" & dbname="98e005500460423c886d8e30d8a9acf6_cfxdimensions_app_collaboratio" & limit=5 & retry_count=5 & retry_interval=10
- --> #mysqlv2:read migration_status is None or migration_status is not 'SUCCESS1'
- --> @dm:save name="temp-collab-db-message"
- ## Write/Publish
-
- ## --unique_keys projectid,incidentid,messageid
-
- --> @dm:selectcolumns exclude="migration_status"
- --> @dm:to-type columns="createdat,updatedat" & type="str"
- --> @rn:write-stream name="staging-oia-incidents-collaboration-stream"
- ## Update the migration_status column on the db
-
- --> @dm:recall name="temp-collab-db-message"
- --> @dm:eval migration_status="'SUCCESS'"
- --> @mysqlv2:update dbname="98e005500460423c886d8e30d8a9acf6_cfxdimensions_app_collaboratio" & table="message" & update_columns="migration_status"
+ --> @mysqlv2:native-query dbname="0bde1fc06a7542c3a6a4c47d85f64d9d_cfxdimensions_app_collaboratio" & query="select customerid,projectid,incidentid,messagetype,messageid,sourcemessageid,sourcesystemid,sourcesystemname,sourcepayload,senderid,sendername,subject,sourcedetails,senderdetails,recipients,attributes,createdby,updatedby,createdat,updatedat,content from message where createdat >= TIMESTAMP('2024-08-07 00:00:00')"
+ --> @dm:skip-block-if-shape row_count=0
+ --> @dm:check-columns must_contain="incidentid" & action="skip-block"
+ --> @dm:selectcolumns exclude="execution_status|execution_reason|attempt_count"
+ --> @dm:change-time-format columns="createdat,updatedat" & from_format="datetimestr" & to_format="datetimestr"
+ --> @dm:copy-columns to="timestamp" & from="updatedat"
+ --> @dm:fixnull-regex
+ --> @rn:write-stream name="oia-incidents-collaboration-stream"
+@c:new-block
  ## .
 
- ## IRMESSAGESHARING
-
- ## .
-
- --> @c:new-block
  --> @dm:empty
- --> @dm:addrow table="irmessagesharing" & dbname="98e005500460423c886d8e30d8a9acf6_cfxdimensions_app_collaboratio" & limit=5 & retry_count=5 & retry_interval=10
- --> #mysqlv2:read migration_status is None or migration_status is not 'SUCCESS1'
- --> @dm:save name="temp-collab-db-irmessagesharing"
- ## Write/Publish
-
- ## --unique_keys projectid,incidentid,messageid,shared_to_team
-
- --> @dm:selectcolumns exclude="migration_status"
- --> @dm:to-type columns="shared_time" & type="str"
- --> @rn:write-stream name="staging-oia-collab-messagesharing-stream"
- ## Update the migration_status column on the db
-
- --> @dm:recall name="temp-collab-db-irmessagesharing"
- --> @dm:eval migration_status="'SUCCESS'"
- --> @mysqlv2:update dbname="98e005500460423c886d8e30d8a9acf6_cfxdimensions_app_collaboratio" & table="irmessagesharing" & update_columns="migration_status"
+ --> @mysqlv2:native-query dbname="0bde1fc06a7542c3a6a4c47d85f64d9d_cfxdimensions_app_collaboratio" & query="select ms.message_id,ms.shared_to_team,ms.type,ms.shared_to,ms.shared_by,ms.shared_time,ms.medium,ms.attachment_name,m.customerid,m.projectid,m.incidentid from irmessagesharing ms inner join message m on m.messageid=ms.message_id where m.createdat >= TIMESTAMP('2024-08-07 00:00:00')"
+ --> @dm:skip-block-if-shape row_count=0
+ --> @dm:check-columns must_contain="incidentid" & action="skip-block"
+ --> @dm:selectcolumns exclude="execution_status|execution_reason|attempt_count"
+ --> @dm:change-time-format columns="shared_time" & from_format="datetimestr" & to_format="datetimestr"
+ --> @dm:copy-columns to="timestamp" & from="shared_time"
+ --> @dm:fixnull-regex
+ --> @rn:write-stream name="oia-collab-messagesharing-stream"
+@c:new-block
  ## .
 
- ## TEAMINCIDENT
-
- ## .
-
- --> @c:new-block
  --> @dm:empty
- --> @dm:addrow table="teamincident" & dbname="98e005500460423c886d8e30d8a9acf6_cfxdimensions_app_collaboratio" & limit=5 & retry_count=5 & retry_interval=10
- --> #mysqlv2:read migration_status is None or migration_status is not 'SUCCESS1'
- --> @dm:save name="temp-collab-db-teamincident"
- ## Write/Publish
-
- ## --unique_keys projectid,incidentid,messageid,team_id,collab_type
-
- --> @dm:selectcolumns exclude="migration_status"
- --> @dm:to-type columns="shared_time" & type="str"
- --> @rn:write-stream name="staging-oia-incidents-external-tickets-stream"
- ## Update the migration_status column on the db
-
- --> @dm:recall name="temp-collab-db-teamincident"
- --> @dm:eval migration_status="'SUCCESS'"
- --> @mysqlv2:update dbname="98e005500460423c886d8e30d8a9acf6_cfxdimensions_app_collaboratio" & table="teamincident" & update_columns="migration_status"
+ --> @mysqlv2:native-query dbname="0bde1fc06a7542c3a6a4c47d85f64d9d_cfxdimensions_app_collaboratio" & query="select team_id,customer_id,project_id,incident_id,collab_type,ticket_number,shared_time,ticket_id,link from teamincident where shared_time >= TIMESTAMP('2024-08-07 00:00:00')"
+ --> @dm:skip-block-if-shape row_count=0
+ --> @dm:check-columns must_contain="incident_id" & action="skip-block"
+ --> @dm:selectcolumns exclude="execution_status|execution_reason|attempt_count"
+ --> @dm:change-time-format columns="shared_time" & from_format="datetimestr" & to_format="datetimestr"
+ --> @dm:copy-columns to="timestamp" & from="shared_time"
+ --> @dm:fixnull-regex
+ --> @rn:write-stream name="oia-incidents-external-tickets-stream"
