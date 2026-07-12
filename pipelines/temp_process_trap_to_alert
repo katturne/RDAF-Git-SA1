@@ -1,35 +1,51 @@
-@dm:empty
+
+ ## get the minio path for the uploaded file
+@exec:get-input
+ --> @dm:save name='temp-sw-input'
+ --> @dm:eval fileUpload="json_dumps(fileUpload)"
+ --> @dm:explode-json column="fileUpload"
+ --> @dm:eval location="bucketName+'/'+objectName"
+ --> @dm:save name="temp-input-dataset"
+ ## declaring child pipelines
+
  --> @c:new-block
- --> @rn:read-stream name = 'snmp_trap_event_stream' & group = '06_14_2023'
- --> @dm:map-snmp-trap-to-alert template_folder="trap2alert2"
- ## For now, process this only for cml devices
+ --> @dm:empty
+ --> @exec:define-function name="define_child_pipelines"
+ --> @exec:run-pipeline name ="edc_oi_get_product_alerts" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_oi_product_alerts_raw" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_oi_product_alerts_run_scan" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_oi_generate_token" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_oi_process_sw_data" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_oi_get_sweol_data" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_oi_get_security_advisories_data" & ignore_failures = "no"
+ --> @exec:end-function
+ ## collecting the file and storing it in edc_cust_pid_sw stream, collecting the API data and adding the processed data to edc_sw_raw_data
 
- --> *dm:filter rda_gw_client_ip contains '9.3.252'
- ## Handle OSPF NBR CHANGE traps
-
- --> *exec:if-condition snmpTrapName is 'ospfNbrStateChange'
- --> @dm:eval link_type="'OSPF'"
- --> @dm:save name="temp-ospf-raw-trap"
- --> #dm:query-persistent-stream left_id is '{{row.device}}' and neighbor_id="{{row.ospfNbrRtrId}}" and timestamp is after -1440 hours with-input name="cml_topo_edges" and limit="1" and max_rows="1"
- --> @dm:selectcolumns include="^left_id$|^right_id$"
- ## -->  @dm:eval left_id="left_id.strip()"
-
- --> @dm:map attr="left_id" & func="strip"
- --> @dm:eval dict_name = "'temp-topo-data'"
- --> @rn:write-stream name = 'new_cml_snmp_trap_alerts_debug'
- --> @dm:save name="temp-topo-data"
- --> @dm:recall name="temp-ospf-raw-trap"
- --> @dm:selectcolumns include="^device$"
- ## -->  @dm:eval device="device.strip()"
-
- --> @dm:map attr="device" & func="strip"
- --> @dm:eval dict_name = "'current'"
- --> @rn:write-stream name = 'new_cml_snmp_trap_alerts_debug'
- --> @dm:enrich dict="temp-topo-data"
-and src_key_cols="device"
-and dict_key_cols="left_id"
-and enrich_cols="right_id"
-and enrich_cols_as="remote_ip_new"
- --> @dm:eval dict_name = "'final'"
- --> @rn:write-stream name = 'new_cml_snmp_trap_alerts_debug'
- --> @exec:end-if
+ --> @c:data-loop dataset="temp-input-dataset" and columns="objectName,location"
+ --> @dm:empty
+ --> @dm:get-from-location path='$location'
+ --> @dm:rename-columns customer='Customer' and sw_version='SW_Version' and sw_os_type='SW_OS_Type' and product_id='Product_ID' and contract_number='Contract_Number' and product_name='Product_Name'
+ --> @dm:save name='temp-uploaded-file'
+ --> @c:new-block
+ --> @dm:recall name="temp-uploaded-file"
+ --> @dm:check_columns must_contain = 'product_name' & action ='skip-block'
+ --> @dm:recall name="temp-uploaded-file"
+ --> @dm:to-type columns='contract_number,customer,product_id,sw_version,sw_os_type,product_name' and type='str'
+ --> @dm:map from = 'contract_number,customer,product_id,sw_version,sw_os_type,product_name' & to = 'unique_key' & func = 'join' & sep = '_'
+ --> @dm:save name='temp-user-uploaded-input'
+ --> @c:new-block
+ --> @dm:recall name="temp-uploaded-file"
+ --> @dm:to-type columns='contract_number,customer,product_id,sw_version,sw_os_type' and type='str'
+ --> @dm:map from = 'contract_number,customer,product_id,sw_version,sw_os_type' & to = 'unique_key' & func = 'join' & sep = '_'
+ --> @dm:save name='temp-user-uploaded-input'
+ --> @c:new-block
+ --> @dm:recall name='temp-user-uploaded-input'
+ --> @rn:write-stream name='edc_cust_pid_sw'
+ --> @c:new-block
+ --> @dm:recall name='temp-user-uploaded-input'
+ --> @dm:eval source="'software'"
+ --> @exec:run-pipeline name='edc_oi_get_product_alerts' and ignore_failures = "no"
+ --> @c:new-block
+ --> @dm:recall name='temp-user-uploaded-input'
+ --> @dm:eval source="'security_advisory'"
+ --> @exec:run-pipeline name='edc_oi_get_product_alerts' and ignore_failures = "no"
