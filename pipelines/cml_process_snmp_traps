@@ -1,117 +1,110 @@
-%% stream = no and limit = 0
-%%template_type="jinja"
-
-%%start_inline_object name="context_dynamic_form" and type="data" and format="json"
-{
-    "formFieldList": [
-        {
-            "fieldId": "customer_tag",
-            "label": "Tag of the customer",
-            "required": false,
-            "dataType": "string"
-        }
-    ]
-}
-%%end_inline_object
-
 @dm:empty
-    --> @dm:save name = "temp-customer-context"
+ --> @dm:addrow alert_severity_str="CRITICAL" and dict_alert_severity_num=0
+ --> @dm:addrow alert_severity_str="MAJOR" and dict_alert_severity_num=1
+ --> @dm:addrow alert_severity_str="HIGH" and dict_alert_severity_num=1
+ --> @dm:addrow alert_severity_str="MODERATE" and dict_alert_severity_num=2
+ --> @dm:addrow alert_severity_str="MINOR" and dict_alert_severity_num=2
+ --> @dm:addrow alert_severity_str="LOW" and dict_alert_severity_num=3
+ --> @dm:addrow alert_severity_str="WARNING" and dict_alert_severity_num=3
+ --> @dm:addrow alert_severity_str="NOTIFICATION" and dict_alert_severity_num=4
+ --> @dm:addrow alert_severity_str="PLANNING" and dict_alert_severity_num=5
+ --> @dm:addrow alert_severity_str="INFORMATION" and dict_alert_severity_num=5
+ --> @dm:addrow alert_severity_str="INFO" and dict_alert_severity_num=5
+ --> @dm:save name="temp-sev-mapping"
+ --> @c:new-block
+ --> @rn:read-stream name = 'snmp_trap_event_stream' & group = '06_15_2023'
+ --> @dm:map-snmp-trap-to-alert template_folder="trap2alert2"
+ ## For now, process this only for cml devices
 
+ --> *dm:filter rda_gw_client_ip contains '9.3.252'
+ ## Handle link up/down traps
 
-## {% set row = "" %}
+ --> *exec:if-condition snmpTrapName is 'linkDown' or snmpTrapName is 'linkUp'
+ ## For some reason cisco sends the interface name as ifAdminStatus varbind
 
-      {% if customer_tag %} 
-      {% set customer_id = customer_id %}
-      {% set customer_tag = customer_tag %}
-      {% set customerTag = customer_tag %}
-      {% set customerId = customer_id %}
-   {% elif customerTag %} 
-      {% set customer_id = customerId %}
-      {% set customer_tag = customerTag %}
-   {% else %}
-      {% set customer_id = '' %}
-      {% set customer_tag = '' %}
-   {% endif %}   
+ --> @dm:rename-columns local_interface="ifAdminStatus"
+ --> @dm:enrich dict="cml-cdp-data"
+and src_key_cols="ipAddress,local_interface"
+and dict_key_cols="source_ip,local_port"
+and enrich_cols="mgmt_ip,remote_port"
+ --> @dm:enrich dict="cml-interface-data"
+and src_key_cols="mgmt_ip,remote_port"
+and dict_key_cols="ipaddr,intf"
+and enrich_cols="source_ip"
+and enrich_cols_as="remote_ip"
+ --> @dm:selectcolumns exclude="mgmt_ip"
+ --> @dm:selectcolumns exclude="intf"
+ --> @dm:selectcolumns exclude="ipaddr"
+ --> @dm:selectcolumns exclude="source_ip"
+ --> @dm:rename-columns remote_interface="remote_port"
+ --> @dm:eval link_type="'CDP'"
+ --> @dm:enrich dict="temp-sev-mapping" and src_key_cols="alert_severity" and dict_key_cols="alert_severity_str" and enrich_cols="dict_alert_severity_num"
+ --> @dm:rename-columns severity="alert_severity"
+ --> @dm:rename-columns key="alert_key"
+ --> @dm:rename-columns snmp_trap_name="snmpTrapName"
+ --> @dm:rename-columns snmp_trap_oid="snmpTrapOID"
+ --> @dm:rename-columns state="alert_state"
+ --> @dm:eval dict_name = "'INTERFACE'"
+ --> @rn:write-stream name = 'new_cml_snmp_trap_alerts_debug'
+ --> @dm:map attr ="snmp_trap_timestamp" & func = 'ts_to_datetimestr' & unit = 'ms'
+ --> @dm:apply-template-by-row template_name = 'snmp_trap_alert_template' & output_col = 'payload'
+ --> @restclient:write url is "https://10.122.127.182:7443/webhooks/hookid/0427678a-fc73-453b-9ecb-fdb6ecab9d57" & envelope is '{{payload}}' & batch_size = 1
+ --> @exec:end-if
+ ## END link up/down traps
 
+ ## Handle OSPF NBR CHANGE traps
 
---> @c:new-block
-    --> @dm:empty
-    --> @exec:get-input
-   ## --> @dm:save name="temp-input-devices"
-   --> @dm:eval key ="'key'" 
-   --> @dm:save name ="temp-input-data"
-    --> @dm:save name ="temp-input-dataset"
-     {% if customer_tag %} 
-         --> @dm:save name="{{customer_tag}}-network-import-devices"
-    {% else %}
-        --> @dm:save name="network-import-devices"
-    {% endif %}
+ --> *exec:if-condition snmpTrapName is 'ospfNbrStateChange'
+ --> @dm:eval link_type="'OSPF'"
+ --> @dm:enrich-using-pstream dict="cml_topo_edges"
+and src_key_cols="device,ospfNbrRtrId,link_type"
+and dict_key_cols="left_id,neighbor_id,link_type"
+and enrich_cols="right_id,local_interface,neighbor_interface"
+and enrich_cols_as="remote_ip,local_interface,remote_interface"
+ --> @dm:enrich dict="temp-sev-mapping"
+and src_key_cols="alert_severity"
+and dict_key_cols="alert_severity_str"
+and enrich_cols="dict_alert_severity_num"
+ --> @dm:rename-columns severity="alert_severity"
+ --> @dm:rename-columns key="alert_key"
+ --> @dm:rename-columns snmp_trap_name="snmpTrapName"
+ --> @dm:rename-columns snmp_trap_oid="snmpTrapOID"
+ --> @dm:rename-columns state="alert_state"
+ --> @dm:eval dict_name = "'OSPF'"
+ --> @rn:write-stream name = 'new_cml_snmp_trap_alerts_debug'
+ --> @dm:map attr ="snmp_trap_timestamp" & func = 'ts_to_datetimestr' & unit = 'ms'
+ --> @dm:apply-template-by-row template_name = 'snmp_trap_alert_template' & output_col = 'payload'
+ --> @restclient:write url is "https://10.122.127.182:7443/webhooks/hookid/0427678a-fc73-453b-9ecb-fdb6ecab9d57" & envelope is '{{payload}}' & batch_size = 1
+ --> @exec:end-if
+ ## Handle BGP NBR CHANGE traps
 
-
---> @c:new-block
-    {% if customer_tag %} 
-         --> @dm:recall name="{{customer_tag}}-network-import-devices"
-    {% else %}
-        --> @dm:recall name="network-import-devices"
-    {% endif %} 
-    --> @dm:replace-data columns="fileUpload" and expr="'" and replace='"'
-    --> @dm:to-type columns="replace" and type="str"
-    --> @dm:explode-json column="fileUpload"
-    --> @dm:save name ="temp-input-dataset"
-
-
-    --> @c:new-block
-    --> @dm:empty
-    {% if customer_tag %} 
-         --> #dm:query-persistent-stream customer_tag is '{{customer_tag}}' with-input name = "discovery" & limit = "0"
-    {% else %} 
-        --> #dm:query-persistent-stream customer_tag is empty with-input name = "discovery" & limit = "0"
-    {% endif %} 
-    
-    --> @dm:save name ="temp-customer-old-data"
-
---> @c:new-block
-
---> @c:data-loop dataset="temp-input-dataset" and columns="bucketName,objectName"
-    --> @dm:recall name="temp-input-dataset"
-    --> *dm:filter replace=="True"
-    --> @dm:skip-block-if-shape row_count="0"
-    --> @dm:get-from-location path="$bucketName/$objectName"
-    ## --> @dm:tail n = 1
-    --> @dm:check-columns must_contain="device_ip" and action="fail"
-    --> @dm:dedup columns="device_ip"
-    --> @dm:save name="temp-uploaded-file-data"
-    ##--> @dm:save name="$dataset_name"
-    ##--> @dm:save  name="test-discovery2"
-    --> @dm:eval key ="'key'" 
-  ## --> @dm:eval customer_tag ="'{{customer_tag}}'"
-  ##     --> @dm:eval customer_id ="'{{customer_id}}'"
-                --> @dm:enrich dict = "temp-input-data" & src_key_cols = "key" & dict_key_cols="key" & enrich_cols = "customer_tag,customer_id"
-
-      ##--> @dm:save  name="test-discovery"
-
-    --> @rn:write-stream name="discovery"
-    --> @dm:skip-pipeline-if-shape row_count > 0
-
---> @c:new-block
-
---> @c:data-loop dataset="temp-input-dataset" and columns="bucketName,objectName"
-    --> @dm:recall name="temp-input-dataset"
-    --> *dm:filter replace=="False"
-    --> @dm:skip-block-if-shape row_count="0"
-    --> @dm:get-from-location path="$bucketName/$objectName"
-    --> @dm:check-columns must_contain="device_ip" and action="fail"
-    ## --> @dm:head n = 1
-    --> @dm:save name="temp-uploaded-file-data"
-    --> @dm:recall name ="temp-customer-old-data"
-    --> @dm:save name="temp-uploaded-file-data" and append= "yes"
-    --> @dm:recall name="temp-uploaded-file-data"
-    --> @dm:dedup columns="device_ip"
-   ## --> @dm:save name="$dataset_name"
-    --> @dm:eval key ="'key'" 
-   ## --> @dm:eval customer_tag ="'{{customer_tag}}'"
-   ##    --> @dm:eval customer_id ="'{{customer_id}}'"
-          --> @dm:enrich dict = "temp-input-data" & src_key_cols = "key" & dict_key_cols="key" & enrich_cols = "customer_tag,customer_id"
-
-    --> @rn:write-stream name="discovery"
-
+ --> *exec:if-condition snmpTrapOid is '1.3.6.1.4.1.9.9.187.0.1'
+ --> @dm:eval link_type="'BGP'"
+ --> @dm:eval neighbor_ip = "'.'.join(vb_oid_0.split('.')[-4:])"
+ --> @dm:eval snmpTrapName = "'cbgpFsmStateChange'"
+ --> @dm:copy-columns from="snmpTrapName" and to="alert_name"
+ --> @dm:eval snmpTrapMIB = "'ciscoBgp4MIB'"
+ --> @dm:rename-columns bgpPeerState = "vb_value_1"
+ --> @dm:copy-columns from="ipAddress" and to="device"
+ --> @dm:eval alert_key = "device + '_' + alert_name + '_' + neighbor_ip"
+ --> @dm:eval alert_severity = "'MAJOR'"
+ --> @dm:eval alert_state = "'CLEARED' if bgpPeerState  == 'established' else 'ACTIVE'"
+ --> @dm:enrich-using-pstream dict="cml_topo_edges"
+and src_key_cols="device,neighbor_ip,link_type"
+and dict_key_cols="left_id,remote_ip,link_type"
+and enrich_cols="right_id,local_interface,neighbor_interface,local_ip"
+and enrich_cols_as="remote_router_ip,local_interface,remote_interface,local_ip"
+ --> @dm:rename-columns remote_ip="remote_router_ip"
+ --> @dm:eval message="'SNMP cbgpFsmStateChange Trap received from ' + device + ', local_ip=' + local_ip + ', bgpPeerIp=' + neighbor_ip + ', bgpPeerState=' + bgpPeerState + ', cbgpPeerLastErrorTxt=' + vb_value_2 + ', cbgpPeerPrevState=' + vb_value_3"
+ --> @dm:enrich dict="temp-sev-mapping" and src_key_cols="alert_severity" and dict_key_cols="alert_severity_str" and enrich_cols="dict_alert_severity_num"
+ --> @dm:rename-columns severity="alert_severity"
+ --> @dm:rename-columns key="alert_key"
+ --> @dm:rename-columns snmp_trap_name="snmpTrapName"
+ --> @dm:rename-columns snmp_trap_oid="snmpTrapOID"
+ --> @dm:rename-columns state="alert_state"
+ --> @dm:eval dict_name = "'BGP'"
+ --> @rn:write-stream name = 'new_cml_snmp_trap_alerts_debug'
+ --> @dm:map attr ="snmp_trap_timestamp" & func = 'ts_to_datetimestr' & unit = 'ms'
+ --> @dm:apply-template-by-row template_name = 'snmp_trap_alert_template' & output_col = 'payload'
+ --> @restclient:write url is "https://10.122.127.182:7443/webhooks/hookid/0427678a-fc73-453b-9ecb-fdb6ecab9d57" & envelope is '{{payload}}' & batch_size = 1
+ --> @exec:end-if
