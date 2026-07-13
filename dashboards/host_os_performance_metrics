@@ -1,660 +1,563 @@
 {
-  "name": "host_os_performance_metrics",
-  "label": "Host OS Performance Metrics",
-  "description": "Host OS Performance Metrics Dashboard",
-  "version": "2024-05-23_1",
+  "name": "oia-alerts-war-room-customer-view",
+  "label": "War Room - Customer View",
+  "description": "War Room - Customer View",
   "enabled": true,
-  "live_edit": true,
-  "debug": true,
-  "dashboard_style": "tabbed",
-  "dashboard_folder": "RDAF_Health_Trends",
   "dashboard_type": "template",
-  "custom_context": {
-    "rda-dashboard-live-edit": true
-  },
   "template_variables": {
-    "RDAF_NAME": {
-      "contextId": [
-        "RDAF_NAME"
-      ]
-    }
-  },
-  "status_poller": {
-    "stream": "host_os_metrics",
-    "frequency": 600,
-    "columns": [
-      "timestamp"
-    ],
-    "sorting": [
-      {
-        "timestamp": "desc"
-      }
-    ],
-    "query": "timestamp is after '${timestamp}'",
-    "defaults": {
-      "timestamp": "$UTCNOW"
+    "ALERT_CT": {
+      "contextId": "a_created_ts",
+      "default": "2024-04-10T09:39:36.265000"
     },
-    "action": "refresh"
+    "CUSTOMER_ID": {
+      "contextId": "customer_id"
+    },
+    "ASSET_ID": {
+      "contextId": "a_asset_ip_address"
+    }
   },
   "dashboard_filters": {
     "time_filter": true,
-    "default_time_filter_labels": [
-      "Last 24 hours"
-    ],
-    "columns_filter": [
-      {
-        "id": "timestamp",
-        "label": "Timestamp",
-        "type": "DATETIME"
-      },
-      {
-        "id": "tags_deployment",
-        "label": "RDAF Deployment",
-        "type": "TEXT"
-      },
-      {
-        "id": "name",
-        "label": "Metric Name",
-        "type": "TEXT"
-      },
-      {
-        "id": "tags_container_name",
-        "label": "Container Name",
-        "type": "TEXT"
-      },
-      {
-        "id": "tags_host_ip",
-        "label": "Host IP",
-        "type": "TEXT"
-      },
-      {
-        "id": "tags_host",
-        "label": "Hostname",
-        "type": "TEXT"
-      }
-    ],
-    "group_filters": [
-      {
-        "stream": "host_os_metrics",
-        "title": "RDAF Deployment",
-        "limit": 50,
-        "group_by": [
-          "tags_deployment"
-        ],
-        "ts_column": "timestamp",
-        "agg": "cardinality",
-        "column": "tags_deployment",
-        "type": "int",
-        "show_counts": false
-      },
-      {
-        "stream": "host_os_metrics",
-        "title": "Hostname",
-        "limit": 50,
-        "group_by": [
-          "tags_host"
-        ],
-        "ts_column": "timestamp",
-        "agg": "cardinality",
-        "column": "tags_host",
-        "type": "int",
-        "show_counts": false
-      },
-      {
-        "stream": "host_os_metrics",
-        "title": "Host IP",
-        "limit": 50,
-        "group_by": [
-          "tags_host_ip"
-        ],
-        "ts_column": "timestamp",
-        "agg": "cardinality",
-        "column": "tags_host_ip",
-        "type": "str",
-        "show_counts": false
-      },
-      {
-        "stream": "host_os_metrics",
-        "title": "Metric Name",
-        "limit": 50,
-        "group_by": [
-          "name"
-        ],
-        "ts_column": "timestamp",
-        "agg": "cardinality",
-        "column": "name",
-        "type": "str",
-        "show_counts": false
-      },
-      {
-        "stream": "host_os_metrics",
-        "title": "Device Name",
-        "limit": 50,
-        "group_by": [
-          "tags_device"
-        ],
-        "ts_column": "timestamp",
-        "agg": "cardinality",
-        "column": "name",
-        "type": "str",
-        "show_counts": false
-      },
-      {
-        "stream": "host_os_metrics",
-        "title": "Tag Device",
-        "limit": 50,
-        "group_by": [
-          "tags_device"
-        ],
-        "ts_column": "timestamp",
-        "agg": "cardinality",
-        "column": "count_",
-        "type": "int",
-        "show_counts": false
-      }
-    ]
+    "default_time_range": {
+      "from_time": "{{ALERT_CT}}",
+      "from_time_delta_hours": -24,
+      "to_time": "{{ALERT_CT}}",
+      "to_time_delta_hours": 24,
+      "label": "{{INCIDENT_ID}} Time Range"
+    }
+  },
+  "stream_query_mapping": {
+    "syslog_udp_event_stream_all": {
+      "a_created_ts": "rda_gw_timestamp"
+    },
+    "oia-incidents-stream": {
+      "a_created_ts": "i_created_ts"
+    },
+    "oia-ml-metrics-regression-output": {
+      "a_created_ts": "timestamp"
+    },
+    "change_requests_stream": {
+      "a_created_ts": "timestamp"
+    }
   },
   "dashboard_sections": [
     {
-      "title": "Overall",
+      "title": "Customer View",
       "show_filter": true,
       "widgets": [
         {
           "widget_type": "label",
-          "label": "<div style='text-align:center;width:100%;'><h1><a style='text-decoration:none;color:#0066ff;' target='_blank'> Host OS Metrics for {{RDAF_NAME}} </a></h1></div>",
+          "label": "<h3 style='text-align: center;'>Alert Created: {%raw%} {{' {{ '}} {%endraw%} toDateTimeString({{ ALERT_CT }}) {%raw%} {{ '}}' }} {%endraw%} </h3>",
+          "advanced": true,
           "min_width": 12,
           "max_width": 12,
           "height": 1,
-          "widget_id": "f7aa1ce2"
+          "widget_id": "5ae002f1"
         },
         {
-          "title": "RDAF Deployments",
-          "widget_type": "pie_chart",
-          "stream": "host_os_metrics",
-          "ts_column": "timestamp",
-          "column": "tags_deployment",
-          "agg": "cardinality",
-          "group_by": [
-            "tags_deployment"
-          ],
-          "type": "str",
-          "min_width": 4,
+          "title": "Link Up/Down Alerts",
+          "widget_type": "counter",
+          "min_width": 2.4,
+          "max_width": 2.4,
           "height": 4,
-          "max_width": 4,
-          "widget_id": "6f2c79fc"
-        },
-        {
-          "title": "Host OS Metrics",
-          "widget_type": "pie_chart",
-          "stream": "host_os_metrics",
-          "ts_column": "timestamp",
-          "column": "name",
-          "agg": "cardinality",
-          "group_by": [
-            "name"
-          ],
-          "type": "str",
-          "min_width": 4,
-          "height": 4,
-          "max_width": 4,
-          "widget_id": "b9c27f15"
-        },
-        {
-          "title": "Hosts",
-          "widget_type": "pie_chart",
-          "stream": "host_os_metrics",
-          "ts_column": "timestamp",
-          "column": "name",
-          "agg": "cardinality",
-          "group_by": [
-            "tags_host"
-          ],
-          "type": "str",
-          "min_width": 4,
-          "height": 4,
-          "max_width": 4,
-          "widget_id": "7f17a90f"
-        },
-        {
-          "title": "Tag Name",
-          "widget_type": "pie_chart",
-          "stream": "host_os_metrics",
-          "ts_column": "timestamp",
-          "column": "name",
-          "agg": "cardinality",
-          "group_by": [
-            "tags_name"
-          ],
-          "type": "str",
-          "min_width": 4,
-          "height": 4,
-          "max_width": 4,
-          "widget_id": "2036f89e"
-        },
-        {
-          "title": "Interfaces",
-          "widget_type": "pie_chart",
-          "stream": "host_os_metrics",
-          "ts_column": "timestamp",
-          "column": "name",
-          "agg": "cardinality",
-          "group_by": [
-            "tags_interface"
-          ],
-          "type": "str",
-          "min_width": 4,
-          "height": 4,
-          "max_width": 4,
-          "widget_id": "af610dc5"
-        },
-        {
-          "title": "FS Type",
-          "widget_type": "pie_chart",
-          "stream": "host_os_metrics",
-          "ts_column": "timestamp",
-          "column": "name",
-          "agg": "cardinality",
-          "group_by": [
-            "tags_fstype"
-          ],
-          "type": "str",
-          "min_width": 4,
-          "height": 4,
-          "max_width": 4,
-          "widget_id": "757ed75a"
-        },
-        {
-          "title": "Path",
-          "widget_type": "pie_chart",
-          "stream": "host_os_metrics",
-          "ts_column": "timestamp",
-          "column": "name",
-          "agg": "cardinality",
-          "group_by": [
-            "tags_path"
-          ],
-          "type": "str",
-          "min_width": 4,
-          "height": 4,
-          "max_width": 4,
-          "widget_id": "ab61b4a7"
-        }
-      ]
-    },
-    {
-      "title": "CPU",
-      "show_filter": true,
-      "widgets": [
-        {
-          "title": "Top 5 devices by CPU Usage",
-          "widget_type": "multi_bar_chart",
-          "stream": "host_os_metrics",
-          "ts_column": "timestamp",
-          "extra_filter": "name = 'cpu'",
-          "group_by": [
-            "tags_cpu",
-            "tags_host"
-          ],
-          "formatting": {
-            "notation": "compact",
-            "maximumFractionDigits": 2,
-            "unit": "percent"
+          "stream": "oia-alerts-stream",
+          "ts_column": "a_created_ts",
+          "extra_filter": "a_message contains 'link'",
+          "sparkline": {
+            "interval": "1h"
           },
-          "chartProperties": {
-            "yAxisLabel": "Hosts",
-            "xAxisLabel": "Top 5 CPU Active Usage(%)",
-            "stacked": false,
-            "legendLocation": "right",
-            "orientation": "horizontal"
-          },
-          "descending_order": false,
-          "others_spec": {
-            "limit": 5,
-            "show_others": false,
-            "label": "Other Names",
-            "tags_cpu": {
-              "largest": false,
-              "name_based_limit": false
-            },
-            "tags_host": {
-              "largest": true,
-              "name_based_limit": false
-            }
-          },
-          "column": "fields_usage_active",
-          "agg": "avg",
+          "column": "count_",
+          "agg": "sum",
           "type": "int",
-          "max_width": 6,
+          "widget_id": "42b0d069"
+        },
+        {
+          "title": "BGP Alerts",
+          "widget_type": "counter",
+          "min_width": 2.4,
+          "max_width": 2.4,
           "height": 4,
-          "min_width": 6,
-          "widget_id": "40c44086"
-        },
-        {
-          "title": "CPU Usage by Host(%)",
-          "widget_type": "timeseries",
-          "stream": "host_os_metrics",
-          "ts_column": "timestamp",
-          "extra_filter": "name = 'cpu'",
-          "max_width": 12,
-          "height": 6,
-          "min_width": 12,
-          "fixTimeWindow": true,
-          "chartProperties": {
-            "yAxisLabel": "%",
-            "xAxisLabel": null,
-            "legendLocation": "right",
-            "options": {
-              "elements": {
-                "line": {
-                  "borderWidth": 1
-                },
-                "point": {
-                  "radius": 2,
-                  "hitRadius": 3,
-                  "hoverRadius": 2
-                }
-              }
-            }
+          "stream": "oia-alerts-stream",
+          "ts_column": "a_created_ts",
+          "extra_filter": "a_message contains 'BGP'",
+          "sparkline": {
+            "interval": "1h"
           },
-          "interval": "auto",
-          "group_by": [
-            "tags_host"
-          ],
-          "duration_hours": 108000,
-          "formatting": {
-            "notation": "compact",
-            "maximumFractionDigits": 2,
-            "unit": "percent"
-          },
-          "series_spec": [
-            {
-              "column": "fields_usage_active",
-              "agg": "avg",
-              "type": "float"
-            }
-          ],
-          "widget_id": "5f4b88de"
-        },
-        {
-          "title": "CPU Idle Usage by Host",
-          "widget_type": "timeseries",
-          "stream": "host_os_metrics",
-          "ts_column": "timestamp",
-          "extra_filter": "name = 'cpu'",
-          "max_width": 12,
-          "height": 6,
-          "min_width": 12,
-          "fixTimeWindow": true,
-          "chartProperties": {
-            "yAxisLabel": "%",
-            "xAxisLabel": null,
-            "legendLocation": "right",
-            "options": {
-              "elements": {
-                "line": {
-                  "borderWidth": 1
-                },
-                "point": {
-                  "radius": 2,
-                  "hitRadius": 3,
-                  "hoverRadius": 2
-                }
-              }
-            }
-          },
-          "interval": "auto",
-          "group_by": [
-            "tags_host"
-          ],
-          "duration_hours": 108000,
-          "formatting": {
-            "notation": "compact",
-            "maximumFractionDigits": 2,
-            "unit": "percent"
-          },
-          "series_spec": [
-            {
-              "column": "fields_usage_idle",
-              "agg": "avg",
-              "type": "float"
-            }
-          ],
-          "widget_id": "4821330b"
-        }
-      ]
-    },
-    {
-      "title": "Memory",
-      "show_filter": true,
-      "widgets": [
-        {
-          "title": "Top 5 devices by Memory Usage",
-          "widget_type": "multi_bar_chart",
-          "stream": "host_os_metrics",
-          "ts_column": "timestamp",
-          "extra_filter": "name = 'mem'",
-          "group_by": [
-            "tags_deployment",
-            "tags_host"
-          ],
-          "formatting": {
-            "notation": "compact",
-            "maximumFractionDigits": 2,
-            "unit": "percent"
-          },
-          "chartProperties": {
-            "yAxisLabel": "Hosts",
-            "xAxisLabel": "Top 5 device by Memory Usage(%)",
-            "stacked": false,
-            "legendLocation": "right",
-            "orientation": "horizontal"
-          },
-          "descending_order": false,
-          "others_spec": {
-            "limit": 5,
-            "show_others": false,
-            "label": "Other Names",
-            "tags_cpu": {
-              "largest": false,
-              "name_based_limit": false
-            },
-            "tags_host": {
-              "largest": true,
-              "name_based_limit": false
-            }
-          },
-          "column": "fields_used_percent",
-          "agg": "avg",
+          "column": "count_",
+          "agg": "sum",
           "type": "int",
-          "max_width": 6,
-          "height": 4,
-          "min_width": 6,
-          "widget_id": "4fc9f0b8"
+          "widget_id": "5f6517c3"
         },
         {
-          "title": "Memory Usage by Host(%)",
-          "widget_type": "timeseries",
-          "stream": "host_os_metrics",
-          "extra_filter": "name = 'mem'",
+          "title": "OSPF Alerts",
+          "widget_type": "counter",
+          "min_width": 2.4,
+          "max_width": 2.4,
+          "height": 4,
+          "stream": "oia-alerts-stream",
+          "ts_column": "a_created_ts",
+          "extra_filter": "a_message contains 'OSPF'",
+          "sparkline": {
+            "interval": "1h"
+          },
+          "column": "count_",
+          "agg": "sum",
+          "type": "int",
+          "widget_id": "2fee8031"
+        },
+        {
+          "title": "Patch Changes",
+          "widget_type": "counter",
+          "min_width": 2.4,
+          "max_width": 2.4,
+          "height": 4,
+          "stream": "change_requests_stream",
           "ts_column": "timestamp",
+          "extra_filter": "message contains 'patch'",
+          "sparkline": {
+            "interval": "1h"
+          },
+          "column": "count_",
+          "agg": "sum",
+          "type": "int",
+          "widget_id": "0c90f99a"
+        },
+        {
+          "title": "Change Requests",
+          "widget_type": "counter",
+          "min_width": 2.4,
+          "max_width": 2.4,
+          "height": 4,
+          "stream": "change_requests_stream",
+          "ts_column": "timestamp",
+          "sparkline": {
+            "interval": "1h"
+          },
+          "column": "count_",
+          "agg": "sum",
+          "type": "int",
+          "widget_id": "0b7d3407"
+        },
+        {
+          "title": "Events Timeline",
+          "widget_type": "timeseries",
+          "stream": "oia-alerts-stream",
+          "ts_column": "a_created_ts",
           "max_width": 12,
-          "height": 6,
+          "height": 8,
           "min_width": 12,
           "fixTimeWindow": true,
           "chartProperties": {
-            "yAxisLabel": "%",
-            "xAxisLabel": null,
-            "legendLocation": "right",
-            "options": {
-              "elements": {
-                "line": {
-                  "borderWidth": 1
-                },
-                "point": {
-                  "radius": 2,
-                  "hitRadius": 3,
-                  "hoverRadius": 2
-                }
+            "yAxisLabel": "Alert Count",
+            "xAxisLabel": "Time",
+            "legendLocation": "none"
+          },
+          "static_markers": [
+            {
+              "timestamp": "{{ALERT_CT}}",
+              "message": "Alert Created",
+              "color": "#B71C1C"
+            }
+          ],
+          "alert_markers": [
+            {
+              "stream": "change_requests_stream",
+              "ts_column": "timestamp",
+              "type": "circle",
+              "message_column": "message",
+              "severity_column": "severity"
+            },
+            {
+              "stream": "oia-alerts-stream",
+              "ts_column": "a_created_ts",
+              "type": "triangle",
+              "message_column": "a_message",
+              "severity_column": "a_severity"
+            },
+            {
+              "stream": "oia-ml-metrics-regression-output",
+              "ts_column": "timestamp",
+              "type": "square",
+              "message_column": "marker_message",
+              "extra_filter": "anomalies_severity is 'High' and anomalies_type is 'Upper'",
+              "severity_column": "anomalies_severity",
+              "columns": [
+                "asset_id",
+                "metric_id",
+                "metric_label",
+                "asset_name",
+                "metric_source",
+                "timestamp",
+                "job_name",
+                "unit",
+                "stream_name"
+              ],
+              "action": {
+                "appName": "user-dashboard/rca_regression_dashboard",
+                "permission": "ml:ml-jobs:viewSampledata",
+                "identifier": "ViewRegressionDashboard",
+                "selectionType": "SINGLE",
+                "stateName": "app.featureapp",
+                "title": "View Regression Dashboard",
+                "type": "GO_TO_APP_STATE"
+              }
+            },
+            {
+              "stream": "oia-logs-regression-output",
+              "ts_column": "timestamp",
+              "type": "circle",
+              "message_column": "asset_id",
+              "extra_filter": "anomalies_severity is 'High' and anomalies_type is 'Upper'",
+              "severity_column": "anomalies_severity",
+              "columns": [
+                "asset_id",
+                "asset_name",
+                "timestamp",
+                "job_name",
+                "stream_name"
+              ],
+              "action": {
+                "appName": "user-dashboard/rca_regression_dashboard",
+                "permission": "ml:ml-jobs:viewSampledata",
+                "identifier": "ViewRegressionDashboard",
+                "selectionType": "SINGLE",
+                "stateName": "app.featureapp",
+                "title": "View Regression Dashboard",
+                "type": "GO_TO_APP_STATE"
               }
             }
-          },
-          "interval": "auto",
-          "group_by": [
-            "tags_host_ip"
           ],
-          "duration_hours": 108000,
-          "formatting": {
-            "notation": "compact",
-            "maximumFractionDigits": 2,
-            "unit": "percent"
-          },
+          "interval": "1min",
           "series_spec": [
             {
-              "column": "fields_used_percent",
-              "agg": "max",
-              "type": "float"
+              "label": "Alerts",
+              "column": "a_id",
+              "agg": "value_count",
+              "type": "int"
             }
           ],
-          "widget_id": "9477277c"
+          "widget_id": "121762cf"
         },
         {
-          "widget_type": "tabular",
-          "title": "Memory Summary",
-          "stream": "host_os_metrics",
-          "ts_column": "timestamp",
-          "extra_filter": "name = 'mem'",
-          "sorting": [],
-          "pivot": {
-            "pivot_type": "advanced",
-            "group_by": [
-              "tags_host_ip",
-              "tags_host"
-            ],
-            "series": [
-              {
-                "column": "fields_total",
-                "agg": "max",
-                "type": "int",
-                "label": "Mem_Total"
-              },
-              {
-                "column": "fields_used",
-                "agg": "max",
-                "type": "int",
-                "label": "Mem_Used"
-              },
-              {
-                "column": "fields_free",
-                "agg": "max",
-                "type": "int",
-                "label": "Mem_Free"
-              }
-            ]
-          },
-          "columns": {
-            "fields_free": {
-              "title": "Memory Free",
-              "hidden": true
-            },
-            "fields_used": {
-              "title": "Memory Used",
-              "hidden": true
-            },
-            "tags_host_ip": "Host",
-            "tags_host": "Device"
-          },
-          "custom_columns": [
-            {
-              "id": "fields_total_new",
-              "label": "Memory Total(GB)",
-              "expr": "((Mem_Total) * 0.000000001) "
-            },
-            {
-              "id": "fields_used_new",
-              "label": "Memory Used(GB)",
-              "expr": "((Mem_Used) * 0.000000001) "
-            },
-            {
-              "id": "fields_free_new",
-              "label": "Memory Free(GB)",
-              "expr": "((Mem_Free) * 0.000000001) "
-            },
-            {
-              "id": "memory_used_percent",
-              "label": "Memory Used(%)",
-              "expr": "((Mem_Used/Mem_Total) * 100) "
-            }
-          ],
-          "hide_columns": [
-            "Mem_Total",
-            "Mem_Used",
-            "Mem_free"
-          ],
-          "widget_id": "1f3eb674"
-        }
-      ]
-    },
-    {
-      "title": "Disk",
-      "show_filter": true,
-      "widgets": [
-        {
-          "title": "Top 5 devices by disk Usage",
+          "title": "Metric Anomalies",
           "widget_type": "multi_bar_chart",
-          "stream": "host_os_metrics",
+          "stream": "oia-ml-metrics-regression-output",
           "ts_column": "timestamp",
-          "extra_filter": "name = 'disk'",
-          "group_by": [
-            "tags_device",
-            "tags_host"
-          ],
-          "formatting": {
-            "notation": "compact",
-            "maximumFractionDigits": 2,
-            "unit": "percent"
-          },
           "chartProperties": {
-            "yAxisLabel": "Hosts",
-            "xAxisLabel": "Top 5 Disk Usage(%)",
+            "yAxisLabel": "Anomalies (%)",
+            "xAxisLabel": "Metric Name",
             "stacked": false,
-            "legendLocation": "right",
-            "orientation": "horizontal"
+            "legendLocation": "none",
+            "orientation": "vertical"
           },
-          "descending_order": false,
+          "group_by": [
+            "asset_id",
+            "metric_label"
+          ],
+          "descending_order": true,
           "others_spec": {
-            "limit": 5,
-            "show_others": false,
-            "tags_device": {
-              "largest": true,
-              "name_based_limit": false
-            },
-            "tags_host": {
-              "largest": true,
-              "name_based_limit": false
-            }
+            "limit": 4,
+            "show_others": false
           },
-          "column": "fields_used_percent",
+          "column": "anomalies_percent",
           "agg": "max",
-          "type": "int",
-          "max_width": 6,
-          "height": 4,
-          "min_width": 6,
-          "widget_id": "33af152e"
+          "type": "float",
+          "widget_id": "f4786acb"
         },
         {
-          "title": "Disk Usage by Host(%)",
-          "widget_type": "timeseries",
-          "stream": "host_os_metrics",
-          "extra_filter": "name = 'disk' ",
+          "title": "Change Requests",
+          "widget_type": "tabular",
+          "min_width": 6,
+          "max_width": 6,
+          "height": 5,
+          "timebased": false,
+          "stream": "change_requests_stream",
           "ts_column": "timestamp",
-          "max_width": 12,
-          "height": 6,
-          "min_width": 12,
+          "columns": {
+            "timestamp": {
+              "title": "Time",
+              "type": "DATETIME"
+            },
+            "message": {
+              "title": "Change Description",
+              "type": "TEXT"
+            }
+          },
+          "widget_id": "31e2f2ed"
+        },
+        {
+          "widget_type": "pie_chart",
+          "title": "Alerts by Severity",
+          "stream": "oia-alerts-stream",
+          "extra_filter": "customer_id is '{{CUSTOMER_ID}}'",
+          "ts_column": "timestamp",
+          "min_width": 3,
+          "height": 4,
+          "max_width": 3,
+          "column": "a_id",
+          "agg": "value_count",
+          "group_by": [
+            "a_severity"
+          ],
+          "type": "str",
+          "style": {
+            "color-map": {
+              "SEVERE": [
+                "#B71C1C",
+                "#ffffff"
+              ],
+              "CRITICAL": [
+                "#E53935",
+                "#ffffff"
+              ],
+              "MAJOR": [
+                "#F57C00",
+                "#ffffff"
+              ],
+              "MINOR": [
+                "#FFA726",
+                "#ffffff"
+              ],
+              "WARNING": [
+                "#FFD54F",
+                "#ffffff"
+              ],
+              "NOTIFICATION": [
+                "#4DD0E1",
+                "#ffffff"
+              ],
+              "INFORMATION": [
+                "#03A9F4",
+                "#ffffff"
+              ]
+            }
+          },
+          "widget_id": "cb0706e6"
+        },
+        {
+          "title": "Alert Trend",
+          "widget_type": "timeseries",
+          "stream": "oia-alerts-stream",
+          "ts_column": "a_created_ts",
+          "max_width": 9,
+          "height": 4,
+          "min_width": 9,
           "fixTimeWindow": true,
+          "extra_filter": "customer_id is '{{CUSTOMER_ID}}'",
           "chartProperties": {
-            "yAxisLabel": "%",
-            "xAxisLabel": null,
-            "legendLocation": "right",
+            "yAxisLabel": "Count",
+            "xAxisLabel": "Time",
+            "legendLocation": "top"
+          },
+          "interval": "1H",
+          "group_by": [
+            "a_severity"
+          ],
+          "static_markers": [
+            {
+              "timestamp": "{{ALERT_CT}}",
+              "message": "Alert Created",
+              "color": "#B71C1C"
+            }
+          ],
+          "series_spec": [
+            {
+              "column": "a_id",
+              "agg": "value_count",
+              "type": "int"
+            }
+          ],
+          "style": {
+            "color-map": {
+              "SEVERE": [
+                "#B71C1C",
+                "#ffffff"
+              ],
+              "CRITICAL": [
+                "#E53935",
+                "#ffffff"
+              ],
+              "MAJOR": [
+                "#F57C00",
+                "#ffffff"
+              ],
+              "MINOR": [
+                "#FFA726",
+                "#ffffff"
+              ],
+              "WARNING": [
+                "#FFD54F",
+                "#ffffff"
+              ],
+              "NOTIFICATION": [
+                "#4DD0E1",
+                "#ffffff"
+              ],
+              "INFORMATION": [
+                "#03A9F4",
+                "#ffffff"
+              ]
+            }
+          },
+          "widget_id": "c29bb686"
+        },
+        {
+          "widget_type": "pie_chart",
+          "title": "Incidents By Priority",
+          "stream": "oia-incidents-stream",
+          "extra_filter": "customer_id is '{{CUSTOMER_ID}}'",
+          "ts_column": "timestamp",
+          "min_width": 3,
+          "height": 4,
+          "max_width": 3,
+          "column": "incident_id",
+          "agg": "value_count",
+          "group_by": [
+            "i_priority_label"
+          ],
+          "style": {
+            "color-map": {
+              "Critical": [
+                "#B71C1C",
+                "#ffffff"
+              ],
+              "High": [
+                "#FFA726",
+                "#ffffff"
+              ],
+              "Moderate": [
+                "#90CAF9",
+                "#ffffff"
+              ],
+              "Low": [
+                "#4DD0E1",
+                "#ffffff"
+              ],
+              "Planning": [
+                "#4FC3F7",
+                "#ffffff"
+              ]
+            }
+          },
+          "type": "str",
+          "widget_id": "7dce82c8"
+        },
+        {
+          "title": "Incident Trend",
+          "widget_type": "timeseries",
+          "stream": "oia-incidents-stream",
+          "ts_column": "i_created_ts",
+          "max_width": 9,
+          "height": 4,
+          "min_width": 9,
+          "fixTimeWindow": true,
+          "extra_filter": "customer_id is '{{CUSTOMER_ID}}'",
+          "chartProperties": {
+            "yAxisLabel": "Count",
+            "xAxisLabel": "Time",
+            "legendLocation": "top"
+          },
+          "interval": "1H",
+          "group_by": [
+            "i_priority_label"
+          ],
+          "static_markers": [
+            {
+              "timestamp": "{{ALERT_CT}}",
+              "message": "Alert Created",
+              "color": "#B71C1C"
+            }
+          ],
+          "series_spec": [
+            {
+              "column": "incident_id",
+              "agg": "value_count",
+              "type": "int"
+            }
+          ],
+          "style": {
+            "color-map": {
+              "Critical": [
+                "#B71C1C",
+                "#ffffff"
+              ],
+              "High": [
+                "#FFA726",
+                "#ffffff"
+              ],
+              "Moderate": [
+                "#FFD54F",
+                "#ffffff"
+              ],
+              "Low": [
+                "#90CAF9",
+                "#ffffff"
+              ],
+              "Planning": [
+                "#4FC3F7",
+                "#ffffff"
+              ]
+            }
+          },
+          "widget_id": "a3d7ef3c"
+        },
+        {
+          "widget_type": "pie_chart",
+          "title": "Syslogs By Severity",
+          "ts_column": "rda_gw_timestamp",
+          "stream": "syslog_udp_event_stream_all",
+          "min_width": 3,
+          "height": 4,
+          "max_width": 3,
+          "duration_hours0": 10000,
+          "column": "count_",
+          "agg": "sum",
+          "group_by": [
+            "syslog_severity"
+          ],
+          "type": "int",
+          "style": {
+            "color-map": {
+              "SEVERE": [
+                "#B71C1C",
+                "#ffffff"
+              ],
+              "CRITICAL": [
+                "#E53935",
+                "#ffffff"
+              ],
+              "MAJOR": [
+                "#F57C00",
+                "#ffffff"
+              ],
+              "MINOR": [
+                "#FFA726",
+                "#ffffff"
+              ],
+              "WARNING": [
+                "#FFD54F",
+                "#ffffff"
+              ]
+            }
+          },
+          "widget_id": "ed85e796"
+        },
+        {
+          "title": "Syslogs",
+          "widget_type": "timeseries",
+          "max_width": 9,
+          "height": 4,
+          "min_width": 9,
+          "ts_column": "rda_gw_timestamp",
+          "show-markers": true,
+          "fixTimeWindow": true,
+          "stream": "syslog_udp_event_stream_all",
+          "extra_filter0": "log_category is 'syslog'",
+          "chartProperties": {
+            "xAxisLabel": "Timestamp",
+            "yAxisLabel": "Count",
+            "legendLocation": "none",
+            "xAxisTickOrientation": "STAGGERED",
             "options": {
               "elements": {
                 "line": {
@@ -663,981 +566,573 @@
                 "point": {
                   "radius": 2,
                   "hitRadius": 3,
-                  "hoverRadius": 2
+                  "hoverRadius": 3
                 }
               }
             }
           },
-          "interval": "auto",
-          "group_by": [
-            "tags_host"
+          "static_markers": [
+            {
+              "timestamp": "{{ALERT_CT}}",
+              "message": "Alert Created",
+              "color": "#B71C1C"
+            }
           ],
-          "duration_hours": 108000,
-          "formatting": {
-            "notation": "compact",
-            "maximumFractionDigits": 2,
-            "unit": "percent"
-          },
           "series_spec": [
             {
-              "column": "fields_used_percent",
-              "agg": "avg",
-              "type": "float"
+              "column": "count_",
+              "agg": "sum",
+              "type": "int"
             }
           ],
-          "widget_id": "15aeadc0"
+          "widget_id": "7ee88e42"
         },
         {
+          "title": "Syslogs",
           "widget_type": "tabular",
-          "title": "Disk Summary",
-          "stream": "host_os_metrics",
-          "ts_column": "timestamp",
-          "extra_filter": "name = 'disk'",
-          "sorting": [
-            {
-              "disk_used_percent": "desc"
-            }
-          ],
+          "stream": "syslog_udp_event_stream_all",
+          "min_width": 12,
+          "height": 6,
+          "max_width": 12,
+          "extra_filter0": "log_category is 'syslog'",
+          "ts_column": "rda_gw_timestamp",
+          "resizableColumns": true,
           "remote_searchable": true,
           "remote_searchable_cols": [
-            "tags_host",
-            "tags_host_ip",
-            "tags_device",
-            "fields_used",
-            "fields_free",
-            "disk_used_percent"
+            "message"
           ],
-          "pivot": {
-            "pivot_type": "advanced",
-            "group_by": [
-              "tags_host",
-              "tags_host_ip",
-              "tags_device"
-            ],
-            "series": [
-              {
-                "column": "fields_total",
-                "agg": "max",
-                "type": "int",
-                "label": "Disk_Total"
-              },
-              {
-                "column": "fields_used",
-                "agg": "max",
-                "type": "int",
-                "label": "Disk_Used"
-              },
-              {
-                "column": "fields_free",
-                "agg": "max",
-                "type": "int",
-                "label": "Disk_free"
-              }
-            ]
-          },
           "columns": {
-            "fields_free": {
-              "title": "Disk Free",
-              "hidden": true
+            "rda_gw_timestamp": {
+              "title": "Event Time",
+              "type": "DATETIME"
             },
-            "fields_used": {
-              "title": "Disk Used",
-              "hidden": true
-            },
-            "tags_host": "Hostname",
-            "tags_host_ip": "Host",
-            "tags_device": "Device"
+            "rda_gw_client_ip": "Host",
+            "raw": "Message",
+            "syslog_severity": "Severity"
           },
-          "custom_columns": [
-            {
-              "id": "fields_total_new",
-              "label": "Disk Total(GB)",
-              "expr": "((Disk_Total) * 0.00000001) ",
-              "visible": true
-            },
-            {
-              "id": "fields_used",
-              "label": "Disk Used(GB)",
-              "expr": "((Disk_Used) * 0.00000001) "
-            },
-            {
-              "id": "fields_free",
-              "label": "Disk Free(GB)",
-              "expr": "((Disk_free) * 0.00000001) "
-            },
-            {
-              "id": "disk_used_percent",
-              "label": "Disk Used(%)",
-              "expr": "((Disk_Used/Disk_Total) * 100) "
-            }
-          ],
-          "hide_columns": [
-            "Disk_Total",
-            "Disk_Used",
-            "Disk_free"
-          ],
-          "widget_id": "1613e3d1"
-        }
-      ]
-    },
-    {
-      "title": "Network",
-      "show_filter": true,
-      "widgets": [
-        {
-          "title": "Network Usage(Packets Sent)",
-          "widget_type": "timeseries",
-          "stream": "host_os_metrics",
-          "extra_filter": "name = 'net'",
-          "ts_column": "timestamp",
-          "max_width": 12,
-          "height": 6,
-          "min_width": 12,
-          "fixTimeWindow": true,
-          "formatter": "ByteFormatter",
-          "chartProperties": {
-            "yAxisLabel": null,
-            "xAxisLabel": null,
-            "legendLocation": "right",
-            "options": {
-              "elements": {
-                "line": {
-                  "borderWidth": 1
-                },
-                "point": {
-                  "radius": 2,
-                  "hitRadius": 3,
-                  "hoverRadius": 2
-                }
-              }
-            }
-          },
-          "interval": "30m",
-          "group_by": [
-            "tags_deployment"
-          ],
-          "duration_hours": 108000,
-          "formatting": {
-            "unit": "gigabyte",
-            "style": "unit",
-            "maximumFractionDigits": 2
-          },
-          "series_spec": [
-            {
-              "column": "fields_packets_sent",
-              "agg": "delta",
-              "label": "Delta",
-              "type": "float"
-            }
-          ],
-          "widget_id": "5f4b88da"
-        },
-        {
-          "title": "Network Usage(Packet Recevied)",
-          "widget_type": "timeseries",
-          "stream": "host_os_metrics",
-          "extra_filter": "name = 'net'",
-          "ts_column": "timestamp",
-          "max_width": 12,
-          "height": 6,
-          "min_width": 12,
-          "fixTimeWindow": true,
-          "formatter": "ByteFormatter",
-          "chartProperties": {
-            "yAxisLabel": null,
-            "xAxisLabel": null,
-            "legendLocation": "right",
-            "options": {
-              "elements": {
-                "line": {
-                  "borderWidth": 1
-                },
-                "point": {
-                  "radius": 2,
-                  "hitRadius": 3,
-                  "hoverRadius": 2
-                }
-              }
-            }
-          },
-          "interval": "30m",
-          "group_by": [
-            "tags_deployment"
-          ],
-          "duration_hours": 108000,
-          "formatting": {
-            "unit": "gigabyte",
-            "style": "unit",
-            "maximumFractionDigits": 2
-          },
-          "series_spec": [
-            {
-              "column": "fields_packets_recv",
-              "agg": "delta",
-              "label": "Delta",
-              "type": "float"
-            }
-          ],
-          "widget_id": "0ac7c301"
-        },
-        {
-          "title": "Network Usage(Packet Drop In)",
-          "widget_type": "timeseries",
-          "stream": "host_os_metrics",
-          "extra_filter": "name = 'net'",
-          "ts_column": "timestamp",
-          "max_width": 12,
-          "height": 6,
-          "min_width": 12,
-          "fixTimeWindow": true,
-          "formatter": "ByteFormatter",
-          "chartProperties": {
-            "yAxisLabel": null,
-            "xAxisLabel": null,
-            "legendLocation": "right",
-            "options": {
-              "elements": {
-                "line": {
-                  "borderWidth": 1
-                },
-                "point": {
-                  "radius": 2,
-                  "hitRadius": 3,
-                  "hoverRadius": 2
-                }
-              }
-            }
-          },
-          "interval": "30m",
-          "group_by": [
-            "tags_deployment"
-          ],
-          "duration_hours": 108000,
-          "formatting": {
-            "unit": "gigabyte",
-            "style": "unit",
-            "maximumFractionDigits": 2
-          },
-          "series_spec": [
-            {
-              "column": "fields_drop_in",
-              "agg": "delta",
-              "label": "Delta",
-              "type": "float"
-            }
-          ],
-          "widget_id": "5f4b88du"
-        }
-      ]
-    },
-    {
-      "title": "Docker",
-      "show_filter": true,
-      "widgets": [
-        {
-          "title": "Top 5 Container by CPU Usage",
-          "widget_type": "multi_bar_chart",
-          "stream": "docker_metrics",
-          "ts_column": "timestamp",
-          "extra_filter": "name = 'docker_container_cpu'",
-          "group_by": [
-            "tags_cpu",
-            "tags_container_name"
-          ],
-          "formatting": {
-            "notation": "compact",
-            "maximumFractionDigits": 2,
-            "unit": "percent"
-          },
-          "chartProperties": {
-            "yAxisLabel": "Container",
-            "xAxisLabel": "Top 5 CPU Active Usage(%)",
-            "stacked": false,
-            "legendLocation": "right",
-            "orientation": "horizontal"
-          },
-          "descending_order": false,
-          "others_spec": {
-            "limit": 5,
-            "show_others": false,
-            "label": "Other Names",
-            "tags_cpu": {
-              "largest": true,
-              "name_based_limit": false
-            },
-            "tags_container_name": {
-              "largest": true,
-              "name_based_limit": false
-            }
-          },
-          "column": "fields_usage_total",
-          "agg": "avg",
-          "type": "int",
-          "max_width": 6,
-          "height": 4,
-          "min_width": 6,
-          "widget_id": "c3193cdc"
-        },
-        {
-          "title": "CPU Usage by Conatainer(%)",
-          "widget_type": "timeseries",
-          "stream": "docker_metrics",
-          "ts_column": "timestamp",
-          "extra_filter": "name = 'docker_container_cpu' and tags_cpu = 'cpu-total'",
-          "max_width": 12,
-          "height": 6,
-          "min_width": 12,
-          "fixTimeWindow": true,
-          "chartProperties": {
-            "yAxisLabel": "%",
-            "xAxisLabel": null,
-            "legendLocation": "right",
-            "options": {
-              "elements": {
-                "line": {
-                  "borderWidth": 1
-                },
-                "point": {
-                  "radius": 2,
-                  "hitRadius": 3,
-                  "hoverRadius": 2
-                }
-              }
-            }
-          },
-          "interval": "auto",
-          "group_by": [
-            "tags_container_name"
-          ],
-          "duration_hours": 108000,
-          "formatting": {
-            "notation": "compact",
-            "maximumFractionDigits": 2,
-            "unit": "percent"
-          },
-          "series_spec": [
-            {
-              "column": "fields_usage_percent",
-              "agg": "avg",
-              "type": "float"
-            }
-          ],
-          "widget_id": "fe18eadd"
-        },
-        {
-          "title": "Memory Usage by Container(%)",
-          "widget_type": "timeseries",
-          "stream": "docker_metrics",
-          "extra_filter": "name = 'docker_container_mem'",
-          "ts_column": "timestamp",
-          "max_width": 12,
-          "height": 6,
-          "min_width": 12,
-          "fixTimeWindow": true,
-          "chartProperties": {
-            "yAxisLabel": "%",
-            "xAxisLabel": null,
-            "legendLocation": "right",
-            "options": {
-              "elements": {
-                "line": {
-                  "borderWidth": 1
-                },
-                "point": {
-                  "radius": 2,
-                  "hitRadius": 3,
-                  "hoverRadius": 2
-                }
-              }
-            }
-          },
-          "interval": "auto",
-          "group_by": [
-            "tags_container_name"
-          ],
-          "duration_hours": 108000,
-          "formatting": {
-            "notation": "compact",
-            "maximumFractionDigits": 2,
-            "unit": "percent"
-          },
-          "series_spec": [
-            {
-              "column": "fields_usage_percent",
-              "agg": "max",
-              "type": "float"
-            }
-          ],
-          "widget_id": "ef22feb5"
-        },
-        {
-          "title": "Container Metrics",
-          "widget_type": "pie_chart",
-          "stream": "docker_metrics",
-          "ts_column": "timestamp",
-          "column": "name",
-          "agg": "cardinality",
-          "group_by": [
-            "name"
-          ],
-          "type": "str",
-          "min_width": 4,
-          "height": 4,
-          "max_width": 4,
-          "widget_id": "47b682a7"
-        },
-        {
-          "title": "Containers",
-          "widget_type": "pie_chart",
-          "stream": "docker_metrics",
-          "ts_column": "timestamp",
-          "column": "tags_container_name",
-          "agg": "cardinality",
-          "group_by": [
-            "tags_container_name"
-          ],
-          "type": "str",
-          "min_width": 4,
-          "height": 4,
-          "max_width": 4,
-          "widget_id": "7f1898bd"
-        },
-        {
-          "title": "Container Running",
-          "widget_type": "pie_chart",
-          "stream": "docker_metrics",
-          "ts_column": "timestamp",
-          "column": "tags_container_status",
-          "agg": "cardinality",
-          "group_by": [
-            "tags_container_status"
-          ],
-          "type": "str",
-          "min_width": 4,
-          "height": 4,
-          "max_width": 4,
-          "widget_id": "10c98f06"
-        },
-        {
-          "title": "Container Version",
-          "widget_type": "pie_chart",
-          "stream": "docker_metrics",
-          "ts_column": "timestamp",
-          "column": "tags_container_version",
-          "agg": "cardinality",
-          "group_by": [
-            "tags_container_version"
-          ],
-          "type": "str",
-          "min_width": 4,
-          "height": 4,
-          "max_width": 4,
-          "widget_id": "d48671c2"
+          "widget_id": "3d7466a3"
         }
       ]
     }
   ],
   "pstream_dashboards": [
     {
-      "title": "Overall",
+      "title": "Customer View",
       "show_filter": true,
       "widgets": [
         {
           "widget_type": "label",
-          "label": "<div style='text-align:center;width:100%;'><h1><a style='text-decoration:none;color:#0066ff;' target='_blank'> Host OS Metrics for {{RDAF_NAME}} </a></h1></div>",
+          "label": "<h3 style='text-align: center;'>Alert Created: {%raw%} {{' {{ '}} {%endraw%} toDateTimeString({{ ALERT_CT }}) {%raw%} {{ '}}' }} {%endraw%} </h3>",
+          "advanced": true,
           "min_width": 12,
           "max_width": 12,
           "height": 1,
-          "widget_id": "f7aa1ce2"
+          "widget_id": "5ae002f1"
         },
         {
-          "title": "RDAF Deployments",
-          "widget_type": "pie_chart",
-          "stream": "host_os_metrics",
-          "ts_column": "timestamp",
-          "column": "tags_deployment",
-          "agg": "cardinality",
-          "group_by": [
-            "tags_deployment"
-          ],
-          "type": "str",
-          "min_width": 4,
+          "title": "Link Up/Down Alerts",
+          "widget_type": "counter",
+          "min_width": 2.4,
+          "max_width": 2.4,
           "height": 4,
-          "max_width": 4,
-          "widget_id": "6f2c79fc"
-        },
-        {
-          "title": "Host OS Metrics",
-          "widget_type": "pie_chart",
-          "stream": "host_os_metrics",
-          "ts_column": "timestamp",
-          "column": "name",
-          "agg": "cardinality",
-          "group_by": [
-            "name"
-          ],
-          "type": "str",
-          "min_width": 4,
-          "height": 4,
-          "max_width": 4,
-          "widget_id": "b9c27f15"
-        },
-        {
-          "title": "Hosts",
-          "widget_type": "pie_chart",
-          "stream": "host_os_metrics",
-          "ts_column": "timestamp",
-          "column": "name",
-          "agg": "cardinality",
-          "group_by": [
-            "tags_host"
-          ],
-          "type": "str",
-          "min_width": 4,
-          "height": 4,
-          "max_width": 4,
-          "widget_id": "7f17a90f"
-        },
-        {
-          "title": "Tag Name",
-          "widget_type": "pie_chart",
-          "stream": "host_os_metrics",
-          "ts_column": "timestamp",
-          "column": "name",
-          "agg": "cardinality",
-          "group_by": [
-            "tags_name"
-          ],
-          "type": "str",
-          "min_width": 4,
-          "height": 4,
-          "max_width": 4,
-          "widget_id": "2036f89e"
-        },
-        {
-          "title": "Interfaces",
-          "widget_type": "pie_chart",
-          "stream": "host_os_metrics",
-          "ts_column": "timestamp",
-          "column": "name",
-          "agg": "cardinality",
-          "group_by": [
-            "tags_interface"
-          ],
-          "type": "str",
-          "min_width": 4,
-          "height": 4,
-          "max_width": 4,
-          "widget_id": "af610dc5"
-        },
-        {
-          "title": "FS Type",
-          "widget_type": "pie_chart",
-          "stream": "host_os_metrics",
-          "ts_column": "timestamp",
-          "column": "name",
-          "agg": "cardinality",
-          "group_by": [
-            "tags_fstype"
-          ],
-          "type": "str",
-          "min_width": 4,
-          "height": 4,
-          "max_width": 4,
-          "widget_id": "757ed75a"
-        },
-        {
-          "title": "Path",
-          "widget_type": "pie_chart",
-          "stream": "host_os_metrics",
-          "ts_column": "timestamp",
-          "column": "name",
-          "agg": "cardinality",
-          "group_by": [
-            "tags_path"
-          ],
-          "type": "str",
-          "min_width": 4,
-          "height": 4,
-          "max_width": 4,
-          "widget_id": "ab61b4a7"
-        }
-      ]
-    },
-    {
-      "title": "CPU",
-      "show_filter": true,
-      "widgets": [
-        {
-          "title": "Top 5 devices by CPU Usage",
-          "widget_type": "multi_bar_chart",
-          "stream": "host_os_metrics",
-          "ts_column": "timestamp",
-          "extra_filter": "name = 'cpu'",
-          "group_by": [
-            "tags_cpu",
-            "tags_host"
-          ],
-          "formatting": {
-            "notation": "compact",
-            "maximumFractionDigits": 2,
-            "unit": "percent"
+          "stream": "oia-alerts-stream",
+          "ts_column": "a_created_ts",
+          "extra_filter": "a_message contains 'link'",
+          "sparkline": {
+            "interval": "1h"
           },
-          "chartProperties": {
-            "yAxisLabel": "Hosts",
-            "xAxisLabel": "Top 5 CPU Active Usage(%)",
-            "stacked": false,
-            "legendLocation": "right",
-            "orientation": "horizontal"
-          },
-          "descending_order": false,
-          "others_spec": {
-            "limit": 5,
-            "show_others": false,
-            "label": "Other Names",
-            "tags_cpu": {
-              "largest": false,
-              "name_based_limit": false
-            },
-            "tags_host": {
-              "largest": true,
-              "name_based_limit": false
-            }
-          },
-          "column": "fields_usage_active",
-          "agg": "avg",
+          "column": "count_",
+          "agg": "sum",
           "type": "int",
-          "max_width": 6,
+          "widget_id": "42b0d069"
+        },
+        {
+          "title": "BGP Alerts",
+          "widget_type": "counter",
+          "min_width": 2.4,
+          "max_width": 2.4,
           "height": 4,
-          "min_width": 6,
-          "widget_id": "40c44086"
-        },
-        {
-          "title": "CPU Usage by Host(%)",
-          "widget_type": "timeseries",
-          "stream": "host_os_metrics",
-          "ts_column": "timestamp",
-          "extra_filter": "name = 'cpu'",
-          "max_width": 12,
-          "height": 6,
-          "min_width": 12,
-          "fixTimeWindow": true,
-          "chartProperties": {
-            "yAxisLabel": "%",
-            "xAxisLabel": null,
-            "legendLocation": "right",
-            "options": {
-              "elements": {
-                "line": {
-                  "borderWidth": 1
-                },
-                "point": {
-                  "radius": 2,
-                  "hitRadius": 3,
-                  "hoverRadius": 2
-                }
-              }
-            }
+          "stream": "oia-alerts-stream",
+          "ts_column": "a_created_ts",
+          "extra_filter": "a_message contains 'BGP'",
+          "sparkline": {
+            "interval": "1h"
           },
-          "interval": "auto",
-          "group_by": [
-            "tags_host"
-          ],
-          "duration_hours": 108000,
-          "formatting": {
-            "notation": "compact",
-            "maximumFractionDigits": 2,
-            "unit": "percent"
-          },
-          "series_spec": [
-            {
-              "column": "fields_usage_active",
-              "agg": "avg",
-              "type": "float"
-            }
-          ],
-          "widget_id": "5f4b88de"
-        },
-        {
-          "title": "CPU Idle Usage by Host",
-          "widget_type": "timeseries",
-          "stream": "host_os_metrics",
-          "ts_column": "timestamp",
-          "extra_filter": "name = 'cpu'",
-          "max_width": 12,
-          "height": 6,
-          "min_width": 12,
-          "fixTimeWindow": true,
-          "chartProperties": {
-            "yAxisLabel": "%",
-            "xAxisLabel": null,
-            "legendLocation": "right",
-            "options": {
-              "elements": {
-                "line": {
-                  "borderWidth": 1
-                },
-                "point": {
-                  "radius": 2,
-                  "hitRadius": 3,
-                  "hoverRadius": 2
-                }
-              }
-            }
-          },
-          "interval": "auto",
-          "group_by": [
-            "tags_host"
-          ],
-          "duration_hours": 108000,
-          "formatting": {
-            "notation": "compact",
-            "maximumFractionDigits": 2,
-            "unit": "percent"
-          },
-          "series_spec": [
-            {
-              "column": "fields_usage_idle",
-              "agg": "avg",
-              "type": "float"
-            }
-          ],
-          "widget_id": "4821330b"
-        }
-      ]
-    },
-    {
-      "title": "Memory",
-      "show_filter": true,
-      "widgets": [
-        {
-          "title": "Top 5 devices by Memory Usage",
-          "widget_type": "multi_bar_chart",
-          "stream": "host_os_metrics",
-          "ts_column": "timestamp",
-          "extra_filter": "name = 'mem'",
-          "group_by": [
-            "tags_deployment",
-            "tags_host"
-          ],
-          "formatting": {
-            "notation": "compact",
-            "maximumFractionDigits": 2,
-            "unit": "percent"
-          },
-          "chartProperties": {
-            "yAxisLabel": "Hosts",
-            "xAxisLabel": "Top 5 device by Memory Usage(%)",
-            "stacked": false,
-            "legendLocation": "right",
-            "orientation": "horizontal"
-          },
-          "descending_order": false,
-          "others_spec": {
-            "limit": 5,
-            "show_others": false,
-            "label": "Other Names",
-            "tags_cpu": {
-              "largest": false,
-              "name_based_limit": false
-            },
-            "tags_host": {
-              "largest": true,
-              "name_based_limit": false
-            }
-          },
-          "column": "fields_used_percent",
-          "agg": "avg",
+          "column": "count_",
+          "agg": "sum",
           "type": "int",
-          "max_width": 6,
-          "height": 4,
-          "min_width": 6,
-          "widget_id": "4fc9f0b8"
+          "widget_id": "5f6517c3"
         },
         {
-          "title": "Memory Usage by Host(%)",
-          "widget_type": "timeseries",
-          "stream": "host_os_metrics",
-          "extra_filter": "name = 'mem'",
+          "title": "OSPF Alerts",
+          "widget_type": "counter",
+          "min_width": 2.4,
+          "max_width": 2.4,
+          "height": 4,
+          "stream": "oia-alerts-stream",
+          "ts_column": "a_created_ts",
+          "extra_filter": "a_message contains 'OSPF'",
+          "sparkline": {
+            "interval": "1h"
+          },
+          "column": "count_",
+          "agg": "sum",
+          "type": "int",
+          "widget_id": "2fee8031"
+        },
+        {
+          "title": "Patch Changes",
+          "widget_type": "counter",
+          "min_width": 2.4,
+          "max_width": 2.4,
+          "height": 4,
+          "stream": "change_requests_stream",
           "ts_column": "timestamp",
+          "extra_filter": "message contains 'patch'",
+          "sparkline": {
+            "interval": "1h"
+          },
+          "column": "count_",
+          "agg": "sum",
+          "type": "int",
+          "widget_id": "0c90f99a"
+        },
+        {
+          "title": "Change Requests",
+          "widget_type": "counter",
+          "min_width": 2.4,
+          "max_width": 2.4,
+          "height": 4,
+          "stream": "change_requests_stream",
+          "ts_column": "timestamp",
+          "sparkline": {
+            "interval": "1h"
+          },
+          "column": "count_",
+          "agg": "sum",
+          "type": "int",
+          "widget_id": "0b7d3407"
+        },
+        {
+          "title": "Events Timeline",
+          "widget_type": "timeseries",
+          "stream": "oia-alerts-stream",
+          "ts_column": "a_created_ts",
           "max_width": 12,
-          "height": 6,
+          "height": 8,
           "min_width": 12,
           "fixTimeWindow": true,
           "chartProperties": {
-            "yAxisLabel": "%",
-            "xAxisLabel": null,
-            "legendLocation": "right",
-            "options": {
-              "elements": {
-                "line": {
-                  "borderWidth": 1
-                },
-                "point": {
-                  "radius": 2,
-                  "hitRadius": 3,
-                  "hoverRadius": 2
-                }
+            "yAxisLabel": "Alert Count",
+            "xAxisLabel": "Time",
+            "legendLocation": "none"
+          },
+          "static_markers": [
+            {
+              "timestamp": "{{ALERT_CT}}",
+              "message": "Alert Created",
+              "color": "#B71C1C"
+            }
+          ],
+          "alert_markers": [
+            {
+              "stream": "change_requests_stream",
+              "ts_column": "timestamp",
+              "type": "circle",
+              "message_column": "message",
+              "severity_column": "severity"
+            },
+            {
+              "stream": "oia-alerts-stream",
+              "ts_column": "a_created_ts",
+              "type": "triangle",
+              "message_column": "a_message",
+              "severity_column": "a_severity"
+            },
+            {
+              "stream": "oia-ml-metrics-regression-output",
+              "ts_column": "timestamp",
+              "type": "square",
+              "message_column": "marker_message",
+              "extra_filter": "anomalies_severity is 'High' and anomalies_type is 'Upper'",
+              "severity_column": "anomalies_severity",
+              "columns": [
+                "asset_id",
+                "metric_id",
+                "metric_label",
+                "asset_name",
+                "metric_source",
+                "timestamp",
+                "job_name",
+                "unit",
+                "stream_name"
+              ],
+              "action": {
+                "appName": "user-dashboard/rca_regression_dashboard",
+                "permission": "ml:ml-jobs:viewSampledata",
+                "identifier": "ViewRegressionDashboard",
+                "selectionType": "SINGLE",
+                "stateName": "app.featureapp",
+                "title": "View Regression Dashboard",
+                "type": "GO_TO_APP_STATE"
+              }
+            },
+            {
+              "stream": "oia-logs-regression-output",
+              "ts_column": "timestamp",
+              "type": "circle",
+              "message_column": "asset_id",
+              "extra_filter": "anomalies_severity is 'High' and anomalies_type is 'Upper'",
+              "severity_column": "anomalies_severity",
+              "columns": [
+                "asset_id",
+                "asset_name",
+                "timestamp",
+                "job_name",
+                "stream_name"
+              ],
+              "action": {
+                "appName": "user-dashboard/rca_regression_dashboard",
+                "permission": "ml:ml-jobs:viewSampledata",
+                "identifier": "ViewRegressionDashboard",
+                "selectionType": "SINGLE",
+                "stateName": "app.featureapp",
+                "title": "View Regression Dashboard",
+                "type": "GO_TO_APP_STATE"
               }
             }
-          },
-          "interval": "auto",
-          "group_by": [
-            "tags_host_ip"
           ],
-          "duration_hours": 108000,
-          "formatting": {
-            "notation": "compact",
-            "maximumFractionDigits": 2,
-            "unit": "percent"
-          },
+          "interval": "1min",
           "series_spec": [
             {
-              "column": "fields_used_percent",
-              "agg": "max",
-              "type": "float"
+              "label": "Alerts",
+              "column": "a_id",
+              "agg": "value_count",
+              "type": "int"
             }
           ],
-          "widget_id": "9477277c"
+          "widget_id": "121762cf"
         },
         {
-          "widget_type": "tabular",
-          "title": "Memory Summary",
-          "stream": "host_os_metrics",
-          "ts_column": "timestamp",
-          "extra_filter": "name = 'mem'",
-          "sorting": [],
-          "pivot": {
-            "pivot_type": "advanced",
-            "group_by": [
-              "tags_host_ip",
-              "tags_host"
-            ],
-            "series": [
-              {
-                "column": "fields_total",
-                "agg": "max",
-                "type": "int",
-                "label": "Mem_Total"
-              },
-              {
-                "column": "fields_used",
-                "agg": "max",
-                "type": "int",
-                "label": "Mem_Used"
-              },
-              {
-                "column": "fields_free",
-                "agg": "max",
-                "type": "int",
-                "label": "Mem_Free"
-              }
-            ]
-          },
-          "columns": {
-            "fields_free": {
-              "title": "Memory Free",
-              "hidden": true
-            },
-            "fields_used": {
-              "title": "Memory Used",
-              "hidden": true
-            },
-            "tags_host_ip": "Host",
-            "tags_host": "Device"
-          },
-          "custom_columns": [
-            {
-              "id": "fields_total_new",
-              "label": "Memory Total(GB)",
-              "expr": "((Mem_Total) * 0.000000001) "
-            },
-            {
-              "id": "fields_used_new",
-              "label": "Memory Used(GB)",
-              "expr": "((Mem_Used) * 0.000000001) "
-            },
-            {
-              "id": "fields_free_new",
-              "label": "Memory Free(GB)",
-              "expr": "((Mem_Free) * 0.000000001) "
-            },
-            {
-              "id": "memory_used_percent",
-              "label": "Memory Used(%)",
-              "expr": "((Mem_Used/Mem_Total) * 100) "
-            }
-          ],
-          "hide_columns": [
-            "Mem_Total",
-            "Mem_Used",
-            "Mem_free"
-          ],
-          "widget_id": "1f3eb674"
-        }
-      ]
-    },
-    {
-      "title": "Disk",
-      "show_filter": true,
-      "widgets": [
-        {
-          "title": "Top 5 devices by disk Usage",
+          "title": "Metric Anomalies",
           "widget_type": "multi_bar_chart",
-          "stream": "host_os_metrics",
+          "stream": "oia-ml-metrics-regression-output",
           "ts_column": "timestamp",
-          "extra_filter": "name = 'disk'",
-          "group_by": [
-            "tags_device",
-            "tags_host"
-          ],
-          "formatting": {
-            "notation": "compact",
-            "maximumFractionDigits": 2,
-            "unit": "percent"
-          },
           "chartProperties": {
-            "yAxisLabel": "Hosts",
-            "xAxisLabel": "Top 5 Disk Usage(%)",
+            "yAxisLabel": "Anomalies (%)",
+            "xAxisLabel": "Metric Name",
             "stacked": false,
-            "legendLocation": "right",
-            "orientation": "horizontal"
+            "legendLocation": "none",
+            "orientation": "vertical"
           },
-          "descending_order": false,
+          "group_by": [
+            "asset_id",
+            "metric_label"
+          ],
+          "descending_order": true,
           "others_spec": {
-            "limit": 5,
-            "show_others": false,
-            "tags_device": {
-              "largest": true,
-              "name_based_limit": false
-            },
-            "tags_host": {
-              "largest": true,
-              "name_based_limit": false
-            }
+            "limit": 4,
+            "show_others": false
           },
-          "column": "fields_used_percent",
+          "column": "anomalies_percent",
           "agg": "max",
-          "type": "int",
-          "max_width": 6,
-          "height": 4,
-          "min_width": 6,
-          "widget_id": "33af152e"
+          "type": "float",
+          "widget_id": "f4786acb"
         },
         {
-          "title": "Disk Usage by Host(%)",
-          "widget_type": "timeseries",
-          "stream": "host_os_metrics",
-          "extra_filter": "name = 'disk' ",
+          "title": "Change Requests",
+          "widget_type": "tabular",
+          "min_width": 6,
+          "max_width": 6,
+          "height": 5,
+          "timebased": false,
+          "stream": "change_requests_stream",
           "ts_column": "timestamp",
-          "max_width": 12,
-          "height": 6,
-          "min_width": 12,
+          "columns": {
+            "timestamp": {
+              "title": "Time",
+              "type": "DATETIME"
+            },
+            "message": {
+              "title": "Change Description",
+              "type": "TEXT"
+            }
+          },
+          "widget_id": "31e2f2ed"
+        },
+        {
+          "widget_type": "pie_chart",
+          "title": "Alerts by Severity",
+          "stream": "oia-alerts-stream",
+          "extra_filter": "customer_id is '{{CUSTOMER_ID}}'",
+          "ts_column": "timestamp",
+          "min_width": 3,
+          "height": 4,
+          "max_width": 3,
+          "column": "a_id",
+          "agg": "value_count",
+          "group_by": [
+            "a_severity"
+          ],
+          "type": "str",
+          "style": {
+            "color-map": {
+              "SEVERE": [
+                "#B71C1C",
+                "#ffffff"
+              ],
+              "CRITICAL": [
+                "#E53935",
+                "#ffffff"
+              ],
+              "MAJOR": [
+                "#F57C00",
+                "#ffffff"
+              ],
+              "MINOR": [
+                "#FFA726",
+                "#ffffff"
+              ],
+              "WARNING": [
+                "#FFD54F",
+                "#ffffff"
+              ],
+              "NOTIFICATION": [
+                "#4DD0E1",
+                "#ffffff"
+              ],
+              "INFORMATION": [
+                "#03A9F4",
+                "#ffffff"
+              ]
+            }
+          },
+          "widget_id": "cb0706e6"
+        },
+        {
+          "title": "Alert Trend",
+          "widget_type": "timeseries",
+          "stream": "oia-alerts-stream",
+          "ts_column": "a_created_ts",
+          "max_width": 9,
+          "height": 4,
+          "min_width": 9,
           "fixTimeWindow": true,
+          "extra_filter": "customer_id is '{{CUSTOMER_ID}}'",
           "chartProperties": {
-            "yAxisLabel": "%",
-            "xAxisLabel": null,
-            "legendLocation": "right",
+            "yAxisLabel": "Count",
+            "xAxisLabel": "Time",
+            "legendLocation": "top"
+          },
+          "interval": "1H",
+          "group_by": [
+            "a_severity"
+          ],
+          "static_markers": [
+            {
+              "timestamp": "{{ALERT_CT}}",
+              "message": "Alert Created",
+              "color": "#B71C1C"
+            }
+          ],
+          "series_spec": [
+            {
+              "column": "a_id",
+              "agg": "value_count",
+              "type": "int"
+            }
+          ],
+          "style": {
+            "color-map": {
+              "SEVERE": [
+                "#B71C1C",
+                "#ffffff"
+              ],
+              "CRITICAL": [
+                "#E53935",
+                "#ffffff"
+              ],
+              "MAJOR": [
+                "#F57C00",
+                "#ffffff"
+              ],
+              "MINOR": [
+                "#FFA726",
+                "#ffffff"
+              ],
+              "WARNING": [
+                "#FFD54F",
+                "#ffffff"
+              ],
+              "NOTIFICATION": [
+                "#4DD0E1",
+                "#ffffff"
+              ],
+              "INFORMATION": [
+                "#03A9F4",
+                "#ffffff"
+              ]
+            }
+          },
+          "widget_id": "c29bb686"
+        },
+        {
+          "widget_type": "pie_chart",
+          "title": "Incidents By Priority",
+          "stream": "oia-incidents-stream",
+          "extra_filter": "customer_id is '{{CUSTOMER_ID}}'",
+          "ts_column": "timestamp",
+          "min_width": 3,
+          "height": 4,
+          "max_width": 3,
+          "column": "incident_id",
+          "agg": "value_count",
+          "group_by": [
+            "i_priority_label"
+          ],
+          "style": {
+            "color-map": {
+              "Critical": [
+                "#B71C1C",
+                "#ffffff"
+              ],
+              "High": [
+                "#FFA726",
+                "#ffffff"
+              ],
+              "Moderate": [
+                "#90CAF9",
+                "#ffffff"
+              ],
+              "Low": [
+                "#4DD0E1",
+                "#ffffff"
+              ],
+              "Planning": [
+                "#4FC3F7",
+                "#ffffff"
+              ]
+            }
+          },
+          "type": "str",
+          "widget_id": "7dce82c8"
+        },
+        {
+          "title": "Incident Trend",
+          "widget_type": "timeseries",
+          "stream": "oia-incidents-stream",
+          "ts_column": "i_created_ts",
+          "max_width": 9,
+          "height": 4,
+          "min_width": 9,
+          "fixTimeWindow": true,
+          "extra_filter": "customer_id is '{{CUSTOMER_ID}}'",
+          "chartProperties": {
+            "yAxisLabel": "Count",
+            "xAxisLabel": "Time",
+            "legendLocation": "top"
+          },
+          "interval": "1H",
+          "group_by": [
+            "i_priority_label"
+          ],
+          "static_markers": [
+            {
+              "timestamp": "{{ALERT_CT}}",
+              "message": "Alert Created",
+              "color": "#B71C1C"
+            }
+          ],
+          "series_spec": [
+            {
+              "column": "incident_id",
+              "agg": "value_count",
+              "type": "int"
+            }
+          ],
+          "style": {
+            "color-map": {
+              "Critical": [
+                "#B71C1C",
+                "#ffffff"
+              ],
+              "High": [
+                "#FFA726",
+                "#ffffff"
+              ],
+              "Moderate": [
+                "#FFD54F",
+                "#ffffff"
+              ],
+              "Low": [
+                "#90CAF9",
+                "#ffffff"
+              ],
+              "Planning": [
+                "#4FC3F7",
+                "#ffffff"
+              ]
+            }
+          },
+          "widget_id": "a3d7ef3c"
+        },
+        {
+          "widget_type": "pie_chart",
+          "title": "Syslogs By Severity",
+          "ts_column": "rda_gw_timestamp",
+          "stream": "syslog_udp_event_stream_all",
+          "min_width": 3,
+          "height": 4,
+          "max_width": 3,
+          "duration_hours0": 10000,
+          "column": "count_",
+          "agg": "sum",
+          "group_by": [
+            "syslog_severity"
+          ],
+          "type": "int",
+          "style": {
+            "color-map": {
+              "SEVERE": [
+                "#B71C1C",
+                "#ffffff"
+              ],
+              "CRITICAL": [
+                "#E53935",
+                "#ffffff"
+              ],
+              "MAJOR": [
+                "#F57C00",
+                "#ffffff"
+              ],
+              "MINOR": [
+                "#FFA726",
+                "#ffffff"
+              ],
+              "WARNING": [
+                "#FFD54F",
+                "#ffffff"
+              ]
+            }
+          },
+          "widget_id": "ed85e796"
+        },
+        {
+          "title": "Syslogs",
+          "widget_type": "timeseries",
+          "max_width": 9,
+          "height": 4,
+          "min_width": 9,
+          "ts_column": "rda_gw_timestamp",
+          "show-markers": true,
+          "fixTimeWindow": true,
+          "stream": "syslog_udp_event_stream_all",
+          "extra_filter0": "log_category is 'syslog'",
+          "chartProperties": {
+            "xAxisLabel": "Timestamp",
+            "yAxisLabel": "Count",
+            "legendLocation": "none",
+            "xAxisTickOrientation": "STAGGERED",
             "options": {
               "elements": {
                 "line": {
@@ -1646,476 +1141,51 @@
                 "point": {
                   "radius": 2,
                   "hitRadius": 3,
-                  "hoverRadius": 2
+                  "hoverRadius": 3
                 }
               }
             }
           },
-          "interval": "auto",
-          "group_by": [
-            "tags_host"
+          "static_markers": [
+            {
+              "timestamp": "{{ALERT_CT}}",
+              "message": "Alert Created",
+              "color": "#B71C1C"
+            }
           ],
-          "duration_hours": 108000,
-          "formatting": {
-            "notation": "compact",
-            "maximumFractionDigits": 2,
-            "unit": "percent"
-          },
           "series_spec": [
             {
-              "column": "fields_used_percent",
-              "agg": "avg",
-              "type": "float"
+              "column": "count_",
+              "agg": "sum",
+              "type": "int"
             }
           ],
-          "widget_id": "15aeadc0"
+          "widget_id": "7ee88e42"
         },
         {
+          "title": "Syslogs",
           "widget_type": "tabular",
-          "title": "Disk Summary",
-          "stream": "host_os_metrics",
-          "ts_column": "timestamp",
-          "extra_filter": "name = 'disk'",
-          "sorting": [
-            {
-              "disk_used_percent": "desc"
-            }
-          ],
+          "stream": "syslog_udp_event_stream_all",
+          "min_width": 12,
+          "height": 6,
+          "max_width": 12,
+          "extra_filter0": "log_category is 'syslog'",
+          "ts_column": "rda_gw_timestamp",
+          "resizableColumns": true,
           "remote_searchable": true,
           "remote_searchable_cols": [
-            "tags_host",
-            "tags_host_ip",
-            "tags_device",
-            "fields_used",
-            "fields_free",
-            "disk_used_percent"
+            "message"
           ],
-          "pivot": {
-            "pivot_type": "advanced",
-            "group_by": [
-              "tags_host",
-              "tags_host_ip",
-              "tags_device"
-            ],
-            "series": [
-              {
-                "column": "fields_total",
-                "agg": "max",
-                "type": "int",
-                "label": "Disk_Total"
-              },
-              {
-                "column": "fields_used",
-                "agg": "max",
-                "type": "int",
-                "label": "Disk_Used"
-              },
-              {
-                "column": "fields_free",
-                "agg": "max",
-                "type": "int",
-                "label": "Disk_free"
-              }
-            ]
-          },
           "columns": {
-            "fields_free": {
-              "title": "Disk Free",
-              "hidden": true
+            "rda_gw_timestamp": {
+              "title": "Event Time",
+              "type": "DATETIME"
             },
-            "fields_used": {
-              "title": "Disk Used",
-              "hidden": true
-            },
-            "tags_host": "Hostname",
-            "tags_host_ip": "Host",
-            "tags_device": "Device"
+            "rda_gw_client_ip": "Host",
+            "raw": "Message",
+            "syslog_severity": "Severity"
           },
-          "custom_columns": [
-            {
-              "id": "fields_total_new",
-              "label": "Disk Total(GB)",
-              "expr": "((Disk_Total) * 0.00000001) ",
-              "visible": true
-            },
-            {
-              "id": "fields_used",
-              "label": "Disk Used(GB)",
-              "expr": "((Disk_Used) * 0.00000001) "
-            },
-            {
-              "id": "fields_free",
-              "label": "Disk Free(GB)",
-              "expr": "((Disk_free) * 0.00000001) "
-            },
-            {
-              "id": "disk_used_percent",
-              "label": "Disk Used(%)",
-              "expr": "((Disk_Used/Disk_Total) * 100) "
-            }
-          ],
-          "hide_columns": [
-            "Disk_Total",
-            "Disk_Used",
-            "Disk_free"
-          ],
-          "widget_id": "1613e3d1"
-        }
-      ]
-    },
-    {
-      "title": "Network",
-      "show_filter": true,
-      "widgets": [
-        {
-          "title": "Network Usage(Packets Sent)",
-          "widget_type": "timeseries",
-          "stream": "host_os_metrics",
-          "extra_filter": "name = 'net'",
-          "ts_column": "timestamp",
-          "max_width": 12,
-          "height": 6,
-          "min_width": 12,
-          "fixTimeWindow": true,
-          "formatter": "ByteFormatter",
-          "chartProperties": {
-            "yAxisLabel": null,
-            "xAxisLabel": null,
-            "legendLocation": "right",
-            "options": {
-              "elements": {
-                "line": {
-                  "borderWidth": 1
-                },
-                "point": {
-                  "radius": 2,
-                  "hitRadius": 3,
-                  "hoverRadius": 2
-                }
-              }
-            }
-          },
-          "interval": "30m",
-          "group_by": [
-            "tags_deployment"
-          ],
-          "duration_hours": 108000,
-          "formatting": {
-            "unit": "gigabyte",
-            "style": "unit",
-            "maximumFractionDigits": 2
-          },
-          "series_spec": [
-            {
-              "column": "fields_packets_sent",
-              "agg": "delta",
-              "label": "Delta",
-              "type": "float"
-            }
-          ],
-          "widget_id": "5f4b88da"
-        },
-        {
-          "title": "Network Usage(Packet Recevied)",
-          "widget_type": "timeseries",
-          "stream": "host_os_metrics",
-          "extra_filter": "name = 'net'",
-          "ts_column": "timestamp",
-          "max_width": 12,
-          "height": 6,
-          "min_width": 12,
-          "fixTimeWindow": true,
-          "formatter": "ByteFormatter",
-          "chartProperties": {
-            "yAxisLabel": null,
-            "xAxisLabel": null,
-            "legendLocation": "right",
-            "options": {
-              "elements": {
-                "line": {
-                  "borderWidth": 1
-                },
-                "point": {
-                  "radius": 2,
-                  "hitRadius": 3,
-                  "hoverRadius": 2
-                }
-              }
-            }
-          },
-          "interval": "30m",
-          "group_by": [
-            "tags_deployment"
-          ],
-          "duration_hours": 108000,
-          "formatting": {
-            "unit": "gigabyte",
-            "style": "unit",
-            "maximumFractionDigits": 2
-          },
-          "series_spec": [
-            {
-              "column": "fields_packets_recv",
-              "agg": "delta",
-              "label": "Delta",
-              "type": "float"
-            }
-          ],
-          "widget_id": "0ac7c301"
-        },
-        {
-          "title": "Network Usage(Packet Drop In)",
-          "widget_type": "timeseries",
-          "stream": "host_os_metrics",
-          "extra_filter": "name = 'net'",
-          "ts_column": "timestamp",
-          "max_width": 12,
-          "height": 6,
-          "min_width": 12,
-          "fixTimeWindow": true,
-          "formatter": "ByteFormatter",
-          "chartProperties": {
-            "yAxisLabel": null,
-            "xAxisLabel": null,
-            "legendLocation": "right",
-            "options": {
-              "elements": {
-                "line": {
-                  "borderWidth": 1
-                },
-                "point": {
-                  "radius": 2,
-                  "hitRadius": 3,
-                  "hoverRadius": 2
-                }
-              }
-            }
-          },
-          "interval": "30m",
-          "group_by": [
-            "tags_deployment"
-          ],
-          "duration_hours": 108000,
-          "formatting": {
-            "unit": "gigabyte",
-            "style": "unit",
-            "maximumFractionDigits": 2
-          },
-          "series_spec": [
-            {
-              "column": "fields_drop_in",
-              "agg": "delta",
-              "label": "Delta",
-              "type": "float"
-            }
-          ],
-          "widget_id": "5f4b88du"
-        }
-      ]
-    },
-    {
-      "title": "Docker",
-      "show_filter": true,
-      "widgets": [
-        {
-          "title": "Top 5 Container by CPU Usage",
-          "widget_type": "multi_bar_chart",
-          "stream": "docker_metrics",
-          "ts_column": "timestamp",
-          "extra_filter": "name = 'docker_container_cpu'",
-          "group_by": [
-            "tags_cpu",
-            "tags_container_name"
-          ],
-          "formatting": {
-            "notation": "compact",
-            "maximumFractionDigits": 2,
-            "unit": "percent"
-          },
-          "chartProperties": {
-            "yAxisLabel": "Container",
-            "xAxisLabel": "Top 5 CPU Active Usage(%)",
-            "stacked": false,
-            "legendLocation": "right",
-            "orientation": "horizontal"
-          },
-          "descending_order": false,
-          "others_spec": {
-            "limit": 5,
-            "show_others": false,
-            "label": "Other Names",
-            "tags_cpu": {
-              "largest": true,
-              "name_based_limit": false
-            },
-            "tags_container_name": {
-              "largest": true,
-              "name_based_limit": false
-            }
-          },
-          "column": "fields_usage_total",
-          "agg": "avg",
-          "type": "int",
-          "max_width": 6,
-          "height": 4,
-          "min_width": 6,
-          "widget_id": "c3193cdc"
-        },
-        {
-          "title": "CPU Usage by Conatainer(%)",
-          "widget_type": "timeseries",
-          "stream": "docker_metrics",
-          "ts_column": "timestamp",
-          "extra_filter": "name = 'docker_container_cpu' and tags_cpu = 'cpu-total'",
-          "max_width": 12,
-          "height": 6,
-          "min_width": 12,
-          "fixTimeWindow": true,
-          "chartProperties": {
-            "yAxisLabel": "%",
-            "xAxisLabel": null,
-            "legendLocation": "right",
-            "options": {
-              "elements": {
-                "line": {
-                  "borderWidth": 1
-                },
-                "point": {
-                  "radius": 2,
-                  "hitRadius": 3,
-                  "hoverRadius": 2
-                }
-              }
-            }
-          },
-          "interval": "auto",
-          "group_by": [
-            "tags_container_name"
-          ],
-          "duration_hours": 108000,
-          "formatting": {
-            "notation": "compact",
-            "maximumFractionDigits": 2,
-            "unit": "percent"
-          },
-          "series_spec": [
-            {
-              "column": "fields_usage_percent",
-              "agg": "avg",
-              "type": "float"
-            }
-          ],
-          "widget_id": "fe18eadd"
-        },
-        {
-          "title": "Memory Usage by Container(%)",
-          "widget_type": "timeseries",
-          "stream": "docker_metrics",
-          "extra_filter": "name = 'docker_container_mem'",
-          "ts_column": "timestamp",
-          "max_width": 12,
-          "height": 6,
-          "min_width": 12,
-          "fixTimeWindow": true,
-          "chartProperties": {
-            "yAxisLabel": "%",
-            "xAxisLabel": null,
-            "legendLocation": "right",
-            "options": {
-              "elements": {
-                "line": {
-                  "borderWidth": 1
-                },
-                "point": {
-                  "radius": 2,
-                  "hitRadius": 3,
-                  "hoverRadius": 2
-                }
-              }
-            }
-          },
-          "interval": "auto",
-          "group_by": [
-            "tags_container_name"
-          ],
-          "duration_hours": 108000,
-          "formatting": {
-            "notation": "compact",
-            "maximumFractionDigits": 2,
-            "unit": "percent"
-          },
-          "series_spec": [
-            {
-              "column": "fields_usage_percent",
-              "agg": "max",
-              "type": "float"
-            }
-          ],
-          "widget_id": "ef22feb5"
-        },
-        {
-          "title": "Container Metrics",
-          "widget_type": "pie_chart",
-          "stream": "docker_metrics",
-          "ts_column": "timestamp",
-          "column": "name",
-          "agg": "cardinality",
-          "group_by": [
-            "name"
-          ],
-          "type": "str",
-          "min_width": 4,
-          "height": 4,
-          "max_width": 4,
-          "widget_id": "47b682a7"
-        },
-        {
-          "title": "Containers",
-          "widget_type": "pie_chart",
-          "stream": "docker_metrics",
-          "ts_column": "timestamp",
-          "column": "tags_container_name",
-          "agg": "cardinality",
-          "group_by": [
-            "tags_container_name"
-          ],
-          "type": "str",
-          "min_width": 4,
-          "height": 4,
-          "max_width": 4,
-          "widget_id": "7f1898bd"
-        },
-        {
-          "title": "Container Running",
-          "widget_type": "pie_chart",
-          "stream": "docker_metrics",
-          "ts_column": "timestamp",
-          "column": "tags_container_status",
-          "agg": "cardinality",
-          "group_by": [
-            "tags_container_status"
-          ],
-          "type": "str",
-          "min_width": 4,
-          "height": 4,
-          "max_width": 4,
-          "widget_id": "10c98f06"
-        },
-        {
-          "title": "Container Version",
-          "widget_type": "pie_chart",
-          "stream": "docker_metrics",
-          "ts_column": "timestamp",
-          "column": "tags_container_version",
-          "agg": "cardinality",
-          "group_by": [
-            "tags_container_version"
-          ],
-          "type": "str",
-          "min_width": 4,
-          "height": 4,
-          "max_width": 4,
-          "widget_id": "d48671c2"
+          "widget_id": "3d7466a3"
         }
       ]
     }
