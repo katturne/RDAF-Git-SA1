@@ -1,51 +1,26 @@
-
- ## get the minio path for the uploaded file
-@exec:get-input
- --> @dm:save name='temp-sw-input'
- --> @dm:eval fileUpload="json_dumps(fileUpload)"
- --> @dm:explode-json column="fileUpload"
- --> @dm:eval location="bucketName+'/'+objectName"
- --> @dm:save name="temp-input-dataset"
- ## declaring child pipelines
-
- --> @c:new-block
- --> @dm:empty
- --> @exec:define-function name="define_child_pipelines"
- --> @exec:run-pipeline name ="edc_oi_get_product_alerts" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_oi_product_alerts_raw" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_oi_product_alerts_run_scan" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_oi_generate_token" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_oi_process_sw_data" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_oi_get_sweol_data" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_oi_get_security_advisories_data" & ignore_failures = "no"
- --> @exec:end-function
- ## collecting the file and storing it in edc_cust_pid_sw stream, collecting the API data and adding the processed data to edc_sw_raw_data
-
- --> @c:data-loop dataset="temp-input-dataset" and columns="objectName,location"
- --> @dm:empty
- --> @dm:get-from-location path='$location'
- --> @dm:rename-columns customer='Customer' and sw_version='SW_Version' and sw_os_type='SW_OS_Type' and product_id='Product_ID' and contract_number='Contract_Number' and product_name='Product_Name'
- --> @dm:save name='temp-uploaded-file'
- --> @c:new-block
- --> @dm:recall name="temp-uploaded-file"
- --> @dm:check_columns must_contain = 'product_name' & action ='skip-block'
- --> @dm:recall name="temp-uploaded-file"
- --> @dm:to-type columns='contract_number,customer,product_id,sw_version,sw_os_type,product_name' and type='str'
- --> @dm:map from = 'contract_number,customer,product_id,sw_version,sw_os_type,product_name' & to = 'unique_key' & func = 'join' & sep = '_'
- --> @dm:save name='temp-user-uploaded-input'
- --> @c:new-block
- --> @dm:recall name="temp-uploaded-file"
- --> @dm:to-type columns='contract_number,customer,product_id,sw_version,sw_os_type' and type='str'
- --> @dm:map from = 'contract_number,customer,product_id,sw_version,sw_os_type' & to = 'unique_key' & func = 'join' & sep = '_'
- --> @dm:save name='temp-user-uploaded-input'
- --> @c:new-block
- --> @dm:recall name='temp-user-uploaded-input'
- --> @rn:write-stream name='edc_cust_pid_sw'
- --> @c:new-block
- --> @dm:recall name='temp-user-uploaded-input'
- --> @dm:eval source="'software'"
- --> @exec:run-pipeline name='edc_oi_get_product_alerts' and ignore_failures = "no"
- --> @c:new-block
- --> @dm:recall name='temp-user-uploaded-input'
- --> @dm:eval source="'security_advisory'"
- --> @exec:run-pipeline name='edc_oi_get_product_alerts' and ignore_failures = "no"
+folder: NetworkDevicePack
+name: discovery_main_pipeline
+description: test pipeline
+data_path: pipelines/data/discovery_main_pipeline/2024.03.19.2/data.json
+usecase: ''
+category: ''
+sources:
+  asset-discovery:
+    name: asset-discovery
+    type: asset-discovery
+artifacts:
+- artifact_type: pipeline
+  artifact_name: cisco_discovery_main_pipeline
+  access: read
+- artifact_type: pipeline
+  artifact_name: juniper_discovery_main_pipeline
+  access: read
+- artifact_type: pipeline
+  artifact_name: fortinet_discovery_main_pipeline
+  access: read
+- artifact_type: pipeline
+  artifact_name: other_vendors_discovery_main_pipeline
+  access: read
+version: 2024.03.19.2
+file_type: json
+checksum: a30b16d4

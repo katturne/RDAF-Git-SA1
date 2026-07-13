@@ -1,19 +1,18 @@
 @dm:empty
- --> @exec:get-input
- ## Save text input
+ --> @dm:addrow name="edc_oi_inventory_grouped" and limit=0 and groupby="customer_name" and aggs="value_count:count_"
+ --> #dm:query-persistent-stream
+ --> @dm:save name='temp-unique-customer-name'
+ ## delete enriched stream
 
- --> @dm:save name="test_data_add"
- --> @rn:write-stream name="test_data"
- ## Uploaded file processing
+ --> @c:data-loop columns='customer_name' and dataset='temp-unique-customer-name'
+ --> @dm:empty
+ --> @dm:addrow name = "edc_oi_inventory_grouped" & conflicts = "proceed" & timeout = 1200
+ --> #dm:pstream-delete-data-by-query customer_name=="$customer_name"
+ --> @dm:sleep seconds = 5
+ ## delete raw stream
 
- --> @dm:save name="test_upload1"
- --> @dm:selectcolumns include="fileUpload"
- --> @dm:explode-json column="fileUpload"
- --> @dm:save name="temp-test-upload2"
- --> @dm:save name="test_upload2"
- ## Loop over uploaded file info
-
- --> @c:data-loop dataset="temp-test-upload2" and columns="bucketName,objectName,displayName"
- --> @dm:get-from-location path="$bucketName/$objectName"
- --> @dm:save name="test_upload3"
- --> @rn:write-stream name="test_data"
+ --> @c:data-loop columns='customer_name' and dataset='temp-unique-customer-name'
+ --> @dm:empty
+ --> @dm:addrow name = "edc_oi_inventory_enriched" & conflicts = "proceed" & timeout = 1200
+ --> #dm:pstream-delete-data-by-query customer_name=="$customer_name"
+ --> @dm:sleep seconds = 5
