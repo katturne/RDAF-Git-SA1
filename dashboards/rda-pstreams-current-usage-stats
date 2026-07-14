@@ -1,293 +1,435 @@
 {
-  "name": "rda-pstreams-current-usage-stats",
-  "label": "Persistent Stream Current Usage Stats",
-  "description": "Persistent Stream Current Usage Stats",
-  "version": "22.9.19.1",
-  "enabled": true,
-  "dashboard_folder": "System",
+  "name": "user_activity_trends",
+  "label": "Health: User Activity Trend",
+  "description": "User Activity: Insights",
+  "dashboard_folder": "RDAF_Health_Trends",
+  "version": "1.0.0",
+  "enabled": false,
   "dashboard_type": "template",
-  "dashboard_style": "tabbed",
+  "stream": "rda_system_audit_logs",
+  "live_edit": true,
   "dashboard_filters": {
     "time_filter": true,
-    "columns_filter": [],
-    "group_filters": [
+    "default_time_filter_labels": [
+      "Last 1 month"
+    ],
+    "extra_filter": "user_id != 'SERVICE' ",
+    "columns_filter": [
       {
-        "stream": "rda_system_pstream_current_usage_stats",
-        "title": "Datastore",
-        "group_by": [
-          "datastore"
-        ],
-        "ts_column": "timestamp",
-        "agg": "value_count",
-        "column": "name",
-        "type": "int"
-      },
-      {
-        "stream": "rda_system_pstream_current_usage_stats",
-        "title": "Read Only",
-        "group_by": [
-          "read_only"
-        ],
-        "ts_column": "timestamp",
-        "agg": "value_count",
-        "column": "name",
-        "type": "int"
+        "id": "operation",
+        "label": "Operation",
+        "type": "TEXT"
       }
     ],
-    "default_time_filter_labels": [
-      "Last 1 week"
+    "group_filters": [
+      {
+        "stream": "rda_system_audit_logs",
+        "title": "Activity",
+        "extra_filter": null,
+        "limit": 50,
+        "group_by": [
+          "artifact_type"
+        ],
+        "ts_column": "timestamp",
+        "agg": "cardinality",
+        "column": "operation",
+        "type": "int",
+        "show_counts": false
+      },
+      {
+        "stream": "rda_system_audit_logs",
+        "title": "Operation",
+        "extra_filter": null,
+        "limit": 50,
+        "group_by": [
+          "operation"
+        ],
+        "ts_column": "timestamp",
+        "agg": "cardinality",
+        "column": "operation",
+        "type": "int",
+        "show_counts": false
+      }
     ]
   },
   "dashboard_sections": [
     {
-      "title": "Usage Stats (updated once a day)",
+      "title": "User Activity",
       "show_filter": true,
       "widgets": [
         {
+          "widget_type": "label",
+          "context_filter": "show_traces is 'yes'",
+          "max_width": 12,
+          "height": 0.5,
+          "min_width": 12,
+          "label": "<div style='text-align:center;width:100%;'><h1><a style='text-decoration:none;color:#0066ff;' target='_blank'>User Login Trend </a></h1></div>",
+          "widget_id": "33317e49"
+        },
+        {
+          "title": "Total Logins",
           "widget_type": "custom_counter",
-          "title": "Number of Streams",
-          "stream": "rda_system_pstream_current_usage_stats",
-          "ts_column": "timestamp",
+          "label": "",
           "min_width": 3,
+          "max_width": 3,
           "height": 3,
-          "max_width": 6,
+          "unit": "",
+          "stream": "rda_system_audit_logs",
+          "extra_filter": "artifact_type = 'UserActivity' and operation = 'LOGIN' ",
+          "ts_column": "timestamp",
+          "duration_hours": 10000000,
+          "column": "user_id",
           "agg": "value_count",
-          "column": "name",
           "type": "str",
-          "widget_id": "2faa4f31"
+          "style": {
+            "color-list": [
+              "#90CAF9"
+            ]
+          },
+          "widget_id": "d73e52ec"
         },
         {
+          "title": "Total Login - Unique Users",
           "widget_type": "custom_counter",
-          "title": "Docs Count",
-          "formatter": "DescriptiveCountFormatter",
-          "stream": "rda_system_pstream_current_usage_stats",
-          "ts_column": "timestamp",
+          "label": "",
           "min_width": 3,
+          "max_width": 3,
           "height": 3,
-          "max_width": 6,
-          "agg": "sum",
-          "column": "docs_count",
-          "type": "int",
-          "widget_id": "2faa4f32"
+          "unit": "",
+          "stream": "rda_system_audit_logs",
+          "extra_filter": "artifact_type = 'UserActivity' and operation = 'LOGIN' ",
+          "ts_column": "timestamp",
+          "duration_hours": 10000000,
+          "column": "user_id",
+          "agg": "cardinality",
+          "type": "str",
+          "style": {
+            "color-list": [
+              "#90CAF9"
+            ]
+          },
+          "widget_id": "cdc38ae1"
         },
         {
-          "widget_type": "custom_counter",
-          "title": "Size (MB)",
-          "stream": "rda_system_pstream_current_usage_stats",
+          "title": "Total Users Login Trend (Daily)",
+          "widget_type": "timeseries",
+          "stream": "rda_system_audit_logs",
           "ts_column": "timestamp",
-          "min_width": 3,
-          "height": 3,
-          "max_width": 6,
-          "agg": "sum",
-          "column": "size_in_mb",
-          "type": "int",
-          "widget_id": "2faa4f33"
-        },
-        {
-          "widget_type": "custom_counter",
-          "title": "Total Shards",
-          "stream": "rda_system_pstream_current_usage_stats",
-          "ts_column": "timestamp",
-          "min_width": 3,
-          "height": 3,
-          "max_width": 6,
-          "agg": "sum",
-          "column": "shards_total",
-          "type": "int",
-          "widget_id": "2faa4f34"
-        },
-        {
-          "title": "Top 10 streams by doc count",
-          "widget_type": "bar_chart",
-          "stream": "rda_system_pstream_current_usage_stats",
-          "ts_column": "timestamp",
+          "extra_filter": "artifact_type = 'UserActivity' and operation = 'LOGIN'",
+          "duration_hours": 1080,
+          "max_width": 8,
+          "height": 4,
+          "min_width": 6,
+          "gap_interval": "keep",
           "chartProperties": {
-            "yAxisLabel": null,
-            "xAxisLabel": "Count",
-            "orientation": "horizontal",
-            "legendLocation": "none"
+            "yAxisLabel": "Total Users",
+            "xAxisLabel": "Local Time",
+            "legendLocation": "bottom",
+            "isDownsamplingDisabled": true,
+            "mode": "selection",
+            "column-id": "timestamp",
+            "options": {
+              "axes": {
+                "display": false
+              }
+            }
           },
-          "width": 6,
-          "group_by": [
-            "name"
+          "interval": "1d",
+          "series_spec": [
+            {
+              "column": "count_",
+              "agg": "sum",
+              "type": "int",
+              "label": "Total"
+            },
+            {
+              "column": "user_id",
+              "agg": "cardinality",
+              "type": "cardinality",
+              "label": "Unique"
+            }
           ],
-          "formatting": {
-            "notation": "compact"
-          },
-          "top_n": 10,
-          "column": "docs_count",
-          "agg": "sum",
-          "type": "int",
-          "widget_id": "f4786acz"
+          "widget_id": "ed5ca8c1"
         },
         {
-          "title": "Top 10 streams by size",
-          "widget_type": "bar_chart",
-          "stream": "rda_system_pstream_current_usage_stats",
+          "title": "User Activity Operations",
+          "widget_type": "counter",
+          "label": "",
+          "min_width": 6,
+          "max_width": 6,
+          "height": 4,
+          "unit": "",
+          "group_by": [
+            "operation"
+          ],
+          "stream": "rda_system_audit_logs",
+          "extra_filter": "artifact_type = 'UserActivity'",
           "ts_column": "timestamp",
-          "chartProperties": {
-            "yAxisLabel": null,
-            "xAxisLabel": "Size",
-            "orientation": "horizontal",
-            "legendLocation": "none"
-          },
-          "formatting": {
-            "style": "unit",
-            "unit": "megabyte"
-          },
-          "width": 6,
-          "group_by": [
-            "name"
-          ],
-          "top_n": 10,
-          "column": "size_in_mb",
+          "duration_hours": 1080,
+          "column": "count_",
           "agg": "sum",
           "type": "int",
-          "widget_id": "f4786azz"
+          "widget_id": "ddfbf320"
         },
         {
-          "title": "Usage Stats",
+          "title": "Top Users Login",
           "widget_type": "tabular",
-          "showRowSummary": true,
+          "duration_hours": 1080,
+          "max_width": 6,
+          "max_rows": 10,
+          "height": 4,
+          "min_width": 4,
+          "stream": "rda_system_audit_logs",
+          "ts_column": "timestamp",
+          "extra_filter": "artifact_type = 'UserActivity' and operation = 'LOGIN'",
+          "paginated": false,
+          "columns": {
+            "user_id": {
+              "title": "User ID",
+              "key": true
+            }
+          },
+          "pivot": {
+            "pivot_type": "advanced",
+            "group_by": [
+              "user_id"
+            ],
+            "series": [
+              {
+                "column": "count_",
+                "agg": "sum",
+                "type": "int",
+                "label": "Login Count"
+              }
+            ]
+          },
+          "widget_id": "954ed85a"
+        },
+        {
+          "title": "User Activity",
+          "widget_type": "tabular",
+          "duration_hours": 1080,
           "max_width": 12,
           "height": 8,
           "min_width": 12,
-          "paginated": false,
-          "stream": "rda_system_pstream_current_usage_stats",
+          "stream": "rda_system_audit_logs",
           "ts_column": "timestamp",
-          "sorting": [
-            {
-              "name": "asc"
+          "extra_filter": "user_id != 'SERVICE' ",
+          "columns": {
+            "artifact_type": {
+              "title": "Artifact Type",
+              "type": "TEXT"
+            },
+            "artifact_name": {
+              "title": "Artifact Name",
+              "type": "TEXT"
+            },
+            "operation": {
+              "title": "Operation",
+              "type": "TEXT"
+            },
+            "user_id": {
+              "title": "User",
+              "type": "TEXT"
+            },
+            "timestamp": {
+              "title": "Timestamp",
+              "type": "DATETIME",
+              "visible": true
             }
-          ],
-          "widget_id": "72498ed8"
+          },
+          "widget_id": "0877d31e"
         }
       ]
     }
   ],
   "pstream_dashboards": [
     {
-      "title": "Usage Stats (updated once a day)",
+      "title": "User Activity",
       "show_filter": true,
       "widgets": [
         {
+          "widget_type": "label",
+          "context_filter": "show_traces is 'yes'",
+          "max_width": 12,
+          "height": 0.5,
+          "min_width": 12,
+          "label": "<div style='text-align:center;width:100%;'><h1><a style='text-decoration:none;color:#0066ff;' target='_blank'>User Login Trend </a></h1></div>",
+          "widget_id": "33317e49"
+        },
+        {
+          "title": "Total Logins",
           "widget_type": "custom_counter",
-          "title": "Number of Streams",
-          "stream": "rda_system_pstream_current_usage_stats",
-          "ts_column": "timestamp",
+          "label": "",
           "min_width": 3,
+          "max_width": 3,
           "height": 3,
-          "max_width": 6,
+          "unit": "",
+          "stream": "rda_system_audit_logs",
+          "extra_filter": "artifact_type = 'UserActivity' and operation = 'LOGIN' ",
+          "ts_column": "timestamp",
+          "duration_hours": 10000000,
+          "column": "user_id",
           "agg": "value_count",
-          "column": "name",
           "type": "str",
-          "widget_id": "2faa4f31"
+          "style": {
+            "color-list": [
+              "#90CAF9"
+            ]
+          },
+          "widget_id": "d73e52ec"
         },
         {
+          "title": "Total Login - Unique Users",
           "widget_type": "custom_counter",
-          "title": "Docs Count",
-          "formatter": "DescriptiveCountFormatter",
-          "stream": "rda_system_pstream_current_usage_stats",
-          "ts_column": "timestamp",
+          "label": "",
           "min_width": 3,
+          "max_width": 3,
           "height": 3,
-          "max_width": 6,
-          "agg": "sum",
-          "column": "docs_count",
-          "type": "int",
-          "widget_id": "2faa4f32"
+          "unit": "",
+          "stream": "rda_system_audit_logs",
+          "extra_filter": "artifact_type = 'UserActivity' and operation = 'LOGIN' ",
+          "ts_column": "timestamp",
+          "duration_hours": 10000000,
+          "column": "user_id",
+          "agg": "cardinality",
+          "type": "str",
+          "style": {
+            "color-list": [
+              "#90CAF9"
+            ]
+          },
+          "widget_id": "cdc38ae1"
         },
         {
-          "widget_type": "custom_counter",
-          "title": "Size (MB)",
-          "stream": "rda_system_pstream_current_usage_stats",
+          "title": "Total Users Login Trend (Daily)",
+          "widget_type": "timeseries",
+          "stream": "rda_system_audit_logs",
           "ts_column": "timestamp",
-          "min_width": 3,
-          "height": 3,
-          "max_width": 6,
-          "agg": "sum",
-          "column": "size_in_mb",
-          "type": "int",
-          "widget_id": "2faa4f33"
-        },
-        {
-          "widget_type": "custom_counter",
-          "title": "Total Shards",
-          "stream": "rda_system_pstream_current_usage_stats",
-          "ts_column": "timestamp",
-          "min_width": 3,
-          "height": 3,
-          "max_width": 6,
-          "agg": "sum",
-          "column": "shards_total",
-          "type": "int",
-          "widget_id": "2faa4f34"
-        },
-        {
-          "title": "Top 10 streams by doc count",
-          "widget_type": "bar_chart",
-          "stream": "rda_system_pstream_current_usage_stats",
-          "ts_column": "timestamp",
+          "extra_filter": "artifact_type = 'UserActivity' and operation = 'LOGIN'",
+          "duration_hours": 1080,
+          "max_width": 8,
+          "height": 4,
+          "min_width": 6,
+          "gap_interval": "keep",
           "chartProperties": {
-            "yAxisLabel": null,
-            "xAxisLabel": "Count",
-            "orientation": "horizontal",
-            "legendLocation": "none"
+            "yAxisLabel": "Total Users",
+            "xAxisLabel": "Local Time",
+            "legendLocation": "bottom",
+            "isDownsamplingDisabled": true,
+            "mode": "selection",
+            "column-id": "timestamp",
+            "options": {
+              "axes": {
+                "display": false
+              }
+            }
           },
-          "width": 6,
-          "group_by": [
-            "name"
+          "interval": "1d",
+          "series_spec": [
+            {
+              "column": "count_",
+              "agg": "sum",
+              "type": "int",
+              "label": "Total"
+            },
+            {
+              "column": "user_id",
+              "agg": "cardinality",
+              "type": "cardinality",
+              "label": "Unique"
+            }
           ],
-          "formatting": {
-            "notation": "compact"
-          },
-          "top_n": 10,
-          "column": "docs_count",
-          "agg": "sum",
-          "type": "int",
-          "widget_id": "f4786acz"
+          "widget_id": "ed5ca8c1"
         },
         {
-          "title": "Top 10 streams by size",
-          "widget_type": "bar_chart",
-          "stream": "rda_system_pstream_current_usage_stats",
+          "title": "User Activity Operations",
+          "widget_type": "counter",
+          "label": "",
+          "min_width": 6,
+          "max_width": 6,
+          "height": 4,
+          "unit": "",
+          "group_by": [
+            "operation"
+          ],
+          "stream": "rda_system_audit_logs",
+          "extra_filter": "artifact_type = 'UserActivity'",
           "ts_column": "timestamp",
-          "chartProperties": {
-            "yAxisLabel": null,
-            "xAxisLabel": "Size",
-            "orientation": "horizontal",
-            "legendLocation": "none"
-          },
-          "formatting": {
-            "style": "unit",
-            "unit": "megabyte"
-          },
-          "width": 6,
-          "group_by": [
-            "name"
-          ],
-          "top_n": 10,
-          "column": "size_in_mb",
+          "duration_hours": 1080,
+          "column": "count_",
           "agg": "sum",
           "type": "int",
-          "widget_id": "f4786azz"
+          "widget_id": "ddfbf320"
         },
         {
-          "title": "Usage Stats",
+          "title": "Top Users Login",
           "widget_type": "tabular",
-          "showRowSummary": true,
+          "duration_hours": 1080,
+          "max_width": 6,
+          "max_rows": 10,
+          "height": 4,
+          "min_width": 4,
+          "stream": "rda_system_audit_logs",
+          "ts_column": "timestamp",
+          "extra_filter": "artifact_type = 'UserActivity' and operation = 'LOGIN'",
+          "paginated": false,
+          "columns": {
+            "user_id": {
+              "title": "User ID",
+              "key": true
+            }
+          },
+          "pivot": {
+            "pivot_type": "advanced",
+            "group_by": [
+              "user_id"
+            ],
+            "series": [
+              {
+                "column": "count_",
+                "agg": "sum",
+                "type": "int",
+                "label": "Login Count"
+              }
+            ]
+          },
+          "widget_id": "954ed85a"
+        },
+        {
+          "title": "User Activity",
+          "widget_type": "tabular",
+          "duration_hours": 1080,
           "max_width": 12,
           "height": 8,
           "min_width": 12,
-          "paginated": false,
-          "stream": "rda_system_pstream_current_usage_stats",
+          "stream": "rda_system_audit_logs",
           "ts_column": "timestamp",
-          "sorting": [
-            {
-              "name": "asc"
+          "extra_filter": "user_id != 'SERVICE' ",
+          "columns": {
+            "artifact_type": {
+              "title": "Artifact Type",
+              "type": "TEXT"
+            },
+            "artifact_name": {
+              "title": "Artifact Name",
+              "type": "TEXT"
+            },
+            "operation": {
+              "title": "Operation",
+              "type": "TEXT"
+            },
+            "user_id": {
+              "title": "User",
+              "type": "TEXT"
+            },
+            "timestamp": {
+              "title": "Timestamp",
+              "type": "DATETIME",
+              "visible": true
             }
-          ],
-          "widget_id": "72498ed8"
+          },
+          "widget_id": "0877d31e"
         }
       ]
     }
