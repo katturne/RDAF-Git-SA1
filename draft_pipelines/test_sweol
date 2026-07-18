@@ -1,51 +1,24 @@
-@dm:empty
- --> @dm:addrow target_attribute = 'storage_array_volume_export_path' and source_attribute = 'ntap_array_nfs_export_path' and target_filter="node_type == 'Datastore' and storage_array_volume_export_path is not None and storage_array_volume_export_path !=''" and source_filter = "node_type == 'Volume' and ntap_array_nfs_export_path is not None and ntap_array_nfs_export_path != ''" and link_type = 'runs' and comment=''
- --> @dm:save name='vcenter_netapp_stack_join_df_v2_rev.1'
- --> @c:new-block
+
+ ## Queries data for the customer from edc_oi_enriched_stream
+@c:new-block
  --> @dm:empty
- --> @dm:addrow target_attribute = 'storage_array_ip' and source_attribute = 'ntap_array_interface_ip' and target_filter="node_type == 'Datastore' and storage_array_ip is not None and storage_array_ip != ''" and source_filter = "node_type == 'NIC' and ntap_array_interface_ip is not None and ntap_array_interface_ip != ''" and link_type = 'runs' and comment=''
- --> @dm:save name='vcenter_netapp_stack_join_df_v2_rev.2'
+ --> @dm:addrow name='edc_oi_inventory_enriched' and limit=0 and groupby='contract_number,customer_name,product_id' and aggs='sum:combination_count'
+ --> #dm:query-persistent-stream coverage=='COVERED' and customer_name is 'ATT'
+ --> @dm:save name='temp-hw-eol-details-grouped' and append='yes'
  --> @c:new-block
- --> @dm:empty
- --> @dm:addrow target_attribute = "app_comp_ip_address" and source_attribute = "vm_ip_address" and target_filter="node_type == 'Webserver' or node_type=='Database'" and source_filter = "node_type == 'VM'" and link_type = "runs-on" and comment=""
- --> @dm:save name='appd_vcenter_stack_join_df'
+ --> @dm:recall name='temp-hw-eol-details-grouped'
+ --> @dm:to-type columns='contract_number' and type='int'
+ --> @dm:save name='temp-hw-eol-details-grouped'
+ ## enriches the processed columns to edc_oi_inventory_enriched
+
  --> @c:new-block
- --> @dm:stack-load name='netapp_array_7mode_topology_stackv2'
- --> @dm:stack-join target_stack='vcenter_topology_stacks' and filter='vcenter_netapp_stack_join_df_v2_rev.1' and name='vcenter_netappVolume_stack_join'
- --> @dm:stack-save name = 'vcenter_netappVolume_stack_join'
- --> @c:new-block
- --> @dm:stack-load name='netapp_array_7mode_topology_stackv2'
- --> @dm:stack-join target_stack='vcenter_netappVolume_stack_join' and filter='vcenter_netapp_stack_join_df_v2_rev.2' and name='vcenter_netappVolume_netAppNIC_stack_join'
- --> @dm:stack-save name = 'vcenter_netappVolume_netAppNIC_stack_join'
- --> @c:new-block
- --> @dm:stack-load name='vcenter_netappVolume_netAppNIC_stack_join'
- --> @dm:stack-join target_stack='appdynamics_topology_stacks' and filter='appd_vcenter_stack_join_df' and name='appd_vcenter_netappVolume_netAppNIC_stack_join'
- --> @dm:stack-save name = 'appd_vcenter_netappVolume_netAppNIC_stack_join'
- --> @c:new-block
- --> @dm:stack-load name='appd_vcenter_netappVolume_netAppNIC_stack_join'
- --> @dm:selectcolumns include = 'data'
- --> @dm:explode-json column = 'data' and include_exploded_columns='stack'
- --> @dm:save name='temp-stack'
- --> @dm:create-persistent-stream name = 'full_stack_nodes' and retention_days=0 and unique_cols= "node_id"
- --> @exec:retry-loop retries is 30 and retry_delay_millis is 5000
- --> @dm:empty
- --> @dm:addrow name is "full_stack_nodes" and limit is 1
- --> #dm:query-persistent-stream
- --> @exec:end-loop
- --> @dm:create-persistent-stream name = 'full_stack_edges' and retention_days=0 and unique_cols= "left_id,right_id"
- --> @exec:retry-loop retries is 30 and retry_delay_millis is 5000
- --> @dm:empty
- --> @dm:addrow name is "full_stack_edges" and limit is 1
- --> #dm:query-persistent-stream
- --> @exec:end-loop
- --> @c:new-block
- --> @dm:recall name='temp-stack'
- --> @dm:explode-json column = 'stack' and include_exploded_columns='nodes'
- --> @dm:explode-json column = 'nodes'
- --> @dm:add-missing-columns columns = 'iconURL' & value = 'Not Available'
- --> @rn:write-stream name="full_stack_nodes"
- --> @c:new-block
- --> @dm:recall name='temp-stack'
- --> @dm:explode-json column = 'stack' and include_exploded_columns='relationships'
- --> @dm:explode-json column = 'relationships'
- --> @rn:write-stream name="full_stack_edges"
+ --> @dm:recall name='test-sw-eol-details'
+ ## --> @dm:eval product_name="product_id if product_name is 'Not Available' else product_name"
+
+ --> @dm:enrich dict='temp-hw-eol-details-grouped' and dict_key_cols='contract_number,customer_name,product_id' and src_key_cols='contract_number,customer,product_id' and enrich_cols='combination_count_sum' and how_type='left'
+ --> @dm:eval unique_key='str(customer) + str(sw_os_type) + str(sw_version) + str(contract_number) + str(product_id)'
+ --> @dm:to-type columns='combination_count_sum' and type='int'
+ --> @dm:dropnull columns='sw_status'
+ --> @dm:save name='final-enrich'
+ --> @dm:save name='temp-edc-sweol-data'
+ --> @rn:write-stream name='edc_sweol_data'

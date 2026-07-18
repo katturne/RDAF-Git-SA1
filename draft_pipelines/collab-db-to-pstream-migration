@@ -1,45 +1,85 @@
 
- ## Bernie Wynia, Cisco Systems, 2025
+ ## collab-db-to-pstream-migration
 
- ## It doesn't seem to have trouble with the following error cases:
+ ## ========================MAKE SURE TO RUN THE FOLLOWING BEFORE PIPELINE EXECUTION
 
- ## -- no email addresses are found for template (valid template id)
+ ## mysql> alter table irmessagesharing add column if not exists migration_status varchar(100);
 
- ## -- invalid template ID (passed in inpute stream)
+ ## .
 
- ## -- malforemd email addressneed
+ ## mysql> alter table message add column if not exists migration_status varchar(100);
 
- ## Because there is always at least 1 row (potentially with empty columns), this didn't seem to have any impact --> *exec:if-shape num_rows > 0
+ ## .
 
- ## It doesn't seem to be needed because the apply-template and sendmail seem to complete regardless (so we resume on the read-stream)
+ ## mysql> alter table teamincident add column if not exists migration_status varchar(100);
 
- ## The one case it doesn't handle is if the GenericEmailTemplates references a Template Name that doesn't exist in "Formatting Templates"
+ ## ================================================================================
+
+ ## .
+
+ ## MESSAGE
+
+ ## .
 @c:new-block
- ## Wait for a request to send an email
+ --> @dm:empty
+ --> @dm:addrow table="message" & dbname="98e005500460423c886d8e30d8a9acf6_cfxdimensions_app_collaboratio" & limit=5 & retry_count=5 & retry_interval=10
+ --> #mysqlv2:read migration_status is None or migration_status is not 'SUCCESS1'
+ --> @dm:save name="temp-collab-db-message"
+ ## Write/Publish
 
- --> @rn:read-stream name = "genericEmailSender" & group = "group_genericEmailSender"
- ## When we get one, fetch the template details
+ ## --unique_keys projectid,incidentid,messageid
 
- --> @dm:enrich dict = 'GenericEmailTemplates' & src_key_cols = 'Template_Id' & dict_key_cols = 'Template_Id' & enrich_cols = "Subject,Template_Name"
- ## Formulate the Subject line by appending the Suffix, if provided
+ --> @dm:selectcolumns exclude="migration_status"
+ --> @dm:to-type columns="createdat,updatedat" & type="str"
+ --> @rn:write-stream name="staging-oia-incidents-collaboration-stream"
+ ## Update the migration_status column on the db
 
- --> @dm:add-missing-columns columns = 'Subject_Suffix' & value = ''
- --> @dm:eval Merged_Subject = "Subject + Subject_Suffix"
- ## Figure out who to send it to
+ --> @dm:recall name="temp-collab-db-message"
+ --> @dm:eval migration_status="'SUCCESS'"
+ --> @mysqlv2:update dbname="98e005500460423c886d8e30d8a9acf6_cfxdimensions_app_collaboratio" & table="message" & update_columns="migration_status"
+ ## .
 
- --> @dm:enrich dict = 'GenericEmailRecipients' & src_key_cols = 'Template_Id' & dict_key_cols = 'Template_Id' & enrich_cols = "Recipient,User_Enabled" & dedup_dict = "no"
- --> *dm:filter User_Enabled != 'no'
- ## Format the email content
+ ## IRMESSAGESHARING
 
- --> @dm:add-missing-columns columns = 'lType' & value = "html"
- --> @dm:apply-template-by-row template_name = "{{row.Template_Name}}" & output_col = "fMessage" & status_col = "Template_Result"
- ## Note that if we fetch an invald template name, the pipeline will abort in the above line (contrary to documentation)
+ ## .
 
- ## It may be helful to uncomment this line when debugging
+ --> @c:new-block
+ --> @dm:empty
+ --> @dm:addrow table="irmessagesharing" & dbname="98e005500460423c886d8e30d8a9acf6_cfxdimensions_app_collaboratio" & limit=5 & retry_count=5 & retry_interval=10
+ --> #mysqlv2:read migration_status is None or migration_status is not 'SUCCESS1'
+ --> @dm:save name="temp-collab-db-irmessagesharing"
+ ## Write/Publish
 
- ## --> @dm:save name = "delete-me-email-working-data"
+ ## --unique_keys projectid,incidentid,messageid,shared_to_team
 
- --> *dm:filter Template_Result = 'ok'
- --> *exec:if-shape num_rows > 0
- --> @email:sendmail-bulk recipient_col = 'Recipient' & message_mime_type_col = 'lType' & subject_col = 'Merged_Subject' & message_col = 'fMessage'
- --> @exec:end-if
+ --> @dm:selectcolumns exclude="migration_status"
+ --> @dm:to-type columns="shared_time" & type="str"
+ --> @rn:write-stream name="staging-oia-collab-messagesharing-stream"
+ ## Update the migration_status column on the db
+
+ --> @dm:recall name="temp-collab-db-irmessagesharing"
+ --> @dm:eval migration_status="'SUCCESS'"
+ --> @mysqlv2:update dbname="98e005500460423c886d8e30d8a9acf6_cfxdimensions_app_collaboratio" & table="irmessagesharing" & update_columns="migration_status"
+ ## .
+
+ ## TEAMINCIDENT
+
+ ## .
+
+ --> @c:new-block
+ --> @dm:empty
+ --> @dm:addrow table="teamincident" & dbname="98e005500460423c886d8e30d8a9acf6_cfxdimensions_app_collaboratio" & limit=5 & retry_count=5 & retry_interval=10
+ --> #mysqlv2:read migration_status is None or migration_status is not 'SUCCESS1'
+ --> @dm:save name="temp-collab-db-teamincident"
+ ## Write/Publish
+
+ ## --unique_keys projectid,incidentid,messageid,team_id,collab_type
+
+ --> @dm:selectcolumns exclude="migration_status"
+ --> @dm:to-type columns="shared_time" & type="str"
+ --> @rn:write-stream name="staging-oia-incidents-external-tickets-stream"
+ ## Update the migration_status column on the db
+
+ --> @dm:recall name="temp-collab-db-teamincident"
+ --> @dm:eval migration_status="'SUCCESS'"
+ --> @mysqlv2:update dbname="98e005500460423c886d8e30d8a9acf6_cfxdimensions_app_collaboratio" & table="teamincident" & update_columns="migration_status"
