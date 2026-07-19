@@ -1,5 +1,5 @@
 
- ## snow-to-oia-main
+ ## external-to-oia-main
 
  ## 
 
@@ -9,23 +9,21 @@
  --> @dm:skip-block-if-shape row_count = 0 & column_count = 0
  --> @exec:run-pipeline name="oia-incident-status-tracker-stream" & ignore_failures="no"
  --> @exec:run-pipeline name="snow-to-oia" & ignore_failures="no"
- --> @c:bookmark-loop bookmark = 'snow-to-oia-bkmrk' & initial_value = '-1 minute'
+ --> @c:bookmark-loop bookmark = 'external-to-oia-bkmrk' & initial_value = '-1 minute'
  --> @dm:empty
  --> @dm:addrow name="snow_ticket_notifications" & max_rows="1000"
  ## Query records from Stream
 
- --> #dm:query-persistent-stream timestamp is after '${bookmark}' and u_cfx_source is 'Alert Group'
- --> @dm:save name="temp-raw-input"
+ --> #dm:query-persistent-stream timestamp is after '${bookmark}'
  --> @dm:skip-block-if-shape row_count = 0 & column_count = 0
  --> @rn:write-stream compression="auto" & name="debug-external-to-oia-main-1"
+ --> @dm:save_bookmark name = 'external-to-oia-bkmrk' & value_column = 'timestamp' & value_type = 'timestamp' & value_func = 'max'
  ## Record The Step
 
- --> @dm:eval pipeline="'snow-to-oia-main'" & step="'snow_ticket_notifications'" & stage="'bookmark ${bookmark}'" & status_comments="'External:' + number" & status="'INFO'"
+ --> @dm:eval pipeline="'external-to-oia-main'" & step="'query-persistent-stream'" & stage="'bookmark ${bookmark}'" & status_comments="''" & status="'SUCCESS'"
  --> @exec:run-pipeline name="oia-incident-status-tracker-stream" & ignore_failures="yes"
  ## Load the corresponding Handler
 
- --> @exec:run-pipeline name="snow-to-oia" & ignore_failures="no"
- --> @dm:recall name="temp-raw-input"
- --> @dm:save_bookmark name = 'snow-to-oia-bkmrk' & value_column = 'timestamp' & value_type = 'timestamp' & value_func = 'max'
- --> @dm:sleep seconds=5
- --> @dm:empty
+ --> @dm:enrich-using-rule-dict dict='external-to-oia-dict' & enrich_columns='exec_pipeline,runName'
+ --> @dm:check-columns must_contain="exec_pipeline" & action="skip-block"
+ --> @exec:run-pipeline-by-row pipeline_col="exec_pipeline" & pipeline_type="Published"
