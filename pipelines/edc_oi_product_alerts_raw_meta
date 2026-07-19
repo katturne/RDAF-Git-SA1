@@ -1,18 +1,62 @@
-@dm:empty
- --> @dm:addrow name="edc_oi_inventory_grouped" and limit=0 and groupby="customer_name" and aggs="value_count:count_"
- --> #dm:query-persistent-stream
- --> @dm:save name='temp-unique-customer-name'
- ## delete enriched stream
-
- --> @c:data-loop columns='customer_name' and dataset='temp-unique-customer-name'
- --> @dm:empty
- --> @dm:addrow name = "edc_oi_inventory_grouped" & conflicts = "proceed" & timeout = 1200
- --> #dm:pstream-delete-data-by-query customer_name=="$customer_name"
- --> @dm:sleep seconds = 5
- ## delete raw stream
-
- --> @c:data-loop columns='customer_name' and dataset='temp-unique-customer-name'
- --> @dm:empty
- --> @dm:addrow name = "edc_oi_inventory_enriched" & conflicts = "proceed" & timeout = 1200
- --> #dm:pstream-delete-data-by-query customer_name=="$customer_name"
- --> @dm:sleep seconds = 5
+folder: OI
+name: edc_oi_product_alerts_raw
+description: test pipeline
+data_path: pipelines/data/edc_oi_product_alerts_raw/2025_09_03_01/data.json
+usecase: no eol changes
+category: ''
+sources:
+  rn:
+    name: rn
+    type: rn
+artifacts:
+- artifact_type: pipeline
+  artifact_name: edc_oi_get_product_alerts
+  access: read
+- artifact_type: pipeline
+  artifact_name: edc_oi_product_alerts_raw
+  access: read
+- artifact_type: pipeline
+  artifact_name: edc_oi_product_alerts_run_scan
+  access: read
+- artifact_type: pipeline
+  artifact_name: edc_oi_generate_token
+  access: read
+- artifact_type: pipeline
+  artifact_name: edc_oi_process_sw_data
+  access: read
+- artifact_type: pipeline
+  artifact_name: edc_oi_get_sweol_data
+  access: read
+- artifact_type: pipeline
+  artifact_name: edc_oi_get_security_advisories_data
+  access: read
+- artifact_type: dataset
+  artifact_name: generate_token_creds
+  access: read
+- artifact_type: pipeline
+  artifact_name: edc_oi_generate_token
+  access: read
+- artifact_type: pipeline
+  artifact_name: edc_oi_product_alerts_run_scan
+  access: read
+- artifact_type: dataset
+  artifact_name: api-op-raw
+  access: write
+- artifact_type: dataset
+  artifact_name: api-exploded-empty-sw
+  access: write
+- artifact_type: dataset
+  artifact_name: api-exploded-empty-sa
+  access: write
+- artifact_type: dataset
+  artifact_name: sw-be-edc-run-scan-op-enriched
+  access: write
+- artifact_type: rda-network-stream
+  artifact_name: edc_run_scan_duplicate_records
+  access: write
+- artifact_type: dataset
+  artifact_name: api-response
+  access: write
+version: '2025_09_03_01'
+file_type: json
+checksum: fb374b8a
