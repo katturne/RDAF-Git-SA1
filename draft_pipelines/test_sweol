@@ -1,60 +1,24 @@
 
- ## .
-
- ## collab-db-to-pstream-processor
-
- ## .
+ ## Queries data for the customer from edc_oi_enriched_stream
 @c:new-block
- --> @exec:get-input
- --> @dm:save name="temp-irm-incident-ids-concat"
- --> @c:data-loop dataset="temp-irm-incident-ids-concat" & columns="incident_id,project_id"
- ## .
-
  --> @dm:empty
- --> @dm:addrow current_loop="${loop_index}" & incidents="$incident_id" & projectids="$project_id"
- --> @mysqlv2:native-query dbname="0bde1fc06a7542c3a6a4c47d85f64d9d_cfxdimensions_app_collaboratio" & query="select * from message where incidentid in ($incident_id) and projectid in ($project_id)"
- --> @dm:skip-block-if-shape row_count=0
- --> @dm:check-columns must_contain="incidentid" & action="skip-block"
- --> @dm:selectcolumns exclude="execution_status|execution_reason|attempt_count"
- --> @dm:save name="temp-collab-msgs-db-${loop_index}"
- --> @c:data-loop dataset="temp-irm-incident-ids-concat" & columns="incident_id,project_id"
- ## .
+ --> @dm:addrow name='edc_oi_inventory_enriched' and limit=0 and groupby='contract_number,customer_name,product_id' and aggs='sum:combination_count'
+ --> #dm:query-persistent-stream coverage=='COVERED' and customer_name is 'ATT'
+ --> @dm:save name='temp-hw-eol-details-grouped' and append='yes'
+ --> @c:new-block
+ --> @dm:recall name='temp-hw-eol-details-grouped'
+ --> @dm:to-type columns='contract_number' and type='int'
+ --> @dm:save name='temp-hw-eol-details-grouped'
+ ## enriches the processed columns to edc_oi_inventory_enriched
 
- --> @dm:empty
- --> @dm:addrow current_loop="${loop_index}" & incidents="$incident_id" & projectids="$project_id"
- --> @mysqlv2:native-query dbname="0bde1fc06a7542c3a6a4c47d85f64d9d_cfxdimensions_app_collaboratio" & query="select ms.*, m.customerid, m.projectid, m.incidentid from irmessagesharing ms inner join message m on m.messageid=ms.message_id where m.incidentid in ($incident_id) and m.projectid in ($project_id)"
- --> @dm:skip-block-if-shape row_count=0
- --> @dm:check-columns must_contain="incidentid" & action="skip-block"
- --> @dm:selectcolumns exclude="execution_status|execution_reason|attempt_count"
- --> @dm:save name="temp-collab-irmsharing-db-${loop_index}"
- --> @c:data-loop dataset="temp-irm-incident-ids-concat" & columns="incident_id,project_id"
- ## .
+ --> @c:new-block
+ --> @dm:recall name='test-sw-eol-details'
+ ## --> @dm:eval product_name="product_id if product_name is 'Not Available' else product_name"
 
- --> @dm:empty
- --> @dm:addrow current_loop="${loop_index}" & incidents="$incident_id" & projectids="$project_id"
- --> @mysqlv2:native-query dbname="0bde1fc06a7542c3a6a4c47d85f64d9d_cfxdimensions_app_collaboratio" & query="select * from teamincident where incident_id in ($incident_id) and project_id in ($project_id)"
- --> @dm:skip-block-if-shape row_count=0
- --> @dm:check-columns must_contain="incident_id" & action="skip-block"
- --> @dm:selectcolumns exclude="execution_status|execution_reason|attempt_count"
- --> @dm:save name="temp-collab-teamincidents-db-${loop_index}"
- --> @c:new-block
- --> @dm:concat names="temp-collab-msgs-db-*"
- --> @dm:skip-block-if-shape row_count=0
- --> @dm:change-time-format columns="createdat,updatedat" & from_format="datetimestr" & to_format="datetimestr"
- --> @dm:copy-columns to="timestamp" & from="updatedat"
- --> @dm:fixnull-regex
- --> @rn:write-stream name="oia-incidents-collaboration-stream"
- --> @c:new-block
- --> @dm:concat names="temp-collab-irmsharing-db-*"
- --> @dm:skip-block-if-shape row_count=0
- --> @dm:change-time-format columns="shared_time" & from_format="datetimestr" & to_format="datetimestr"
- --> @dm:copy-columns to="timestamp" & from="shared_time"
- --> @dm:fixnull-regex
- --> @rn:write-stream name="oia-collab-messagesharing-stream"
- --> @c:new-block
- --> @dm:concat names="temp-collab-teamincidents-db-*"
- --> @dm:skip-block-if-shape row_count=0
- --> @dm:change-time-format columns="shared_time" & from_format="datetimestr" & to_format="datetimestr"
- --> @dm:copy-columns to="timestamp" & from="shared_time"
- --> @dm:fixnull-regex
- --> @rn:write-stream name="oia-incidents-external-tickets-stream"
+ --> @dm:enrich dict='temp-hw-eol-details-grouped' and dict_key_cols='contract_number,customer_name,product_id' and src_key_cols='contract_number,customer,product_id' and enrich_cols='combination_count_sum' and how_type='left'
+ --> @dm:eval unique_key='str(customer) + str(sw_os_type) + str(sw_version) + str(contract_number) + str(product_id)'
+ --> @dm:to-type columns='combination_count_sum' and type='int'
+ --> @dm:dropnull columns='sw_status'
+ --> @dm:save name='final-enrich'
+ --> @dm:save name='temp-edc-sweol-data'
+ --> @rn:write-stream name='edc_sweol_data'
