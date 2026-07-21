@@ -1,54 +1,76 @@
+
+ ## name: collab-db-to-pstream-main
+
+ ## .
+
+ ## Use this if we want to reset bookmark and re-run again
 @c:new-block
- --> @dm:recall name='before-explode-sweol'
- --> @dm:dedup columns='product_id,sw_os_type,sw_version'
- --> *dm:filter issues is not '[]'
- --> @dm:save name='before-explode-sweol-new'
- --> @dm:eval issues='eval(issues)'
- --> @dm:eval issues='json_dumps(issues)'
- --> @dm:explode-json column="issues"
- --> @dm:eval eoXAlert='json_dumps(eoXAlert)'
- --> @dm:explode-json column="eoXAlert"
- --> @dm:save name='temp-sweol'
- ## --> @dm:save name='exploded-sweol'
+ --> @dm:empty
+ ## --> @dm:addrow i_created_ts="2023-08-01 00:00:00"
 
- ## --> @c:new-block
+ ## --> @dm:save_bookmark name = 'irm_incident_bkmrk' & value_column = 'i_created_ts' & value_type = 'timestamp' & value_func = 'max'
 
- ## --> @dm:recall name='added-sw-data'
+ --> @dm:save name = "temp-1"
+ ## .
 
- ## --> @dm:addrow product_id='AIR-AP2802E-B-K9' and sw_version='17.12.4.208' and sw_os_type='IOS-XE' and contract_number='9517555'
+ ## Main Driver is IRM's oia-incidents-stream.
 
- ## --> @dm:enrich dict='before-explode-sweol-new' and src_key_cols='product_id,sw_os_type,sw_version' and dict_key_cols='product_id,sw_os_type,sw_version' and enrich_cols='issues' and how_type='inner' and dedup_dict='no'
+ ## As one time activity, We pull all incidents from oia-incidents-stream and use them to migrate corresponding collab messages, and team incidents. we may have duplicates from last 90 days.
 
- ## --> @dm:save name='test-sweol_cn_enriched'
+ ## .
 
- ## --> @dm:empty
+ --> @c:new-block
+ --> @dm:empty
+ --> @dm:save name="temp-irm-incident-ids-concat"
+ ## We can do read all in one go and split them up by 999 and use sql-in clause.
 
- ## --> @dm:addrow name='edc_oi_inventory_enriched' and limit=0
+ ## or
 
- ## --> #dm:query-persistent-stream customer_name=='ATT'
+ ## Read in batches using bookmark and process them in batches
 
- ## --> @dm:save name='temp-hw-data'
+ ## SQL IN clause might have limitation of max 999 IDs
 
- ## --> @c:new-block
+ --> @c:bookmark-loop bookmark="irm_incident_bkmrk" & initial_value ="2023-08-01 00:00:00" & max_iterations=1
+ --> @dm:empty
+ --> @dm:addrow name="oia-incidents-stream" & limit=999 & sort_by_col="i_created_ts" & sort_type="asc"
+ --> #dm:query-persistent-stream i_created_ts is after '${bookmark}'
+ --> @dm:skip-block-if-shape row_count=0
+ --> @dm:check-columns must_contain="incident_id" & action="skip-block"
+ ## .
 
- ## --> @dm:recall name='temp-hw-data'
+ --> @dm:selectcolumns include="project_id|customer_id|incident_id|i_state|i_created_ts|i_updated_ts|timestamp"
+ --> @dm:save name="temp-irm-incidents"
+ ## .
 
- ## --> @dm:to-type columns='contract_number' and type='int'
+ --> @dm:selectcolumns include="incident_id|project_id"
+ --> @dm:map to="name" & func="fixed" & value="incident"
+ --> @dm:save name="temp-irm-incident-ids"
+ ## .
 
- ## --> @dm:save name='temp-hw-data'
+ ## --> @exec:for-loop num_rows = 999
 
- ## --> @c:new-block
+ --> @dm:eval incident_id="incident_id + '\',\''"
+ --> @dm:eval project_id="project_id + '\',\''"
+ --> @dm:groupby columns="name" & agg="sum"
+ ## .
 
- ## --> @dm:recall name='test-sweol_cn_enriched'
+ --> @dm:eval incident_id="incident_id.replace('CFX', '\'CFX', 1)"
+ --> @dm:eval incident_id="incident_id[:-2] if (incident_id.endswith(',\'')) else incident_id"
+ ## .
 
- ## --> @dm:to-type columns='contract_number' and type='int'
+ --> @dm:eval project_id="project_id.replace('', '\'', 1)"
+ --> @dm:eval project_id="project_id[:-2] if (project_id.endswith(',\'')) else project_id"
+ ## .
 
- ## --> @dm:enrich dict='temp-hw-data' and src_key_cols='product_id,contract_number,customer' and dict_key_cols='product_id,contract_number,customer_name' and enrich_cols='gu_name,savm_sales_level_4_name,coverage,covered_line_status,business_entity,business_sub_entity,bk_end_of_life_request_num,bk_eol_bulletin_product_typ_cd,hwEOL_endOfNewServiceAttachmentDate,hwEOL_endOfRoutineFailureAnalysisDate,hwEOL_endOfSoftwareMaintenanceReleasesDate,hwEOL_endOfServiceContractRenewalDate,hwEOL_endOfLifeAnnouncementDate,eol_product_name,item_type,hwEOL_endOfSaleDate,hwEOL_lastDayOfSupportDate,product_description,product_family,product_family_description,product_type,product_list_price,portfolio_desc,usage_code,combination_count,execution_status,total_product_list_price,unique_key,hw_status,hw_expiring_qtr,hw_expiring_year,last_updated_time,product_name' and how_type='inner' and replace_values='yes'
+ --> @dm:save name="temp-irm-incident-ids-concat"
+ ## --> @exec:end-loop & append="yes"
 
- ## --> @dm:save name='enriched-op-35-inv'
+ ## .
 
- --> @dm:recall name='temp-sweol'
- --> *dm:filter customer == 'ATT'
- --> @exec:run-pipeline name='edc_processing_sw_data'
- --> @dm:to-type columns='contract_number' and type='int'
- --> @dm:save name='processed-sw-op'
+ --> @exec:run-pipeline name="collab-db-to-pstream-processor" & ignore_failures="no"
+ ## increment the bookmark
+
+ --> @dm:recall name="temp-irm-incidents"
+ --> @dm:change-time-format columns="i_created_ts" & from_format="ms" & to_format="datetimestr"
+ --> @dm:save_bookmark name = 'irm_incident_bkmrk' & value_column = 'i_created_ts' & value_type = 'timestamp' & value_func = 'max'
+ --> @dm:sleep seconds = 1
