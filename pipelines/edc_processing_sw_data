@@ -1,135 +1,89 @@
-@exec:get-input
- --> @dm:save name='temp-sweol-data'
- --> @dm:save name='test1-sweol-data'
- --> @dm:add-missing-columns columns="customer,contract_number,product_id,sw_os_type,sw_version,Unique_id,ingestion_id,transaction_id,timestamp,count_,_RDA_Id,SoftwareEOXId,BulletinNumber,BulletinHeadline,BulletinURL,EndOfSaleDate,EndOfEngineeringDate,EndOfLifeDate,PostDate,EndOfLifeInternalAnnouncementDate,EndOfLifeExternalAnnouncementDate,EndOfLastHardwareShipDate,EndOfHardwareNewServiceAttachmentDate,EndOfHardwareRoutineFailureAnalysisDate,EndOfBUEngineeringSupportTACDate,EndOfHardwareServiceContractRenewalDate,EndOfSignatureReleasesDate,EndOfSoftwareAvailabilityDate,EndOfSoftwareLicenseAvailabilityDate,EndOfSoftwareVulnerabilityOrSecuritySupportDate,_id,created,customerVisible,external_text,external_title,firstIcAlertId,groups,icIssueId,icProblemId,ignored,lastIcAlertId,eoXAlertType,name,openedOn"
- ## adding not available to null values and creating a unique key
-
- --> @dm:fixnull columns="customer,contract_number,product_id,sw_os_type,sw_version,Unique_id,ingestion_id,transaction_id,timestamp,count_,_RDA_Id,SoftwareEOXId,BulletinNumber,BulletinHeadline,BulletinURL,EndOfSaleDate,EndOfEngineeringDate,EndOfLifeDate,PostDate,EndOfLifeInternalAnnouncementDate,EndOfLifeExternalAnnouncementDate,EndOfLastHardwareShipDate,EndOfHardwareNewServiceAttachmentDate,EndOfHardwareRoutineFailureAnalysisDate,EndOfBUEngineeringSupportTACDate,EndOfHardwareServiceContractRenewalDate,EndOfSignatureReleasesDate,EndOfSoftwareAvailabilityDate,EndOfSoftwareLicenseAvailabilityDate,EndOfSoftwareVulnerabilityOrSecuritySupportDate,_id,created,customerVisible,external_text,external_title,firstIcAlertId,groups,icIssueId,icProblemId,ignored,lastIcAlertId,eoXAlertType,name,openedOn" and value="Not Available"  and apply_for_empty="yes"
- ## --> @dm:manipulate-string from="gu_name,__uuid" and func="concat_columns" and to="unique_gu_name" and value="_"
-
- --> @dm:save name='temp-sw-eol-details'
- ## ldos dataset for creating hw_status and sw_status
-
- --> @dm:addrow key="dummy"
- --> @dm:eval-multi-proc today='int(time_now_as_ms())' and _max_procs=4
- --> @dm:copy-columns from="today,today,today" and to="t_date,t_month,t_year"
- --> @dm:change-time-format columns = 't_date' & from_format = 'ms' & to_format = '%d'
- --> @dm:change-time-format columns = 't_month' & from_format = 'ms' & to_format ='%m'
- --> @dm:change-time-format columns = 't_year' & from_format = 'ms' & to_format ='%y'
- --> @dm:to-type columns="t_month,t_year" and type="int"
- --> @dm:manipulate-string to="major_unit" and value="t_month -1 + 24" and func="eval"
- --> @dm:manipulate-string to="major_unit_year" and value="t_year + major_unit//12" and func="eval"
- --> @dm:manipulate-string to="major_unit_month" and value="major_unit % 12 + 1" and func="eval"
- --> @dm:to_type columns="major_unit_month,t_date,major_unit_year" and type="str"
- --> @dm:manipulate-string to="major_eol_date" and value="/" and func="concat_columns" and from="major_unit_month,t_date,major_unit_year"
- --> @dm:manipulate-string to="semi_critical" and value="t_month - 1 + 12" and func="eval"
- --> @dm:manipulate-string to="semi_critical_unit_year" and value="t_year + semi_critical//12" and func="eval"
- --> @dm:manipulate-string to="semi_critical_month" and value="semi_critical % 12 + 1" and func="eval"
- --> @dm:to_type columns="semi_critical_month,t_date,semi_critical_unit_year" and type="str"
- --> @dm:manipulate-string to="semi_critical_date" and value="/" and func="concat_columns" and from="semi_critical_month,t_date,semi_critical_unit_year"
- --> @dm:manipulate-string to="very_critical" and value="t_month - 1 + 3" and func="eval"
- --> @dm:manipulate-string to="very_critical_unit_year" and value="t_year + very_critical//12" and func="eval"
- --> @dm:manipulate-string to="very_critical_month" and value="very_critical % 12 + 1" and func="eval"
- --> @dm:to_type columns="very_critical_month,t_date,very_critical_unit_year" and type="str"
- --> @dm:manipulate-string to="very_critical_date" and value="/" and func="concat_columns" and from="very_critical_month,t_date,very_critical_unit_year"
- --> @dm:change-time-format columns="major_eol_date,semi_critical_date,very_critical_date" & from_format="datetimestr" and to_format="ms"
- ## --> @dm:selectcolumns include="$column|^today$|^very_critical_date$|^semi_critical_date$|^major_eol_date$"
-
- --> @dm:gc
- --> @dm:save name="temp-ldos"
- ## calculating sw_status
-
- --> @dm:recall name="temp-sw-eol-details"
- --> @dm:dedup columns="EndOfLifeDate"
- --> @dm:manipulate-string to="key" and value="'dummy'" and func="eval"
- --> @dm:selectcolumns include="EndOfLifeDate|key"
- --> @dm:enrich dict="temp-ldos" and src_key_cols="key" and dict_key_cols="key" and enrich_cols="today,very_critical_date,semi_critical_date,major_eol_date"
- --> @dm:copy-columns from="EndOfLifeDate" and to="ldos"
- --> @dm:change-time-format columns='ldos' & from_format="datetimestr" and to_format="ms"
- --> @cfxaia:conditional-statement condition_column="ldos" and operator=">"  and check_value="yes" and value="0" and return_if="ldos"
- --> @dm:to-type columns="ldos" and type="int"
- --> @dm:manipulate-string to="sw_status" and func="eval" and value="None"
- --> @cfxaia:conditional-statement condition_column="ldos,today" and operator="<" and return_if="Expired" and return_else="sw_status" and to_column="sw_status"
- --> @cfxaia:conditional-statement condition_column="ldos,today" and operator=">" and return_if="yes" and to_column="sw_status1" and return_else="no"
- --> @cfxaia:conditional-statement condition_column="ldos,very_critical_date" and operator="<=" and return_if="yes" and to_column="sw_status2" and  return_else="no"
- --> @cfxaia:conditional-statement condition_column="sw_status1,sw_status2" and operator="=" and check_value="yes" and value="yes,yes" and return_if="Expiring in a Quarter" and return_else="sw_status" and to_column="sw_status"
- --> @cfxaia:conditional-statement condition_column="ldos,semi_critical_date" and operator="<=" and return_if="yes" and to_column="sw_status2" and  return_else="no"
- --> @cfxaia:conditional-statement condition_column="sw_status1,sw_status2" and operator="=" and check_value="yes" and value="yes,yes" and return_if="Expiring in 4 Quarters" and return_else="sw_status" and to_column="sw_status" and replace_if_null=True
- --> @cfxaia:conditional-statement condition_column="ldos,major_eol_date" and operator="<=" and return_if="yes" and to_column="sw_status2" and return_else="no"
- --> @cfxaia:conditional-statement condition_column="sw_status1,sw_status2" and operator="=" and check_value="yes" and value="yes,yes" and return_if="Expiring in 8 Quarters" and return_else="sw_status" and to_column="sw_status" and replace_if_null=True
- --> @cfxaia:conditional-statement condition_column="ldos,major_eol_date" and operator=">" and return_if="yes" and to_column="sw_status2" and  return_else="no"
- --> @cfxaia:conditional-statement condition_column="sw_status1,sw_status2" and operator="=" and check_value="yes" and value="yes,yes" and return_if="Expiring after 8 Quarters" and return_else="sw_status" and to_column="sw_status" and replace_if_null=True
- --> @dm:selectcolumns exclude="sw_status1|sw_status2|^lods$"
- --> @dm:fixnull columns="sw_status" and value="No EOL"
- --> @dm:save name="temp-swldos"
- ## Compute sw_expiring_year,sw_expiring_qtr
-
- --> @dm:recall name="temp-sw-eol-details"
- --> *dm:filter EndOfLifeDate is not null
- --> @dm:skip-block-if-shape row_count='0'
- --> @dm:recall name="temp-sw-eol-details"
- --> @dm:dedup columns="EndOfLifeDate"
- --> @dm:manipulate-string to="key" and value="'dummy'" and func="eval"
- --> @dm:selectcolumns include="EndOfLifeDate|key"
- --> @dm:enrich dict="temp-ldos" and src_key_cols="key" and dict_key_cols="key" and enrich_cols="today,very_critical_date,semi_critical_date,major_eol_date"
- --> @dm:copy-columns from="EndOfLifeDate,EndOfLifeDate" and to="ldos,YEAR"
- ## --> @dm:map-multi-proc     from="sw_ldos" and to="ldos" and _max_procs=4
-
- --> @dm:change-time-format columns='ldos' & from_format="datetimestr" and to_format="ms"
- --> @cfxaia:conditional-statement condition_column="ldos" and operator=">"  and check_value="yes" and value="0" and return_if="ldos"
- --> @dm:to-type columns="ldos" and type="int"
- --> @dm:manipulate-string to="sw_status" and func="eval" and value="None"
- --> @cfxaia:conditional-statement condition_column="ldos,today" and operator="<" and return_if="Expired" and return_else="sw_status" and to_column="sw_status"
- --> @cfxaia:conditional-statement condition_column="ldos,today" and operator=">" and return_if="yes" and to_column="sw_status1" and  return_else="no"
- --> @cfxaia:conditional-statement condition_column="ldos,very_critical_date" and operator="<=" and return_if="yes" and to_column="sw_status2" and  return_else="no"
- --> @cfxaia:conditional-statement condition_column="sw_status1,sw_status2" and operator="=" and check_value="yes" and value="yes,yes" and return_if="Expiring in a Quarter" and return_else="sw_status" and to_column="sw_status"
- --> @cfxaia:conditional-statement condition_column="ldos,semi_critical_date" and operator="<=" and return_if="yes" and to_column="sw_status2" and return_else="no"
- --> @cfxaia:conditional-statement condition_column="sw_status1,sw_status2" and operator="=" and check_value="yes" and value="yes,yes" and return_if="Expiring in 4 Quarters" and return_else="sw_status" and to_column="sw_status" and replace_if_null=True
- --> @cfxaia:conditional-statement condition_column="ldos,major_eol_date" and operator="<=" and return_if="yes" and to_column="sw_status2" and return_else="no"
- --> @cfxaia:conditional-statement condition_column="sw_status1,sw_status2" and operator="=" and check_value="yes" and value="yes,yes" and return_if="Expiring in 8 Quarters" and return_else="sw_status" and to_column="sw_status" and replace_if_null=True
- --> @cfxaia:conditional-statement condition_column="ldos,major_eol_date" and operator=">" and return_if="yes" and to_column="sw_status2" and return_else="no"
- --> @cfxaia:conditional-statement condition_column="sw_status1,sw_status2" and operator="=" and check_value="yes" and value="yes,yes" and return_if="Expiring after 8 Quarters" and return_else="sw_status" and to_column="sw_status" and replace_if_null=True
- ## --> @dm:eval-multi-proc     sw_status="'Expired' if(ldos and ldos>0 and ldos<today) else 'Expiring in a Quarter' if(ldos and ldos > today and ldos <= very_critical_date) else 'Expiring in 4 Quarters' if(ldos and ldos > today and ldos <= semi_critical_date) else 'Expiring in 8 Quarters' if(ldos and ldos > today and ldos <= major_eol_date) else 'Expiring after 8 Quarters' if(ldos and ldos > today and ldos > major_eol_date) else None" and _max_procs=4
-
- --> @dm:rename-columns ldos_month="ldos"
- --> @dm:change-time-format columns = 'ldos_month' & from_format = 'ms' & to_format ='%m'
- --> @dm:manipulate-string from="YEAR" and value="[0-9]{4,7}" and func="match" and to="YEAR"
- ## --> @dm:map-multi-proc     func = "match" & from = "sw_ldos" & to = "YEAR" & expr = ".*/.*/(.*)" and _max_procs=4
-
- --> @dm:manipulate-string from="ldos_month" and value="0" and func="lstrip" and to="ldos_month"
- --> @dm:fixnull columns="ldos_month" and value=0
- --> @dm:to-type columns="ldos_month" and type="int"
- --> @dm:manipulate-string to="qtr" and func="eval" and value="((ldos_month - 1) // 3 ) + 1"
- --> @cfxaia:conditional-statement condition_column="ldos_month" and operator="<=" and check_value="yes" and value="0" and return_if="" and return_else="qtr" and to_column="qtr"
- --> @dm:copy-columns from="qtr" and to="qtr" and prefix="Q" and func="append"
- ## --> @dm:fixnull columns="YEAR" and value="Not Available"
-
- --> @dm:manipulate-string to="sw_expiring_qtr" and func="concat_columns" and from="YEAR,qtr" and value=" "
- ## --> @dm:manipulate-string from="sw_expiring_qtr" and to="sw_expiring_qtr" and func="replace" and value="Not Available  Q,Not Available"
-
- --> @dm:copy-columns from="YEAR" and to="sw_expiring_year"
- ## --> @dm:eval-multi-proc     qtr ="((int(ldos_month) - 1) // 3 ) + 1 if ldos_month else None" and _max_procs=4
-
- ## --> @dm:eval-multi-proc     sw_expiring_qtr="str(YEAR) + ' Q' + str(int(qtr)) if YEAR else 'Not Available'" and _max_procs=4
-
- ## --> @cfxaia:conditional-statement condition_column="YEAR" and return_if="YEAR" and return_else="Not Availabale" and to_column="sw_expiring_year"
-
- ## --> @dm:eval-multi-proc     sw_expiring_year="str(YEAR) if YEAR else 'Not Available'" and _max_procs=4
-
- ## --> @dm:selectcolumns include="$column"
-
- --> @dm:gc
- ## --> @dm:selectcolumns include="sw_expiring_year,sw_expiring_qtr,sw_status"
-
- --> @dm:save name="temp-swldos-yr"
- --> @dm:recall name="temp-sw-eol-details"
- --> @dm:enrich dict="temp-swldos" and replace_values="yes" and src_key_cols="EndOfLifeDate" and dict_key_cols="EndOfLifeDate" and enrich_cols="sw_status"
- --> @dm:enrich dict="temp-swldos-yr" and replace_values="yes" and src_key_cols="EndOfLifeDate" and dict_key_cols="EndOfLifeDate" and enrich_cols="sw_expiring_qtr,sw_expiring_year"
- --> @dm:fixnull columns="sw_status,sw_expiring_qtr,sw_expiring_year" and value="Not Available"  and apply_for_empty="yes"
- ## --> @dm:save name='productAlerts-sw-eol-details'
-
- --> @dm:copy-columns from	='contract_number' and to ='contract_number_str'
- --> @dm:to_type columns = 'contract_number_str' &
-type  = 'str'
- --> @dm:save name='temp-sw-eol-details'
- --> @dm:save name='test-op-sw-eol-details'
+@dm:empty
+ --> @dm:addrow profile_name = 'ios_show_ip_int_brief' and
+command = 'show ip interface brief' and
+textfsm_url = 'https://raw.githubusercontent.com/networktocode/ntc-templates/master/ntc_templates/templates/cisco_ios_show_ip_interface_brief.textfsm' and
+condition = '{% raw %}{{device_fw_type == "Cisco IOS"}}{% endraw %}'
+ --> @dm:addrow profile_name = 'iosxr_show_ip_int_brief' and
+command = 'show ip interface brief' and
+textfsm_url = 'https://raw.githubusercontent.com/networktocode/ntc-templates/master/ntc_templates/templates/cisco_xr_show_ip_interface_brief.textfsm' and
+condition = '{% raw %}{{device_fw_type == "Cisco IOS XR"}}{% endraw %}'
+ --> @dm:addrow profile_name = 'ios_show_ip_ospf_neighbor' and
+command = 'show ip ospf neighbor' and
+textfsm_url = 'https://raw.githubusercontent.com/networktocode/ntc-templates/master/ntc_templates/templates/cisco_ios_show_ip_ospf_neighbor.textfsm' and
+condition = '{% raw %}{{device_fw_type == "Cisco IOS"}}{% endraw %}'
+ --> @dm:addrow profile_name = 'iosxr_show_ip_ospf_neighbor' and
+command = 'show ip ospf neighbor' and
+textfsm_url = 'https://raw.githubusercontent.com/networktocode/ntc-templates/master/ntc_templates/templates/cisco_xr_show_ospf_neighbor.textfsm' and
+condition = '{% raw %}{{device_fw_type == "Cisco IOS XR"}}{% endraw %}'
+ --> @dm:addrow profile_name = 'ios_show_cdp_neighbors' and
+command = 'show cdp neighbors detail' and
+textfsm_url = 'https://raw.githubusercontent.com/networktocode/ntc-templates/master/ntc_templates/templates/cisco_ios_show_cdp_neighbors_detail.textfsm' and
+condition = '{% raw %}{{device_fw_type == "Cisco IOS"}}{% endraw %}'
+ --> @dm:addrow profile_name = 'iosxr_show_cdp_neighbors' and
+command = 'show cdp neighbors detail' and
+textfsm_url = 'https://raw.githubusercontent.com/networktocode/ntc-templates/master/ntc_templates/templates/cisco_xr_show_cdp_neighbors_detail.textfsm' and
+condition = '{% raw %}{{device_fw_type == "Cisco IOS XR"}}{% endraw %}'
+ --> @dm:addrow profile_name = 'ios_show_ip_bgp_neighbor' and
+command = 'show ip bgp neighbors' and
+textfsm_url = 'https://raw.githubusercontent.com/networktocode/ntc-templates/master/ntc_templates/templates/cisco_ios_show_ip_bgp_neighbors.textfsm' and
+condition = '{% raw %}{{device_fw_type == "Cisco IOS"}}{% endraw %}'
+ --> @dm:addrow profile_name = 'iosxr_show_ip_bgp_neighbor' and
+command = 'show ip bgp neighbors' and
+textfsm_content = "Value NEIGHBOR (\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\nValue VRF (\S+)\nValue REMOTE_AS (\d+)\nValue PEER_GROUP (\S+)\nValue REMOTE_ROUTER_ID (\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\nValue BGP_STATE (\w+)\nValue LOCALHOST_IP (\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\nValue LOCALHOST_PORT (\d+)\nValue REMOTE_IP (\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\nValue REMOTE_PORT (\d+)\nValue INBOUND_ROUTEMAP (\S+)\nValue OUTBOUND_ROUTEMAP (\S+)\n\nStart\n  # Capture first line, which shows the BGP neighor and remote AS number\n  ^BGP\s+neighbor\s+is -> Continue.Record\n  ^BGP\s+neighbor\s+is\s+${NEIGHBOR},?(\s+vrf\s+${VRF},)?(\s+remote\s+AS\s+${REMOTE_AS})?\n  ^\s+Remote AS ${REMOTE_AS}\n  # Capture BGP peer group\n  # Example: 'Member of peer-group RR_SERVERS for session parameters'\n  ^\s*Member\s+of\s+peer-group\s+${PEER_GROUP}\n  # \n  # Capture remote router ID\n  # Example: ' BGP state = Established, up for 7w3d'\n  ^.+[rR]emote\s+router\s+ID\s+${REMOTE_ROUTER_ID}\n  #\n  # Capture BGP state\n  # Example: ' BGP state = Established, up for 7w3d'\n  ^\s+BGP\s+state\s+=\s+${BGP_STATE}\n  #\n  # Capture Inbound/Outbound Route Maps\n  # Example: 'Route map for incoming advertisements is BGP_Vendor_in'\n  # Example: 'Route map for outgoing advertisements is BGP_Vendor_out'\n  ^\s+Route\s+map\s+for\s+incoming\s+advertisements\s+is\s+${INBOUND_ROUTEMAP}\n  ^\s+Route\s+map\s+for\s+outgoing\s+advertisements\s+is\s+${OUTBOUND_ROUTEMAP}\n  #\n  # Match local host and port\n  # Example: 'Local host: 10.10.255.13, Local port: 39443'\n  ^\s*Local\s+host:\s+${LOCALHOST_IP},\s+Local\s+port:\s+${LOCALHOST_PORT}\n  # \n  # Match local host and port\n  # Example: 'Local host: 10.10.255.13, Local port: 39443'\n  ^\s*Foreign\s+host:\s+${REMOTE_IP},\s+Foreign\s+port:\s+${REMOTE_PORT}\n  #^.+ -> Error" and
+condition = '{% raw %}{{device_fw_type == "Cisco IOS XR"}}{% endraw %}'
+ --> @dm:save name = 'temp-profile_dataset'
+ --> @c:new-block
+ --> @dm:empty
+ --> @dm:addrow device_ip = '9.3.252.31-9.3.252.40,9.3.252.90-9.3.252.100' and profiles = 'ios_show_ip_int_brief, iosxr_show_ip_int_brief, ios_show_ip_ospf_neighbor, iosxr_show_ip_ospf_neighbor, ios_show_cdp_neighbors, iosxr_show_cdp_neighbors, iosxr_show_ip_bgp_neighbor, ios_show_ip_bgp_neighbor'
+ --> @dm:save name = "temp-collection-set"
+ --> @c:new-block
+ --> @dm:recall name = "temp-collection-set"
+ --> @network_device_cisco123:run-commands ip_column_name = 'device_ip' and
+profile_dataset_name = 'temp-profile_dataset' and
+devices_details_dataset = 'cml_cisco_device_chassis_dict' and
+profile_column_name = 'profiles'
+ --> *dm:filter collection_status is "Success"
+ --> @dm:save name="temp-out1"
+ --> @c:new-block
+ --> @dm:recall name = "temp-collection-set"
+ --> @network_device_cisco:run-commands ip_column_name = 'device_ip' and
+profile_dataset_name = 'temp-profile_dataset' and
+devices_details_dataset = 'cml_cisco_device_chassis_dict' and
+profile_column_name = 'profiles'
+ --> *dm:filter collection_status is "Success"
+ --> @dm:save name="temp-out2"
+ --> @c:new-block
+ --> @dm:recall name = "temp-collection-set"
+ --> @network_device_cisco01:run-commands ip_column_name = 'device_ip' and
+profile_dataset_name = 'temp-profile_dataset' and
+devices_details_dataset = 'cml_cisco_device_chassis_dict' and
+profile_column_name = 'profiles'
+ --> *dm:filter collection_status is "Success"
+ --> @dm:save name="temp-out3"
+ --> @c:new-block
+ --> @dm:concat names = "temp-out.*"
+ --> @dm:save name="temp-collection-output"
+ --> @c:new-block
+ --> @dm:recall name = "temp-collection-output"
+ --> *dm:filter command is "show ip interface brief"
+ --> @dm:explode-json column="parsed_json"
+ --> @dm:save name="cml-interface-data"
+ --> @c:new-block
+ --> @dm:recall name = "temp-collection-output"
+ --> *dm:filter command is "show ip ospf neighbor"
+ --> @dm:explode-json column="parsed_json"
+ --> @dm:save name="cml-ospf-data"
+ --> @c:new-block
+ --> @dm:recall name = "temp-collection-output"
+ --> *dm:filter command is "show cdp neighbors detail"
+ --> @dm:explode-json column="parsed_json"
+ --> @dm:mergecolumns include="destination_host|dest_host" and to="dest_host"
+ --> @dm:mergecolumns include="management_ip|mgmt_ip" and to="mgmt_ip"
+ --> @dm:mergecolumns include="software_version|version" and to="version"
+ --> @dm:eval mgmt_ip="mgmt_ip.strip()"
+ --> @dm:save name="cml-cdp-data"
+ --> @c:new-block
+ --> @dm:recall name = "temp-collection-output"
+ --> *dm:filter command is "show ip bgp neighbors"
+ --> @dm:explode-json column="parsed_json"
+ --> @dm:save name="cml-bgp-data"
