@@ -1,135 +1,217 @@
+
+ ## %% import_src_type = "asset-discovery"
 @exec:get-input
- --> @dm:save name='temp-sweol-data'
- ## --> @dm:save name='test1-sweol-data'
+ --> @dm:eval key="'key'"
+ ## --> @dm:eval credential_pattern = "customer_tag+'.*'"
 
- --> @dm:add-missing-columns columns="customer,contract_number,product_id,sw_os_type,sw_version,Unique_id,ingestion_id,transaction_id,timestamp,count_,_RDA_Id,SoftwareEOXId,BulletinNumber,BulletinHeadline,BulletinURL,EndOfSaleDate,EndOfEngineeringDate,EndOfLifeDate,PostDate,EndOfLifeInternalAnnouncementDate,EndOfLifeExternalAnnouncementDate,EndOfLastHardwareShipDate,EndOfHardwareNewServiceAttachmentDate,EndOfHardwareRoutineFailureAnalysisDate,EndOfBUEngineeringSupportTACDate,EndOfHardwareServiceContractRenewalDate,EndOfSignatureReleasesDate,EndOfSoftwareAvailabilityDate,EndOfSoftwareLicenseAvailabilityDate,EndOfSoftwareVulnerabilityOrSecuritySupportDate,_id,created,customerVisible,external_text,external_title,firstIcAlertId,groups,icIssueId,icProblemId,ignored,lastIcAlertId,eoXAlertType,name,openedOn"
- ## adding not available to null values and creating a unique key
+ --> @dm:save name="temp-input-org-details"
+ ## --> @dm:save name="discovery-input-org-details"
 
- --> @dm:fixnull columns="customer,contract_number,product_id,sw_os_type,sw_version,Unique_id,ingestion_id,transaction_id,timestamp,count_,_RDA_Id,SoftwareEOXId,BulletinNumber,BulletinHeadline,BulletinURL,EndOfSaleDate,EndOfEngineeringDate,EndOfLifeDate,PostDate,EndOfLifeInternalAnnouncementDate,EndOfLifeExternalAnnouncementDate,EndOfLastHardwareShipDate,EndOfHardwareNewServiceAttachmentDate,EndOfHardwareRoutineFailureAnalysisDate,EndOfBUEngineeringSupportTACDate,EndOfHardwareServiceContractRenewalDate,EndOfSignatureReleasesDate,EndOfSoftwareAvailabilityDate,EndOfSoftwareLicenseAvailabilityDate,EndOfSoftwareVulnerabilityOrSecuritySupportDate,_id,created,customerVisible,external_text,external_title,firstIcAlertId,groups,icIssueId,icProblemId,ignored,lastIcAlertId,eoXAlertType,name,openedOn" and value="Not Available"  and apply_for_empty="yes"
- ## --> @dm:manipulate-string from="gu_name,__uuid" and func="concat_columns" and to="unique_gu_name" and value="_"
+ ## asset-disovery bot
 
- --> @dm:save name='temp-sw-eol-details'
- ## ldos dataset for creating hw_status and sw_status
+ ## --> @c:data-loop columns="customer_tag,name" and dataset ="temp-input-org-details"
 
- --> @dm:addrow key="dummy"
- --> @dm:eval-multi-proc today='int(time_now_as_ms())' and _max_procs=4
- --> @dm:copy-columns from="today,today,today" and to="t_date,t_month,t_year"
- --> @dm:change-time-format columns = 't_date' & from_format = 'ms' & to_format = '%d'
- --> @dm:change-time-format columns = 't_month' & from_format = 'ms' & to_format ='%m'
- --> @dm:change-time-format columns = 't_year' & from_format = 'ms' & to_format ='%y'
- --> @dm:to-type columns="t_month,t_year" and type="int"
- --> @dm:manipulate-string to="major_unit" and value="t_month -1 + 24" and func="eval"
- --> @dm:manipulate-string to="major_unit_year" and value="t_year + major_unit//12" and func="eval"
- --> @dm:manipulate-string to="major_unit_month" and value="major_unit % 12 + 1" and func="eval"
- --> @dm:to_type columns="major_unit_month,t_date,major_unit_year" and type="str"
- --> @dm:manipulate-string to="major_eol_date" and value="/" and func="concat_columns" and from="major_unit_month,t_date,major_unit_year"
- --> @dm:manipulate-string to="semi_critical" and value="t_month - 1 + 12" and func="eval"
- --> @dm:manipulate-string to="semi_critical_unit_year" and value="t_year + semi_critical//12" and func="eval"
- --> @dm:manipulate-string to="semi_critical_month" and value="semi_critical % 12 + 1" and func="eval"
- --> @dm:to_type columns="semi_critical_month,t_date,semi_critical_unit_year" and type="str"
- --> @dm:manipulate-string to="semi_critical_date" and value="/" and func="concat_columns" and from="semi_critical_month,t_date,semi_critical_unit_year"
- --> @dm:manipulate-string to="very_critical" and value="t_month - 1 + 3" and func="eval"
- --> @dm:manipulate-string to="very_critical_unit_year" and value="t_year + very_critical//12" and func="eval"
- --> @dm:manipulate-string to="very_critical_month" and value="very_critical % 12 + 1" and func="eval"
- --> @dm:to_type columns="very_critical_month,t_date,very_critical_unit_year" and type="str"
- --> @dm:manipulate-string to="very_critical_date" and value="/" and func="concat_columns" and from="very_critical_month,t_date,very_critical_unit_year"
- --> @dm:change-time-format columns="major_eol_date,semi_critical_date,very_critical_date" & from_format="datetimestr" and to_format="ms"
- ## --> @dm:selectcolumns include="$column|^today$|^very_critical_date$|^semi_critical_date$|^major_eol_date$"
+ --> @c:new-block
+ --> @dm:recall name="temp-input-org-details"
+ --> @dm:dedup columns = 'device_ip'
+ ## --> @dm:save name="discovery-input-org-details"
 
- --> @dm:gc
- --> @dm:save name="temp-ldos"
- ## calculating sw_status
+ ## --> @asset-discovery:collector seed_addresses_col is device_ip and collection_group_rules is "default" and extended_inventory = True and cli_access = True and jobname = "$customer_tag" and credential_patterns =  "$name" and  credential_types = "snmp-cred,device-snmp-v3,device-host-ssh,device-snmpv1v2" and status_stream = "asset_inventory_collection_status_stream"
 
- --> @dm:recall name="temp-sw-eol-details"
- --> @dm:dedup columns="EndOfLifeDate"
- --> @dm:manipulate-string to="key" and value="'dummy'" and func="eval"
- --> @dm:selectcolumns include="EndOfLifeDate|key"
- --> @dm:enrich dict="temp-ldos" and src_key_cols="key" and dict_key_cols="key" and enrich_cols="today,very_critical_date,semi_critical_date,major_eol_date"
- --> @dm:copy-columns from="EndOfLifeDate" and to="ldos"
- --> @dm:change-time-format columns='ldos' & from_format="datetimestr" and to_format="ms"
- --> @cfxaia:conditional-statement condition_column="ldos" and operator=">"  and check_value="yes" and value="0" and return_if="ldos"
- --> @dm:to-type columns="ldos" and type="int"
- --> @dm:manipulate-string to="sw_status" and func="eval" and value="None"
- --> @cfxaia:conditional-statement condition_column="ldos,today" and operator="<" and return_if="Expired" and return_else="sw_status" and to_column="sw_status"
- --> @cfxaia:conditional-statement condition_column="ldos,today" and operator=">" and return_if="yes" and to_column="sw_status1" and return_else="no"
- --> @cfxaia:conditional-statement condition_column="ldos,very_critical_date" and operator="<=" and return_if="yes" and to_column="sw_status2" and  return_else="no"
- --> @cfxaia:conditional-statement condition_column="sw_status1,sw_status2" and operator="=" and check_value="yes" and value="yes,yes" and return_if="Expiring in a Quarter" and return_else="sw_status" and to_column="sw_status"
- --> @cfxaia:conditional-statement condition_column="ldos,semi_critical_date" and operator="<=" and return_if="yes" and to_column="sw_status2" and  return_else="no"
- --> @cfxaia:conditional-statement condition_column="sw_status1,sw_status2" and operator="=" and check_value="yes" and value="yes,yes" and return_if="Expiring in 4 Quarters" and return_else="sw_status" and to_column="sw_status" and replace_if_null=True
- --> @cfxaia:conditional-statement condition_column="ldos,major_eol_date" and operator="<=" and return_if="yes" and to_column="sw_status2" and return_else="no"
- --> @cfxaia:conditional-statement condition_column="sw_status1,sw_status2" and operator="=" and check_value="yes" and value="yes,yes" and return_if="Expiring in 8 Quarters" and return_else="sw_status" and to_column="sw_status" and replace_if_null=True
- --> @cfxaia:conditional-statement condition_column="ldos,major_eol_date" and operator=">" and return_if="yes" and to_column="sw_status2" and  return_else="no"
- --> @cfxaia:conditional-statement condition_column="sw_status1,sw_status2" and operator="=" and check_value="yes" and value="yes,yes" and return_if="Expiring after 8 Quarters" and return_else="sw_status" and to_column="sw_status" and replace_if_null=True
- --> @dm:selectcolumns exclude="sw_status1|sw_status2|^lods$"
- --> @dm:fixnull columns="sw_status" and value="No EOL"
- --> @dm:save name="temp-swldos"
- ## Compute sw_expiring_year,sw_expiring_qtr
+ ## credential_types = "snmp-cred,device-snmp-v3,device-host-ssh,device-snmpv1v2"
 
- --> @dm:recall name="temp-sw-eol-details"
- --> *dm:filter EndOfLifeDate is not null
- --> @dm:skip-block-if-shape row_count='0'
- --> @dm:recall name="temp-sw-eol-details"
- --> @dm:dedup columns="EndOfLifeDate"
- --> @dm:manipulate-string to="key" and value="'dummy'" and func="eval"
- --> @dm:selectcolumns include="EndOfLifeDate|key"
- --> @dm:enrich dict="temp-ldos" and src_key_cols="key" and dict_key_cols="key" and enrich_cols="today,very_critical_date,semi_critical_date,major_eol_date"
- --> @dm:copy-columns from="EndOfLifeDate,EndOfLifeDate" and to="ldos,YEAR"
- ## --> @dm:map-multi-proc     from="sw_ldos" and to="ldos" and _max_procs=4
+ --> @asset-discovery:collector seed_addresses_col is device_ip and collection_group_rules is "default" and extended_inventory = True and cli_access = True and jobname = "{{row.customer_tag}}" and status_stream = "asset_inventory_collection_status_stream"
+ --> *dm:filter collection_status = 'Success'
+ ## --> @dm:save name = "asset-discovery-output"
 
- --> @dm:change-time-format columns='ldos' & from_format="datetimestr" and to_format="ms"
- --> @cfxaia:conditional-statement condition_column="ldos" and operator=">"  and check_value="yes" and value="0" and return_if="ldos"
- --> @dm:to-type columns="ldos" and type="int"
- --> @dm:manipulate-string to="sw_status" and func="eval" and value="None"
- --> @cfxaia:conditional-statement condition_column="ldos,today" and operator="<" and return_if="Expired" and return_else="sw_status" and to_column="sw_status"
- --> @cfxaia:conditional-statement condition_column="ldos,today" and operator=">" and return_if="yes" and to_column="sw_status1" and  return_else="no"
- --> @cfxaia:conditional-statement condition_column="ldos,very_critical_date" and operator="<=" and return_if="yes" and to_column="sw_status2" and  return_else="no"
- --> @cfxaia:conditional-statement condition_column="sw_status1,sw_status2" and operator="=" and check_value="yes" and value="yes,yes" and return_if="Expiring in a Quarter" and return_else="sw_status" and to_column="sw_status"
- --> @cfxaia:conditional-statement condition_column="ldos,semi_critical_date" and operator="<=" and return_if="yes" and to_column="sw_status2" and return_else="no"
- --> @cfxaia:conditional-statement condition_column="sw_status1,sw_status2" and operator="=" and check_value="yes" and value="yes,yes" and return_if="Expiring in 4 Quarters" and return_else="sw_status" and to_column="sw_status" and replace_if_null=True
- --> @cfxaia:conditional-statement condition_column="ldos,major_eol_date" and operator="<=" and return_if="yes" and to_column="sw_status2" and return_else="no"
- --> @cfxaia:conditional-statement condition_column="sw_status1,sw_status2" and operator="=" and check_value="yes" and value="yes,yes" and return_if="Expiring in 8 Quarters" and return_else="sw_status" and to_column="sw_status" and replace_if_null=True
- --> @cfxaia:conditional-statement condition_column="ldos,major_eol_date" and operator=">" and return_if="yes" and to_column="sw_status2" and return_else="no"
- --> @cfxaia:conditional-statement condition_column="sw_status1,sw_status2" and operator="=" and check_value="yes" and value="yes,yes" and return_if="Expiring after 8 Quarters" and return_else="sw_status" and to_column="sw_status" and replace_if_null=True
- ## --> @dm:eval-multi-proc     sw_status="'Expired' if(ldos and ldos>0 and ldos<today) else 'Expiring in a Quarter' if(ldos and ldos > today and ldos <= very_critical_date) else 'Expiring in 4 Quarters' if(ldos and ldos > today and ldos <= semi_critical_date) else 'Expiring in 8 Quarters' if(ldos and ldos > today and ldos <= major_eol_date) else 'Expiring after 8 Quarters' if(ldos and ldos > today and ldos > major_eol_date) else None" and _max_procs=4
+ --> @dm:save name = "temp-asset-discovery-output" & append = "yes"
+ ## --> @dm:enrich-conditional dict is 'temp-input-org-details' and condition is 'device_ip == "$target_ip"'
 
- --> @dm:rename-columns ldos_month="ldos"
- --> @dm:change-time-format columns = 'ldos_month' & from_format = 'ms' & to_format ='%m'
- --> @dm:manipulate-string from="YEAR" and value="[0-9]{4,7}" and func="match" and to="YEAR"
- ## --> @dm:map-multi-proc     func = "match" & from = "sw_ldos" & to = "YEAR" & expr = ".*/.*/(.*)" and _max_procs=4
+ ## --> *dm:filter device_ip is not empty
 
- --> @dm:manipulate-string from="ldos_month" and value="0" and func="lstrip" and to="ldos_month"
- --> @dm:fixnull columns="ldos_month" and value=0
- --> @dm:to-type columns="ldos_month" and type="int"
- --> @dm:manipulate-string to="qtr" and func="eval" and value="((ldos_month - 1) // 3 ) + 1"
- --> @cfxaia:conditional-statement condition_column="ldos_month" and operator="<=" and check_value="yes" and value="0" and return_if="" and return_else="qtr" and to_column="qtr"
- --> @dm:copy-columns from="qtr" and to="qtr" and prefix="Q" and func="append"
- ## --> @dm:fixnull columns="YEAR" and value="Not Available"
+ --> @dm:selectcolumns exclude = "^device_ip$|^discovery_scope$|^key$|^ds_name$|^name$"
+ --> @dm:save name = "temp-collection-status"
+ ## asset discovery collection
 
- --> @dm:manipulate-string to="sw_expiring_qtr" and func="concat_columns" and from="YEAR,qtr" and value=" "
- ## --> @dm:manipulate-string from="sw_expiring_qtr" and to="sw_expiring_qtr" and func="replace" and value="Not Available  Q,Not Available"
+ --> @c:new-block
+ --> @dm:recall name = "temp-asset-discovery-output"
+ --> @dm:to-type columns = "is_duplicate" & type = "str"
+ --> *dm:filter is_duplicate not in  ['True','true','TRUE']
+ ## --> @dm:save name = "asset-discovery-output-duplicate"
 
- --> @dm:copy-columns from="YEAR" and to="sw_expiring_year"
- ## --> @dm:eval-multi-proc     qtr ="((int(ldos_month) - 1) // 3 ) + 1 if ldos_month else None" and _max_procs=4
+ --> @dm:skip-pipeline-if-shape row_count= 0
+ ## --> @dm:enrich-conditional dict is 'temp-input-org-details' and condition is 'device_ip == "$target_ip"'
 
- ## --> @dm:eval-multi-proc     sw_expiring_qtr="str(YEAR) + ' Q' + str(int(qtr)) if YEAR else 'Not Available'" and _max_procs=4
+ ## --> *dm:filter device_ip is not empty
 
- ## --> @cfxaia:conditional-statement condition_column="YEAR" and return_if="YEAR" and return_else="Not Availabale" and to_column="sw_expiring_year"
+ --> @dm:selectcolumns exclude = "^device_ip$|^discovery_scope$|^key$|^ds_name$|^name$"
+ --> @dm:eval path = "'inventory_collection/outputs/'+jobid+'/'+target_ip+'.json'"
+ --> @asset-discovery:get-collection-files path_column = "path" &            groups="base,system,entityPhysical,interfaces,entAliasMappingTable,cdpGlobal,ipAddrTable,cdpCache,cli_show_ether_channel_summary,management-target,snmpEngineDetails,lldpRemTable,base.credential-id,ipNetToMediaTable,dot1dTpFdbTablemacprocess"
+ ## --> @dm:save name="Group-base-all"
 
- ## --> @dm:eval-multi-proc     sw_expiring_year="str(YEAR) if YEAR else 'Not Available'" and _max_procs=4
+ --> @dm:selectcolumns include = "asset_ip|groupname|output|reason|jobid|path"
+ --> @dm:explode-json column='output'
+ --> @dm:selectcolumns include = "target|data|groupname|asset_ip|reason|jobid|path"
+ --> @dm:save name = "temp-group-data"
+ ## --> @dm:save name = "group-data"
 
- ## --> @dm:selectcolumns include="$column"
+ --> @c:new-block
+ --> @dm:set-tracing-context __block__="parse base"
+ --> @dm:recall name="temp-group-data"
+ --> *dm:filter groupname is "base"
+ --> @dm:explode-json column = 'data'
+ ## --> @dm:selectcolumns include="base|target"
 
- --> @dm:gc
- ## --> @dm:selectcolumns include="sw_expiring_year,sw_expiring_qtr,sw_status"
+ --> @dm:save name="temp-Group-base"
+ ## --> @dm:save name="Group-base"
 
- --> @dm:save name="temp-swldos-yr"
- --> @dm:recall name="temp-sw-eol-details"
- --> @dm:enrich dict="temp-swldos" and replace_values="yes" and src_key_cols="EndOfLifeDate" and dict_key_cols="EndOfLifeDate" and enrich_cols="sw_status"
- --> @dm:enrich dict="temp-swldos-yr" and replace_values="yes" and src_key_cols="EndOfLifeDate" and dict_key_cols="EndOfLifeDate" and enrich_cols="sw_expiring_qtr,sw_expiring_year"
- --> @dm:fixnull columns="sw_status,sw_expiring_qtr,sw_expiring_year" and value="Not Available"  and apply_for_empty="yes"
- ## --> @dm:save name='productAlerts-sw-eol-details'
+ --> @c:new-block
+ --> @dm:set-tracing-context __block__="get vendor"
+ --> @dm:recall name="temp-Group-base"
+ --> @dm:add-missing-columns columns="systemVendorID,sysObjectID"
+ ## --> @dm:selectcolumns include = "systemVendorName|systemVendorID|target|sysObjectID|reason"
 
- --> @dm:copy-columns from	='contract_number' and to ='contract_number_str'
- --> @dm:to_type columns = 'contract_number_str' &
-type  = 'str'
- --> @dm:save name='temp-sw-eol-details'
+ ## --> @dm:save name = "system-vendor"
+
+ --> @dm:add-missing-columns columns = "vendor"
+ --> *dm:filter systemVendorID is not null
+ --> @dm:to-type columns = "systemVendorID" & type = "str"
+ --> @dm:eval vendor='"Juniper Networks, Inc." if systemVendorID in ["2636", "2636.0"] else "Cisco" if systemVendorID in ["9","9.0"] else "Vyatta" if systemVendorID in ["74", "74.0"] else "Fortinet" if systemVendorID in ["12356", "12356.0"] else "Viptela" if systemVendorID in ["41916", "41916.0"] else vendor'
+ ## --> @dm:to-type columns = "systemVendorID" and type = "str"
+
+ --> @dm:to-type columns = "sysObjectID" and type = "str"
+ --> *dm:filter target is not null
+ --> @dm:save name = "temp-vendor-data"
+ ## --> @dm:save name = "vendor-data"
+
+ ## Run cisco main
+
+ --> @c:new-block
+ --> @c:data-loop columns="customer_id,customer_tag,discovery_enabled" and dataset="temp-input-org-details"
+ --> @dm:recall name = "temp-vendor-data"
+ --> *dm:filter systemVendorID in ["9","9.0"] and sysObjectID not in ['1.3.6.1.4.1.9.1.1348']
+ --> @dm:skip-block-if-shape row_count=0
+ --> @dm:eval key="'key'"
+ --> @dm:eval customer_id="'$customer_id'"
+ --> @dm:eval customer_tag="'$customer_tag'"
+ ## --> @dm:eval project_id="'$project_id'"
+
+ ## --> @dm:eval ingestion_id="'$ingestion_id'"
+
+ --> @dm:eval discovery_enabled="'$discovery_enabled'"
+ ## --> @dm:enrich dict	 = "temp-input-org-details" and src_key_cols	 = "key" and dict_key_cols	="key" and enrich_cols	="ingestion_id,discovery_enabled,project_id,customer_tag,customer_id"
+
+ --> @exec:run-pipeline name ="cisco_discovery_main_pipeline" & ignore_failures = "no"
+ ## --> @exec:run-pipeline-multi-proc name="cisco_discovery_main_pipeline"
+
+ ## --> @dm:save name = "asset-cisco-data"
+
+ ## --> @dm:save name = "temp-cisco-data"
+
+ ## Run juniper main
+
+ --> @c:new-block
+ --> @c:data-loop columns="customer_id,customer_tag,discovery_enabled" and dataset="temp-input-org-details"
+ --> @dm:recall name = "temp-vendor-data"
+ --> *dm:filter systemVendorID in ["2636", "2636.0"]
+ --> @dm:skip-block-if-shape row_count=0
+ --> @dm:eval key="'key'"
+ --> @dm:eval customer_id="'$customer_id'"
+ --> @dm:eval customer_tag="'$customer_tag'"
+ --> @dm:eval discovery_enabled="'$discovery_enabled'"
+ ## --> @dm:eval project_id="'$project_id'"
+
+ ## --> @dm:eval ingestion_id="'$ingestion_id'"
+
+ ## --> @dm:enrich dict	 = "temp-input-org-details" and src_key_cols	 = "key" and dict_key_cols	="key" and enrich_cols	="ingestion_id,discovery_enabled"
+
+ --> @exec:run-pipeline name ="juniper_discovery_main_pipeline" & ignore_failures = "no"
+ ## --> @exec:run-pipeline-multi-proc name="juniper_discovery_main_pipeline"
+
+ ## --> @dm:save name = "temp-juniper-data"
+
+ ## Run vyatta main
+
+ ## --> @c:data-loop columns="Minio_location" and dataset="temp-discovery-results"
+
+ ## --> @dm:set-tracing-context __block__="get vendor Vyatta"
+
+ ## --> @dm:recall name="temp-ips_to_process"
+
+ ## --> *dm:filter systemVendorID in ["74", "74.0"]
+
+ ## --> @dm:eval ec_zip_file_loc_pipeinput='"$Minio_location"'
+
+ ## --> @dm:add-missing-columns columns="required_groups" and value="possible-duplicate,management-target,base.data,system.data,ipAddrTable.data,snmpEngineDetails.data,jnxContentsTable.data,cli_show_chasis_hardware.data,cli_show_version_juniper.data,jsystem.data,base.start-time,interfaces.data,entAliasMappingTable.data"
+
+ ## --> @dm:skip-block-if-shape row_count=0
+
+ ## --> @dm:eval key="'key'"
+
+ ## --> @dm:enrich dict	 = "temp-input-org-details" and src_key_cols	 = "key" and dict_key_cols	="key" and enrich_cols	="customer_tag,customer_id,project_id,ingestion_id"
+
+ ## --> @exec:run-pipeline name ="vyatta_discovery_main_pipeline" & ignore_failures = "no"
+
+ ## --> @dm:save name="temp-vyatta_data"
+
+ ## Run fortinet main
+
+ --> @c:new-block
+ --> @c:data-loop columns="customer_id,customer_tag,discovery_enabled" and dataset="temp-input-org-details"
+ --> @dm:recall name = "temp-vendor-data"
+ --> *dm:filter systemVendorID in ["12356", "12356.0"]
+ --> @dm:skip-block-if-shape row_count=0
+ --> @dm:eval key="'key'"
+ --> @dm:eval customer_id="'$customer_id'"
+ --> @dm:eval customer_tag="'$customer_tag'"
+ --> @dm:eval discovery_enabled="'$discovery_enabled'"
+ ## --> @dm:eval project_id="'$project_id'"
+
+ ## --> @dm:eval ingestion_id="'$ingestion_id'"
+
+ ## --> @dm:enrich dict	 = "temp-input-org-details" and src_key_cols	 = "key" and dict_key_cols	="key" and enrich_cols	="ingestion_id,discovery_enabled"
+
+ --> @exec:run-pipeline name ="fortinet_discovery_main_pipeline" & ignore_failures = "no"
+ ## --> @exec:run-pipeline-multi-proc name="fortinet_discovery_main_pipeline"
+
+ ## --> @dm:save name = "temp-fortinet_data"
+
+ ## Run Viptela main
+
+ ## --> @c:data-loop columns="Minio_location" and dataset="temp-discovery-results"
+
+ ## --> @dm:set-tracing-context __block__="get vendor Viptela"
+
+ ## --> @dm:recall name="temp-ips_to_process"
+
+ ## --> *dm:filter systemVendorID in ["41916", "41916.0"]
+
+ ## --> @dm:eval ec_zip_file_loc_pipeinput='"$Minio_location"'
+
+ ## --> @dm:skip-block-if-shape row_count=0
+
+ ## --> @dm:eval key="'key'"
+
+ ## --> @dm:enrich dict = "temp-input-org-details" and src_key_cols = "key" and dict_key_cols ="key" and enrich_cols ="customer_tag,customer_id,project_id,ingestion_id"
+
+ ## --> @exec:run-pipeline name ="viptela_discovery_main_pipeline" & ignore_failures = "no"
+
+ ## --> @dm:save name = "temp-viptela_data"
+
+ ## Run other Vendors main
+
+ --> @c:new-block
+ --> @c:data-loop columns="customer_id,customer_tag,discovery_enabled" and dataset="temp-input-org-details"
+ --> @dm:recall name = "temp-vendor-data"
+ --> *dm:filter systemVendorID not in ["2636", "2636.0","41916","41916.0","12356", "12356.0","74", "74.0","9","9.0"] and systemVendorID not null
+ --> @dm:skip-block-if-shape row_count=0
+ --> @dm:eval key="'key'"
+ --> @dm:eval customer_id="'$customer_id'"
+ --> @dm:eval customer_tag="'$customer_tag'"
+ --> @dm:eval discovery_enabled="'$discovery_enabled'"
+ ## --> @dm:eval project_id="'$project_id'"
+
+ ## --> @dm:eval ingestion_id="'$ingestion_id'"
+
+ --> @dm:enrich dict	 = "temp-input-org-details" and src_key_cols	 = "key" and dict_key_cols	="key" and enrich_cols	="discovery_enabled"
+ --> @exec:run-pipeline name ="other_vendors_discovery_main_pipeline" & ignore_failures = "no"

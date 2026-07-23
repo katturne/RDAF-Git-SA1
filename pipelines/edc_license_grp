@@ -1,166 +1,217 @@
-@c:new-block
- --> @dm:recall name="edc_license_domains"
- ## --> *dm:filter customer is 'ATT'
 
- --> @dm:save name='temp-cust-domains'
- ## Collect Consumption
+ ## %% import_src_type = "asset-discovery"
+@exec:get-input
+ --> @dm:eval key="'key'"
+ ## --> @dm:eval credential_pattern = "customer_tag+'.*'"
 
- --> @c:data-loop columns='top_level_domain,customer' and dataset='temp-cust-domains'
- --> @snowflake:native-query dbname is "CX_DB" and warehouse is "CX_DMP_RPT_WH" and query is "SELECT * FROM CX_DB.CX_DMP_BR.PV_DMP_LICENSE_CONSUMPTION WHERE TOP_LEVEL_DOMAIN = '$top_level_domain';"
- --> @dm:add-missing-columns columns="execution_status"
- --> *dm:filter execution_status =="Success"
- --> @dm:skip-block-if-shape column_count = 3
- --> @dm:rename-columns billingType="billing_type" &
-license="feature_display_name"
- --> @dm:fixnull columns = 'license_class,licensed_feature_key,license_device_key,reservation_type,pak_item_id,billingType,license,license_sku_id,domain_name,smart_account_name,virtual_account_name' and value='NA' and apply_for_empty="yes"
- --> @dm:to_type columns = 'consumed_quantity' & type  = 'int'
- --> @dm:change-time-format columns="consumption_date,consumption_update_date" and from_format="datetimestr" and to_format="%Y-%m-%d"
- ## create column for unique customer
+ --> @dm:save name="temp-input-org-details"
+ ## --> @dm:save name="discovery-input-org-details"
 
- --> @dm:manipulate-string to="customer_name" and func="eval" and value="'$customer'"
- --> @dm:selectcolumns exclude="attempt_count|execution_reason|execution_status"
- --> @dm:save name="temp-license_consumption" and append = "yes"
- ## Collect entitlement
+ ## asset-disovery bot
 
- --> @c:data-loop columns='top_level_domain,customer' and dataset='temp-cust-domains'
- --> @snowflake:native-query dbname is "CX_DB" and warehouse is "CX_DMP_RPT_WH" and query is "SELECT * FROM CX_DB.CX_DMP_BR.PV_DMP_LICENSE_ENTITLEMENT WHERE TOP_LEVEL_DOMAIN = '$top_level_domain';"
- --> @dm:add-missing-columns columns="execution_status"
- --> *dm:filter execution_status =="Success"
- --> @dm:skip-block-if-shape column_count = 3
- --> @dm:fixnull columns = 'license_start_date,license_end_date,transaction_date,transaction_update_date' and value = '1970-01-01T00:00:01' and apply_for_empty="yes"
- --> @dm:fixnull columns = 'license_type,billing_type,entitlement_type,feature_display_name,product_family,license_sku,subscription_reference_id,business_entity,sub_business_entity,virtual_account_name' and value='NA' and apply_for_empty="yes"
- --> @dm:change-time-format columns="license_start_date,license_end_date,transaction_date,transaction_update_date" and from_format="datetimestr" and to_format="%Y-%m-%d"
- --> @dm:to_type columns = 'entitled_quantity' and type  = 'int'
- --> @dm:rename-columns billingType="billing_type" &
-licenseType="license_type" &
-startDate="license_start_date" &
-endDate="license_end_date" &
-subscriptionId="subscription_reference_id" &
-license="feature_display_name" &
-licenseSku="license_sku" &
-smart_account_key="smart_accounts_key" &
-license_sku_id="smart_license_sku_id" &
-sales_order_int="sales_number"
- ## sales_order_int="bk_so_number_int"
-
- ## create column for unique customer
-
- --> @dm:manipulate-string to="customer_name" and func="eval" and value="'$customer'"
- --> @dm:eval unique_key = "str(customer_name) + str(smart_account_key) +str(virtual_account_key)+  str(licensed_feature_key) +str(endDate) +str(startDate) +str(license_sku_id) + str(subscriptionId) + str(sales_order_line_key)+str(license_entitlement_key)"
- --> @dm:selectcolumns exclude="attempt_count|execution_reason|execution_status|transaction_date|transaction_update_date"
- --> @dm:save name="temp-license_entitlement" and append = "yes"
- ## consolidate consumption into single record for smtAcct-virtualAcct-licensedFeature
+ ## --> @c:data-loop columns="customer_tag,name" and dataset ="temp-input-org-details"
 
  --> @c:new-block
- --> @dm:recall name="temp-license_consumption"
- --> @dm:selectcolumns include="customer_name|domain_name|smart_account_name|smart_account_key|virtual_account_key|virtual_account_name|licensed_feature_key|pak_item_id|^license$|reservation_type|billingType|license_class|license_sku_id|consumed_quantity"
- --> @dm:groupby columns="customer_name,domain_name,smart_account_name,smart_account_key,virtual_account_name,virtual_account_key,licensed_feature_key,pak_item_id,license,reservation_type,billingType,license_class,license_sku_id" and agg='sum'
- --> @dm:save name="temp-license_consumed_grp"
- ## # Build dict for License to Business Entity
+ --> @dm:recall name="temp-input-org-details"
+ --> @dm:dedup columns = 'device_ip'
+ ## --> @dm:save name="discovery-input-org-details"
+
+ ## --> @asset-discovery:collector seed_addresses_col is device_ip and collection_group_rules is "default" and extended_inventory = True and cli_access = True and jobname = "$customer_tag" and credential_patterns =  "$name" and  credential_types = "snmp-cred,device-snmp-v3,device-host-ssh,device-snmpv1v2" and status_stream = "asset_inventory_collection_status_stream"
+
+ ## credential_types = "snmp-cred,device-snmp-v3,device-host-ssh,device-snmpv1v2"
+
+ --> @asset-discovery:collector seed_addresses_col is device_ip and collection_group_rules is "default" and extended_inventory = True and cli_access = True and jobname = "{{row.customer_tag}}" and status_stream = "asset_inventory_collection_status_stream"
+ --> *dm:filter collection_status = 'Success'
+ ## --> @dm:save name = "asset-discovery-output"
+
+ --> @dm:save name = "temp-asset-discovery-output" & append = "yes"
+ ## --> @dm:enrich-conditional dict is 'temp-input-org-details' and condition is 'device_ip == "$target_ip"'
+
+ ## --> *dm:filter device_ip is not empty
+
+ --> @dm:selectcolumns exclude = "^device_ip$|^discovery_scope$|^key$|^ds_name$|^name$"
+ --> @dm:save name = "temp-collection-status"
+ ## asset discovery collection
 
  --> @c:new-block
- --> @dm:recall name="temp-license_entitlement"
- ## --> *dm:filter license_class is 'SMART'
+ --> @dm:recall name = "temp-asset-discovery-output"
+ --> @dm:to-type columns = "is_duplicate" & type = "str"
+ --> *dm:filter is_duplicate not in  ['True','true','TRUE']
+ ## --> @dm:save name = "asset-discovery-output-duplicate"
 
- --> *dm:filter business_entity is not 'NA'
- --> @dm:selectcolumns include="license$|business_entity|sub_business_entity|product_family|license_class"
- --> @dm:groupby columns="license,business_entity,sub_business_entity,product_family"
- --> @dm:rename-columns tot_count="license_class" &
-common_BE="business_entity" &
-common_SBE="sub_business_entity" &
-common_product_family="product_family"
- --> @dm:sort columns="license,tot_count" and order="asc"
- --> @dm:dedup columns = 'license' and keep="last"
- --> @dm:selectcolumns exclude="tot_count"
- --> @dm:save name="temp-business_dict"
- ## # Create expiration column for entitlement
+ --> @dm:skip-pipeline-if-shape row_count= 0
+ ## --> @dm:enrich-conditional dict is 'temp-input-org-details' and condition is 'device_ip == "$target_ip"'
 
- --> @c:new-block
- --> @dm:recall name="temp-license_entitlement"
- --> @dm:fixnull columns = 'endDate' and value = '1970-01-01'
- --> @dm:fixnull-regex value='NA'
- --> @dm:eval days_to_expire = " 20000 if licenseType=='PERPETUAL' else (to_datetime(endDate) - utcnow()).days"
- --> @dm:eval endTime = "utcnow()"
- --> @dm:change-time-format columns="endTime" and from_format="datetimestr" and to_format="%A, %m-%d-%Y %I:%M:%S %p %Z"
- --> @dm:eval endTime = "str(endTime)+str(    'UTC')"
- --> @dm:eval expiration_color = " '#79BAEC' if (licenseType =='PERPETUAL' or days_to_expire < -19000 ) else '#BB0000' if (days_to_expire < 90 or days_to_expire == 90) else  '#00BB00' if days_to_expire > 90 else '#b0bec5' "
- --> @dm:eval sort_number = " '3' if (licenseType =='PERPETUAL' or days_to_expire < -19000 ) else '1' if (days_to_expire < 90 or days_to_expire == 90) else  '2' if days_to_expire > 90 else '4' "
- --> @dm:eval expiration_status = " 'Valid Indefinitely' if (licenseType =='PERPETUAL' or days_to_expire < -19000 ) else  'Already Expired' if (days_to_expire< 0  and days_to_expire > -19000)  else  'Expiring within 90 days' if (days_to_expire < 90 or days_to_expire == 90) else 'Expiring after 90 days' if days_to_expire > 90  else 'NA' "
- --> @dm:manipulate-string to="source" and func="eval" and value="'entitled'"
- ## Enrich with consumption
+ ## --> *dm:filter device_ip is not empty
 
- --> @dm:enrich dict="temp-license_consumed_grp" and src_key_cols="customer_name,smart_account_key,virtual_account_key,licensed_feature_key" and dict_key_cols="customer_name,smart_account_key,virtual_account_key,licensed_feature_key" and enrich_cols="consumed_quantity,reservation_type,pak_item_id"
- --> @dm:fixnull columns = 'reservation_type,pak_item_id' and value='NA' and apply_for_empty="yes"
- --> @dm:fixnull columns = 'consumed_quantity' and value=0 and apply_for_empty="yes"
- --> @dm:eval available_quantity= "(entitled_quantity - consumed_quantity)"
- --> @dm:save name="temp-license_entitlement"
- ## Evaluate if all consumed records have an associated entitlement
+ --> @dm:selectcolumns exclude = "^device_ip$|^discovery_scope$|^key$|^ds_name$|^name$"
+ --> @dm:eval path = "'inventory_collection/outputs/'+jobid+'/'+target_ip+'.json'"
+ --> @asset-discovery:get-collection-files path_column = "path" &            groups="base,system,entityPhysical,interfaces,entAliasMappingTable,cdpGlobal,ipAddrTable,cdpCache,cli_show_ether_channel_summary,management-target,snmpEngineDetails,lldpRemTable,base.credential-id,ipNetToMediaTable,dot1dTpFdbTablemacprocess"
+ ## --> @dm:save name="Group-base-all"
+
+ --> @dm:selectcolumns include = "asset_ip|groupname|output|reason|jobid|path"
+ --> @dm:explode-json column='output'
+ --> @dm:selectcolumns include = "target|data|groupname|asset_ip|reason|jobid|path"
+ --> @dm:save name = "temp-group-data"
+ ## --> @dm:save name = "group-data"
 
  --> @c:new-block
- --> @dm:recall name="temp-license_consumed_grp"
- --> @dm:enrich dict="temp-license_entitlement" and src_key_cols="customer_name,smart_account_key,virtual_account_key,licensed_feature_key" and dict_key_cols="customer_name,smart_account_key,virtual_account_key,licensed_feature_key" and enrich_cols="sales_order_line_key,sales_order_int"
- --> *dm:filter sales_order_line_key is null
- --> @dm:eval entitled_quantity= "0"
- --> @dm:eval available_quantity= "(entitled_quantity - consumed_quantity)"
- --> @dm:eval days_to_expire = "-1"
- --> @dm:add-missing-columns columns="subscriptionId,status,licenseType,licenseSku,business_entity,sub_business_entity,product_family"
- --> @dm:fixnull columns="subscriptionId,status,licenseType,licenseSku,business_entity,sub_business_entity,product_family" and value='NA' and apply_for_empty="yes"
- --> @dm:eval sort_number = "4"
- --> @dm:manipulate-string to="source" and func="eval" and value="'consumed'"
- --> @dm:eval unique_key = "str(customer_name) + str(smart_account_key) + str(virtual_account_key)+  str(licensed_feature_key) + str(pak_item_id) + str(reservation_type) + str(license_sku_id)+str(billingType)"
- --> @dm:save name="temp-license_consumption_missing"
- ## Concatenate
+ --> @dm:set-tracing-context __block__="parse base"
+ --> @dm:recall name="temp-group-data"
+ --> *dm:filter groupname is "base"
+ --> @dm:explode-json column = 'data'
+ ## --> @dm:selectcolumns include="base|target"
+
+ --> @dm:save name="temp-Group-base"
+ ## --> @dm:save name="Group-base"
 
  --> @c:new-block
- --> @dm:concat names="temp-license_entitlement|temp-license_consumption_missing"
- --> @dm:fixnull columns = 'sales_order_line_key,sales_order_int' and value = '-1' and apply_for_empty="yes"
- --> @dm:save name = "temp-license_details"
- --> @rn:write-stream name='edc_license_details' and direct_to_opensearch="yes"
- --> @dm:sleep seconds = 5
- --> @c:new-block
- --> @dm:recall name="temp-license_details"
- --> @dm:selectcolumns include="customer_name|smart_account_name|domain_name|smart_account_key|virtual_account_key|virtual_account_name|^license$|license_class|licensed_feature_key|entitled_quantity"
- --> @dm:groupby columns="customer_name,smart_account_name,domain_name,smart_account_key,virtual_account_key,virtual_account_name,license,license_class,licensed_feature_key" and agg='sum'
- ## Bring available and consumed
+ --> @dm:set-tracing-context __block__="get vendor"
+ --> @dm:recall name="temp-Group-base"
+ --> @dm:add-missing-columns columns="systemVendorID,sysObjectID"
+ ## --> @dm:selectcolumns include = "systemVendorName|systemVendorID|target|sysObjectID|reason"
 
- --> @dm:enrich dict="temp-license_consumed_grp" and src_key_cols="customer_name,smart_account_key,virtual_account_key,licensed_feature_key" and dict_key_cols="customer_name,smart_account_key,virtual_account_key,licensed_feature_key" and enrich_cols="consumed_quantity"
- ## Bring most used business entity for license
+ ## --> @dm:save name = "system-vendor"
 
- --> @dm:enrich dict="temp-business_dict" and src_key_cols="license" and dict_key_cols="license" and enrich_cols="common_BE,common_SBE,common_product_family"
- --> @dm:fixnull columns = 'consumed_quantity' and value=0 and apply_for_empty="yes"
- --> @dm:eval available_quantity= "(entitled_quantity - consumed_quantity)"
- --> @dm:save name="temp-grouping"
- --> @c:new-block
- --> @dm:recall name="temp-license_details"
- --> @dm:selectcolumns include="customer_name|smart_account_key|virtual_account_key|days_to_expire|licenseType|^license$|licensed_feature_key|source"
- --> @dm:groupby columns="customer_name,smart_account_key,virtual_account_key,license,licensed_feature_key,source" and agg='min'
- --> @dm:eval exp_status = " 'Valid Indefinitely' if ((licenseType =='PERPETUAL' or days_to_expire < -19000) and source == 'entitled') else 'One or more Expired Licenses' if (days_to_expire< 0  and days_to_expire > -19000 and source == 'entitled')    else  'Expiring within 90 days' if ((days_to_expire < 90 or days_to_expire == 90) and source == 'entitled') else 'Expiring after 90 days' if (days_to_expire > 90 and source == 'entitled') else 'NA' "
- --> @dm:eval sort_number = " '3' if ((licenseType =='PERPETUAL' or days_to_expire < -19000) and source == 'entitled' ) else '1' if (days_to_expire< 0  and days_to_expire > -19000 and source == 'entitled')    else  '1' if ((days_to_expire < 90 or days_to_expire == 90) and source == 'entitled') else '2' if (days_to_expire > 90 and source == 'entitled') else '4' "
- --> @dm:eval expiration_color = " '#79BAEC' if ((licenseType =='PERPETUAL' or days_to_expire < -19000) and source == 'entitled' ) else '#BB0000' if ((days_to_expire < 90 or days_to_expire == 90) and source == 'entitled') else  '#00BB00' if (days_to_expire > 90 and source == 'entitled') else '#b0bec5'  "
- --> @dm:save name="temp-grouping2"
- ## Enrich grouping for summary with message for expiration
+ --> @dm:add-missing-columns columns = "vendor"
+ --> *dm:filter systemVendorID is not null
+ --> @dm:to-type columns = "systemVendorID" & type = "str"
+ --> @dm:eval vendor='"Juniper Networks, Inc." if systemVendorID in ["2636", "2636.0"] else "Cisco" if systemVendorID in ["9","9.0"] else "Vyatta" if systemVendorID in ["74", "74.0"] else "Fortinet" if systemVendorID in ["12356", "12356.0"] else "Viptela" if systemVendorID in ["41916", "41916.0"] else vendor'
+ ## --> @dm:to-type columns = "systemVendorID" and type = "str"
+
+ --> @dm:to-type columns = "sysObjectID" and type = "str"
+ --> *dm:filter target is not null
+ --> @dm:save name = "temp-vendor-data"
+ ## --> @dm:save name = "vendor-data"
+
+ ## Run cisco main
 
  --> @c:new-block
- --> @dm:recall name="temp-grouping"
- --> @dm:enrich dict="temp-grouping2" and src_key_cols="customer_name,smart_account_key,virtual_account_key,licensed_feature_key" and dict_key_cols="customer_name,smart_account_key,virtual_account_key,licensed_feature_key" and enrich_cols="exp_status,expiration_color,sort_number"
- ## evaluate Alerts
+ --> @c:data-loop columns="customer_id,customer_tag,discovery_enabled" and dataset="temp-input-org-details"
+ --> @dm:recall name = "temp-vendor-data"
+ --> *dm:filter systemVendorID in ["9","9.0"] and sysObjectID not in ['1.3.6.1.4.1.9.1.1348']
+ --> @dm:skip-block-if-shape row_count=0
+ --> @dm:eval key="'key'"
+ --> @dm:eval customer_id="'$customer_id'"
+ --> @dm:eval customer_tag="'$customer_tag'"
+ ## --> @dm:eval project_id="'$project_id'"
 
- --> @dm:eval alert_status = " 'Licenses Expired' if (exp_status == 'One or more Expired Licenses') else 'Insufficient Licenses' if (available_quantity<0 ) else 'Licenses Expiring'  if (exp_status == 'Expiring within 90 days') else 'NA' "
- --> @dm:eval alert_color = " '#FF0000' if (exp_status == 'One or more Expired Licenses') else  '#FFA500' if (available_quantity<0 ) else '#F4C430' if (exp_status == 'Expiring within 90 days') else '#b0bec5'  "
- --> @dm:save name="temp-summary-details"
- ## Enrich grouping for summary with TAP
+ ## --> @dm:eval ingestion_id="'$ingestion_id'"
+
+ --> @dm:eval discovery_enabled="'$discovery_enabled'"
+ ## --> @dm:enrich dict	 = "temp-input-org-details" and src_key_cols	 = "key" and dict_key_cols	="key" and enrich_cols	="ingestion_id,discovery_enabled,project_id,customer_tag,customer_id"
+
+ --> @exec:run-pipeline name ="cisco_discovery_main_pipeline" & ignore_failures = "no"
+ ## --> @exec:run-pipeline-multi-proc name="cisco_discovery_main_pipeline"
+
+ ## --> @dm:save name = "asset-cisco-data"
+
+ ## --> @dm:save name = "temp-cisco-data"
+
+ ## Run juniper main
 
  --> @c:new-block
- --> @dm:recall name="temp-summary-details"
- --> @dm:enrich dict="license_tap_dict" and src_key_cols="license" and dict_key_cols="license" and enrich_cols="TAP"
- --> @dm:fixnull columns = 'license,common_BE,common_product_family' and value='Not Available' and apply_for_empty="yes"
- --> @dm:save name="temp-edc_license_summary_enrich"
+ --> @c:data-loop columns="customer_id,customer_tag,discovery_enabled" and dataset="temp-input-org-details"
+ --> @dm:recall name = "temp-vendor-data"
+ --> *dm:filter systemVendorID in ["2636", "2636.0"]
+ --> @dm:skip-block-if-shape row_count=0
+ --> @dm:eval key="'key'"
+ --> @dm:eval customer_id="'$customer_id'"
+ --> @dm:eval customer_tag="'$customer_tag'"
+ --> @dm:eval discovery_enabled="'$discovery_enabled'"
+ ## --> @dm:eval project_id="'$project_id'"
+
+ ## --> @dm:eval ingestion_id="'$ingestion_id'"
+
+ ## --> @dm:enrich dict	 = "temp-input-org-details" and src_key_cols	 = "key" and dict_key_cols	="key" and enrich_cols	="ingestion_id,discovery_enabled"
+
+ --> @exec:run-pipeline name ="juniper_discovery_main_pipeline" & ignore_failures = "no"
+ ## --> @exec:run-pipeline-multi-proc name="juniper_discovery_main_pipeline"
+
+ ## --> @dm:save name = "temp-juniper-data"
+
+ ## Run vyatta main
+
+ ## --> @c:data-loop columns="Minio_location" and dataset="temp-discovery-results"
+
+ ## --> @dm:set-tracing-context __block__="get vendor Vyatta"
+
+ ## --> @dm:recall name="temp-ips_to_process"
+
+ ## --> *dm:filter systemVendorID in ["74", "74.0"]
+
+ ## --> @dm:eval ec_zip_file_loc_pipeinput='"$Minio_location"'
+
+ ## --> @dm:add-missing-columns columns="required_groups" and value="possible-duplicate,management-target,base.data,system.data,ipAddrTable.data,snmpEngineDetails.data,jnxContentsTable.data,cli_show_chasis_hardware.data,cli_show_version_juniper.data,jsystem.data,base.start-time,interfaces.data,entAliasMappingTable.data"
+
+ ## --> @dm:skip-block-if-shape row_count=0
+
+ ## --> @dm:eval key="'key'"
+
+ ## --> @dm:enrich dict	 = "temp-input-org-details" and src_key_cols	 = "key" and dict_key_cols	="key" and enrich_cols	="customer_tag,customer_id,project_id,ingestion_id"
+
+ ## --> @exec:run-pipeline name ="vyatta_discovery_main_pipeline" & ignore_failures = "no"
+
+ ## --> @dm:save name="temp-vyatta_data"
+
+ ## Run fortinet main
+
  --> @c:new-block
- --> @dm:recall name="temp-edc_license_summary_enrich"
- --> @dm:eval unique_key = "str(customer_name) + str(smart_account_key) +str(virtual_account_key)+  str(license) +  str(license_class) + str(licensed_feature_key)"
- --> @dm:eval endTime = "utcnow()"
- --> @dm:change-time-format columns="endTime" and from_format="datetimestr" and to_format="%A, %m-%d-%Y %I:%M:%S %p %Z"
- --> @dm:eval endTime = "str(endTime)+str('UTC')"
- --> @dm:fixnull-regex value='NA'
- --> @rn:write-stream name='edc_license_summary' and direct_to_opensearch="yes"
- --> @dm:sleep seconds = 5
+ --> @c:data-loop columns="customer_id,customer_tag,discovery_enabled" and dataset="temp-input-org-details"
+ --> @dm:recall name = "temp-vendor-data"
+ --> *dm:filter systemVendorID in ["12356", "12356.0"]
+ --> @dm:skip-block-if-shape row_count=0
+ --> @dm:eval key="'key'"
+ --> @dm:eval customer_id="'$customer_id'"
+ --> @dm:eval customer_tag="'$customer_tag'"
+ --> @dm:eval discovery_enabled="'$discovery_enabled'"
+ ## --> @dm:eval project_id="'$project_id'"
+
+ ## --> @dm:eval ingestion_id="'$ingestion_id'"
+
+ ## --> @dm:enrich dict	 = "temp-input-org-details" and src_key_cols	 = "key" and dict_key_cols	="key" and enrich_cols	="ingestion_id,discovery_enabled"
+
+ --> @exec:run-pipeline name ="fortinet_discovery_main_pipeline" & ignore_failures = "no"
+ ## --> @exec:run-pipeline-multi-proc name="fortinet_discovery_main_pipeline"
+
+ ## --> @dm:save name = "temp-fortinet_data"
+
+ ## Run Viptela main
+
+ ## --> @c:data-loop columns="Minio_location" and dataset="temp-discovery-results"
+
+ ## --> @dm:set-tracing-context __block__="get vendor Viptela"
+
+ ## --> @dm:recall name="temp-ips_to_process"
+
+ ## --> *dm:filter systemVendorID in ["41916", "41916.0"]
+
+ ## --> @dm:eval ec_zip_file_loc_pipeinput='"$Minio_location"'
+
+ ## --> @dm:skip-block-if-shape row_count=0
+
+ ## --> @dm:eval key="'key'"
+
+ ## --> @dm:enrich dict = "temp-input-org-details" and src_key_cols = "key" and dict_key_cols ="key" and enrich_cols ="customer_tag,customer_id,project_id,ingestion_id"
+
+ ## --> @exec:run-pipeline name ="viptela_discovery_main_pipeline" & ignore_failures = "no"
+
+ ## --> @dm:save name = "temp-viptela_data"
+
+ ## Run other Vendors main
+
+ --> @c:new-block
+ --> @c:data-loop columns="customer_id,customer_tag,discovery_enabled" and dataset="temp-input-org-details"
+ --> @dm:recall name = "temp-vendor-data"
+ --> *dm:filter systemVendorID not in ["2636", "2636.0","41916","41916.0","12356", "12356.0","74", "74.0","9","9.0"] and systemVendorID not null
+ --> @dm:skip-block-if-shape row_count=0
+ --> @dm:eval key="'key'"
+ --> @dm:eval customer_id="'$customer_id'"
+ --> @dm:eval customer_tag="'$customer_tag'"
+ --> @dm:eval discovery_enabled="'$discovery_enabled'"
+ ## --> @dm:eval project_id="'$project_id'"
+
+ ## --> @dm:eval ingestion_id="'$ingestion_id'"
+
+ --> @dm:enrich dict	 = "temp-input-org-details" and src_key_cols	 = "key" and dict_key_cols	="key" and enrich_cols	="discovery_enabled"
+ --> @exec:run-pipeline name ="other_vendors_discovery_main_pipeline" & ignore_failures = "no"

@@ -1,68 +1,82 @@
-@c:new-block
+
+ ## get the minio path for the uploaded file
+@exec:get-input
+ --> @dm:save name='temp-user-uploaded-data'
+ ## --> @dm:save name='test-user-uploaded-data'
+
+ ## declaring thrid level child pipelines
+
+ --> @c:new-block
  --> @dm:empty
- ## Get submitted form fields
+ --> @exec:define-function name="define_child_pipelines"
+ --> @exec:run-pipeline name ="edc_generate_token" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_sw_get_data" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_sweol_enrich" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_processing_sw_data" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_get_sw_sa_details" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_sw_run_scan" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_sa_run_scan" & ignore_failures = "no"
+ --> @exec:end-function
+ --> @c:new-block
+ --> @dm:recall name='temp-user-uploaded-data'
+ --> @dm:add-missing-columns columns="source" and value='software'
+ --> @exec:run-pipeline name ="edc_sw_run_scan" & ignore_failures = "no"
+ --> @dm:save name='temp-edc-sw-run-scan-op-exploded'
+ ## Creating the ingestion id
 
- --> @exec:get-input
- ## Exclude label as it contains unneeded info that should not be written to stream later
+ ## -->@c:new-block
 
- --> @dm:selectcolumns exclude='.*_label'
- --> @dm:save name='temp-input_data'
- --> @dm:save name='check-input_data'
- --> @dm:recall name="temp-input_data"
- --> @dm:add-missing-columns columns = 'hweox_csv,sweox_csv,secadv_csv,swlicenses_details_csv1,swlicenses_details_csv2' &
-value = 'False'
- --> @dm:save name='false_data'
- --> *exec:if-condition hweox_csv !='False'
- --> @dm:selectcolumns include="hweox_csv"
- --> @dm:explode-json column="hweox_csv"
- --> @dm:save name="temp-input0-dataset"
- --> @dm:save name="input11-dataset"
- --> @dm:recall name="temp-input0-dataset"
- --> @dm:get-from-location path="{{row.bucketName}}/{{row.objectName}}"
- --> @dm:save name="temp-uploaded-file-data"
- --> @dm:save name="uploaded-data"
- --> @rn:write-stream name="test0-stream-input"
+ ## --> @dm:empty
+
+ ## --> @dm:addrow key="key"
+
+ ## --> @dm:eval start_time="time_now_as_ms()"
+
+ ## --> @dm:add-checksum key="start_time" and row_checksum_column="ingestion_id"
+
+ ## --> @dm:save name="temp-ingestion_id"
+
+ --> @c:new-block
+ --> @dm:recall name='temp-edc-sw-run-scan-op-exploded'
+ --> *exec:if-condition source=='software'
+ --> @dm:recall name='temp-edc-sw-run-scan-op-exploded'
+ ## --> @dm:eval key="'key'"
+
+ ## --> @dm:enrich dict="temp-ingestion_id" and src_key_cols="key" and dict_key_cols="key" and enrich_cols="ingestion_id"
+
+ ## --> @dm:selectcolumns exclude="^key$"
+
+ --> @dm:to-type columns='contract_number,customer,product_id,sw_version,sw_os_type' and type='str'
+ --> @dm:map from = 'contract_number,customer,product_id,sw_version,sw_os_type' & to = 'unique_key' & func = 'join' & sep = '_'
+ --> @rn:write-stream name='edc_sw_raw_data'
  --> @exec:end-if
- --> *exec:if-condition sweox_csv !='False'
- --> @dm:selectcolumns include="sweox_csv"
- --> @dm:explode-json column="sweox_csv"
- --> @dm:save name="temp-input0-dataset"
- --> @dm:save name="input12-dataset"
- --> @dm:recall name="temp-input0-dataset"
- --> @dm:get-from-location path="{{row.bucketName}}/{{row.objectName}}"
- --> @dm:save name="temp-uploaded-file-data"
- --> @dm:save name="uploaded-data"
- --> @rn:write-stream name="test1-stream-input"
+ --> @c:new-block
+ --> @dm:recall name='temp-edc-sw-run-scan-op-exploded'
+ --> *exec:if-condition source=='security_advisory'
+ --> @dm:recall name='temp-edc-sw-run-scan-op-exploded'
+ ## --> @dm:eval key="'key'"
+
+ ## --> @dm:enrich dict="temp-ingestion_id" and src_key_cols="key" and dict_key_cols="key" and enrich_cols="ingestion_id"
+
+ ## --> @dm:selectcolumns exclude="^key$"
+
+ --> @dm:to-type columns='customer,product_id,sw_version,sw_os_type,advisoryId,PsirtID' and type='str'
+ --> @dm:map from = 'advisoryId,PsirtID,customer,product_id,sw_version,sw_os_type' & to = 'unique_key' & func = 'join' & sep = '_'
+ ## --> @dm:save name='sa-run-scan-3'
+
+ --> @rn:write-stream name='edc_sec_adv_data_raw'
  --> @exec:end-if
- --> *exec:if-condition secadv_csv !='False'
- --> @dm:selectcolumns include="secadv_csv"
- --> @dm:explode-json column="secadv_csv"
- --> @dm:save name="temp-input0-dataset"
- --> @dm:save name="input13-dataset"
- --> @dm:recall name="temp-input0-dataset"
- --> @dm:get-from-location path="{{row.bucketName}}/{{row.objectName}}"
- --> @dm:save name="temp-uploaded-file-data"
- --> @dm:save name="uploaded-data"
- --> @rn:write-stream name="test2-stream-input"
+ ## calling the enrich pipeline
+
+ --> @c:new-block
+ --> @dm:recall name='temp-edc-sw-run-scan-op-exploded'
+ --> *exec:if-condition source=='software'
+ --> @dm:recall name='temp-edc-sw-run-scan-op-exploded'
+ --> @exec:run-pipeline name='edc_sweol_enrich' and ignore_failures = "no"
  --> @exec:end-if
- --> *exec:if-condition swlicenses_details_csv1 !='False' and swlicenses_details_csv2 !='False'
- --> @dm:selectcolumns include="swlicenses_details_csv1"
- --> @dm:explode-json column="swlicenses_details_csv1"
- --> @dm:save name="temp-input0-dataset"
- --> @dm:save name="input14-dataset"
- --> @dm:recall name="temp-input0-dataset"
- --> @dm:get-from-location path="{{row.bucketName}}/{{row.objectName}}"
- --> @dm:save name="temp-uploaded-file-data"
- --> @dm:save name="uploaded-data"
- --> @rn:write-stream name="test3-stream-input"
- --> @dm:recall name="temp-input_data"
- --> @dm:selectcolumns include="swlicenses_details_csv2"
- --> @dm:explode-json column="swlicenses_details_csv2"
- --> @dm:save name="temp-input0-dataset"
- --> @dm:save name="input15-dataset"
- --> @dm:recall name="temp-input0-dataset"
- --> @dm:get-from-location path="{{row.bucketName}}/{{row.objectName}}"
- --> @dm:save name="temp-uploaded-file-data"
- --> @dm:save name="uploaded-data"
- --> @rn:write-stream name="test4-stream-input"
+ --> @c:new-block
+ --> @dm:recall name='temp-edc-sw-run-scan-op-exploded'
+ --> *exec:if-condition source=='security_advisory'
+ --> @dm:recall name='temp-edc-sw-run-scan-op-exploded'
+ --> @exec:run-pipeline name='edc_sa_run_scan' and ignore_failures = "no"
  --> @exec:end-if
