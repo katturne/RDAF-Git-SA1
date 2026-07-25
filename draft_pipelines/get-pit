@@ -1,42 +1,54 @@
-
- ## .
-
- ## collab-db-to-pstream-bydate
-
- ## .
 @c:new-block
- ## .
+ --> @dm:recall name='before-explode-sweol'
+ --> @dm:dedup columns='product_id,sw_os_type,sw_version'
+ --> *dm:filter issues is not '[]'
+ --> @dm:save name='before-explode-sweol-new'
+ --> @dm:eval issues='eval(issues)'
+ --> @dm:eval issues='json_dumps(issues)'
+ --> @dm:explode-json column="issues"
+ --> @dm:eval eoXAlert='json_dumps(eoXAlert)'
+ --> @dm:explode-json column="eoXAlert"
+ --> @dm:save name='temp-sweol'
+ ## --> @dm:save name='exploded-sweol'
 
- --> @dm:empty
- --> @mysqlv2:native-query dbname="0bde1fc06a7542c3a6a4c47d85f64d9d_cfxdimensions_app_collaboratio" & query="select customerid,projectid,incidentid,messagetype,messageid,sourcemessageid,sourcesystemid,sourcesystemname,sourcepayload,senderid,sendername,subject,sourcedetails,senderdetails,recipients,attributes,createdby,updatedby,createdat,updatedat,content from message where createdat >= TIMESTAMP('2024-08-07 00:00:00')"
- --> @dm:skip-block-if-shape row_count=0
- --> @dm:check-columns must_contain="incidentid" & action="skip-block"
- --> @dm:selectcolumns exclude="execution_status|execution_reason|attempt_count"
- --> @dm:change-time-format columns="createdat,updatedat" & from_format="datetimestr" & to_format="datetimestr"
- --> @dm:copy-columns to="timestamp" & from="updatedat"
- --> @dm:fixnull-regex
- --> @rn:write-stream name="oia-incidents-collaboration-stream"
-@c:new-block
- ## .
+ ## --> @c:new-block
 
- --> @dm:empty
- --> @mysqlv2:native-query dbname="0bde1fc06a7542c3a6a4c47d85f64d9d_cfxdimensions_app_collaboratio" & query="select ms.message_id,ms.shared_to_team,ms.type,ms.shared_to,ms.shared_by,ms.shared_time,ms.medium,ms.attachment_name,m.customerid,m.projectid,m.incidentid from irmessagesharing ms inner join message m on m.messageid=ms.message_id where m.createdat >= TIMESTAMP('2024-08-07 00:00:00')"
- --> @dm:skip-block-if-shape row_count=0
- --> @dm:check-columns must_contain="incidentid" & action="skip-block"
- --> @dm:selectcolumns exclude="execution_status|execution_reason|attempt_count"
- --> @dm:change-time-format columns="shared_time" & from_format="datetimestr" & to_format="datetimestr"
- --> @dm:copy-columns to="timestamp" & from="shared_time"
- --> @dm:fixnull-regex
- --> @rn:write-stream name="oia-collab-messagesharing-stream"
-@c:new-block
- ## .
+ ## --> @dm:recall name='added-sw-data'
 
- --> @dm:empty
- --> @mysqlv2:native-query dbname="0bde1fc06a7542c3a6a4c47d85f64d9d_cfxdimensions_app_collaboratio" & query="select team_id,customer_id,project_id,incident_id,collab_type,ticket_number,shared_time,ticket_id,link from teamincident where shared_time >= TIMESTAMP('2024-08-07 00:00:00')"
- --> @dm:skip-block-if-shape row_count=0
- --> @dm:check-columns must_contain="incident_id" & action="skip-block"
- --> @dm:selectcolumns exclude="execution_status|execution_reason|attempt_count"
- --> @dm:change-time-format columns="shared_time" & from_format="datetimestr" & to_format="datetimestr"
- --> @dm:copy-columns to="timestamp" & from="shared_time"
- --> @dm:fixnull-regex
- --> @rn:write-stream name="oia-incidents-external-tickets-stream"
+ ## --> @dm:addrow product_id='AIR-AP2802E-B-K9' and sw_version='17.12.4.208' and sw_os_type='IOS-XE' and contract_number='9517555'
+
+ ## --> @dm:enrich dict='before-explode-sweol-new' and src_key_cols='product_id,sw_os_type,sw_version' and dict_key_cols='product_id,sw_os_type,sw_version' and enrich_cols='issues' and how_type='inner' and dedup_dict='no'
+
+ ## --> @dm:save name='test-sweol_cn_enriched'
+
+ ## --> @dm:empty
+
+ ## --> @dm:addrow name='edc_oi_inventory_enriched' and limit=0
+
+ ## --> #dm:query-persistent-stream customer_name=='ATT'
+
+ ## --> @dm:save name='temp-hw-data'
+
+ ## --> @c:new-block
+
+ ## --> @dm:recall name='temp-hw-data'
+
+ ## --> @dm:to-type columns='contract_number' and type='int'
+
+ ## --> @dm:save name='temp-hw-data'
+
+ ## --> @c:new-block
+
+ ## --> @dm:recall name='test-sweol_cn_enriched'
+
+ ## --> @dm:to-type columns='contract_number' and type='int'
+
+ ## --> @dm:enrich dict='temp-hw-data' and src_key_cols='product_id,contract_number,customer' and dict_key_cols='product_id,contract_number,customer_name' and enrich_cols='gu_name,savm_sales_level_4_name,coverage,covered_line_status,business_entity,business_sub_entity,bk_end_of_life_request_num,bk_eol_bulletin_product_typ_cd,hwEOL_endOfNewServiceAttachmentDate,hwEOL_endOfRoutineFailureAnalysisDate,hwEOL_endOfSoftwareMaintenanceReleasesDate,hwEOL_endOfServiceContractRenewalDate,hwEOL_endOfLifeAnnouncementDate,eol_product_name,item_type,hwEOL_endOfSaleDate,hwEOL_lastDayOfSupportDate,product_description,product_family,product_family_description,product_type,product_list_price,portfolio_desc,usage_code,combination_count,execution_status,total_product_list_price,unique_key,hw_status,hw_expiring_qtr,hw_expiring_year,last_updated_time,product_name' and how_type='inner' and replace_values='yes'
+
+ ## --> @dm:save name='enriched-op-35-inv'
+
+ --> @dm:recall name='temp-sweol'
+ --> *dm:filter customer == 'ATT'
+ --> @exec:run-pipeline name='edc_processing_sw_data'
+ --> @dm:to-type columns='contract_number' and type='int'
+ --> @dm:save name='processed-sw-op'
