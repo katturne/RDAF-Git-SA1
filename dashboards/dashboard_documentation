@@ -1,70 +1,162 @@
 {
-  "name": "dashboard_documentation",
-  "label": "Dashboard Documentation Widgets",
+  "name": "label_chart_data",
+  "label": "Label Chart",
+  "description": "Label Chart example",
+  "version": "10.12.24.1",
+  "enabled": true,
+  "showTitle": true,
+  "dashboard_style": "auto",
+  "dashboard_generator": {
+    "attachment": "widget_code_generator"
+  },
   "live_edit": true,
-  "version": "25.2.25.1",
-  "description": "Documentation Widgets",
-  "dashboard_type": "dashboard",
-  "enabled": false,
+  "status_poller": {},
+  "dashboard_type": "template",
+  "dashboard_pages": [],
+  "dashboard_filters": {
+    "time_filter": true,
+    "default_time_filter_labels": [
+      "All Time"
+    ],
+    "columns_filter": [],
+    "group_filters": []
+  },
   "dashboard_sections": [
     {
-      "title": "Documentation",
+      "title": "Label Chart",
+      "show_filter": true,
       "widgets": [
         {
-          "title": "Documentation",
-          "widget_type": "custom_widget",
-          "widget_implementation": "dashboard_documentation/dashboard_documentation_widget",
+          "widget_type": "label",
+          "title": "Label",
+          "label": "{%raw%}<div style='text-align:center;width:100%;'><h1><a style='text-decoration:none;color:#0066ff;' target='_blank'> Welcome to RDAF Community </a></h1></div>{%endraw%}",
           "min_width": 12,
-          "min_height": 12,
-          "widget_id": "4e2d534c",
+          "height": 4,
+          "max_width": 1,
+          "widget_id": "69661818"
+        },
+        {
+          "widget_type": "label",
+          "min_width": 6,
+          "title": "Latest City",
+          "height": 4,
+          "max_width": 6,
+          "sorting": [
+            {
+              "time_value": "desc"
+            }
+          ],
+          "label": "{%raw%}{% set all_latest_data = {} %}\r\n{% for latest in latest_end_time %}\r\n    {% set last_updated_time = latest.get(\"label\") %}\r\n    {% set _ = all_latest_data.update({ \"latest\": last_updated_time }) or \"\" %}\r\n{% endfor %}\r\n\r\n<br><br> <center><h4> Last City Updated </h4></center><br><center><h3>{{all_latest_data.get(\"latest\")}}</h3></center>{%endraw%}",
+          "segments": [
+            {
+              "stream": "main_enhanced",
+              "duration_hours": 24000,
+              "variable": "latest_end_time",
+              "ts_column": "time_value",
+              "agg": "value_count",
+              "group_by": "city",
+              "column": "count_"
+            }
+          ],
+          "widget_id": "bb8eb670"
+        },
+        {
+          "title": "Total Donation",
+          "widget_type": "label",
+          "advanced": true,
+          "label": "attachment://totalDonation",
           "fixed_variables": {
-            "help_yaml_source_dashboard": "dashboard_documentation",
-            "help_yaml_source_attachment": "exampleHelp1.yml",
-            "help_title": "Documentation",
-            "help_default": "{ \"sections\": [ { \"title\": \"Documentation not found\" } ] }"
-          }
+            "count_label": "Donations"
+          },
+          "segments": [
+            {
+              "stream": "main_enhanced",
+              "duration_hours": 1080000,
+              "variable": "node_count",
+              "ts_column": "time_value",
+              "agg": "sum",
+              "column": "donation"
+            }
+          ],
+          "min_width": 6,
+          "height": 4,
+          "max_width": 6,
+          "widget_id": "5d41c266"
         }
       ]
     }
   ],
-  "custom_widgets": {
-    "dashboard_documentation_widget": {
-      "artifacts": {
-        "main": {
-          "attachment": "main.html",
-          "content_type": "text/html",
-          "is_template": true
-        }
-      }
-    }
-  },
   "attachments": [
     {
-      "name": "main.html",
-      "value": "\n{%-\n    set docContentsYaml = engine.get_dashboard_attachment(help_yaml_source_dashboard, help_yaml_source_attachment, defaultValue=help_default)\n-%}\n\n<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n    <meta charset=\"UTF-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n    <title>r</title>\n    <style>\n        body {\n            font-family: Arial, sans-serif;\n            margin: 20px;\n            padding: 20px;\n            max-width0: 1000px;\n            margin: auto;\n            background-color: #121212;\n            color: #e0e0e0;\n        }\n        #toc {\n            background: #1e1e1e;\n            padding: 10px;\n            margin-bottom: 20px;\n            border-radius: 8px;\n        }\n        h2 {\n            color: #bb86fc;\n            border-bottom: 2px solid #bb86fc;\n            padding-bottom: 5px;\n        }\n        h3 {\n            color: #03dac6;\n        }\n        p {\n            line-height: 1.6;\n        }\n        a {\n            color: #bb86fc;\n            text-decoration: none;\n        }\n        a:hover {\n            text-decoration: underline;\n        }\n        img {\n            max-width: 100%;\n            height: auto;\n            margin-top: 10px;\n            border-radius: 5px;\n        }\n    </style>\n    <script src=\"https://cdnjs.cloudflare.com/ajax/libs/js-yaml/4.1.0/js-yaml.min.js\"></script>\n</head>\n<body>\n<h2>{{help_title}}</h2>\n    <div id=\"toc\">\n        <h2>Table of Contents</h2>\n        <ul id=\"index\"></ul>\n    </div>\n    <div id=\"content\"></div>\n\n    <script>\n        const yamlData = `{{docContentsYaml}}`;\n        \n        const data = jsyaml.load(yamlData);\n        renderDocumentation(data);\n        \n        function renderDocumentation(data) {\n            const indexEl = document.getElementById('index');\n            const contentEl = document.getElementById('content');\n            indexEl.innerHTML = '';\n            contentEl.innerHTML = '';\n\n            data.sections.forEach((section, sectionIndex) => {\n                const sectionId = `section-${sectionIndex}`;\n                indexEl.innerHTML += `<li><a href=\"#${sectionId}\">${section.title}</a></li>`;\n                contentEl.innerHTML += `<h2 id=\"${sectionId}\">${section.title}</h2>`;\n                contentEl.innerHTML += `<p>${section.description || ''}</p>`;\n                \n                if (section.image) {\n                    contentEl.innerHTML += `<img src=\"${section.image}\" alt=\"${section.title}\">`;\n                }\n\n                if (section.subsections) {\n                    section.subsections.forEach((sub, subIndex) => {\n                        const subId = `${sectionId}-sub-${subIndex}`;\n                        indexEl.innerHTML += `<li style=\"margin-left: 20px;\"><a href=\"#${subId}\">${sub.title}</a></li>`;\n                        contentEl.innerHTML += `<h3 id=\"${subId}\">${sub.title}</h3>`;\n                        contentEl.innerHTML += `<p>${sub.description || ''}</p>`;\n                    });\n                }\n            });\n        }\n    </script>\n</body>\n</html>\n"
+      "name": "totalDonation",
+      "value": "{%raw%}\r\n{%\r\n  set unit = \"\"\r\n%}\r\n\r\n{%\r\n   if node_count > 1000000\r\n%}\r\n\r\n    {%\r\n        set node_count = (node_count /1000000) | round (1)\r\n    %}\r\n\r\n    {%\r\n      set unit = \"M\"\r\n    %}\r\n\r\n\r\n{%\r\n  elif node_count > 10000\r\n%}\r\n\r\n{%\r\n    set node_count = (node_count /1000) | round (1)\r\n%}\r\n{%\r\n  set unit = \"K\"\r\n%}\r\n\r\n\r\n\r\n{%\r\n  else\r\n%}\r\n\r\n{%\r\n    set node_count = node_count | int\r\n%}\r\n\r\n{%\r\n    endif\r\n%}\r\n\r\n{% set node_count = (node_count) | int %}\r\n\r\n<div style='width: 100%; height: 100%;'>\r\n  <a href='{{url}}' target='_blank' style=\"text-decoration: none;\">\r\n    <div style=\"color: white; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center\">\r\n      <div style='text-align: center'>{{count_label}}</div>\r\n      <h3 {{NUMBER_STYLE}}> {{ \"{:,}\".format(node_count)}}{{unit}} </h3> \r\n    </div>\r\n  </a>\r\n</div>\r\n\r\n{%endraw%}"
     },
     {
-      "name": "exampleHelp1.yml",
-      "value": "sections:\n  - title: Introduction\n    description: \"Welcome to the documentation.\"\n    image: \"/iconpub/packs_table\"\n    subsections:\n      - title: Overview\n        description: \"An overview of the system.\"\n      - title: Purpose\n        description: \"Explaining the purpose of this documentation.\"\n  - title: Getting Started\n    description: \"How to set up the project.\"\n    subsections:\n      - title: Installation\n        description: \"Steps to install.\"\n      - title: Configuration\n        description: \"How to configure settings.\"\n  - title: Advanced Topics\n    description: \"Deep dive into advanced features.\"\n    subsections:\n      - title: Optimization\n        description: \"Tips for optimizing performance.\"\n      - title: Debugging\n        description: \"<img src='/iconpub/iosxr'/>How to <b>troubleshoot</b> issues.\"\n\n    "
+      "name": "widget_code_generator",
+      "value": "{%- set widgets =  dashboard[\"dashboard_sections\"][0][\"widgets\"] -%}\r\n{%- set new_widgets =  [] -%}\r\n{%- set ns =  namespace(count=0) -%}\r\n\r\n{%- for w in widgets -%}\r\n    {%- if w.get(\"widget_type\") -%}\r\n        {%-\r\n            set nw = {\r\n                \"title\": \"JSON\",\r\n                \"widget_group\": \"g\"+str(ns.count),\r\n                \"min_width\": w.get(\"min_width\", 6),\r\n                \"max_width\": w.get(\"max_width\", 6),\r\n                \"height\": w.get(\"height\", 4),\r\n                \"widget_type\": \"codeblock\",\r\n                \"content\": json_dumps_indent(w, 2),\r\n                \"lang\": \"json\",\r\n                \"widget_id\": w.get(\"widget_id\", str(ns.count)) + \"_code\"\r\n            }\r\n        -%}\r\n        {%- set _ = w.update({\"widget_group\":  \"g\"+str(ns.count) }) -%}\r\n        {%- set _ = new_widgets.append(nw) -%}\r\n        {%- set ns.count = ns.count + 1 -%}\r\n    {%- endif -%}\r\n{%- endfor -%}\r\n\r\n{%- set _ = widgets.extend(new_widgets) -%}"
     }
   ],
   "pstream_dashboards": [
     {
-      "title": "Documentation",
+      "title": "Label Chart",
+      "show_filter": true,
       "widgets": [
         {
-          "title": "Documentation",
-          "widget_type": "custom_widget",
-          "widget_implementation": "dashboard_documentation/dashboard_documentation_widget",
+          "widget_type": "label",
+          "title": "Label",
+          "label": "{%raw%}<div style='text-align:center;width:100%;'><h1><a style='text-decoration:none;color:#0066ff;' target='_blank'> Welcome to RDAF Community </a></h1></div>{%endraw%}",
           "min_width": 12,
-          "min_height": 12,
-          "widget_id": "4e2d534c",
+          "height": 4,
+          "max_width": 1,
+          "widget_id": "69661818"
+        },
+        {
+          "widget_type": "label",
+          "min_width": 6,
+          "title": "Latest City",
+          "height": 4,
+          "max_width": 6,
+          "sorting": [
+            {
+              "time_value": "desc"
+            }
+          ],
+          "label": "{%raw%}{% set all_latest_data = {} %}\r\n{% for latest in latest_end_time %}\r\n    {% set last_updated_time = latest.get(\"label\") %}\r\n    {% set _ = all_latest_data.update({ \"latest\": last_updated_time }) or \"\" %}\r\n{% endfor %}\r\n\r\n<br><br> <center><h4> Last City Updated </h4></center><br><center><h3>{{all_latest_data.get(\"latest\")}}</h3></center>{%endraw%}",
+          "segments": [
+            {
+              "stream": "main_enhanced",
+              "duration_hours": 24000,
+              "variable": "latest_end_time",
+              "ts_column": "time_value",
+              "agg": "value_count",
+              "group_by": "city",
+              "column": "count_"
+            }
+          ],
+          "widget_id": "bb8eb670"
+        },
+        {
+          "title": "Total Donation",
+          "widget_type": "label",
+          "advanced": true,
+          "label": "attachment://totalDonation",
           "fixed_variables": {
-            "help_yaml_source_dashboard": "dashboard_documentation",
-            "help_yaml_source_attachment": "exampleHelp1.yml",
-            "help_title": "Documentation",
-            "help_default": "{ \"sections\": [ { \"title\": \"Documentation not found\" } ] }"
-          }
+            "count_label": "Donations"
+          },
+          "segments": [
+            {
+              "stream": "main_enhanced",
+              "duration_hours": 1080000,
+              "variable": "node_count",
+              "ts_column": "time_value",
+              "agg": "sum",
+              "column": "donation"
+            }
+          ],
+          "min_width": 6,
+          "height": 4,
+          "max_width": 6,
+          "widget_id": "5d41c266"
         }
       ]
     }
