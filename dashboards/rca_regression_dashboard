@@ -1,478 +1,293 @@
 {
-  "name": "event-tracking-details",
-  "label": "Alert Tracking Details",
-  "description": "OIA Alert Details",
-  "version": "23.2.13",
+  "name": "rca_regression_dashboard",
+  "label": "RCA Regression",
+  "description": "Template dashboard for RCA Regression",
   "enabled": true,
-  "exportable": false,
-  "dashboard_style": "auto",
+  "debug": true,
+  "live_edit": true,
   "dashboard_type": "template",
   "template_variables": {
-    "PROJECT_ID": {
-      "default": null,
-      "contextId": "projectid"
+    "METRIC_ID": {
+      "contextId": [
+        "marker",
+        "metric_id"
+      ]
     },
-    "INCIDENT_ID": {
-      "default": null,
-      "contextId": "incidentid"
+    "METRIC_NAME": {
+      "contextId": [
+        "marker",
+        "metric_label"
+      ]
     },
-    "EVENT_ID": {
-      "default": null,
-      "contextId": "e_id"
+    "ASSET": {
+      "contextId": [
+        "marker",
+        "asset_id"
+      ]
     },
-    "ALERT_ID": {
-      "default": null,
-      "contextId": "processedeventid"
+    "MODEL_NAME": {
+      "contextId": [
+        "marker",
+        "job_name"
+      ]
     },
-    "ALERT_KEY": {
-      "default": null,
-      "contextId": "eventkey"
+    "METRIC_UNIT": {
+      "contextId": [
+        "marker",
+        "unit"
+      ]
     },
-    "SOURCE_DASHBOARD_ID": {
-      "default": "user-dashboard-incident-details-alerts",
-      "contextId": "sourceDashboardId"
+    "STREAM": {
+      "contextId": [
+        "marker",
+        "stream_name"
+      ],
+      "default": "oia-ml-metrics-regression-output"
+    },
+    "INCIDENT_OT": {
+      "contextId": "i_cfx_incident_occurred"
     }
-  },
-  "custom_context": {
-    "alert-context": true
   },
   "dashboard_filters": {
-    "time_filter": false,
-    "default_time_filter_non_removable": false,
-    "show_default_time_filter": false
-  },
-  "import": [
-    {
-      "from": "oia-alerts-os",
-      "as": "alerts"
+    "time_filter": true,
+    "default_time_range": {
+      "from_time": "{{INCIDENT_OT}}",
+      "from_time_delta_hours": -12,
+      "to_time": "{{INCIDENT_OT}}",
+      "to_time_delta_hours": 4,
+      "label": "Incident Time"
     }
-  ],
+  },
   "dashboard_sections": [
     {
-      "title": "Alert Trail",
-      "show_filter": false,
+      "title": "Summary",
+      "show_filter": true,
       "widgets": [
         {
-          "title": "Source Event",
-          "widget_type": "summary",
-          "stream": "oia-events-stream",
-          "ts_column": "e_updatedat",
-          "extra_filter": "e_id is '{{EVENT_ID}}'",
-          "min_width": 12,
-          "height": 5,
-          "max_width": 12,
-          "paginated": true,
-          "resizableColumns": false,
-          "remote_searchable": true,
-          "remote_searchable_cols": [
-            "e_sourceeventid",
-            "e_id",
-            "e_processedeventid",
-            "e_eventkey",
-            "e_triggeredevent"
+          "widget_type": "pie_chart",
+          "title": "Anomalies by Severity",
+          "stream": "{{STREAM}}",
+          "extra_filter": "anomalies is not None and job_name is '{{MODEL_NAME}}'",
+          "min_width": 6,
+          "height": 6,
+          "max_width": 6,
+          "ts_column": "timestamp",
+          "column": "_id",
+          "agg": "value_count",
+          "group_by": [
+            "anomalies_severity"
           ],
-          "refreshRequired": true,
-          "timebased": false,
+          "style": {
+            "color-map": {
+              "High": [
+                "#ef5350",
+                "#ffffff"
+              ],
+              "Medium": [
+                "#FFA726",
+                "#ffffff"
+              ],
+              "Low": [
+                "#388e3c",
+                "#ffffff"
+              ]
+            }
+          },
+          "type": "str",
+          "widget_id": "7eba4b7b"
+        },
+        {
+          "title": "Anomalies",
+          "widget_type": "tabular",
+          "stream": "{{STREAM}}",
+          "extra_filter": "anomalies is not None and job_name is '{{MODEL_NAME}}'",
+          "min_width": 6,
+          "height": 6,
+          "max_width": 6,
+          "paginated": true,
+          "remote_searchable": true,
           "max_rows": 50,
           "sorting": [
             {
-              "e_createdat": "desc"
+              "timestamp": "desc"
             }
           ],
           "columns": {
-            "e_sourceeventid": {
-              "title": "Source Event Id",
-              "visible": true,
-              "defaultWidth": 150
+            "timestamp": "Timestamp",
+            "asset_id": "Asset ID",
+            "asset_name": "Asset Name",
+            "metric_name": "Metric Name",
+            "severity_color": {
+              "title": "Sev_2",
+              "type": "COLOR-MAP",
+              "source-column": "anomalies_severity",
+              "color-map": {
+                "High": "#ef5350",
+                "Medium": "#FFA726",
+                "Low": "#388e3c"
+              }
             },
-            "e_id": {
-              "title": "Event Id",
-              "visible": true,
-              "defaultWidth": 150
-            },
-            "e_eventkey": {
-              "title": "Alert Key",
-              "visible": true,
-              "defaultWidth": 150
-            },
-            "e_processedeventid": {
-              "title": "Alert Id",
-              "visible": true,
-              "defaultWidth": 150
-            },
-            "e_sourcereceivedat": {
-              "title": "Received At",
-              "type": "DATETIME",
-              "visible": true,
-              "defaultWidth": 150
-            },
-            "e_createdat": {
-              "title": "Created At",
-              "type": "DATETIME",
-              "visible": true,
+            "anomalies_severity": {
+              "title": "Severity",
+              "htmlTemplateForRow": "<span class='badge' style='background-color: {{'{{ row.severity_color }}'}}' > {{'{{ row.anomalies_severity }}'}} </span>",
               "defaultWidth": 150
             }
           },
-          "actions": [
+          "custom_columns": [
             {
-              "title": "View Source Payload",
-              "type": "POPUP_FORM",
-              "selectionType": "NONE",
-              "permission": "oia:event-tracking:downloadSourcePayload",
-              "identifier": "ingestion-tracker:com.cfx.form.view.sourceevent.payload",
-              "api-endpoint": {
-                "service-name": "ingestion-tracker",
-                "namespace": "io.cfx.dimensions.app",
-                "methodName": "invokeAppApi:getFormById",
-                "stringified-params": true,
-                "useReportContext": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "form_id": "com.cfx.form.view.sourceevent.payload",
-                    "context": {}
-                  }
-                ]
-              }
-            },
-            {
-              "title": "Download Source Payload",
-              "type": "POPUP_FORM",
-              "selectionType": "NONE",
-              "permission": "oia:event-tracking:downloadSourcePayload",
-              "identifier": "ingestion-tracker:com.cfx.form.download.sourceevent.payload",
-              "api-endpoint": {
-                "service-name": "ingestion-tracker",
-                "namespace": "io.cfx.dimensions.app",
-                "methodName": "invokeAppApi:getFormById",
-                "stringified-params": true,
-                "useReportContext": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "form_id": "com.cfx.form.download.sourceevent.payload",
-                    "context": {}
-                  }
-                ]
-              }
+              "id": "value1",
+              "label": "Value",
+              "expr": "round(value,2)"
             }
           ],
-          "widget_id": "f0d249a2"
+          "widget_id": "94a3fc11"
         },
         {
-          "title": "Alert Trail",
-          "widget_type": "tabular",
-          "stream": "oia-event-trail-stream",
-          "ts_column": "et_createdat",
-          "extra_filter": "et_eventid is '{{EVENT_ID}}'",
-          "min_width": 12,
-          "height": 5,
+          "widget_type": "shaded_chart_multisource",
+          "title": "Forecasting and Anomaly Detection ({{METRIC_NAME}} - {{ASSET}})",
+          "show-markers": true,
           "max_width": 12,
-          "paginated": true,
-          "resizableColumns": false,
-          "remote_searchable": true,
-          "remote_searchable_cols": [
-            "et_eventstate",
-            "et_status",
-            "et_message"
-          ],
-          "refreshRequired": true,
-          "timebased": false,
-          "max_rows": 50,
-          "columns": {
-            "et_eventstate": {
-              "title": "Processing State",
-              "visible": true,
-              "defaultWidth": 150
-            },
-            "et_status": {
-              "title": "Status",
-              "visible": true,
-              "defaultWidth": 150
-            },
-            "et_message": {
-              "title": "Message",
-              "visible": true,
-              "defaultWidth": 150
-            },
-            "et_createdat": {
-              "title": "Created At",
-              "type": "DATETIME",
-              "visible": true,
-              "defaultWidth": 150
+          "min_width": 12,
+          "height": 8,
+          "chartProperties": {
+            "yAxisLabel": "{{METRIC_NAME}} ({{METRIC_UNIT}})",
+            "xAxisLabel": "Time"
+          },
+          "sources": [
+            {
+              "type": "train",
+              "downsample": false,
+              "stream": "{{STREAM}}",
+              "extra_filter": "job_name is '{{MODEL_NAME}}' and status is 'Success'",
+              "ts_column": "timestamp",
+              "baseline_column": "baseline",
+              "anomalies_column": "anomalies",
+              "predicted_column": "predicted",
+              "predicted_anomalies": "predicted_anomalies",
+              "upperBound_column": "upperBound",
+              "lowerBound_column": "lowerBound",
+              "duration_hours": 1000000,
+              "synchronized-group": 0
             }
-          },
-          "widget_id": "f0f5dc42"
-        }
-      ]
-    },
-    {
-      "title": "Alert Payload",
-      "show_filter": false,
-      "widgets": [
-        {
-          "title": " Alert Payload",
-          "widget_type": "summary",
-          "min_width": 12,
-          "height": 10,
-          "refreshRequired": false,
-          "timebased": false,
-          "api-endpoint": {
-            "service-name": "ingestion-tracker",
-            "namespace": "io.cfx.dimensions.app",
-            "version": "*",
-            "methodName": "invokeAppApi:viewEventPayload",
-            "stringified-params": true,
-            "parse-output": false,
-            "params": [
-              {}
-            ]
-          },
-          "widget_id": "2c46ed87"
-        }
-      ]
-    },
-    {
-      "title": "Enrichments",
-      "show_filter": true,
-      "projects": [
-        "ACME"
-      ],
-      "widgets": [
-        {
-          "title": "Enrichments",
-          "widget_type": "summary",
-          "min_width": 12,
-          "height": 10,
-          "refreshRequired": false,
-          "timebased": false,
-          "api-endpoint": {
-            "service-name": "ingestion-tracker",
-            "namespace": "io.cfx.dimensions.app",
-            "version": "*",
-            "methodName": "invokeAppApi:getEventAttributes",
-            "stringified-params": true,
-            "parse-output": false,
-            "params": [
-              {}
-            ]
-          },
-          "widget_id": "df653485"
+          ],
+          "widget_id": "7a134625"
         }
       ]
     }
   ],
   "pstream_dashboards": [
     {
-      "title": "Alert Trail",
-      "show_filter": false,
+      "title": "Summary",
+      "show_filter": true,
       "widgets": [
         {
-          "title": "Source Event",
-          "widget_type": "summary",
-          "stream": "oia-events-stream",
-          "ts_column": "e_updatedat",
-          "extra_filter": "e_id is '{{EVENT_ID}}'",
-          "min_width": 12,
-          "height": 5,
-          "max_width": 12,
-          "paginated": true,
-          "resizableColumns": false,
-          "remote_searchable": true,
-          "remote_searchable_cols": [
-            "e_sourceeventid",
-            "e_id",
-            "e_processedeventid",
-            "e_eventkey",
-            "e_triggeredevent"
+          "widget_type": "pie_chart",
+          "title": "Anomalies by Severity",
+          "stream": "{{STREAM}}",
+          "extra_filter": "anomalies is not None and job_name is '{{MODEL_NAME}}'",
+          "min_width": 6,
+          "height": 6,
+          "max_width": 6,
+          "ts_column": "timestamp",
+          "column": "_id",
+          "agg": "value_count",
+          "group_by": [
+            "anomalies_severity"
           ],
-          "refreshRequired": true,
-          "timebased": false,
+          "style": {
+            "color-map": {
+              "High": [
+                "#ef5350",
+                "#ffffff"
+              ],
+              "Medium": [
+                "#FFA726",
+                "#ffffff"
+              ],
+              "Low": [
+                "#388e3c",
+                "#ffffff"
+              ]
+            }
+          },
+          "type": "str",
+          "widget_id": "7eba4b7b"
+        },
+        {
+          "title": "Anomalies",
+          "widget_type": "tabular",
+          "stream": "{{STREAM}}",
+          "extra_filter": "anomalies is not None and job_name is '{{MODEL_NAME}}'",
+          "min_width": 6,
+          "height": 6,
+          "max_width": 6,
+          "paginated": true,
+          "remote_searchable": true,
           "max_rows": 50,
           "sorting": [
             {
-              "e_createdat": "desc"
+              "timestamp": "desc"
             }
           ],
           "columns": {
-            "e_sourceeventid": {
-              "title": "Source Event Id",
-              "visible": true,
-              "defaultWidth": 150
+            "timestamp": "Timestamp",
+            "asset_id": "Asset ID",
+            "asset_name": "Asset Name",
+            "metric_name": "Metric Name",
+            "severity_color": {
+              "title": "Sev_2",
+              "type": "COLOR-MAP",
+              "source-column": "anomalies_severity",
+              "color-map": {
+                "High": "#ef5350",
+                "Medium": "#FFA726",
+                "Low": "#388e3c"
+              }
             },
-            "e_id": {
-              "title": "Event Id",
-              "visible": true,
-              "defaultWidth": 150
-            },
-            "e_eventkey": {
-              "title": "Alert Key",
-              "visible": true,
-              "defaultWidth": 150
-            },
-            "e_processedeventid": {
-              "title": "Alert Id",
-              "visible": true,
-              "defaultWidth": 150
-            },
-            "e_sourcereceivedat": {
-              "title": "Received At",
-              "type": "DATETIME",
-              "visible": true,
-              "defaultWidth": 150
-            },
-            "e_createdat": {
-              "title": "Created At",
-              "type": "DATETIME",
-              "visible": true,
+            "anomalies_severity": {
+              "title": "Severity",
+              "htmlTemplateForRow": "<span class='badge' style='background-color: {{'{{ row.severity_color }}'}}' > {{'{{ row.anomalies_severity }}'}} </span>",
               "defaultWidth": 150
             }
           },
-          "actions": [
+          "custom_columns": [
             {
-              "title": "View Source Payload",
-              "type": "POPUP_FORM",
-              "selectionType": "NONE",
-              "permission": "oia:event-tracking:downloadSourcePayload",
-              "identifier": "ingestion-tracker:com.cfx.form.view.sourceevent.payload",
-              "api-endpoint": {
-                "service-name": "ingestion-tracker",
-                "namespace": "io.cfx.dimensions.app",
-                "methodName": "invokeAppApi:getFormById",
-                "stringified-params": true,
-                "useReportContext": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "form_id": "com.cfx.form.view.sourceevent.payload",
-                    "context": {}
-                  }
-                ]
-              }
-            },
-            {
-              "title": "Download Source Payload",
-              "type": "POPUP_FORM",
-              "selectionType": "NONE",
-              "permission": "oia:event-tracking:downloadSourcePayload",
-              "identifier": "ingestion-tracker:com.cfx.form.download.sourceevent.payload",
-              "api-endpoint": {
-                "service-name": "ingestion-tracker",
-                "namespace": "io.cfx.dimensions.app",
-                "methodName": "invokeAppApi:getFormById",
-                "stringified-params": true,
-                "useReportContext": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "form_id": "com.cfx.form.download.sourceevent.payload",
-                    "context": {}
-                  }
-                ]
-              }
+              "id": "value1",
+              "label": "Value",
+              "expr": "round(value,2)"
             }
           ],
-          "widget_id": "f0d249a2"
+          "widget_id": "94a3fc11"
         },
         {
-          "title": "Alert Trail",
-          "widget_type": "tabular",
-          "stream": "oia-event-trail-stream",
-          "ts_column": "et_createdat",
-          "extra_filter": "et_eventid is '{{EVENT_ID}}'",
-          "min_width": 12,
-          "height": 5,
+          "widget_type": "shaded_chart_multisource",
+          "title": "Forecasting and Anomaly Detection ({{METRIC_NAME}} - {{ASSET}})",
+          "show-markers": true,
           "max_width": 12,
-          "paginated": true,
-          "resizableColumns": false,
-          "remote_searchable": true,
-          "remote_searchable_cols": [
-            "et_eventstate",
-            "et_status",
-            "et_message"
-          ],
-          "refreshRequired": true,
-          "timebased": false,
-          "max_rows": 50,
-          "columns": {
-            "et_eventstate": {
-              "title": "Processing State",
-              "visible": true,
-              "defaultWidth": 150
-            },
-            "et_status": {
-              "title": "Status",
-              "visible": true,
-              "defaultWidth": 150
-            },
-            "et_message": {
-              "title": "Message",
-              "visible": true,
-              "defaultWidth": 150
-            },
-            "et_createdat": {
-              "title": "Created At",
-              "type": "DATETIME",
-              "visible": true,
-              "defaultWidth": 150
+          "min_width": 12,
+          "height": 8,
+          "chartProperties": {
+            "yAxisLabel": "{{METRIC_NAME}} ({{METRIC_UNIT}})",
+            "xAxisLabel": "Time"
+          },
+          "sources": [
+            {
+              "type": "train",
+              "downsample": false,
+              "stream": "{{STREAM}}",
+              "extra_filter": "job_name is '{{MODEL_NAME}}' and status is 'Success'",
+              "ts_column": "timestamp",
+              "baseline_column": "baseline",
+              "anomalies_column": "anomalies",
+              "predicted_column": "predicted",
+              "predicted_anomalies": "predicted_anomalies",
+              "upperBound_column": "upperBound",
+              "lowerBound_column": "lowerBound",
+              "duration_hours": 1000000,
+              "synchronized-group": 0
             }
-          },
-          "widget_id": "f0f5dc42"
-        }
-      ]
-    },
-    {
-      "title": "Alert Payload",
-      "show_filter": false,
-      "widgets": [
-        {
-          "title": " Alert Payload",
-          "widget_type": "summary",
-          "min_width": 12,
-          "height": 10,
-          "refreshRequired": false,
-          "timebased": false,
-          "api-endpoint": {
-            "service-name": "ingestion-tracker",
-            "namespace": "io.cfx.dimensions.app",
-            "version": "*",
-            "methodName": "invokeAppApi:viewEventPayload",
-            "stringified-params": true,
-            "parse-output": false,
-            "params": [
-              {}
-            ]
-          },
-          "widget_id": "2c46ed87"
-        }
-      ]
-    },
-    {
-      "title": "Enrichments",
-      "show_filter": true,
-      "projects": [
-        "ACME"
-      ],
-      "widgets": [
-        {
-          "title": "Enrichments",
-          "widget_type": "summary",
-          "min_width": 12,
-          "height": 10,
-          "refreshRequired": false,
-          "timebased": false,
-          "api-endpoint": {
-            "service-name": "ingestion-tracker",
-            "namespace": "io.cfx.dimensions.app",
-            "version": "*",
-            "methodName": "invokeAppApi:getEventAttributes",
-            "stringified-params": true,
-            "parse-output": false,
-            "params": [
-              {}
-            ]
-          },
-          "widget_id": "df653485"
+          ],
+          "widget_id": "7a134625"
         }
       ]
     }
