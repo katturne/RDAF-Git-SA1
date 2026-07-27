@@ -1,99 +1,99 @@
 {
-  "name": "training_node_details_app",
-  "label": "Node Details App",
-  "description": "Node Details App",
-  "dashboard_folder": "MSP",
-  "context_label_id": "a_asset_name",
-  "version": "24.1.13.1",
-  "debug": true,
+  "name": "msp_administration",
+  "label": "MSP Administration",
+  "description": " App",
+  "version": "24.12.22",
+  "dashboard_folder": "Onboarding",
   "enabled": true,
+  "dashboard_filters": {
+    "time_filter": true,
+    "columns_filter": []
+  },
+  "dashboard_type": "app",
+  "dashboard_generator": {
+    "attachment": "add_dynamic_pages_for_admin"
+  },
   "custom_context": {
     "rda-dashboard-live-edit": true
   },
-  "context_enrichment": [
-    {
-      "stream": "training_topology_nodes",
-      "stream0": "mp_nodes",
-      "enrich_columns": [
-        "host_name",
-        "node_label",
-        "node_type"
-      ],
-      "query_template": "(device_ip = '$device_ip' or edge_ip is '$edge_ip')",
-      "quert_template0": "node_id='$node_id'",
-      "defaultValues": {}
-    },
-    {
-      "stream": "training_cisco_devices_inventory",
-      "enrich_columns": [
-        "device_serial_number"
-      ],
-      "query_template": "(device_ip = '$ip_address' or edgeName is '$a_asset_name' or edge_ip is '$edge_ip')",
-      "defaultValues": {}
-    }
-  ],
-  "dashboard_sections": [
-    {
-      "title": "Org Ops"
-    }
-  ],
-  "dashboard_type": "app",
   "dashboard_groups": {
-    "from_to": {
-      "icon": "alert.svg",
-      "label": "Alerts"
+    "customers": {
+      "icon": "hands.svg",
+      "label": "Customers"
     },
-    "topo": {
-      "icon": "topology.svg",
-      "label": "Topology"
+    "SNMP": {
+      "icon": "clambdaJobs.svg",
+      "label": "SNMP Profiles"
+    },
+    "accessMgmt": {
+      "icon": "customer.svg",
+      "label": "Access Management"
+    },
+    "packs": {
+      "icon": "library.svg",
+      "label": "Packs"
+    },
+    "artifacts": {
+      "icon": "blueprint.svg",
+      "label": "Artifacts"
+    },
+    "configuration": {
+      "icon": "settings.svg",
+      "label": "Common Policies"
     }
   },
   "dashboard_pages": [
     {
-      "name": "training_device_inventory_from_alert",
-      "label": "Inventory",
-      "icon": "alert.svg"
+      "name": "onboarded_customer_list",
+      "label": "Manage Customers",
+      "group": "customers",
+      "icon": "hands.svg"
     },
     {
-      "name": "training_device_alerts_from_alert",
-      "label": "Alerts",
-      "icon": "alert.svg"
+      "name": "rda-mgmt-page-dashboardgroups",
+      "label": "Dashboard Groups",
+      "group": "accessMgmt"
     },
     {
-      "name": "training_device_metrics_from_alert",
-      "label": "Metrics",
-      "icon": "Analytics.svg",
-      "context_filter1": "node_type is 'CHASSIS'"
+      "name": "rda-packs-all",
+      "label": "RDA Packs",
+      "icon": "library.svg",
+      "group": "packs"
     },
     {
-      "name": "device_syslog_from_alert",
-      "label": "Syslogs",
-      "enabled": false,
-      "context_filter": "device_ip is in ['10.95.158.251','10.95.158.1','10.95.158.9']",
-      "icon": "trace.svg"
+      "name": "rda-mgmt-page-datasets",
+      "label": "Datasets",
+      "icon": "datasource.svg",
+      "group": "artifacts"
     },
     {
-      "name": "device_SNMP_Traps_from_alerts",
-      "label": "SNMP Traps",
-      "enabled": false,
-      "context_filter": "device_ip is in ['10.95.158.251','10.95.158.1','10.95.158.9']",
-      "icon": "trace.svg"
+      "name": "rda-mgmt-page-pstreams",
+      "label": "Persistent Streams",
+      "icon": "gateway.svg",
+      "group": "artifacts"
     },
     {
-      "name": "local_devices_topology_drilldown",
-      "label": "Topology",
-      "enabled": false,
-      "context_filter": "device_ip is in ['10.95.158.251','10.95.158.1','10.95.158.9']"
+      "name": "rda-mgmt-page-pipelines",
+      "label": "Published Pipelines",
+      "icon": "pipeline.svg",
+      "group": "artifacts"
     },
     {
-      "name": "customer_view_config",
-      "enabled": false,
-      "label": "View Config"
+      "name": "rda-mgmt-page-draftpipelines",
+      "label": "Draft Pipelines",
+      "icon": "pipeline.svg",
+      "group": "artifacts"
+    },
+    {
+      "name": "rda-mgmt-page-blueprints",
+      "label": "Service Blueprints",
+      "group": "artifacts"
     }
   ],
-  "pstream_dashboards": [
+  "attachments": [
     {
-      "title": "Org Ops"
+      "name": "add_dynamic_pages_for_admin",
+      "value": "{%- set existing_groups = dashboard[\"dashboard_groups\"] -%}\n{%- set d_pages = [] -%}\n{%- set d_groups = [] -%}\n\n{%- set dlist = engine.query_stream_data(stream=\"rda_packs_dynamic_groups_and_pages\", cfxql_query=\"customer_tag is empty\") or [] -%}\n\n{%- if dlist -%}\n    {# Process the dlist to populate dashboard groups and pages #}\n    {%- for i in dlist -%}\n        {%- set dgroup_ = {\n            \"g_name\": i[\"dashboard_group_name\"],\n            \"g_label\": i[\"dashboard_group_label\"],\n            \"g_icon\": i[\"dashboard_group_icon\"]\n        } -%}\n        {{ d_groups.append(dgroup_) }}\n\n        {%- set dpage_ = {\n            \"name\": i[\"dashboard_page_name\"],\n            \"label\": i[\"dashboard_page_label\"],\n            \"icon\": i[\"dashboard_page_icon\"],\n            \"group\": i[\"dashboard_page_group\"]\n        } -%}\n        {{ d_pages.append(dpage_) }}\n    {%- endfor -%}\n\n    {# Update dashboard groups #}\n    {%- for group in d_groups -%}\n        {%- if group.g_name not in existing_groups | map(attribute='g_name') | list -%}\n            {%- set _ = dashboard[\"dashboard_groups\"].update({\n                group.g_name: {\n                    \"icon\": group.g_icon,\n                    \"label\": group.g_label\n                }\n            }) -%}\n        {%- endif -%}\n\n    {%- endfor -%}\n\n    {# Update dashboard pages #}\n    {%- for page in d_pages -%}\n        {%- set _ = dashboard[\"dashboard_pages\"].append({\n            \"name\": page.name,\n            \"label\": page.label,\n            \"icon\": page.icon,\n            \"group\": page.group\n        }) -%}\n    {%- endfor -%}\n\n{%- endif -%}"
     }
   ]
 }
