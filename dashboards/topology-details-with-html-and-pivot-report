@@ -1,100 +1,320 @@
 {
-  "name": "rda-fabric-health-app",
-  "label": "Fabric Health",
-  "description": "Fabric Health Administration",
-  "version": "22.9.9.1",
+  "name": "topology-details-with-html-and-pivot-report",
+  "label": "X-Leaf Workflow Results",
+  "description": "X-Leaf EVT Workflow Results",
   "enabled": true,
-  "computedContext": {
-    "NOW": {
-      "expr": "now().replace(hour = 0, minute = 0, second = 0, microsecond = 0).isoformat()"
+  "dashboard_style": "auto",
+  "dashboard_type": "template",
+  "dashboard_folder": "X-Leaf",
+  "version": "23.8.21.1",
+  "short_label": "X-Leaf EVT Workflow",
+  "dashboard_filters": {},
+  "template_variables": {
+    "NODE_ID": {
+      "contextId": [
+        "navigatorSelectionContexts",
+        "secondaryListSelection",
+        "device_ip"
+      ]
     },
-    "DAY_1_AGO": {
-      "expr": "now().replace(hour = 0, minute = 0, second = 0, microsecond = 0).isoformat()"
+    "PRECHECK_NAME": {
+      "contextId": [
+        "navigatorSelectionContexts",
+        "secondaryListSelection",
+        "evt_check_name"
+      ]
     },
-    "DAY_2_AGO": {
-      "expr": "(now().replace(hour = 0, minute = 0, second = 0, microsecond = 0) - timedelta(days=1)).isoformat()"
-    },
-    "DAY_3_AGO": {
-      "expr": "(now().replace(hour = 0, minute = 0, second = 0, microsecond = 0) - timedelta(days=2)).isoformat()"
-    },
-    "DAY_4_AGO": {
-      "expr": "(now().replace(hour = 0, minute = 0, second = 0, microsecond = 0) - timedelta(days=3)).isoformat()"
-    },
-    "TODAY": {
-      "expr": "now().strftime('%B %d, %Y')"
+    "COMMAND": {
+      "contextId": [
+        "navigatorSelectionContexts",
+        "secondaryListSelection",
+        "command"
+      ]
     }
   },
-  "dashboard_filters": {
-    "time_filter": false,
-    "columns_filter": []
+  "navigation_dashboards": {
+    "tree_data": {
+      "column_name": "device_ip",
+      "pstream_name": "xleaf_evt_results_summary",
+      "cfxql_query": "timestamp is after -30d",
+      "show_counts": false
+    },
+    "tree_detail": {
+      "display_column": "evt_check_name",
+      "pstream_name": "xleaf_evt_results_summary",
+      "cfxql_query": "timestamp is after -30d",
+      "htmlTemplate": "<div style='overflow:hidden;'><div class='d-flex'><div style='flex-grow: 1' class='label1 text-truncate'><b>{{data.label1}}</b></div><div class='label2 text-truncate badge' :style='{backgroundColor: data.color}'>{{data.label2}}</div></div><div class='cfx-list-item-end-label'>{{data.label3}}</div></div>",
+      "report_definition": {
+        "title": "Validation Checks",
+        "widget_type": "tabular",
+        "stream": "xleaf_evt_results_summary",
+        "ts_column": "timestamp",
+        "timebased": false,
+        "columns": {
+          "evt_check_name": "evt_check_name",
+          "device_ip": "device_ip",
+          "status": "status",
+          "command": "command"
+        },
+        "sorting": [
+          {
+            "result_int_max": "desc"
+          }
+        ],
+        "cfxql_query": "device_ip is '{{NODE_ID}}' and timestamp is after -30d",
+        "pivot": {
+          "pivot_type": "advanced",
+          "series": [
+            {
+              "column": "evt_check_name",
+              "agg": "cardinality"
+            },
+            {
+              "column": "result_int",
+              "agg": "max"
+            }
+          ],
+          "group_by": [
+            "evt_check_name",
+            "device_ip",
+            "status",
+            "command"
+          ]
+        },
+        "paginated": true,
+        "enableVirtualScrolling": false,
+        "custom_columns": [
+          {
+            "id": "label1",
+            "expr": "str(evt_check_name)"
+          },
+          {
+            "id": "label2",
+            "expr": "'Pass' if int(result_int_max) == 0 else 'Fail' if int(result_int_max) == 1 else 'Run'"
+          },
+          {
+            "id": "label3",
+            "expr": "str(status)"
+          },
+          {
+            "id": "color",
+            "expr": "'#4caf50' if int(result_int_max) == 0 else '#E53935' if int(result_int_max) == 1 else '#FFD54F'"
+          }
+        ],
+        "widget_id": "5afc2391"
+      }
+    },
+    "showNodeIcon": false,
+    "showSearchBox": true
   },
   "dashboard_sections": [
     {
-      "title": "Example"
-    }
-  ],
-  "dashboard_type": "app",
-  "dashboard_folder": "System",
-  "dashboard_pages": [
-    {
-      "name": "rda-health-workers",
-      "label": "Workers",
-      "icon": "Analytics.svg"
+      "title": "Passed",
+      "widgets": [
+        {
+          "title": "Summary",
+          "widget_type": "tabular",
+          "stream": "xleaf_evt_results",
+          "ts_column": "timestamp",
+          "timebased": false,
+          "paginated": true,
+          "hide_columns": [
+            "collection_status",
+            "device_ip",
+            "evt_check_name",
+            "key",
+            "iconURL",
+            "timestamp",
+            "count_",
+            "_RDA_Id",
+            "jobid",
+            "result_int"
+          ],
+          "custom_columns": [
+            {
+              "id": "label1",
+              "expr": "str(evt_check_name)",
+              "hidden": true
+            }
+          ],
+          "ui_widget_type": "TABULAR",
+          "max_width": 4,
+          "height": 5,
+          "min_width": 4,
+          "widget_id": "182229d8",
+          "query": "device_ip is '{{NODE_ID}}' and evt_check_name is '{{PRECHECK_NAME}}' and result is 'Passed'"
+        }
+      ]
     },
     {
-      "name": "rda-health-agents",
-      "label": "Agents",
-      "icon": "datasource.svg"
+      "title": "Failed",
+      "widgets": [
+        {
+          "title": "Summary",
+          "widget_type": "tabular",
+          "stream": "xleaf_evt_results",
+          "ts_column": "timestamp",
+          "timebased": false,
+          "paginated": true,
+          "hide_columns": [
+            "collection_status",
+            "device_ip",
+            "evt_check_name",
+            "key",
+            "iconURL",
+            "timestamp",
+            "count_",
+            "_RDA_Id",
+            "jobid",
+            "result_int"
+          ],
+          "custom_columns": [
+            {
+              "id": "label1",
+              "expr": "str(evt_check_name)",
+              "hidden": true
+            }
+          ],
+          "ui_widget_type": "TABULAR",
+          "max_width": 4,
+          "height": 5,
+          "min_width": 4,
+          "widget_id": "06f22a21",
+          "query": "device_ip is '{{NODE_ID}}'and evt_check_name is '{{PRECHECK_NAME}}' and result is 'Failed'"
+        }
+      ]
     },
     {
-      "name": "rda-health-microservices",
-      "label": "Microservices",
-      "icon": "gateway.svg"
-    },
-    {
-      "name": "rda-microservice-traces_page_Traces",
-      "label": "Traces",
-      "icon": "pipeline.svg"
-    },
-    {
-      "name": "rda-operations-page-jobs",
-      "label": "Jobs",
-      "icon": "templates.svg"
-    },
-    {
-      "name": "rda-operations-page-trends",
-      "label": "Trends",
-      "icon": "stack.svg"
-    },
-    {
-      "name": "fabric-usage",
-      "label": "Fabric Usage",
-      "icon": "experiment.svg"
-    },
-    {
-      "name": "pipeline_failure_trend",
-      "label": "Pipeline Failure Trend",
-      "icon": "bots.svg"
-    },
-    {
-      "name": "stream_error_trend",
-      "label": "Stream Error Trend",
-      "icon": "library.svg"
-    },
-    {
-      "name": "user_activity_trend",
-      "label": "User Activity",
-      "icon": "customer.svg"
-    },
-    {
-      "name": "artifact_change_trend",
-      "label": "Artifact Change Trend",
-      "icon": "file.svg"
+      "title": "Command output",
+      "widgets": [
+        {
+          "title": "Raw Output",
+          "widget_type": "tabular",
+          "stream": "xleaf_raw_outputs",
+          "ts_column": "timestamp",
+          "timebased": false,
+          "paginated": true,
+          "columns": {
+            "command": "command",
+            "raw_output": {
+              "title": "Output",
+              "htmlTemplateForRow": "{{'{%raw%}<pre>{{row.raw_output}}</pre>{%endraw%}'}}"
+            }
+          },
+          "ui_widget_type": "TABULAR",
+          "max_width": 4,
+          "height": 5,
+          "min_width": 4,
+          "widget_id": "182229d9",
+          "max_rows": 1,
+          "query": "device_ip is '{{NODE_ID}}' and command is '{{COMMAND}}'"
+        }
+      ]
     }
   ],
   "pstream_dashboards": [
     {
-      "title": "Example"
+      "title": "Passed",
+      "widgets": [
+        {
+          "title": "Summary",
+          "widget_type": "tabular",
+          "stream": "xleaf_evt_results",
+          "ts_column": "timestamp",
+          "timebased": false,
+          "paginated": true,
+          "hide_columns": [
+            "collection_status",
+            "device_ip",
+            "evt_check_name",
+            "key",
+            "iconURL",
+            "timestamp",
+            "count_",
+            "_RDA_Id",
+            "jobid",
+            "result_int"
+          ],
+          "custom_columns": [
+            {
+              "id": "label1",
+              "expr": "str(evt_check_name)",
+              "hidden": true
+            }
+          ],
+          "ui_widget_type": "TABULAR",
+          "max_width": 4,
+          "height": 5,
+          "min_width": 4,
+          "widget_id": "182229d8",
+          "query": "device_ip is '{{NODE_ID}}' and evt_check_name is '{{PRECHECK_NAME}}' and result is 'Passed'"
+        }
+      ]
+    },
+    {
+      "title": "Failed",
+      "widgets": [
+        {
+          "title": "Summary",
+          "widget_type": "tabular",
+          "stream": "xleaf_evt_results",
+          "ts_column": "timestamp",
+          "timebased": false,
+          "paginated": true,
+          "hide_columns": [
+            "collection_status",
+            "device_ip",
+            "evt_check_name",
+            "key",
+            "iconURL",
+            "timestamp",
+            "count_",
+            "_RDA_Id",
+            "jobid",
+            "result_int"
+          ],
+          "custom_columns": [
+            {
+              "id": "label1",
+              "expr": "str(evt_check_name)",
+              "hidden": true
+            }
+          ],
+          "ui_widget_type": "TABULAR",
+          "max_width": 4,
+          "height": 5,
+          "min_width": 4,
+          "widget_id": "06f22a21",
+          "query": "device_ip is '{{NODE_ID}}'and evt_check_name is '{{PRECHECK_NAME}}' and result is 'Failed'"
+        }
+      ]
+    },
+    {
+      "title": "Command output",
+      "widgets": [
+        {
+          "title": "Raw Output",
+          "widget_type": "tabular",
+          "stream": "xleaf_raw_outputs",
+          "ts_column": "timestamp",
+          "timebased": false,
+          "paginated": true,
+          "columns": {
+            "command": "command",
+            "raw_output": {
+              "title": "Output",
+              "htmlTemplateForRow": "{{'{%raw%}<pre>{{row.raw_output}}</pre>{%endraw%}'}}"
+            }
+          },
+          "ui_widget_type": "TABULAR",
+          "max_width": 4,
+          "height": 5,
+          "min_width": 4,
+          "widget_id": "182229d9",
+          "max_rows": 1,
+          "query": "device_ip is '{{NODE_ID}}' and command is '{{COMMAND}}'"
+        }
+      ]
     }
   ]
 }
