@@ -1,26 +1,58 @@
-
- ## declaring thrid level child pipelines
-@c:new-block
- --> @dm:empty
- --> @exec:define-function name="define_child_pipelines"
- --> @exec:run-pipeline name ="edc_generate_token" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_sw_get_data" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_sweol_enrich" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_processing_sw_data" & ignore_failures = "no"
- --> @exec:end-function
- --> @dm:empty
- --> @dm:addrow name='edc_cust_pid_sw' and limit=0
- --> #dm:query-persistent-stream
- --> *dm:filter product_id is not null and sw_version is not null and sw_os_type is not null and contract_number is not null
- --> @dm:add-missing-columns columns="source" and value='software'
- --> @dm:save name='added-minio-file'
- --> @exec:run-pipeline name ="edc_sw_run_scan" & ignore_failures = "no"
- --> @dm:save name='temp-edc-sw-run-scan-op-exploded'
+@dm:empty
+ --> @exec:get-input
+ --> @dm:save name="temp-dataset"
  --> @c:new-block
- --> @dm:recall name='temp-edc-sw-run-scan-op-exploded'
- --> @rn:write-stream name='edc_sw_raw_data'
- ## calling the enrich pipeline
+ --> @dm:recall name="temp-dataset"
+ --> @dm:check_columns must_contain = 'customer' &action ='skip-block'
+ ## --> @dm:save name="test-del-dataset"
 
+ --> @dm:save name="temp-del-dataset"
  --> @c:new-block
- --> @dm:recall name='temp-edc-sw-run-scan-op-exploded'
- --> @exec:run-pipeline name='edc_sweol_enrich' and ignore_failures = "no"
+ --> @dm:empty
+ --> @dm:save name='edc_status'
+ ## delete enriched stream
+
+ --> @c:data-loop columns='customer' and dataset='temp-del-dataset' and return_empty='yes'
+ ## --> @dm:recall name="temp-row-del-dataset"
+
+ ## --> @dm:check_columns must_contain = 'customer' &action ='skip-block'
+
+ ## --> *dm:filter customer_name = '$customer_name'
+
+ --> @dm:recall name='edc_status' and return_empty = 'yes'
+ --> @dm:addrow dummy='key'
+ --> @dm:add-missing-columns columns='customer_name' and  value="$customer"
+ --> @dm:manipulate-string to="status" and func="eval" and value="'Starting to delete the data'"
+ --> @rn:write-stream name ='edc_update_status'
+ --> @dm:empty
+ --> @dm:addrow name = "edc_oi_inventory_grouped" & conflicts = "proceed" & timeout = 1200
+ --> #dm:pstream-delete-data-by-query customer_name=="$customer"
+ --> @dm:empty
+ --> @dm:addrow name = "edc_oi_inventory_enriched" & conflicts = "proceed" & timeout = 1200
+ --> #dm:pstream-delete-data-by-query customer_name=="$customer"
+ --> @dm:sleep seconds = 5
+ --> @dm:recall name='edc_status' and return_empty = 'yes'
+ --> @dm:addrow dummy='key'
+ --> @dm:add-missing-columns columns='customer_name' and  value="$customer"
+ --> @dm:manipulate-string to="status" and func="eval" and value="'Completed data deletion'"
+ --> @rn:write-stream name ='edc_update_status'
+ --> @c:new-block
+ --> @dm:recall name="temp-del-dataset"  and return_empty='yes'
+ --> @dm:check_columns must_not_contain = 'customer' &action ='skip-block'
+ --> @dm:recall name='edc_status' and return_empty = 'yes'
+ --> @dm:addrow dummy='key'
+ --> @dm:add-missing-columns columns='customer_name' and  value="$customer"
+ --> @dm:manipulate-string to="status" and func="eval" and value="'Starting to delete data for all customers'"
+ --> @rn:write-stream name ='edc_update_status'
+ --> @dm:empty
+ --> @dm:addrow name = "edc_oi_inventory_grouped" & conflicts = "proceed" & timeout = 1200
+ --> #dm:pstream-delete-data-by-query count_ is 1
+ --> @dm:empty
+ --> @dm:addrow name = "edc_oi_inventory_enriched" & conflicts = "proceed" & timeout = 1200
+ --> #dm:pstream-delete-data-by-query count_ is 1
+ --> @dm:sleep seconds = 5
+ --> @dm:recall name='edc_status' and return_empty = 'yes'
+ --> @dm:addrow dummy='key'
+ --> @dm:add-missing-columns columns='customer_name' and  value="$customer"
+ --> @dm:manipulate-string to="status" and func="eval" and value="'Data deleted for all customers'"
+ --> @rn:write-stream name ='edc_update_status'
