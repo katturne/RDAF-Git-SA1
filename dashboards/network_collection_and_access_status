@@ -1,492 +1,605 @@
 {
-  "name": "ai-llm-page-credentials",
-  "label": "LLM Credentials Management Page",
-  "description": "LLM Credentials Management Page",
-  "enabled": true,
-  "dashboard_type": "dashboard",
-  "dashboard_folder": "AI",
-  "dashboard_style": "auto",
-  "stream": "rda_secret_meta",
-  "dashboard_filters": {
-    "time_filter": true,
-    "columns_filter": [
-      {
-        "id": "name",
-        "label": "Name",
-        "type": "TEXT"
-      },
-      {
-        "id": "type",
-        "label": "Type",
-        "type": "TEXT"
-      },
-      {
-        "id": "typeDescription",
-        "label": "Type Description",
-        "type": "TEXT"
-      },
-      {
-        "id": "checksum",
-        "label": "Checksum",
-        "type": "TEXT"
-      },
-      {
-        "id": "saved_time",
-        "label": "Saved Time",
-        "type": "DATETIME"
-      }
-    ]
+  "name": "network_collection_and_access_status",
+  "label": "Network Collection status",
+  "description": "Network collection and access verification status",
+  "dashboard_folder": "NetworkDevicePack",
+  "version": "1.0.3",
+  "enabled": false,
+  "live_edit": true,
+  "dashboard_type": "template",
+  "template_variables": {
+    "CUST_ID": {
+      "contextId": "customerId"
+    },
+    "PROJ_ID": {
+      "contextId": "projectId"
+    },
+    "CUST_TAG": {
+      "contextId": "customerTag"
+    }
   },
   "dashboard_sections": [
     {
-      "title": "LLMs",
+      "title": "Access Verification Status",
       "show_filter": true,
       "widgets": [
         {
-          "title": "LLMs",
+          "widget_type": "pie_chart",
+          "title": "Access Check by Status",
+          "stream": "network_access_verification",
+          "extra_filter": "customer_tag is '{{CUST_TAG}}' or customer_tag is empty",
+          "ts_column": "timestamp",
+          "column": "_id",
+          "min_width": 6,
+          "height": 4,
+          "agg": "value_count",
+          "group_by": [
+            "auth_state"
+          ],
+          "style": {
+            "color-map": {
+              "Success": [
+                "#008000",
+                "#ffffff"
+              ],
+              "Failed": [
+                "#FF0000",
+                "#ffffff"
+              ]
+            }
+          },
+          "type": "str",
+          "widget_id": "66dc2d8e"
+        },
+        {
+          "widget_type": "pie_chart",
+          "title": "Access Check by Protocol",
+          "extra_filter": "customer_tag is '{{CUST_TAG}}' or customer_tag is empty",
+          "stream": "network_access_verification",
+          "ts_column": "timestamp",
+          "column": "_id",
+          "agg": "value_count",
+          "min_width": 6,
+          "height": 4,
+          "group_by": [
+            "protocol"
+          ],
+          "type": "str",
+          "widget_id": "a07b4356"
+        },
+        {
+          "title": "Access Status",
           "widget_type": "tabular",
-          "stream": "rda_secrets_meta",
-          "duration_hours": 87600,
+          "extra_filter": "customer_tag is '{{CUST_TAG}}' or customer_tag is empty",
+          "stream": "network_access_verification",
+          "duration_hours": 1080,
+          "showRowSummary": true,
+          "min_width": 12,
+          "height": 6,
+          "max_width": 12,
+          "sorting": [
+            {
+              "auth_state": "desc"
+            }
+          ],
+          "paginated": true,
           "remote_searchable": true,
           "remote_searchable_cols": [
-            "name",
-            "type",
-            "typeDescription",
-            "checksum"
+            "ip_address",
+            "protocol",
+            "used_cred",
+            "auth_state"
           ],
-          "ts_column": "saved_time",
-          "paginated": true,
-          "extra_filter": "customerTag is empty and type is 'llm'",
-          "height": 10,
-          "min_wdith": 12,
+          "max_rows": 50,
           "columns": {
-            "name": {
-              "title": "Name",
+            "ip_address": {
+              "title": "IP Address",
+              "defaultWidth": 150,
               "key": true
             },
-            "type": {
-              "title": "Type",
-              "key": true
+            "protocol": {
+              "title": "Protocol",
+              "defaultWidth": 150
             },
-            "typeDescription": {
-              "title": "description"
+            "used_cred": {
+              "title": "Credential Name",
+              "defaultWidth": 200
             },
-            "has_credential_check": {
-              "title": "Credential Check",
-              "visible": false
+            "reason": {
+              "title": "Failure Reason",
+              "defaultWidth": 200
             },
-            "checksum": {
-              "title": "Checksum"
+            "auth_state": {
+              "title": "Authentication State",
+              "defaultWidth": 150,
+              "htmlTemplateForRow": "{% raw %}<span class='badge' style='background-color: {{ row.auth_state_color}}' > {{ row.auth_state }} </span>{% endraw %}"
             },
-            "tags": {
-              "title": "Tags",
-              "type": "TEXT",
-              "key": true
-            },
-            "customerTag": {
-              "title": "Customer Tag",
-              "type": "TEXT",
-              "key": true,
-              "hidden": true
-            },
-            "saved_time": {
-              "title": "Saved Time",
-              "type": "DATETIME"
+            "auth_state_color": {
+              "type": "COLOR-MAP",
+              "source-column": "auth_state",
+              "color-map": {
+                "Success": "#008000",
+                "Failed": "#FF0000",
+                "success": "#008000",
+                "failed": "#FF0000"
+              }
             },
             "timestamp": {
-              "title": "When",
-              "type": "HUMANIZE_TIME_DELTA",
-              "source-column": "saved_time",
-              "sortable": false
+              "title": "Verification Time",
+              "type": "DATETIME",
+              "visible": true
+            }
+          },
+          "widget_id": "4c2cfdd7"
+        }
+      ]
+    },
+    {
+      "title": "Discovery Status",
+      "show_filter": true,
+      "widgets": [
+        {
+          "title": "Discovery Runs",
+          "widget_type": "tabular",
+          "duration_hours": 1080,
+          "stream": "asset_inventory_collection_status_stream",
+          "extra_filter0": "customer_tag contains '{{CUST_TAG}}' or customer_tag is empty",
+          "extra_filter": "(jobname contains '{{CUST_TAG}}' or jobname contains 'job') and type_ is 'overall_status' and total is not empty and pending is 0",
+          "height": 4,
+          "max_width": 12,
+          "min_width": 12,
+          "columns": {
+            "collection_timestamp": {
+              "title": "Discovery End time",
+              "type": "DATETIME"
+            },
+            "total": "Total Devices",
+            "success": {
+              "title": "Total Successful",
+              "htmlTemplateForRow0": "<{%raw%}span class='badge' style='background-color: {{ row.response_colors}}' > {{ row.success}} </span>{%endraw%}"
+            },
+            "failed": {
+              "title": "Total Failed",
+              "htmlTemplateForRow0": "{%raw%}<span class='badge' style='background-color: {{ row.response_colorf}}' > {{ row.failed}} </span>{%endraw%}"
+            },
+            "jobname": {
+              "title": "Jobname",
+              "type": "TEXT",
+              "hidden": true
+            },
+            "jobid": {
+              "title": "job id",
+              "type": "TEXT",
+              "hidden": true
+            },
+            "duplicates": {
+              "title": "Duplicates(Serial Number)",
+              "type": "TEXT",
+              "hidden": false
             }
           },
           "custom_columns": [
             {
-              "id": "rowStyleClass",
+              "id": "response_colors",
+              "label": "Enable Color",
+              "expr": "['#b3b3b3'] if success == 0 else ['#4CAF50']",
               "hidden": true,
-              "visiblle": false,
-              "expr": "'bg-fading-blue' if time_now_as_ms() - isoformat_to_ms(saved_time) <= 120000 else None"
-            },
-            {
-              "id": "artifact_name",
-              "label": "Artifact Name",
-              "expr": "name",
-              "key": true,
               "visible": false,
               "sortable": false
             },
             {
-              "id": "artifact_type",
-              "label": "Artifact Type",
-              "expr": "'source'",
-              "key": true,
+              "id": "response_colorf",
+              "label": "Enable Color",
+              "expr": "['#b3b3b3'] if failed == 0 else ['#BB0000']",
+              "hidden": true,
               "visible": false,
+              "sortable": false
+            },
+            {
+              "id": "status",
+              "label": "Status",
+              "expr": "'Success' if failed == 0 else 'Failed'",
+              "hidden": false,
+              "visible": true,
               "sortable": false
             }
           ],
           "actions": [
             {
-              "permission": "rda:credential:add",
-              "title": "Add",
-              "icon": "mdi mdi-plus",
-              "type": "POPUP_FORM",
-              "selectionType": "NONE",
-              "identifier": "saas-service-action:vault-add",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.vault.add",
-                    "extension_types": [
-                      "llm"
-                    ]
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:credential:edit",
-              "title": "Edit",
-              "type": "POPUP_FORM",
+              "permission": "aia:page:view",
+              "drillDownLinkField": "success",
+              "identifier": "success",
               "selectionType": "SINGLE",
-              "identifier": "saas-service-action:vault-edit",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
+              "stateName": "app.featureapp",
+              "title": "View Success",
+              "contextParamList": {
+                "contextParams": [
                   {
-                    "formId": "rda.saas.vault.edit"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:credential:view",
-              "title": "View",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "displayLabelColumnId": "name",
-              "drillDownLinkField": "name",
-              "identifier": "saas-service-action:vault-view",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.vault.view"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:credential:verify",
-              "title": "Verify Credentials",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:vault-edit",
-              "actionCondition": {
-                "actionControl": "HIDE_IF",
-                "conditionalField": [
-                  {
-                    "conditionType": "EQUAL",
-                    "conditionValue": "false",
-                    "fieldId": "has_credential_check"
+                    "paramKey": "jobid",
+                    "paramId": "jobid"
                   }
                 ]
               },
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
+              "actionCondition": {
+                "actionControl": "SHOW_IF",
+                "conditionalField": [
                   {
-                    "formId": "rda.saas.vault.validateConenctivity"
+                    "conditionType": "IS_NOT_NULL",
+                    "fieldId": "success"
                   }
                 ]
-              }
+              },
+              "type": "GO_TO_APP_STATE",
+              "appName": "user-dashboard/customer_discovery_runs_details_success"
             },
             {
-              "permission": "rda:credential:assign_tag",
-              "title": "Manage Tags",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:assign-tag",
-              "api-endpoint": {
-                "methodName": "getForm",
-                "params": [
-                  {
-                    "formId": "rda.saas.tags.assign"
-                  }
-                ],
-                "parse-output": false,
-                "service-name": "saas-reports",
-                "stringified-params": true
-              }
-            },
-            {
-              "permission": "rda:credential:verify",
-              "title": "Delete",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:vault-delete",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.vault.delete"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:credential:view",
-              "appName": "user-dashboard/rda-artifact-dependencies-app",
-              "identifier": "launch.url.dashboard",
+              "permission": "aia:page:view",
+              "drillDownLinkField": "duplicates",
+              "identifier": "duplicates",
               "selectionType": "SINGLE",
               "stateName": "app.featureapp",
-              "title": "View Dependencies",
+              "title": "View Duplicates",
+              "contextParamList": {
+                "contextParams": [
+                  {
+                    "paramKey": "jobid",
+                    "paramId": "jobid"
+                  }
+                ]
+              },
+              "actionCondition": {
+                "actionControl": "SHOW_IF",
+                "conditionalField": [
+                  {
+                    "conditionType": "IS_NOT_NULL",
+                    "fieldId": "duplicates"
+                  }
+                ]
+              },
+              "type": "GO_TO_APP_STATE",
+              "appName": "user-dashboard/customer_discovery_runs_details_duplicates"
+            },
+            {
+              "appName": "user-dashboard/customer_discovery_runs_details_failed",
+              "permission": "aia:page:view",
+              "drillDownContext": "failed",
+              "drillDownLinkField": "failed",
+              "identifier": "failed",
+              "selectionType": "SINGLE",
+              "stateName": "app.featureapp",
+              "title": "View Failed",
+              "contextParamList": {
+                "contextParams": [
+                  {
+                    "paramKey": "jobid",
+                    "paramId": "jobid"
+                  }
+                ]
+              },
+              "actionCondition": {
+                "actionControl": "SHOW_IF",
+                "conditionalField": [
+                  {
+                    "conditionType": "IS_NOT_NULL",
+                    "fieldId": "failed"
+                  }
+                ]
+              },
+              "type": "GO_TO_APP_STATE"
+            },
+            {
+              "appName": "user-dashboard/logs",
+              "permission": "aia:page:view",
+              "identifier": "failed",
+              "drillDownLinkField": "total",
+              "contextParamList": {
+                "contextParams": [
+                  {
+                    "paramKey": "jobid",
+                    "paramId": "jobid"
+                  }
+                ]
+              },
+              "selectionType": "SINGLE",
+              "stateName": "app.featureapp",
+              "title": "View Logs",
               "type": "GO_TO_APP_STATE"
             }
           ],
-          "widget_id": "9a21b5c6"
+          "widget_id": "b2c8d81c"
         }
       ]
     }
   ],
   "pstream_dashboards": [
     {
-      "title": "LLMs",
+      "title": "Access Verification Status",
       "show_filter": true,
       "widgets": [
         {
-          "title": "LLMs",
+          "widget_type": "pie_chart",
+          "title": "Access Check by Status",
+          "stream": "network_access_verification",
+          "extra_filter": "customer_tag is '{{CUST_TAG}}' or customer_tag is empty",
+          "ts_column": "timestamp",
+          "column": "_id",
+          "min_width": 6,
+          "height": 4,
+          "agg": "value_count",
+          "group_by": [
+            "auth_state"
+          ],
+          "style": {
+            "color-map": {
+              "Success": [
+                "#008000",
+                "#ffffff"
+              ],
+              "Failed": [
+                "#FF0000",
+                "#ffffff"
+              ]
+            }
+          },
+          "type": "str",
+          "widget_id": "66dc2d8e"
+        },
+        {
+          "widget_type": "pie_chart",
+          "title": "Access Check by Protocol",
+          "extra_filter": "customer_tag is '{{CUST_TAG}}' or customer_tag is empty",
+          "stream": "network_access_verification",
+          "ts_column": "timestamp",
+          "column": "_id",
+          "agg": "value_count",
+          "min_width": 6,
+          "height": 4,
+          "group_by": [
+            "protocol"
+          ],
+          "type": "str",
+          "widget_id": "a07b4356"
+        },
+        {
+          "title": "Access Status",
           "widget_type": "tabular",
-          "stream": "rda_secrets_meta",
-          "duration_hours": 87600,
+          "extra_filter": "customer_tag is '{{CUST_TAG}}' or customer_tag is empty",
+          "stream": "network_access_verification",
+          "duration_hours": 1080,
+          "showRowSummary": true,
+          "min_width": 12,
+          "height": 6,
+          "max_width": 12,
+          "sorting": [
+            {
+              "auth_state": "desc"
+            }
+          ],
+          "paginated": true,
           "remote_searchable": true,
           "remote_searchable_cols": [
-            "name",
-            "type",
-            "typeDescription",
-            "checksum"
+            "ip_address",
+            "protocol",
+            "used_cred",
+            "auth_state"
           ],
-          "ts_column": "saved_time",
-          "paginated": true,
-          "extra_filter": "customerTag is empty and type is 'llm'",
-          "height": 10,
-          "min_wdith": 12,
+          "max_rows": 50,
           "columns": {
-            "name": {
-              "title": "Name",
+            "ip_address": {
+              "title": "IP Address",
+              "defaultWidth": 150,
               "key": true
             },
-            "type": {
-              "title": "Type",
-              "key": true
+            "protocol": {
+              "title": "Protocol",
+              "defaultWidth": 150
             },
-            "typeDescription": {
-              "title": "description"
+            "used_cred": {
+              "title": "Credential Name",
+              "defaultWidth": 200
             },
-            "has_credential_check": {
-              "title": "Credential Check",
-              "visible": false
+            "reason": {
+              "title": "Failure Reason",
+              "defaultWidth": 200
             },
-            "checksum": {
-              "title": "Checksum"
+            "auth_state": {
+              "title": "Authentication State",
+              "defaultWidth": 150,
+              "htmlTemplateForRow": "{% raw %}<span class='badge' style='background-color: {{ row.auth_state_color}}' > {{ row.auth_state }} </span>{% endraw %}"
             },
-            "tags": {
-              "title": "Tags",
-              "type": "TEXT",
-              "key": true
-            },
-            "customerTag": {
-              "title": "Customer Tag",
-              "type": "TEXT",
-              "key": true,
-              "hidden": true
-            },
-            "saved_time": {
-              "title": "Saved Time",
-              "type": "DATETIME"
+            "auth_state_color": {
+              "type": "COLOR-MAP",
+              "source-column": "auth_state",
+              "color-map": {
+                "Success": "#008000",
+                "Failed": "#FF0000",
+                "success": "#008000",
+                "failed": "#FF0000"
+              }
             },
             "timestamp": {
-              "title": "When",
-              "type": "HUMANIZE_TIME_DELTA",
-              "source-column": "saved_time",
-              "sortable": false
+              "title": "Verification Time",
+              "type": "DATETIME",
+              "visible": true
+            }
+          },
+          "widget_id": "4c2cfdd7"
+        }
+      ]
+    },
+    {
+      "title": "Discovery Status",
+      "show_filter": true,
+      "widgets": [
+        {
+          "title": "Discovery Runs",
+          "widget_type": "tabular",
+          "duration_hours": 1080,
+          "stream": "asset_inventory_collection_status_stream",
+          "extra_filter0": "customer_tag contains '{{CUST_TAG}}' or customer_tag is empty",
+          "extra_filter": "(jobname contains '{{CUST_TAG}}' or jobname contains 'job') and type_ is 'overall_status' and total is not empty and pending is 0",
+          "height": 4,
+          "max_width": 12,
+          "min_width": 12,
+          "columns": {
+            "collection_timestamp": {
+              "title": "Discovery End time",
+              "type": "DATETIME"
+            },
+            "total": "Total Devices",
+            "success": {
+              "title": "Total Successful",
+              "htmlTemplateForRow0": "<{%raw%}span class='badge' style='background-color: {{ row.response_colors}}' > {{ row.success}} </span>{%endraw%}"
+            },
+            "failed": {
+              "title": "Total Failed",
+              "htmlTemplateForRow0": "{%raw%}<span class='badge' style='background-color: {{ row.response_colorf}}' > {{ row.failed}} </span>{%endraw%}"
+            },
+            "jobname": {
+              "title": "Jobname",
+              "type": "TEXT",
+              "hidden": true
+            },
+            "jobid": {
+              "title": "job id",
+              "type": "TEXT",
+              "hidden": true
+            },
+            "duplicates": {
+              "title": "Duplicates(Serial Number)",
+              "type": "TEXT",
+              "hidden": false
             }
           },
           "custom_columns": [
             {
-              "id": "rowStyleClass",
+              "id": "response_colors",
+              "label": "Enable Color",
+              "expr": "['#b3b3b3'] if success == 0 else ['#4CAF50']",
               "hidden": true,
-              "visiblle": false,
-              "expr": "'bg-fading-blue' if time_now_as_ms() - isoformat_to_ms(saved_time) <= 120000 else None"
-            },
-            {
-              "id": "artifact_name",
-              "label": "Artifact Name",
-              "expr": "name",
-              "key": true,
               "visible": false,
               "sortable": false
             },
             {
-              "id": "artifact_type",
-              "label": "Artifact Type",
-              "expr": "'source'",
-              "key": true,
+              "id": "response_colorf",
+              "label": "Enable Color",
+              "expr": "['#b3b3b3'] if failed == 0 else ['#BB0000']",
+              "hidden": true,
               "visible": false,
+              "sortable": false
+            },
+            {
+              "id": "status",
+              "label": "Status",
+              "expr": "'Success' if failed == 0 else 'Failed'",
+              "hidden": false,
+              "visible": true,
               "sortable": false
             }
           ],
           "actions": [
             {
-              "permission": "rda:credential:add",
-              "title": "Add",
-              "icon": "mdi mdi-plus",
-              "type": "POPUP_FORM",
-              "selectionType": "NONE",
-              "identifier": "saas-service-action:vault-add",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.vault.add",
-                    "extension_types": [
-                      "llm"
-                    ]
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:credential:edit",
-              "title": "Edit",
-              "type": "POPUP_FORM",
+              "permission": "aia:page:view",
+              "drillDownLinkField": "success",
+              "identifier": "success",
               "selectionType": "SINGLE",
-              "identifier": "saas-service-action:vault-edit",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
+              "stateName": "app.featureapp",
+              "title": "View Success",
+              "contextParamList": {
+                "contextParams": [
                   {
-                    "formId": "rda.saas.vault.edit"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:credential:view",
-              "title": "View",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "displayLabelColumnId": "name",
-              "drillDownLinkField": "name",
-              "identifier": "saas-service-action:vault-view",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.vault.view"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:credential:verify",
-              "title": "Verify Credentials",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:vault-edit",
-              "actionCondition": {
-                "actionControl": "HIDE_IF",
-                "conditionalField": [
-                  {
-                    "conditionType": "EQUAL",
-                    "conditionValue": "false",
-                    "fieldId": "has_credential_check"
+                    "paramKey": "jobid",
+                    "paramId": "jobid"
                   }
                 ]
               },
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
+              "actionCondition": {
+                "actionControl": "SHOW_IF",
+                "conditionalField": [
                   {
-                    "formId": "rda.saas.vault.validateConenctivity"
+                    "conditionType": "IS_NOT_NULL",
+                    "fieldId": "success"
                   }
                 ]
-              }
+              },
+              "type": "GO_TO_APP_STATE",
+              "appName": "user-dashboard/customer_discovery_runs_details_success"
             },
             {
-              "permission": "rda:credential:assign_tag",
-              "title": "Manage Tags",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:assign-tag",
-              "api-endpoint": {
-                "methodName": "getForm",
-                "params": [
-                  {
-                    "formId": "rda.saas.tags.assign"
-                  }
-                ],
-                "parse-output": false,
-                "service-name": "saas-reports",
-                "stringified-params": true
-              }
-            },
-            {
-              "permission": "rda:credential:verify",
-              "title": "Delete",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:vault-delete",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.vault.delete"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:credential:view",
-              "appName": "user-dashboard/rda-artifact-dependencies-app",
-              "identifier": "launch.url.dashboard",
+              "permission": "aia:page:view",
+              "drillDownLinkField": "duplicates",
+              "identifier": "duplicates",
               "selectionType": "SINGLE",
               "stateName": "app.featureapp",
-              "title": "View Dependencies",
+              "title": "View Duplicates",
+              "contextParamList": {
+                "contextParams": [
+                  {
+                    "paramKey": "jobid",
+                    "paramId": "jobid"
+                  }
+                ]
+              },
+              "actionCondition": {
+                "actionControl": "SHOW_IF",
+                "conditionalField": [
+                  {
+                    "conditionType": "IS_NOT_NULL",
+                    "fieldId": "duplicates"
+                  }
+                ]
+              },
+              "type": "GO_TO_APP_STATE",
+              "appName": "user-dashboard/customer_discovery_runs_details_duplicates"
+            },
+            {
+              "appName": "user-dashboard/customer_discovery_runs_details_failed",
+              "permission": "aia:page:view",
+              "drillDownContext": "failed",
+              "drillDownLinkField": "failed",
+              "identifier": "failed",
+              "selectionType": "SINGLE",
+              "stateName": "app.featureapp",
+              "title": "View Failed",
+              "contextParamList": {
+                "contextParams": [
+                  {
+                    "paramKey": "jobid",
+                    "paramId": "jobid"
+                  }
+                ]
+              },
+              "actionCondition": {
+                "actionControl": "SHOW_IF",
+                "conditionalField": [
+                  {
+                    "conditionType": "IS_NOT_NULL",
+                    "fieldId": "failed"
+                  }
+                ]
+              },
+              "type": "GO_TO_APP_STATE"
+            },
+            {
+              "appName": "user-dashboard/logs",
+              "permission": "aia:page:view",
+              "identifier": "failed",
+              "drillDownLinkField": "total",
+              "contextParamList": {
+                "contextParams": [
+                  {
+                    "paramKey": "jobid",
+                    "paramId": "jobid"
+                  }
+                ]
+              },
+              "selectionType": "SINGLE",
+              "stateName": "app.featureapp",
+              "title": "View Logs",
               "type": "GO_TO_APP_STATE"
             }
           ],
-          "widget_id": "9a21b5c6"
+          "widget_id": "b2c8d81c"
         }
       ]
     }
