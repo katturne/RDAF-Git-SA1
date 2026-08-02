@@ -1,37 +1,54 @@
+@c:new-block
+ --> @dm:recall name='before-explode-sweol'
+ --> @dm:dedup columns='product_id,sw_os_type,sw_version'
+ --> *dm:filter issues is not '[]'
+ --> @dm:save name='before-explode-sweol-new'
+ --> @dm:eval issues='eval(issues)'
+ --> @dm:eval issues='json_dumps(issues)'
+ --> @dm:explode-json column="issues"
+ --> @dm:eval eoXAlert='json_dumps(eoXAlert)'
+ --> @dm:explode-json column="eoXAlert"
+ --> @dm:save name='temp-sweol'
+ ## --> @dm:save name='exploded-sweol'
 
- ## ### Dataset Enrichment #####
-@exec:get-input
- ## Explode input payload elements that are translated into a JSON dictionary
+ ## --> @c:new-block
 
- --> @dm:explode-json column="payloadDictionary"
- --> @dm:save name="temp-events"
- ## Clear the previous enrichment definitions dataset
+ ## --> @dm:recall name='added-sw-data'
 
- --> @dm:empty columns="datasetname,condition,enrichcolumns,enrichcolumnsas,filter"
- --> @dm:save name="temp-enrichments"
- ## Get unique enrichment datasets to process from the events
+ ## --> @dm:addrow product_id='AIR-AP2802E-B-K9' and sw_version='17.12.4.208' and sw_os_type='IOS-XE' and contract_number='9517555'
 
- --> @c:new-block
- --> @dm:recall name="temp-events"
- --> @dm:explode-json column="enrichment_datasets"
- --> @dm:check-columns must_contain="datasetname,condition,enrichcolumns" and action="skip-block"
- --> @dm:selectcolumns include="datasetname|condition|enrichcolumns|enrichcolumnsas|filter"
- --> @dm:add-missing-columns columns="enrichcolumnsas,filter"
- --> @dm:save name="temp-enrichments"
- ## Perform enrichment from each dataset
+ ## --> @dm:enrich dict='before-explode-sweol-new' and src_key_cols='product_id,sw_os_type,sw_version' and dict_key_cols='product_id,sw_os_type,sw_version' and enrich_cols='issues' and how_type='inner' and dedup_dict='no'
 
- --> @c:data-loop dataset="temp-enrichments" and columns="datasetname,condition,enrichcolumns,enrichcolumnsas,filter"
- --> @dm:recall name="temp-events"
- --> *exec:if-condition ${filter}
- --> @dm:enrich-conditional dict is "${datasetname}" and condition is "${condition}" and enrich_cols is "${enrichcolumns}" and cache is yes and cache_refresh_seconds is 120 and return_status is yes
- --> @dm:map from is 'meta_enrich_status' and to is "Dataset: ${datasetname}"
- --> @dm:selectcolumns exclude="meta_enrich_status"
- --> @dm:save name="temp-events"
- --> @exec:end-if
- ## Publish the processed alerts to the stream
+ ## --> @dm:save name='test-sweol_cn_enriched'
 
- --> @c:new-block
- --> @dm:recall name="temp-events"
- ## Write output data to stream specified in the input event
+ ## --> @dm:empty
 
- --> @rn:write-stream-by-row stream_column="stream_name"
+ ## --> @dm:addrow name='edc_oi_inventory_enriched' and limit=0
+
+ ## --> #dm:query-persistent-stream customer_name=='ATT'
+
+ ## --> @dm:save name='temp-hw-data'
+
+ ## --> @c:new-block
+
+ ## --> @dm:recall name='temp-hw-data'
+
+ ## --> @dm:to-type columns='contract_number' and type='int'
+
+ ## --> @dm:save name='temp-hw-data'
+
+ ## --> @c:new-block
+
+ ## --> @dm:recall name='test-sweol_cn_enriched'
+
+ ## --> @dm:to-type columns='contract_number' and type='int'
+
+ ## --> @dm:enrich dict='temp-hw-data' and src_key_cols='product_id,contract_number,customer' and dict_key_cols='product_id,contract_number,customer_name' and enrich_cols='gu_name,savm_sales_level_4_name,coverage,covered_line_status,business_entity,business_sub_entity,bk_end_of_life_request_num,bk_eol_bulletin_product_typ_cd,hwEOL_endOfNewServiceAttachmentDate,hwEOL_endOfRoutineFailureAnalysisDate,hwEOL_endOfSoftwareMaintenanceReleasesDate,hwEOL_endOfServiceContractRenewalDate,hwEOL_endOfLifeAnnouncementDate,eol_product_name,item_type,hwEOL_endOfSaleDate,hwEOL_lastDayOfSupportDate,product_description,product_family,product_family_description,product_type,product_list_price,portfolio_desc,usage_code,combination_count,execution_status,total_product_list_price,unique_key,hw_status,hw_expiring_qtr,hw_expiring_year,last_updated_time,product_name' and how_type='inner' and replace_values='yes'
+
+ ## --> @dm:save name='enriched-op-35-inv'
+
+ --> @dm:recall name='temp-sweol'
+ --> *dm:filter customer == 'ATT'
+ --> @exec:run-pipeline name='edc_processing_sw_data'
+ --> @dm:to-type columns='contract_number' and type='int'
+ --> @dm:save name='processed-sw-op'
