@@ -1,292 +1,216 @@
 {
-  "name": "rda-dashboard-export-schedule",
-  "label": "Dashboard Export Schedules",
-  "description": "Dashboard Export Schedules",
-  "version": "24.5.29.1",
+  "name": "oia-event-tracking-os",
+  "label": "Open Search Based Events",
+  "description": "Open Search Based OIA Event Tracking",
+  "version": "24.11.11",
   "enabled": true,
+  "stream": "oia-source-events-stream",
+  "dashboard_style": "auto",
+  "status_poller": {},
   "dashboard_type": "template",
   "template_variables": {
-    "USER_ID": {
-      "contextId": "USER_ID"
+    "PROJECT_ID": {
+      "default": [
+        "61ed50a5-8634-4464-a17e-adf6b40225b2"
+      ],
+      "contextId": "projectId"
     }
   },
   "dashboard_filters": {
-    "time_filter": true,
     "default_time_filter_labels": [
-      "Last 1 month"
+      "Last 24 hours"
     ],
-    "extra_filter": "created_by is '{{USER_ID}}'",
+    "time_filter": true,
+    "default_time_filter_non_removable": true,
+    "show_default_time_filter": false,
+    "additional_datetime_column_filters": [
+      {
+        "id": "se_createdat",
+        "label": "Created At"
+      },
+      {
+        "id": "se_updatedat",
+        "label": "Updated At"
+      }
+    ],
     "columns_filter": [
       {
-        "id": "schedule_id",
-        "label": "Job ID",
+        "id": "se_customerid",
+        "label": "Customer ID",
         "type": "TEXT"
       },
       {
-        "id": "dashboard_name",
-        "label": "Dashboard Name",
+        "id": "se_status",
+        "label": "Status",
         "type": "TEXT"
       },
       {
-        "id": "dashboard_title",
-        "label": "Dashboard Label",
+        "id": "se_sourcesystemname",
+        "label": "Source",
         "type": "TEXT"
       },
       {
-        "id": "filters",
-        "label": "Condition Filters",
+        "id": "se_message",
+        "label": "Message",
         "type": "TEXT"
       },
       {
-        "id": "name",
-        "label": "Export Filename",
+        "id": "se_projectid",
+        "label": "Organizations",
         "type": "TEXT"
       },
       {
-        "id": "include_csv_files",
-        "label": "Include CSV Files",
-        "type": "TEXT"
-      },
-      {
-        "id": "descr",
-        "label": "Description",
-        "type": "TEXT"
-      },
-      {
-        "id": "email_id",
-        "label": "Send To",
-        "type": "TEXT"
-      },
-      {
-        "id": "start_time",
-        "label": "Schedule Start Time",
+        "id": "se_sourcereceivedat",
+        "label": "Received At",
         "type": "DATETIME"
       },
       {
-        "id": "next_run_time",
-        "label": "Next Run Time",
-        "type": "DATETIME"
-      },
-      {
-        "id": "end_time",
-        "label": "Schedule End Time",
-        "type": "DATETIME"
-      },
-      {
-        "id": "frequency",
-        "label": "Schedule Frequency",
+        "id": "se_id",
+        "label": "Source Event Id",
         "type": "TEXT"
       },
       {
-        "id": "created_by",
-        "label": "Created By",
-        "type": "TEXT"
+        "id": "se_numberofevents",
+        "label": "No. of events",
+        "type": "DOUBLE"
+      }
+    ],
+    "extra_filter": "se_projectid in {{PROJECT_ID}}",
+    "group_filters": [
+      {
+        "stream": "oia-source-events-stream",
+        "title": "Events By Source",
+        "group_by": [
+          "se_sourcesystemname"
+        ],
+        "ts_column": "se_updatedat",
+        "agg": "value_count",
+        "column": "se_id",
+        "type": "str"
       },
       {
-        "id": "expired",
-        "label": "Job Expired",
-        "type": "TEXT"
+        "stream": "oia-source-events-stream",
+        "title": "Events By Status",
+        "group_by": [
+          "se_status"
+        ],
+        "ts_column": "se_updatedat",
+        "agg": "value_count",
+        "column": "se_id",
+        "type": "str"
+      },
+      {
+        "stream": "oia-source-events-stream",
+        "title": "Organizations",
+        "group_by": [
+          "project_id"
+        ],
+        "ts_column": "se_updatedat",
+        "agg": "value_count",
+        "column": "se_projectid",
+        "type": "str"
       }
     ]
   },
   "dashboard_sections": [
     {
-      "title": "Dashboard Schedules",
+      "title": "Events",
       "show_filter": true,
+      "projects": [
+        "ACME"
+      ],
       "widgets": [
         {
-          "title": "Schedule Details",
+          "title": "Events",
           "widget_type": "tabular",
-          "stream": "rda_dashboard_export_schedules",
-          "height": 10,
+          "stream": "oia-source-events-stream",
+          "ts_column": "se_updatedat",
+          "timebased": false,
           "min_width": 12,
+          "height": 12,
+          "max_width": 12,
           "paginated": true,
+          "resizableColumns": false,
+          "refreshRequired": true,
+          "remote_searchable": true,
+          "remote_searchable_cols": [
+            "se_sourcesystemname",
+            "se_status",
+            "se_message",
+            "se_projectid",
+            "se_id"
+          ],
+          "max_rows": 50,
           "columns": {
-            "job_id": {
-              "title": "RDA ID",
+            "se_id": {
+              "title": "Source Event ID",
+              "visible": false,
               "key": true,
-              "hidden": true
+              "defaultWidth": 150
             },
-            "schedule_id": {
-              "title": "Job ID"
-            },
-            "created_by": {
-              "title": "Created By"
-            },
-            "dashboard_name": {
-              "title": "Dashboard Name",
+            "view_details_action_id": {
+              "title": "id",
+              "value": "user-dashboard-oia-event-tracking-view-alerts",
+              "key": true,
+              "type": "FIXED_VALUE",
+              "hidden": true,
               "visible": false
             },
-            "dashboard_title": {
-              "title": "Dashboard Label"
-            },
-            "filters": {
-              "title": "Condition Filters"
-            },
-            "name": {
-              "title": "Export Filename"
-            },
-            "include_csv_files": {
-              "title": "Include CSV Files"
-            },
-            "descr": {
-              "title": "Description"
-            },
-            "email_id": {
-              "title": "Send To"
-            },
-            "start_time": {
-              "title": "Schedule Start Time",
-              "type": "DATETIME",
-              "hidden": false
-            },
-            "next_run_time": {
-              "title": "Next Run Time",
-              "type": "DATETIME",
-              "hidden": false
-            },
-            "end_time": {
-              "title": "Schedule End Time",
-              "type": "DATETIME",
-              "hidden": false
-            },
-            "frequency": {
-              "title": "Schedule Frequency"
-            },
-            "expired": {
-              "title": "Job Expired"
-            }
-          },
-          "custom_columns": [
-            {
-              "id": "enabled",
-              "label": "Enabled",
-              "htmlTemplateForRow": "{%raw%}<span class='badge' style='background-color: {{ row.enableColor }}' > {{ row.enabled }} </span>{%endraw%}"
-            },
-            {
-              "id": "enableColor",
-              "label": "Enable Color",
-              "expr": "['#4CAF50'] if enabled == 'yes' else ['#9E9E9E']",
-              "hidden": true,
+            "se_projectid": {
+              "title": "project Id",
               "visible": false,
-              "sortable": false
+              "key": true,
+              "defaultWidth": 150
+            },
+            "se_sourcereceivedat": {
+              "title": "Received At",
+              "type": "DATETIME",
+              "defaultWidth": 150
+            },
+            "se_sourcesystemname": {
+              "title": "Source",
+              "defaultWidth": 150
+            },
+            "se_status": {
+              "title": "Status",
+              "defaultWidth": 150
+            },
+            "se_numberofevents": {
+              "title": "No of Events",
+              "defaultWidth": 150
+            },
+            "se_message": {
+              "title": "Message",
+              "defaultWidth": 270
+            },
+            "se_createdat": {
+              "title": "Created At",
+              "type": "DATETIME",
+              "defaultWidth": 180
+            },
+            "se_updatedat": {
+              "title": "Updated At",
+              "type": "DATETIME",
+              "defaultWidth": 180
             }
-          ],
-          "0custom_columns": [
-            {
-              "id": "id",
-              "label": "JOB",
-              "expr": "job_id if job_id else None",
-              "visible": false,
-              "key": true
-            }
-          ],
-          "refreshOptions": {
-            "refreshType": "Periodic",
-            "refreshInterval": 60000
           },
           "actions": [
             {
-              "permission": "rda:schedules:view",
-              "title": "Delete",
-              "type": "POPUP_FORM",
+              "title": "View Alerts",
+              "type": "GO_TO_APP_STATE",
               "selectionType": "SINGLE",
-              "identifier": "saas-service-action:delete-schedule",
-              "contextParamList": {
-                "contextParams": [
-                  {
-                    "paramKey": "job_id",
-                    "paramId": "id"
-                  },
-                  {
-                    "paramKey": "dashboard_title",
-                    "paramId": "dashboard_title"
-                  }
-                ]
-              },
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.dashboard.schedule.delete"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:schedules:edit",
-              "title": "Update",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:update-schedule",
-              "contextParamList": {
-                "contextParams": [
-                  {
-                    "paramKey": "job_id",
-                    "paramId": "id"
-                  }
-                ]
-              },
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.dashboard.schedule.update"
-                  }
-                ]
-              },
-              "actionCondition": {
-                "actionControl": "SHOW_IF",
-                "conditionalField": [
-                  {
-                    "conditionType": "EQUAL",
-                    "conditionValue": "no",
-                    "fieldId": "expired"
-                  }
-                ]
-              }
-            },
-            {
-              "appName": "user-dashboard/rda-dashboard-view-logs",
-              "permission": "rda:schedules:view",
-              "identifier": "view_logs",
-              "selectionType": "SINGLE",
+              "permission": "oia:event-tracking:view",
+              "identifier": "ingestion-tracker:View Alerts_GREATER_THAN_0",
               "stateName": "app.featureapp",
-              "title": "View Logs",
-              "type": "GO_TO_APP_STATE"
-            },
-            {
-              "permission": "rda:user_dashboard:enable",
-              "title": "Enable",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:schedule-enable",
+              "appName": "user-dashboard",
+              "drillDownLinkField": "se_sourcereceivedat",
+              "drillDownContext": "id",
+              "displayLabelColumnId": "se_sourcereceivedat",
               "contextParamList": {
                 "contextParams": [
                   {
-                    "paramKey": "job_id",
+                    "paramKey": "view_details_action_id",
                     "paramId": "id"
-                  },
-                  {
-                    "paramKey": "dashboard_title",
-                    "paramId": "dashboard_title"
-                  }
-                ]
-              },
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.dashboard.schedule.enable"
                   }
                 ]
               },
@@ -294,267 +218,240 @@
                 "actionControl": "SHOW_IF",
                 "conditionalField": [
                   {
-                    "conditionType": "EQUAL",
-                    "conditionValue": "no",
-                    "fieldId": "enabled"
-                  },
-                  {
-                    "conditionType": "EQUAL",
-                    "conditionValue": "no",
-                    "fieldId": "expired"
+                    "conditionType": "GREATER_THAN",
+                    "conditionValue": "0",
+                    "fieldId": "se_numberofevents"
                   }
                 ]
               }
             },
             {
-              "permission": "rda:user_dashboard:disable",
-              "title": "Disable",
+              "title": "View Source Payload",
               "type": "POPUP_FORM",
               "selectionType": "SINGLE",
-              "identifier": "saas-service-action:schedule-disable",
-              "contextParamList": {
-                "contextParams": [
-                  {
-                    "paramKey": "job_id",
-                    "paramId": "id"
-                  },
-                  {
-                    "paramKey": "dashboard_title",
-                    "paramId": "dashboard_title"
-                  }
-                ]
-              },
+              "permission": "oia:event-tracking:downloadSourcePayload",
+              "identifier": "ingestion-tracker:com.cfx.form.view.sourceevent.payload",
               "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
+                "service-name": "ingestion-tracker",
+                "namespace": "io.cfx.dimensions.app",
+                "methodName": "invokeAppApi:getFormById",
                 "stringified-params": true,
+                "useReportContext": true,
                 "parse-output": false,
                 "params": [
                   {
-                    "formId": "rda.saas.dashboard.schedule.disable"
+                    "form_id": "com.cfx.form.view.sourceevent.payload",
+                    "context": {}
                   }
                 ]
-              },
-              "actionCondition": {
-                "actionControl": "SHOW_IF",
-                "conditionalField": [
+              }
+            },
+            {
+              "title": "Download Source Payload",
+              "type": "POPUP_FORM",
+              "selectionType": "SINGLE",
+              "permission": "oia:event-tracking:downloadSourcePayload",
+              "identifier": "ingestion-tracker:com.cfx.form.download.sourceevent.payload",
+              "api-endpoint": {
+                "service-name": "ingestion-tracker",
+                "namespace": "io.cfx.dimensions.app",
+                "methodName": "invokeAppApi:getFormById",
+                "stringified-params": true,
+                "useReportContext": true,
+                "parse-output": false,
+                "params": [
                   {
-                    "conditionType": "EQUAL",
-                    "conditionValue": "yes",
-                    "fieldId": "enabled"
-                  },
-                  {
-                    "conditionType": "EQUAL",
-                    "conditionValue": "no",
-                    "fieldId": "expired"
+                    "form_id": "com.cfx.form.download.sourceevent.payload",
+                    "context": {}
                   }
                 ]
               }
             }
           ],
-          "widget_id": "cdc398bc"
+          "widget_id": "94a3fc11"
+        }
+      ]
+    },
+    {
+      "title": "Event Tracking Analytics",
+      "show_filter": true,
+      "projects": [
+        "ACME"
+      ],
+      "widgets": [
+        {
+          "title": "Total Events",
+          "widget_type": "counter",
+          "stream": "oia-source-events-stream",
+          "ts_column": "se_updatedat",
+          "column": "se_id",
+          "agg": "value_count",
+          "min_width": 12,
+          "height": 2.6,
+          "max_width": 12,
+          "type": "str",
+          "widget_id": "d226be94"
+        },
+        {
+          "title": "Hourly events by source",
+          "widget_type": "timeseries",
+          "stream": "oia-source-events-stream",
+          "ts_column": "se_updatedat",
+          "max_width": 12,
+          "height": 4,
+          "min_width": 12,
+          "chartProperties": {
+            "yAxisLabel": "Count",
+            "xAxisLabel": "Hourly Alerts",
+            "legendLocation": "top"
+          },
+          "interval": "60Min",
+          "group_by": [
+            "se_sourcesystemname"
+          ],
+          "series_spec": [
+            {
+              "column": "se_id",
+              "agg": "value_count",
+              "type": "int"
+            }
+          ],
+          "widget_id": "c116cc1d"
+        },
+        {
+          "widget_type": "pie_chart",
+          "title": "Events by Source",
+          "stream": "oia-source-events-stream",
+          "ts_column": "se_updatedat",
+          "min_width": 6,
+          "height": 4,
+          "max_width": 6,
+          "column": "se_id",
+          "agg": "value_count",
+          "group_by": [
+            "se_sourcesystemname"
+          ],
+          "type": "str",
+          "widget_id": "6db87cde"
+        },
+        {
+          "widget_type": "pie_chart",
+          "title": "Events by Status",
+          "stream": "oia-source-events-stream",
+          "ts_column": "se_updatedat",
+          "min_width": 6,
+          "height": 4,
+          "max_width": 6,
+          "column": "se_id",
+          "agg": "value_count",
+          "group_by": [
+            "se_status"
+          ],
+          "type": "str",
+          "widget_id": "83786f14"
         }
       ]
     }
   ],
   "pstream_dashboards": [
     {
-      "title": "Dashboard Schedules",
+      "title": "Events",
       "show_filter": true,
+      "projects": [
+        "ACME"
+      ],
       "widgets": [
         {
-          "title": "Schedule Details",
+          "title": "Events",
           "widget_type": "tabular",
-          "stream": "rda_dashboard_export_schedules",
-          "height": 10,
+          "stream": "oia-source-events-stream",
+          "ts_column": "se_updatedat",
+          "timebased": false,
           "min_width": 12,
+          "height": 12,
+          "max_width": 12,
           "paginated": true,
+          "resizableColumns": false,
+          "refreshRequired": true,
+          "remote_searchable": true,
+          "remote_searchable_cols": [
+            "se_sourcesystemname",
+            "se_status",
+            "se_message",
+            "se_projectid",
+            "se_id"
+          ],
+          "max_rows": 50,
           "columns": {
-            "job_id": {
-              "title": "RDA ID",
+            "se_id": {
+              "title": "Source Event ID",
+              "visible": false,
               "key": true,
-              "hidden": true
+              "defaultWidth": 150
             },
-            "schedule_id": {
-              "title": "Job ID"
-            },
-            "created_by": {
-              "title": "Created By"
-            },
-            "dashboard_name": {
-              "title": "Dashboard Name",
+            "view_details_action_id": {
+              "title": "id",
+              "value": "user-dashboard-oia-event-tracking-view-alerts",
+              "key": true,
+              "type": "FIXED_VALUE",
+              "hidden": true,
               "visible": false
             },
-            "dashboard_title": {
-              "title": "Dashboard Label"
-            },
-            "filters": {
-              "title": "Condition Filters"
-            },
-            "name": {
-              "title": "Export Filename"
-            },
-            "include_csv_files": {
-              "title": "Include CSV Files"
-            },
-            "descr": {
-              "title": "Description"
-            },
-            "email_id": {
-              "title": "Send To"
-            },
-            "start_time": {
-              "title": "Schedule Start Time",
-              "type": "DATETIME",
-              "hidden": false
-            },
-            "next_run_time": {
-              "title": "Next Run Time",
-              "type": "DATETIME",
-              "hidden": false
-            },
-            "end_time": {
-              "title": "Schedule End Time",
-              "type": "DATETIME",
-              "hidden": false
-            },
-            "frequency": {
-              "title": "Schedule Frequency"
-            },
-            "expired": {
-              "title": "Job Expired"
-            }
-          },
-          "custom_columns": [
-            {
-              "id": "enabled",
-              "label": "Enabled",
-              "htmlTemplateForRow": "{%raw%}<span class='badge' style='background-color: {{ row.enableColor }}' > {{ row.enabled }} </span>{%endraw%}"
-            },
-            {
-              "id": "enableColor",
-              "label": "Enable Color",
-              "expr": "['#4CAF50'] if enabled == 'yes' else ['#9E9E9E']",
-              "hidden": true,
+            "se_projectid": {
+              "title": "project Id",
               "visible": false,
-              "sortable": false
+              "key": true,
+              "defaultWidth": 150
+            },
+            "se_sourcereceivedat": {
+              "title": "Received At",
+              "type": "DATETIME",
+              "defaultWidth": 150
+            },
+            "se_sourcesystemname": {
+              "title": "Source",
+              "defaultWidth": 150
+            },
+            "se_status": {
+              "title": "Status",
+              "defaultWidth": 150
+            },
+            "se_numberofevents": {
+              "title": "No of Events",
+              "defaultWidth": 150
+            },
+            "se_message": {
+              "title": "Message",
+              "defaultWidth": 270
+            },
+            "se_createdat": {
+              "title": "Created At",
+              "type": "DATETIME",
+              "defaultWidth": 180
+            },
+            "se_updatedat": {
+              "title": "Updated At",
+              "type": "DATETIME",
+              "defaultWidth": 180
             }
-          ],
-          "0custom_columns": [
-            {
-              "id": "id",
-              "label": "JOB",
-              "expr": "job_id if job_id else None",
-              "visible": false,
-              "key": true
-            }
-          ],
-          "refreshOptions": {
-            "refreshType": "Periodic",
-            "refreshInterval": 60000
           },
           "actions": [
             {
-              "permission": "rda:schedules:view",
-              "title": "Delete",
-              "type": "POPUP_FORM",
+              "title": "View Alerts",
+              "type": "GO_TO_APP_STATE",
               "selectionType": "SINGLE",
-              "identifier": "saas-service-action:delete-schedule",
-              "contextParamList": {
-                "contextParams": [
-                  {
-                    "paramKey": "job_id",
-                    "paramId": "id"
-                  },
-                  {
-                    "paramKey": "dashboard_title",
-                    "paramId": "dashboard_title"
-                  }
-                ]
-              },
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.dashboard.schedule.delete"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:schedules:edit",
-              "title": "Update",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:update-schedule",
-              "contextParamList": {
-                "contextParams": [
-                  {
-                    "paramKey": "job_id",
-                    "paramId": "id"
-                  }
-                ]
-              },
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.dashboard.schedule.update"
-                  }
-                ]
-              },
-              "actionCondition": {
-                "actionControl": "SHOW_IF",
-                "conditionalField": [
-                  {
-                    "conditionType": "EQUAL",
-                    "conditionValue": "no",
-                    "fieldId": "expired"
-                  }
-                ]
-              }
-            },
-            {
-              "appName": "user-dashboard/rda-dashboard-view-logs",
-              "permission": "rda:schedules:view",
-              "identifier": "view_logs",
-              "selectionType": "SINGLE",
+              "permission": "oia:event-tracking:view",
+              "identifier": "ingestion-tracker:View Alerts_GREATER_THAN_0",
               "stateName": "app.featureapp",
-              "title": "View Logs",
-              "type": "GO_TO_APP_STATE"
-            },
-            {
-              "permission": "rda:user_dashboard:enable",
-              "title": "Enable",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:schedule-enable",
+              "appName": "user-dashboard",
+              "drillDownLinkField": "se_sourcereceivedat",
+              "drillDownContext": "id",
+              "displayLabelColumnId": "se_sourcereceivedat",
               "contextParamList": {
                 "contextParams": [
                   {
-                    "paramKey": "job_id",
+                    "paramKey": "view_details_action_id",
                     "paramId": "id"
-                  },
-                  {
-                    "paramKey": "dashboard_title",
-                    "paramId": "dashboard_title"
-                  }
-                ]
-              },
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.dashboard.schedule.enable"
                   }
                 ]
               },
@@ -562,65 +459,137 @@
                 "actionControl": "SHOW_IF",
                 "conditionalField": [
                   {
-                    "conditionType": "EQUAL",
-                    "conditionValue": "no",
-                    "fieldId": "enabled"
-                  },
-                  {
-                    "conditionType": "EQUAL",
-                    "conditionValue": "no",
-                    "fieldId": "expired"
+                    "conditionType": "GREATER_THAN",
+                    "conditionValue": "0",
+                    "fieldId": "se_numberofevents"
                   }
                 ]
               }
             },
             {
-              "permission": "rda:user_dashboard:disable",
-              "title": "Disable",
+              "title": "View Source Payload",
               "type": "POPUP_FORM",
               "selectionType": "SINGLE",
-              "identifier": "saas-service-action:schedule-disable",
-              "contextParamList": {
-                "contextParams": [
-                  {
-                    "paramKey": "job_id",
-                    "paramId": "id"
-                  },
-                  {
-                    "paramKey": "dashboard_title",
-                    "paramId": "dashboard_title"
-                  }
-                ]
-              },
+              "permission": "oia:event-tracking:downloadSourcePayload",
+              "identifier": "ingestion-tracker:com.cfx.form.view.sourceevent.payload",
               "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
+                "service-name": "ingestion-tracker",
+                "namespace": "io.cfx.dimensions.app",
+                "methodName": "invokeAppApi:getFormById",
                 "stringified-params": true,
+                "useReportContext": true,
                 "parse-output": false,
                 "params": [
                   {
-                    "formId": "rda.saas.dashboard.schedule.disable"
+                    "form_id": "com.cfx.form.view.sourceevent.payload",
+                    "context": {}
                   }
                 ]
-              },
-              "actionCondition": {
-                "actionControl": "SHOW_IF",
-                "conditionalField": [
+              }
+            },
+            {
+              "title": "Download Source Payload",
+              "type": "POPUP_FORM",
+              "selectionType": "SINGLE",
+              "permission": "oia:event-tracking:downloadSourcePayload",
+              "identifier": "ingestion-tracker:com.cfx.form.download.sourceevent.payload",
+              "api-endpoint": {
+                "service-name": "ingestion-tracker",
+                "namespace": "io.cfx.dimensions.app",
+                "methodName": "invokeAppApi:getFormById",
+                "stringified-params": true,
+                "useReportContext": true,
+                "parse-output": false,
+                "params": [
                   {
-                    "conditionType": "EQUAL",
-                    "conditionValue": "yes",
-                    "fieldId": "enabled"
-                  },
-                  {
-                    "conditionType": "EQUAL",
-                    "conditionValue": "no",
-                    "fieldId": "expired"
+                    "form_id": "com.cfx.form.download.sourceevent.payload",
+                    "context": {}
                   }
                 ]
               }
             }
           ],
-          "widget_id": "cdc398bc"
+          "widget_id": "94a3fc11"
+        }
+      ]
+    },
+    {
+      "title": "Event Tracking Analytics",
+      "show_filter": true,
+      "projects": [
+        "ACME"
+      ],
+      "widgets": [
+        {
+          "title": "Total Events",
+          "widget_type": "counter",
+          "stream": "oia-source-events-stream",
+          "ts_column": "se_updatedat",
+          "column": "se_id",
+          "agg": "value_count",
+          "min_width": 12,
+          "height": 2.6,
+          "max_width": 12,
+          "type": "str",
+          "widget_id": "d226be94"
+        },
+        {
+          "title": "Hourly events by source",
+          "widget_type": "timeseries",
+          "stream": "oia-source-events-stream",
+          "ts_column": "se_updatedat",
+          "max_width": 12,
+          "height": 4,
+          "min_width": 12,
+          "chartProperties": {
+            "yAxisLabel": "Count",
+            "xAxisLabel": "Hourly Alerts",
+            "legendLocation": "top"
+          },
+          "interval": "60Min",
+          "group_by": [
+            "se_sourcesystemname"
+          ],
+          "series_spec": [
+            {
+              "column": "se_id",
+              "agg": "value_count",
+              "type": "int"
+            }
+          ],
+          "widget_id": "c116cc1d"
+        },
+        {
+          "widget_type": "pie_chart",
+          "title": "Events by Source",
+          "stream": "oia-source-events-stream",
+          "ts_column": "se_updatedat",
+          "min_width": 6,
+          "height": 4,
+          "max_width": 6,
+          "column": "se_id",
+          "agg": "value_count",
+          "group_by": [
+            "se_sourcesystemname"
+          ],
+          "type": "str",
+          "widget_id": "6db87cde"
+        },
+        {
+          "widget_type": "pie_chart",
+          "title": "Events by Status",
+          "stream": "oia-source-events-stream",
+          "ts_column": "se_updatedat",
+          "min_width": 6,
+          "height": 4,
+          "max_width": 6,
+          "column": "se_id",
+          "agg": "value_count",
+          "group_by": [
+            "se_status"
+          ],
+          "type": "str",
+          "widget_id": "83786f14"
         }
       ]
     }
