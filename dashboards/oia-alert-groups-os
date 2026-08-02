@@ -1,504 +1,628 @@
 {
-  "name": "bar_chart_examples",
-  "label": "Bar Chart",
-  "description": "Bar chart, multi bar chart, mixed bar chart examples",
-  "version": "26.3.24.3",
+  "name": "oia-alert-groups-os",
+  "label": "Open Search Based Alert Groups",
+  "description": "Open Search Based OIA Alert Groups",
+  "version": "23.1.2",
   "enabled": true,
+  "debug": true,
   "dashboard_style": "auto",
-  "live_edit": true,
-  "showTitle": true,
   "status_poller": {},
-  "dashboard_generator": {
-    "attachment": "widget_code_generator"
+  "stream": "oia-alerts-stream",
+  "dashboard_type": "template",
+  "template_variables": {
+    "PROJECT_ID": {
+      "default": [
+        "61ed50a5-8634-4464-a17e-adf6b40225b2"
+      ],
+      "contextId": "projectId"
+    },
+    "SOURCE_DASHBOARD_ID": {
+      "default": "user-dashboard-oia-alert-groups-os",
+      "contextId": "sourceDashboardId"
+    }
   },
   "dashboard_filters": {
     "time_filter": true,
-    "default_time_filter_labels": [
-      "All Time"
+    "show_default_time_filter": false,
+    "default_time_filter_non_removable": true,
+    "additional_datetime_column_filters": [
+      {
+        "id": "a_created_ts",
+        "label": "Created At"
+      },
+      {
+        "id": "a_updated_ts",
+        "label": "Updated At"
+      }
     ],
-    "columns_filter": [],
-    "group_filters": []
+    "columns_filter": [
+      {
+        "id": "a_id",
+        "label": "Alert Id",
+        "type": "TEXT"
+      },
+      {
+        "id": "a_alert_key",
+        "label": "Alert Key",
+        "type": "TEXT"
+      },
+      {
+        "id": "customer_id",
+        "label": "Customer ID",
+        "type": "TEXT"
+      },
+      {
+        "id": "project_id",
+        "label": "Project Id",
+        "type": "TEXT"
+      },
+      {
+        "id": "a_message",
+        "label": "Message",
+        "type": "TEXT"
+      },
+      {
+        "id": "a_severity",
+        "label": "Severity",
+        "type": "TEXT"
+      },
+      {
+        "id": "a_status",
+        "label": "Monitoring Status",
+        "type": "TEXT"
+      },
+      {
+        "id": "a_incident_id",
+        "label": "Incident",
+        "type": "TEXT"
+      },
+      {
+        "id": "a_ticket_id",
+        "label": "ITSM Ticket",
+        "type": "TEXT"
+      },
+      {
+        "id": "a_raised_ts",
+        "label": "Raised At",
+        "type": "DATETIME"
+      },
+      {
+        "id": "a_cleared_ts",
+        "label": "Cleared At",
+        "type": "DATETIME"
+      },
+      {
+        "id": "a_rule_name",
+        "label": "Policy Name",
+        "type": "TEXT"
+      },
+      {
+        "id": "a_rule_type",
+        "label": "Policy Type",
+        "type": "TEXT"
+      },
+      {
+        "id": "a_cleared_by",
+        "label": "Cleared By",
+        "type": "TEXT"
+      },
+      {
+        "id": "a_clear_message",
+        "label": "Clear Message",
+        "type": "TEXT"
+      },
+      {
+        "id": "a_cause_notes",
+        "label": "Cause Notes",
+        "type": "TEXT"
+      },
+      {
+        "id": "a_en_incidentAnalytics_alerts",
+        "label": "Alerts",
+        "type": "DOUBLE"
+      }
+    ],
+    "default_time_filter_labels": [
+      "Last 24 hours"
+    ],
+    "extra_filter": "project_id in {{PROJECT_ID}} and a_source_systemname in 'Alert Group' and a_correlation_status not-in 'AGGREGATE'",
+    "group_filters": [
+      {
+        "stream": "oia-alerts-stream",
+        "title": "Source",
+        "group_by": [
+          "a_source_systemname"
+        ],
+        "ts_column": "a_updated_ts",
+        "agg": "value_count",
+        "column": "a_id",
+        "type": "str"
+      },
+      {
+        "stream": "oia-alerts-stream",
+        "title": "Severity",
+        "group_by": [
+          "a_severity"
+        ],
+        "ts_column": "a_updated_ts",
+        "agg": "value_count",
+        "column": "a_id",
+        "type": "str"
+      },
+      {
+        "stream": "oia-alerts-stream",
+        "title": "Monitoring Status",
+        "group_by": [
+          "a_status"
+        ],
+        "ts_column": "a_updated_ts",
+        "agg": "value_count",
+        "column": "a_id",
+        "type": "str"
+      },
+      {
+        "stream": "oia-alerts-stream",
+        "title": "Policy",
+        "group_by": [
+          "a_rule_name"
+        ],
+        "ts_column": "a_updated_ts",
+        "agg": "value_count",
+        "column": "a_id",
+        "type": "str"
+      },
+      {
+        "stream": "oia-alerts-stream",
+        "title": "Organizations",
+        "group_by": [
+          "project_id"
+        ],
+        "ts_column": "a_updated_ts",
+        "agg": "value_count",
+        "column": "project_id",
+        "type": "str"
+      }
+    ]
   },
   "dashboard_sections": [
     {
-      "title": "Bar Chart",
+      "title": "Alert Groups",
       "show_filter": true,
+      "projects": [
+        "ACME"
+      ],
       "widgets": [
         {
-          "title": "Bar Chart",
-          "widget_type": "bar_chart",
-          "stream": "main_enhanced",
-          "ts_column": "timestamp",
-          "chartProperties": {
-            "yAxisLabel": "Same Name people in City",
-            "xAxisLabel": "Name",
-            "stacked": true,
-            "legendLocation": "right",
-            "orientation": "vertical"
-          },
-          "duration_hours": 24000,
-          "group_by": [
-            "name"
+          "extends": [
+            "self:group_tabular",
+            "self:actions_lib.group_tabular_actions"
           ],
-          "column": "count_",
-          "agg": "value_count",
-          "type": "int",
-          "widget_id": "374cf2d4"
-        },
-        {
-          "title": "Horizontal Bar Chart",
-          "widget_type": "bar_chart",
-          "stream": "main_enhanced",
-          "ts_column": "timestamp",
-          "chartProperties": {
-            "yAxisLabel": "Same Name people in City",
-            "xAxisLabel": "Name",
-            "stacked": true,
-            "legendLocation": "right",
-            "orientation": "horizontal"
+          "extend_vars": {
+            "group_tabular_extra_filter": "project_id in {{PROJECT_ID}} and a_source_systemname in 'Alert Group' and a_correlation_status not-in 'AGGREGATE'",
+            "clear_alerts_extra_filter": "a_status is not 'CLEARED' and project_id in {{PROJECT_ID}} and a_source_systemname in 'Alert Group' and a_correlation_status not-in 'AGGREGATE'"
           },
-          "duration_hours": 24000,
-          "group_by": [
-            "name"
-          ],
-          "column": "city",
-          "agg": "value_count",
-          "type": "int",
-          "widget_id": "8bb75f8e"
-        },
-        {
-          "title": "Stacked Bar Chart",
-          "widget_type": "multi_bar_chart",
-          "stream": "main_enhanced",
-          "ts_column": "timestamp",
-          "chartProperties": {
-            "yAxisLabel": "Same Name people in City",
-            "xAxisLabel": "Name",
-            "stacked": true,
-            "legendLocation": "right",
-            "orientation": "vertical"
-          },
-          "duration_hours": 24000,
-          "group_by": [
-            "name",
-            "city"
-          ],
-          "column": "count_",
-          "agg": "value_count",
-          "type": "int",
-          "widget_id": "c3679eb4"
-        },
-        {
-          "title": "Mixed Chart",
-          "widget_type": "mixed_chart_buckets",
-          "duration_hours": 24000,
-          "axis": [
-            {
-              "stream": "main_enhanced",
-              "ts_column": "timestamp",
-              "chartProperties": {
-                "yAxisLabel": "Same Name people in City",
-                "xAxisLabel": "Name",
-                "stacked": false,
-                "legendLocation": "right",
-                "orientation": "vertical"
-              },
-              "group_by": [
-                "city",
-                "name"
-              ],
-              "column": "_RDA_Id",
-              "agg": "value_count",
-              "type": "int"
-            },
-            {
-              "stream": "main_enhanced",
-              "ts_column": "timestamp",
-              "chartProperties": {
-                "yAxisLabel": "Number of people in Age group",
-                "xAxisLabel": "Name"
-              },
-              "group_by": [
-                "count_",
-                "name"
-              ],
-              "group_label": "People in Age group",
-              "column": "_RDA_Id",
-              "agg": "value_count",
-              "type": "int",
-              "graph_type": "line"
-            }
-          ],
-          "widget_id": "d6c9f4c8"
-        },
-        {
-          "title": "Multi Bar Chart Format Descending Order Based",
-          "widget_type": "multi_bar_chart",
-          "duration_hours": 24000,
-          "stream": "main_enhanced",
-          "ts_column": "timestamp",
-          "group_by": [
-            "city",
-            "name"
-          ],
-          "formatting": {
-            "notation": "compact",
-            "style": "unit",
-            "unit": "percent"
-          },
-          "chartProperties": {
-            "yAxisLabel": null,
-            "xAxisLabel": "Name",
-            "stacked": false,
-            "legendLocation": "right",
-            "orientation": "vertical"
-          },
-          "descending_order": true,
-          "others_spec": {
-            "limit": 6,
-            "show_others": true,
-            "label": "Other Names",
-            "city": {
-              "largest": false,
-              "name_based_limit": false
-            },
-            "name": {
-              "largest": false,
-              "name_based_limit": false
-            }
-          },
-          "column": "donation",
-          "agg": "sum",
-          "type": "str",
-          "widget_id": "8bbfeba8"
-        },
-        {
-          "title": "Multi Bar Chart Format Name Based",
-          "widget_type": "multi_bar_chart",
-          "stream": "main_enhanced",
-          "duration_hours": 24000,
-          "ts_column": "timestamp",
-          "group_by": [
-            "city",
-            "name"
-          ],
-          "formatting": {
-            "notation": "compact",
-            "style": "unit",
-            "unit": "percent"
-          },
-          "chartProperties": {
-            "yAxisLabel": null,
-            "xAxisLabel": "Name",
-            "stacked": false,
-            "legendLocation": "right",
-            "orientation": "vertical"
-          },
-          "descending_order": false,
-          "others_spec": {
-            "limit": 6,
-            "label": "Other Names",
-            "show_others": true,
-            "city": {
-              "largest": false,
-              "name_based_limit": true
-            },
-            "name": {
-              "largest": false,
-              "name_based_limit": true
-            }
-          },
-          "column": "donation",
-          "agg": "sum",
-          "type": "str",
-          "widget_id": "5796ba56"
-        },
-        {
-          "title": "Multi Bar Chart Format Largest Based",
-          "widget_type": "multi_bar_chart",
-          "stream": "main_enhanced",
-          "duration_hours": 24000,
-          "ts_column": "timestamp",
-          "group_by": [
-            "city",
-            "name"
-          ],
-          "formatting": {
-            "notation": "compact",
-            "style": "unit",
-            "unit": "percent"
-          },
-          "chartProperties": {
-            "yAxisLabel": null,
-            "xAxisLabel": "Name",
-            "stacked": false,
-            "legendLocation": "right",
-            "orientation": "vertical"
-          },
-          "descending_order": false,
-          "others_spec": {
-            "limit": 6,
-            "label": "Other Names",
-            "show_others": true,
-            "city": {
-              "largest": true,
-              "name_based_limit": false
-            },
-            "name": {
-              "largest": true,
-              "name_based_limit": false
-            }
-          },
-          "column": "donation",
-          "agg": "sum",
-          "type": "str",
-          "widget_id": "89fd6a48"
+          "widget_id": "94a3fc11"
         }
       ]
     }
   ],
-  "dashboard_type": "dashboard",
-  "dashboard_pages": [],
-  "attachments": [
-    {
-      "name": "widget_code_generator",
-      "value": "{%- set widgets =  dashboard[\"dashboard_sections\"][0][\"widgets\"] -%}\n{%- set new_widgets =  [] -%}\n{%- set ns =  namespace(count=0) -%}\n\n{%- for w in widgets -%}\n    {%- if w.get(\"widget_type\") -%}\n        {%-\n            set nw = {\n                \"title\": \"JSON\",\n                \"widget_group\": \"g\"+str(ns.count),\n                \"min_width\": w.get(\"min_width\", 6),\n                \"max_width\": w.get(\"max_width\", 6),\n                \"height\": w.get(\"height\", 4),\n                \"widget_type\": \"codeblock\",\n                \"content\": json_dumps_indent(w, 2),\n                \"lang\": \"json\",\n                \"widget_id\": w.get(\"widget_id\", str(ns.count)) + \"_code\"\n            }\n        -%}\n        {%- set _ = w.update({\"widget_group\":  \"g\"+str(ns.count) }) -%}\n        {%- set _ = new_widgets.append(nw) -%}\n        {%- set ns.count = ns.count + 1 -%}\n    {%- endif -%}\n{%- endfor -%}\n\n{%- set _ = widgets.extend(new_widgets) -%}"
+  "library": {
+    "widgets": {
+      "group_tabular": {
+        "extra_filter": "$group_tabular_extra_filter",
+        "title": "Alert Groups",
+        "widget_type": "tabular",
+        "stream": "oia-alerts-stream",
+        "ts_column": "a_updated_ts",
+        "timebased": false,
+        "min_width": 12,
+        "height": 12,
+        "max_width": 12,
+        "paginated": true,
+        "resizableColumns": false,
+        "refreshRequired": true,
+        "remote_searchable": true,
+        "remote_searchable_cols": [
+          "a_id",
+          "a_message",
+          "a_correlation_status",
+          "a_severity",
+          "a_source_systemname",
+          "a_status",
+          "a_incident_id",
+          "a_ticket_id",
+          "a_rule_name"
+        ],
+        "max_rows": 50,
+        "columns": {
+          "a_id": {
+            "title": "Alert Id",
+            "key": true,
+            "visible": false,
+            "defaultWidth": 150
+          },
+          "a_alert_key": {
+            "title": "Alert Key",
+            "visible": false,
+            "defaultWidth": 150
+          },
+          "customer_id": {
+            "title": "Customer Id",
+            "visible": false,
+            "hidden": false,
+            "key": true,
+            "defaultWidth": 150
+          },
+          "project_id": {
+            "title": "Project Id",
+            "visible": false,
+            "hidden": false,
+            "key": true,
+            "defaultWidth": 150
+          },
+          "a_message": {
+            "title": "Message",
+            "formatter": "truncate",
+            "defaultWidth": 270
+          },
+          "a_source_event_id": {
+            "title": "Source Event ID",
+            "hidden": true,
+            "visible": false
+          },
+          "a_severity_color": {
+            "title": "Sev_2",
+            "type": "COLOR-MAP",
+            "source-column": "a_severity",
+            "color-map": {
+              "SEVERE": "#B71C1C",
+              "CRITICAL": "#E53935",
+              "MAJOR": "#F57C00",
+              "MINOR": "#FFA726",
+              "WARNING": "#FFD54F",
+              "NOTIFICATION": "#4DD0E1",
+              "INFORMATION": "#03A9F4"
+            }
+          },
+          "a_severity": {
+            "title": "Severity",
+            "htmlTemplateForRow": "<span class='badge' style='background-color: {{'{{ row.a_severity_color }}'}}' > {{'{{ row.a_severity }}'}} </span>",
+            "defaultWidth": 150
+          },
+          "a_state_color": {
+            "type": "COLOR-MAP",
+            "source-column": "a_status",
+            "color-map": {
+              "CLEARED": "#4CAF50",
+              "ACTIVE": "#FFA726"
+            }
+          },
+          "a_status": {
+            "title": "Monitoring Status",
+            "htmlTemplateForRow": "<span class='badge' style='background-color: {{'{{ row.a_state_color }}'}}' > {{'{{ row.a_status }}'}} </span>",
+            "defaultWidth": 150
+          },
+          "a_incident_id": {
+            "title": "Incident",
+            "key": true,
+            "defaultWidth": 150
+          },
+          "a_ticket_id": {
+            "title": "ITSM Ticket",
+            "defaultWidth": 100
+          },
+          "view_details_action_id": {
+            "title": "id",
+            "value": "user-dashboard-oia-alert-group-view-details-os",
+            "key": true,
+            "type": "FIXED_VALUE",
+            "hidden": true,
+            "visible": false
+          },
+          "view_details_v2_action_id": {
+            "title": "id",
+            "value": "user-dashboard-alert-group-details-app",
+            "key": true,
+            "type": "FIXED_VALUE",
+            "hidden": true,
+            "visible": false
+          },
+          "view_alerts_action_id": {
+            "title": "id",
+            "value": "user-dashboard-oia-alert-group-view-alerts-os",
+            "key": true,
+            "type": "FIXED_VALUE",
+            "hidden": true,
+            "visible": false
+          },
+          "a_raised_ts": {
+            "title": "Raised At",
+            "type": "DATETIME",
+            "defaultWidth": 180
+          },
+          "a_cleared_ts": {
+            "title": "Cleared At",
+            "type": "DATETIME",
+            "visible": false,
+            "defaultWidth": 180
+          },
+          "a_created_ts": {
+            "title": "Created At",
+            "type": "DATETIME",
+            "defaultWidth": 180
+          },
+          "a_updated_ts": {
+            "title": "Updated At",
+            "type": "DATETIME",
+            "defaultWidth": 180
+          },
+          "a_rule_name": {
+            "title": "Policy Name",
+            "defaultWidth": 150
+          },
+          "a_rule_type": {
+            "title": "Policy Type",
+            "visible": false,
+            "defaultWidth": 150
+          },
+          "a_cleared_by": {
+            "title": "Cleared By",
+            "visible": false,
+            "defaultWidth": 150
+          },
+          "a_clear_message": {
+            "title": "Clear Message",
+            "visible": false,
+            "defaultWidth": 150
+          },
+          "a_cause_notes": {
+            "title": "Cause Notes",
+            "visible": false,
+            "defaultWidth": 150
+          },
+          "a_en_incidentAnalytics_alerts": {
+            "title": "Alerts",
+            "type": "Integer",
+            "defaultWidth": 150
+          },
+          "a_correlation_parent": {
+            "visible": false,
+            "hidden": true,
+            "key": true
+          },
+          "alert-context": {
+            "title": "alert-context",
+            "value": true,
+            "key": true,
+            "type": "FIXED_VALUE",
+            "hidden": true,
+            "visible": false
+          }
+        },
+        "widget_id": "94a3fc11"
+      }
+    },
+    "actions_lib": {
+      "group_tabular_actions": {
+        "actions": [
+          {
+            "title": "Clear Alert Groups",
+            "type": "POPUP_FORM",
+            "permission": "oia:alert:clear",
+            "selectionType": "NONE",
+            "identifier": "alert-processor:cfx.alert.clear.batch",
+            "api-endpoint": {
+              "service-name": "saas-reports",
+              "methodName": "getForm",
+              "stringified-params": true,
+              "parse-output": false,
+              "params": [
+                {
+                  "formId": "rda.saas.dynamic.form",
+                  "formDefinition": {
+                    "id": "rda.saas.dynamic.form",
+                    "refreshRequired": true,
+                    "formFieldList": [
+                      {
+                        "help": "Clear Alert Groups",
+                        "dataType": "string",
+                        "controlType": "SELECTOR_TABLE",
+                        "controlPropertyList": [
+                          {
+                            "attribute": "column-key",
+                            "value": "a_id"
+                          },
+                          {
+                            "attribute": "selection",
+                            "value": "MULTIPLE"
+                          }
+                        ],
+                        "widget": {
+                          "extends": "self:group_tabular",
+                          "extend_vars": {
+                            "group_tabular_extra_filter": "$clear_alerts_extra_filter"
+                          }
+                        },
+                        "required": true,
+                        "editable": true,
+                        "label": "Alerts",
+                        "hidden": false,
+                        "fieldId": "selectedAlerts"
+                      },
+                      {
+                        "fieldId": "notes",
+                        "label": "Notes",
+                        "help": "Notes",
+                        "dataType": "string",
+                        "controlType": "TEXT_AREA",
+                        "hidden": false,
+                        "editable": true,
+                        "required": true
+                      }
+                    ]
+                  },
+                  "formActionList": {
+                    "formActions": [
+                      {
+                        "identifier": "Submit",
+                        "actionLabel": "Clear"
+                      }
+                    ]
+                  },
+                  "actions": [
+                    {
+                      "type": "UPDATE_PSTREAM",
+                      "pstreamName": "alert_clear_jobs",
+                      "collapse_json": true,
+                      "collapsed_json_column": "payload"
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "identifier": "alert-processor:cfx.alert.clear",
+            "selectionType": "SINGLE",
+            "permission": "oia:alert:clear",
+            "title": "Clear Alert Group",
+            "type": "POPUP_FORM",
+            "api-endpoint": {
+              "methodName": "invokeAppApi:getFormById",
+              "namespace": "io.cfx.dimensions.app",
+              "params": [
+                {
+                  "context": {},
+                  "form_id": "cfx.alert.clear"
+                }
+              ],
+              "parse-output": false,
+              "service-name": "alert-processor",
+              "stringified-params": true
+            },
+            "actionCondition": {
+              "actionControl": "SHOW_IF",
+              "conditionalField": [
+                {
+                  "conditionType": "NOT_EQUAL",
+                  "conditionValue": "CLEARED",
+                  "fieldId": "a_status"
+                }
+              ]
+            }
+          },
+          {
+            "title": "View Details",
+            "type": "GO_TO_APP_STATE",
+            "selectionType": "SINGLE",
+            "permission": "oia:alert:view",
+            "stateName": "app.featureapp",
+            "appName": "user-dashboard/alert-group-details-app",
+            "contextParamList": {
+              "contextParams": [
+                {
+                  "paramKey": "view_details_v2_action_id",
+                  "paramId": "id"
+                },
+                {
+                  "paramKey": "project_id",
+                  "paramId": "projectId"
+                },
+                {
+                  "paramKey": "project_id",
+                  "paramId": "projectid"
+                },
+                {
+                  "paramKey": "a_incident_id",
+                  "paramId": "incidentid"
+                },
+                {
+                  "paramKey": "a_incident_id",
+                  "paramId": "incident_id"
+                },
+                {
+                  "paramKey": "project_id",
+                  "paramId": "roomid"
+                }
+              ]
+            },
+            "drillDownContext": "a_message",
+            "destinationContext": "a_message",
+            "displayLabelColumnId": "a_incident_id"
+          },
+          {
+            "title": "View Incident",
+            "type": "GO_TO_APP_STATE",
+            "permission": "oia:alert:view",
+            "stateName": "app.featureapp",
+            "appName": "user-dashboard/incident-details-app",
+            "selectionType": "SINGLE",
+            "drillDownLinkField": "a_incident_id",
+            "drillDownContext": "a_incident_id",
+            "destinationContext": "incidentid",
+            "displayLabelColumnId": "a_incident_id",
+            "contextParamList": {
+              "contextParams": [
+                {
+                  "paramKey": "project_id",
+                  "paramId": "projectId"
+                },
+                {
+                  "paramKey": "a_incident_id",
+                  "paramId": "incidentid"
+                },
+                {
+                  "paramKey": "a_incident_id",
+                  "paramId": "incident_id"
+                },
+                {
+                  "paramKey": "project_id",
+                  "paramId": "roomid"
+                },
+                {
+                  "paramKey": "project_id",
+                  "paramId": "projectid"
+                }
+              ]
+            },
+            "actionCondition": {
+              "actionControl": "SHOW_IF",
+              "conditionalField": [
+                {
+                  "conditionType": "NOT_EQUAL",
+                  "conditionValue": "SUPPRESSED",
+                  "fieldId": "a_correlation_status"
+                },
+                {
+                  "conditionType": "NOT_EQUAL",
+                  "conditionValue": "Not Available",
+                  "fieldId": "a_incident_id"
+                }
+              ]
+            }
+          }
+        ]
+      }
     }
-  ],
+  },
   "pstream_dashboards": [
     {
-      "title": "Bar Chart",
+      "title": "Alert Groups",
       "show_filter": true,
+      "projects": [
+        "ACME"
+      ],
       "widgets": [
         {
-          "title": "Bar Chart",
-          "widget_type": "bar_chart",
-          "stream": "main_enhanced",
-          "ts_column": "timestamp",
-          "chartProperties": {
-            "yAxisLabel": "Same Name people in City",
-            "xAxisLabel": "Name",
-            "stacked": true,
-            "legendLocation": "right",
-            "orientation": "vertical"
-          },
-          "duration_hours": 24000,
-          "group_by": [
-            "name"
+          "extends": [
+            "self:group_tabular",
+            "self:actions_lib.group_tabular_actions"
           ],
-          "column": "count_",
-          "agg": "value_count",
-          "type": "int",
-          "widget_id": "374cf2d4"
-        },
-        {
-          "title": "Horizontal Bar Chart",
-          "widget_type": "bar_chart",
-          "stream": "main_enhanced",
-          "ts_column": "timestamp",
-          "chartProperties": {
-            "yAxisLabel": "Same Name people in City",
-            "xAxisLabel": "Name",
-            "stacked": true,
-            "legendLocation": "right",
-            "orientation": "horizontal"
+          "extend_vars": {
+            "group_tabular_extra_filter": "project_id in {{PROJECT_ID}} and a_source_systemname in 'Alert Group' and a_correlation_status not-in 'AGGREGATE'",
+            "clear_alerts_extra_filter": "a_status is not 'CLEARED' and project_id in {{PROJECT_ID}} and a_source_systemname in 'Alert Group' and a_correlation_status not-in 'AGGREGATE'"
           },
-          "duration_hours": 24000,
-          "group_by": [
-            "name"
-          ],
-          "column": "city",
-          "agg": "value_count",
-          "type": "int",
-          "widget_id": "8bb75f8e"
-        },
-        {
-          "title": "Stacked Bar Chart",
-          "widget_type": "multi_bar_chart",
-          "stream": "main_enhanced",
-          "ts_column": "timestamp",
-          "chartProperties": {
-            "yAxisLabel": "Same Name people in City",
-            "xAxisLabel": "Name",
-            "stacked": true,
-            "legendLocation": "right",
-            "orientation": "vertical"
-          },
-          "duration_hours": 24000,
-          "group_by": [
-            "name",
-            "city"
-          ],
-          "column": "count_",
-          "agg": "value_count",
-          "type": "int",
-          "widget_id": "c3679eb4"
-        },
-        {
-          "title": "Mixed Chart",
-          "widget_type": "mixed_chart_buckets",
-          "duration_hours": 24000,
-          "axis": [
-            {
-              "stream": "main_enhanced",
-              "ts_column": "timestamp",
-              "chartProperties": {
-                "yAxisLabel": "Same Name people in City",
-                "xAxisLabel": "Name",
-                "stacked": false,
-                "legendLocation": "right",
-                "orientation": "vertical"
-              },
-              "group_by": [
-                "city",
-                "name"
-              ],
-              "column": "_RDA_Id",
-              "agg": "value_count",
-              "type": "int"
-            },
-            {
-              "stream": "main_enhanced",
-              "ts_column": "timestamp",
-              "chartProperties": {
-                "yAxisLabel": "Number of people in Age group",
-                "xAxisLabel": "Name"
-              },
-              "group_by": [
-                "count_",
-                "name"
-              ],
-              "group_label": "People in Age group",
-              "column": "_RDA_Id",
-              "agg": "value_count",
-              "type": "int",
-              "graph_type": "line"
-            }
-          ],
-          "widget_id": "d6c9f4c8"
-        },
-        {
-          "title": "Multi Bar Chart Format Descending Order Based",
-          "widget_type": "multi_bar_chart",
-          "duration_hours": 24000,
-          "stream": "main_enhanced",
-          "ts_column": "timestamp",
-          "group_by": [
-            "city",
-            "name"
-          ],
-          "formatting": {
-            "notation": "compact",
-            "style": "unit",
-            "unit": "percent"
-          },
-          "chartProperties": {
-            "yAxisLabel": null,
-            "xAxisLabel": "Name",
-            "stacked": false,
-            "legendLocation": "right",
-            "orientation": "vertical"
-          },
-          "descending_order": true,
-          "others_spec": {
-            "limit": 6,
-            "show_others": true,
-            "label": "Other Names",
-            "city": {
-              "largest": false,
-              "name_based_limit": false
-            },
-            "name": {
-              "largest": false,
-              "name_based_limit": false
-            }
-          },
-          "column": "donation",
-          "agg": "sum",
-          "type": "str",
-          "widget_id": "8bbfeba8"
-        },
-        {
-          "title": "Multi Bar Chart Format Name Based",
-          "widget_type": "multi_bar_chart",
-          "stream": "main_enhanced",
-          "duration_hours": 24000,
-          "ts_column": "timestamp",
-          "group_by": [
-            "city",
-            "name"
-          ],
-          "formatting": {
-            "notation": "compact",
-            "style": "unit",
-            "unit": "percent"
-          },
-          "chartProperties": {
-            "yAxisLabel": null,
-            "xAxisLabel": "Name",
-            "stacked": false,
-            "legendLocation": "right",
-            "orientation": "vertical"
-          },
-          "descending_order": false,
-          "others_spec": {
-            "limit": 6,
-            "label": "Other Names",
-            "show_others": true,
-            "city": {
-              "largest": false,
-              "name_based_limit": true
-            },
-            "name": {
-              "largest": false,
-              "name_based_limit": true
-            }
-          },
-          "column": "donation",
-          "agg": "sum",
-          "type": "str",
-          "widget_id": "5796ba56"
-        },
-        {
-          "title": "Multi Bar Chart Format Largest Based",
-          "widget_type": "multi_bar_chart",
-          "stream": "main_enhanced",
-          "duration_hours": 24000,
-          "ts_column": "timestamp",
-          "group_by": [
-            "city",
-            "name"
-          ],
-          "formatting": {
-            "notation": "compact",
-            "style": "unit",
-            "unit": "percent"
-          },
-          "chartProperties": {
-            "yAxisLabel": null,
-            "xAxisLabel": "Name",
-            "stacked": false,
-            "legendLocation": "right",
-            "orientation": "vertical"
-          },
-          "descending_order": false,
-          "others_spec": {
-            "limit": 6,
-            "label": "Other Names",
-            "show_others": true,
-            "city": {
-              "largest": true,
-              "name_based_limit": false
-            },
-            "name": {
-              "largest": true,
-              "name_based_limit": false
-            }
-          },
-          "column": "donation",
-          "agg": "sum",
-          "type": "str",
-          "widget_id": "89fd6a48"
+          "widget_id": "94a3fc11"
         }
       ]
     }
