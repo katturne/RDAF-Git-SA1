@@ -1,37 +1,1212 @@
 {
-  "name": "portal-account-settings",
-  "label": "My Account",
-  "description": "User Account Settings",
-  "version": "22.9.22.2",
+  "name": "rda-mgmt-page-credentials-test",
+  "label": "Credentials",
+  "description": " Credentials Management Page",
   "enabled": true,
-  "dashboard_sections": [],
-  "dashboard_type": "app",
-  "dashboard_folder": "System",
-  "dashboard_pages": [
-    {
-      "name": "portal-account-user-preferences-page",
-      "label": "User Preferences",
-      "icon": "remedial.svg"
+  "dashboard_type": "template",
+  "dashboard_folder": "Onboarding",
+  "dashboard_style": "auto",
+  "use_storyboard0": true,
+  "default_storyboard0": "Credential Management",
+  "stream": "rda_secrets_meta",
+  "template_variables": {
+    "CUSTOMER_TAG": {
+      "contextId": "customerTag"
     },
-    {
-      "name": "portal-account-edit-profile-page",
-      "label": "Edit Profile",
-      "icon": "customer.svg"
+    "CUSTOMER_NAME": {
+      "contextId": "customerName"
     },
-    {
-      "name": "portal-account-change-password-page",
-      "label": "Change Password",
-      "icon": "credentials.svg"
+    "CUSTOMER_ID": {
+      "contextId": "customerId"
     },
+    "PROJECT_ID": {
+      "contextId": "project_id"
+    }
+  },
+  "dashboard_filters": {
+    "time_filter": true,
+    "columns_filter": [
+      {
+        "id": "name",
+        "label": "Name",
+        "type": "TEXT"
+      },
+      {
+        "id": "type",
+        "label": "Type",
+        "type": "TEXT"
+      },
+      {
+        "id": "typeDescription",
+        "label": "Type Description",
+        "type": "TEXT"
+      },
+      {
+        "id": "checksum",
+        "label": "Checksum",
+        "type": "TEXT"
+      },
+      {
+        "id": "saved_time",
+        "label": "Saved Time",
+        "type": "DATETIME"
+      }
+    ]
+  },
+  "dashboard_sections": [
     {
-      "name": "portal-account-api-access-page",
-      "label": "API Access Key",
-      "icon": "rda.svg"
-    },
+      "title": "Credentials",
+      "show_filter": true,
+      "widgets": [
+        {
+          "title": "Customer Details",
+          "widget_type": "label",
+          "label": "<h2>Customer Name: {{CUSTOMER_NAME}}</h2><h4>Tag: {{CUSTOMER_TAG}}</h4>",
+          "widget_id": "customerDetails",
+          "min_width": 12,
+          "height": 2
+        },
+        {
+          "title": "Credentials",
+          "widget_type": "tabular",
+          "stream": "rda_secrets_meta",
+          "duration_hours": 87600,
+          "remote_searchable": true,
+          "remote_searchable_cols": [
+            "name",
+            "type",
+            "typeDescription",
+            "checksum"
+          ],
+          "ts_column": "saved_time",
+          "paginated": true,
+          "height": 10,
+          "min_wdith": 12,
+          "extra_filter": "customerTag = '{{CUSTOMER_TAG}}'",
+          "columns": {
+            "name": {
+              "title": "Name",
+              "key": true
+            },
+            "type": {
+              "title": "Type",
+              "key": true
+            },
+            "typeDescription": {
+              "title": "description",
+              "key": true
+            },
+            "has_credential_check": {
+              "title": "Credential Check",
+              "key": true,
+              "visible": false
+            },
+            "checksum": {
+              "title": "Checksum",
+              "key": true
+            },
+            "tags": {
+              "title": "Tags",
+              "type": "TEXT",
+              "key": true
+            },
+            "saved_time": {
+              "title": "Saved Time",
+              "key": true,
+              "type": "DATETIME"
+            },
+            "customerId": {
+              "title": "Customer ID",
+              "key": true,
+              "visible": false
+            },
+            "timestamp": {
+              "title": "When",
+              "type": "HUMANIZE_TIME_DELTA",
+              "key": true,
+              "source-column": "saved_time",
+              "sortable": false
+            }
+          },
+          "custom_columns": [
+            {
+              "id": "config_minio_location",
+              "label": "Minio Location",
+              "expr": "workflows/templates/msp_customer_onboarding_vmware/credentials.json",
+              "key": true,
+              "hidden": true
+            },
+            {
+              "id": "rowStyleClass",
+              "hidden": true,
+              "visiblle": false,
+              "expr": "'bg-fading-blue' if time_now_as_ms() - isoformat_to_ms(saved_time) <= 120000 else None"
+            },
+            {
+              "id": "artifact_name",
+              "label": "Artifact Name",
+              "expr": "name",
+              "key": true,
+              "visible": false,
+              "sortable": false
+            },
+            {
+              "id": "artifact_type",
+              "label": "Artifact Type",
+              "expr": "'source'",
+              "key": true,
+              "visible": false,
+              "sortable": false
+            }
+          ],
+          "actions": [
+            {
+              "permission1": "rda:credential:add",
+              "title": "Add",
+              "type": "POPUP_FORM",
+              "selectionType": "NONE",
+              "identifier": "saas-service-action:userdashboard-add-yaml",
+              "api-endpoint": {
+                "service-name": "saas-reports",
+                "methodName": "getForm",
+                "stringified-params": true,
+                "parse-output": false,
+                "params": [
+                  {
+                    "formId": "rda.saas.dynamic.form",
+                    "formDefinition": {
+                      "id": "rda.saas.dynamic.form",
+                      "refreshRequired": true,
+                      "formFieldList": [
+                        {
+                          "help": "Name",
+                          "dataType": "string",
+                          "controlType": "TEXT_FIELD",
+                          "required": true,
+                          "editable": true,
+                          "label": "Name",
+                          "hidden": false,
+                          "fieldId": "name"
+                        },
+                        {
+                          "help": "Type",
+                          "dataType": "string",
+                          "controlType": "TEXT_FIELD",
+                          "required": true,
+                          "editable": true,
+                          "label": "Type",
+                          "hidden": false,
+                          "fieldId": "type"
+                        },
+                        {
+                          "help": "type Description",
+                          "dataType": "string",
+                          "controlType": "TEXT_FIELD",
+                          "required": false,
+                          "editable": true,
+                          "label": "Type Description",
+                          "hidden": false,
+                          "fieldId": "typeDescription"
+                        },
+                        {
+                          "help": "Has Credential Check",
+                          "dataType": "string",
+                          "controlType": "TEXT_FIELD",
+                          "required": true,
+                          "editable": true,
+                          "label": "Has Credential Check",
+                          "hidden": false,
+                          "fieldId": "has_credential_check"
+                        },
+                        {
+                          "help": "Checksum",
+                          "dataType": "string",
+                          "controlType": "TEXT_FIELD",
+                          "required": true,
+                          "editable": true,
+                          "label": "Checksum",
+                          "hidden": false,
+                          "fieldId": "checksum"
+                        },
+                        {
+                          "help": "Tags",
+                          "dataType": "string",
+                          "controlType": "TEXT_FIELD",
+                          "required": false,
+                          "editable": true,
+                          "label": "Tags",
+                          "hidden": false,
+                          "fieldId": "tags"
+                        }
+                      ]
+                    },
+                    "actions": [
+                      {
+                        "type": "UPDATE_PSTREAM",
+                        "pstreamName": "rda_secrets_meta"
+                      }
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "permission1": "rda:credential:edit",
+              "title": "Edit",
+              "type": "POPUP_FORM",
+              "selectionType": "SINGLE",
+              "identifier": "saas-service-action:userdashboard-add-yaml",
+              "api-endpoint": {
+                "service-name": "saas-reports",
+                "methodName": "getForm",
+                "stringified-params": true,
+                "parse-output": false,
+                "params": [
+                  {
+                    "formId": "rda.saas.dynamic.form",
+                    "formDefinition": {
+                      "id": "rda.saas.dynamic.form",
+                      "refreshRequired": true,
+                      "formFieldList": [
+                        {
+                          "help": "Name",
+                          "dataType": "string",
+                          "controlType": "TEXT_FIELD",
+                          "required": true,
+                          "editable": true,
+                          "label": "Name",
+                          "hidden": false,
+                          "fieldId": "name"
+                        },
+                        {
+                          "help": "Type",
+                          "dataType": "string",
+                          "controlType": "TEXT_FIELD",
+                          "required": true,
+                          "editable": true,
+                          "label": "Type",
+                          "hidden": false,
+                          "fieldId": "type"
+                        },
+                        {
+                          "help": "type Description",
+                          "dataType": "string",
+                          "controlType": "TEXT_FIELD",
+                          "required": false,
+                          "editable": true,
+                          "label": "Type Description",
+                          "hidden": false,
+                          "fieldId": "typeDescription"
+                        },
+                        {
+                          "help": "Has Credential Check",
+                          "dataType": "string",
+                          "controlType": "TEXT_FIELD",
+                          "required": true,
+                          "editable": true,
+                          "label": "Has Credential Check",
+                          "hidden": false,
+                          "fieldId": "has_credential_check"
+                        },
+                        {
+                          "help": "Checksum",
+                          "dataType": "string",
+                          "controlType": "TEXT_FIELD",
+                          "required": true,
+                          "editable": true,
+                          "label": "Checksum",
+                          "hidden": false,
+                          "fieldId": "checksum"
+                        },
+                        {
+                          "help": "Tags",
+                          "dataType": "string",
+                          "controlType": "TEXT_FIELD",
+                          "required": false,
+                          "editable": true,
+                          "label": "Tags",
+                          "hidden": false,
+                          "fieldId": "tags"
+                        }
+                      ]
+                    },
+                    "actions": [
+                      {
+                        "type": "UPDATE_PSTREAM",
+                        "pstreamName": "rda_secrets_meta",
+                        "operation": "UPDATE",
+                        "cfxql_query": "_RDA_Id is '{{_RDA_Id}}'"
+                      }
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "permission": "rda:github:view",
+              "title": "Upload",
+              "type": "POPUP_FORM",
+              "selectionType": "NONE",
+              "identifier": "saas-service-action:userdashboard-add-yaml",
+              "api-endpoint": {
+                "service-name": "saas-reports",
+                "methodName": "getForm",
+                "stringified-params": true,
+                "parse-output": false,
+                "params": [
+                  {
+                    "formId": "rda.saas.dynamic.form",
+                    "formDefinition": {
+                      "id": "rda.saas.dynamic.form",
+                      "refreshRequired": true,
+                      "formFieldList": [
+                        {
+                          "help": "Choose file to upload",
+                          "dataType": "string",
+                          "required": true,
+                          "editable": true,
+                          "label": "Choose file to upload",
+                          "controlType": "FILE_UPLOAD",
+                          "hidden": false,
+                          "fieldId": "fileUpload"
+                        },
+                        {
+                          "help": "Overwrite existing onboarded data",
+                          "required": false,
+                          "editable": true,
+                          "label": "Replace Data",
+                          "hidden": false,
+                          "fieldId": "replace",
+                          "dataType": "boolean",
+                          "controlType": "BOOLEAN_FIELD",
+                          "defaultValue": false,
+                          "controlPropertyList": [
+                            {
+                              "attribute": "layout-group-id",
+                              "value": "Features"
+                            },
+                            {
+                              "attribute": "layout-percent",
+                              "value": "25"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    "actions": [
+                      {
+                        "type": "RUN_PIPELINE",
+                        "pipelineName": "",
+                        "isSync": true,
+                        "workerGroup": "rda-site-01"
+                      }
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "permission": "rda:credential:add",
+              "title": "Add",
+              "icon": "mdi mdi-plus",
+              "type": "POPUP_FORM",
+              "selectionType": "NONE",
+              "identifier": "saas-service-action:vault-add",
+              "api-endpoint": {
+                "service-name": "saas-reports",
+                "methodName": "getForm",
+                "stringified-params": true,
+                "parse-output": false,
+                "params": [
+                  {
+                    "formId": "rda.saas.vault.add"
+                  }
+                ]
+              }
+            },
+            {
+              "permission": "rda:credential:edit",
+              "title": "Edit",
+              "type": "POPUP_FORM",
+              "selectionType": "SINGLE",
+              "identifier": "saas-service-action:vault-edit",
+              "api-endpoint": {
+                "service-name": "saas-reports",
+                "methodName": "getForm",
+                "stringified-params": true,
+                "parse-output": false,
+                "params": [
+                  {
+                    "formId": "rda.saas.vault.edit"
+                  }
+                ]
+              }
+            },
+            {
+              "permission": "rda:credential:view",
+              "title": "View",
+              "type": "POPUP_FORM",
+              "selectionType": "SINGLE",
+              "displayLabelColumnId": "name",
+              "drillDownLinkField": "name",
+              "identifier": "saas-service-action:vault-view",
+              "api-endpoint": {
+                "service-name": "saas-reports",
+                "methodName": "getForm",
+                "stringified-params": true,
+                "parse-output": false,
+                "params": [
+                  {
+                    "formId": "rda.saas.vault.view"
+                  }
+                ]
+              }
+            },
+            {
+              "permission1": "rda:github:view",
+              "title": "View",
+              "type": "POPUP_FORM",
+              "selectionType": "SINGLE",
+              "identifier": "saas-service-action:userdashboard-add-yaml",
+              "api-endpoint": {
+                "service-name": "saas-reports",
+                "methodName": "getForm",
+                "stringified-params": true,
+                "parse-output": false,
+                "params": [
+                  {
+                    "formId": "rda.saas.dynamic.form",
+                    "formDefinition": {
+                      "id": "rda.saas.dynamic.form",
+                      "refreshRequired": true,
+                      "formFieldList": [
+                        {
+                          "help": "Name",
+                          "dataType": "string",
+                          "controlType": "TEXT_FIELD",
+                          "required": false,
+                          "editable": false,
+                          "label": "Name",
+                          "hidden": false,
+                          "fieldId": "name"
+                        },
+                        {
+                          "help": "Type",
+                          "dataType": "string",
+                          "controlType": "TEXT_FIELD",
+                          "required": false,
+                          "editable": false,
+                          "label": "Type",
+                          "hidden": false,
+                          "fieldId": "type"
+                        },
+                        {
+                          "help": "type Description",
+                          "dataType": "string",
+                          "controlType": "TEXT_FIELD",
+                          "required": false,
+                          "editable": false,
+                          "label": "Type Description",
+                          "hidden": false,
+                          "fieldId": "typeDescription"
+                        },
+                        {
+                          "help": "Has Credential Check",
+                          "dataType": "string",
+                          "controlType": "TEXT_FIELD",
+                          "required": false,
+                          "editable": false,
+                          "label": "Has Credential Check",
+                          "hidden": false,
+                          "fieldId": "has_credential_check"
+                        },
+                        {
+                          "help": "Checksum",
+                          "dataType": "string",
+                          "controlType": "TEXT_FIELD",
+                          "required": false,
+                          "editable": false,
+                          "label": "Checksum",
+                          "hidden": false,
+                          "fieldId": "checksum"
+                        },
+                        {
+                          "help": "Tags",
+                          "dataType": "string",
+                          "controlType": "TEXT_FIELD",
+                          "required": false,
+                          "editable": false,
+                          "label": "Tags",
+                          "hidden": false,
+                          "fieldId": "tags"
+                        }
+                      ]
+                    },
+                    "actions": [
+                      {
+                        "type": "UPDATE_PSTREAM",
+                        "pstreamName": "rda_secrets_meta"
+                      }
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "permission": "rda:credential:verify",
+              "title": "Verify Credentials",
+              "type": "POPUP_FORM",
+              "selectionType": "SINGLE",
+              "identifier": "saas-service-action:vault-edit",
+              "actionCondition": {
+                "actionControl": "HIDE_IF",
+                "conditionalField": [
+                  {
+                    "conditionType": "EQUAL",
+                    "conditionValue": "false",
+                    "fieldId": "has_credential_check"
+                  }
+                ]
+              },
+              "api-endpoint": {
+                "service-name": "saas-reports",
+                "methodName": "getForm",
+                "stringified-params": true,
+                "parse-output": false,
+                "params": [
+                  {
+                    "formId": "rda.saas.vault.validateConenctivity"
+                  }
+                ]
+              }
+            },
+            {
+              "permission": "rda:credential:assign_tag",
+              "title": "Manage Tags",
+              "type": "POPUP_FORM",
+              "selectionType": "SINGLE",
+              "identifier": "saas-service-action:assign-tag",
+              "api-endpoint": {
+                "methodName": "getForm",
+                "params": [
+                  {
+                    "formId": "rda.saas.tags.assign"
+                  }
+                ],
+                "parse-output": false,
+                "service-name": "saas-reports",
+                "stringified-params": true
+              }
+            },
+            {
+              "permission": "rda:credential:verify",
+              "title": "Delete",
+              "type": "POPUP_FORM",
+              "selectionType": "SINGLE",
+              "identifier": "saas-service-action:vault-delete",
+              "api-endpoint": {
+                "service-name": "saas-reports",
+                "methodName": "getForm",
+                "stringified-params": true,
+                "parse-output": false,
+                "params": [
+                  {
+                    "formId": "rda.saas.vault.delete"
+                  }
+                ]
+              }
+            },
+            {
+              "permission": "rda:credential:view",
+              "appName": "user-dashboard/rda-artifact-dependencies-app",
+              "identifier": "launch.url.dashboard",
+              "selectionType": "SINGLE",
+              "stateName": "app.featureapp",
+              "title": "View Dependencies",
+              "type": "GO_TO_APP_STATE"
+            }
+          ],
+          "widget_id": "9a21b5c6"
+        }
+      ]
+    }
+  ],
+  "pstream_dashboards": [
     {
-      "name": "portal-account-notifications-page",
-      "label": "Notifications",
-      "icon": "notification.svg"
+      "title": "Credentials",
+      "show_filter": true,
+      "widgets": [
+        {
+          "title": "Customer Details",
+          "widget_type": "label",
+          "label": "<h2>Customer Name: {{CUSTOMER_NAME}}</h2><h4>Tag: {{CUSTOMER_TAG}}</h4>",
+          "widget_id": "customerDetails",
+          "min_width": 12,
+          "height": 2
+        },
+        {
+          "title": "Credentials",
+          "widget_type": "tabular",
+          "stream": "rda_secrets_meta",
+          "duration_hours": 87600,
+          "remote_searchable": true,
+          "remote_searchable_cols": [
+            "name",
+            "type",
+            "typeDescription",
+            "checksum"
+          ],
+          "ts_column": "saved_time",
+          "paginated": true,
+          "height": 10,
+          "min_wdith": 12,
+          "extra_filter": "customerTag = '{{CUSTOMER_TAG}}'",
+          "columns": {
+            "name": {
+              "title": "Name",
+              "key": true
+            },
+            "type": {
+              "title": "Type",
+              "key": true
+            },
+            "typeDescription": {
+              "title": "description",
+              "key": true
+            },
+            "has_credential_check": {
+              "title": "Credential Check",
+              "key": true,
+              "visible": false
+            },
+            "checksum": {
+              "title": "Checksum",
+              "key": true
+            },
+            "tags": {
+              "title": "Tags",
+              "type": "TEXT",
+              "key": true
+            },
+            "saved_time": {
+              "title": "Saved Time",
+              "key": true,
+              "type": "DATETIME"
+            },
+            "customerId": {
+              "title": "Customer ID",
+              "key": true,
+              "visible": false
+            },
+            "timestamp": {
+              "title": "When",
+              "type": "HUMANIZE_TIME_DELTA",
+              "key": true,
+              "source-column": "saved_time",
+              "sortable": false
+            }
+          },
+          "custom_columns": [
+            {
+              "id": "config_minio_location",
+              "label": "Minio Location",
+              "expr": "workflows/templates/msp_customer_onboarding_vmware/credentials.json",
+              "key": true,
+              "hidden": true
+            },
+            {
+              "id": "rowStyleClass",
+              "hidden": true,
+              "visiblle": false,
+              "expr": "'bg-fading-blue' if time_now_as_ms() - isoformat_to_ms(saved_time) <= 120000 else None"
+            },
+            {
+              "id": "artifact_name",
+              "label": "Artifact Name",
+              "expr": "name",
+              "key": true,
+              "visible": false,
+              "sortable": false
+            },
+            {
+              "id": "artifact_type",
+              "label": "Artifact Type",
+              "expr": "'source'",
+              "key": true,
+              "visible": false,
+              "sortable": false
+            }
+          ],
+          "actions": [
+            {
+              "permission1": "rda:credential:add",
+              "title": "Add",
+              "type": "POPUP_FORM",
+              "selectionType": "NONE",
+              "identifier": "saas-service-action:userdashboard-add-yaml",
+              "api-endpoint": {
+                "service-name": "saas-reports",
+                "methodName": "getForm",
+                "stringified-params": true,
+                "parse-output": false,
+                "params": [
+                  {
+                    "formId": "rda.saas.dynamic.form",
+                    "formDefinition": {
+                      "id": "rda.saas.dynamic.form",
+                      "refreshRequired": true,
+                      "formFieldList": [
+                        {
+                          "help": "Name",
+                          "dataType": "string",
+                          "controlType": "TEXT_FIELD",
+                          "required": true,
+                          "editable": true,
+                          "label": "Name",
+                          "hidden": false,
+                          "fieldId": "name"
+                        },
+                        {
+                          "help": "Type",
+                          "dataType": "string",
+                          "controlType": "TEXT_FIELD",
+                          "required": true,
+                          "editable": true,
+                          "label": "Type",
+                          "hidden": false,
+                          "fieldId": "type"
+                        },
+                        {
+                          "help": "type Description",
+                          "dataType": "string",
+                          "controlType": "TEXT_FIELD",
+                          "required": false,
+                          "editable": true,
+                          "label": "Type Description",
+                          "hidden": false,
+                          "fieldId": "typeDescription"
+                        },
+                        {
+                          "help": "Has Credential Check",
+                          "dataType": "string",
+                          "controlType": "TEXT_FIELD",
+                          "required": true,
+                          "editable": true,
+                          "label": "Has Credential Check",
+                          "hidden": false,
+                          "fieldId": "has_credential_check"
+                        },
+                        {
+                          "help": "Checksum",
+                          "dataType": "string",
+                          "controlType": "TEXT_FIELD",
+                          "required": true,
+                          "editable": true,
+                          "label": "Checksum",
+                          "hidden": false,
+                          "fieldId": "checksum"
+                        },
+                        {
+                          "help": "Tags",
+                          "dataType": "string",
+                          "controlType": "TEXT_FIELD",
+                          "required": false,
+                          "editable": true,
+                          "label": "Tags",
+                          "hidden": false,
+                          "fieldId": "tags"
+                        }
+                      ]
+                    },
+                    "actions": [
+                      {
+                        "type": "UPDATE_PSTREAM",
+                        "pstreamName": "rda_secrets_meta"
+                      }
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "permission1": "rda:credential:edit",
+              "title": "Edit",
+              "type": "POPUP_FORM",
+              "selectionType": "SINGLE",
+              "identifier": "saas-service-action:userdashboard-add-yaml",
+              "api-endpoint": {
+                "service-name": "saas-reports",
+                "methodName": "getForm",
+                "stringified-params": true,
+                "parse-output": false,
+                "params": [
+                  {
+                    "formId": "rda.saas.dynamic.form",
+                    "formDefinition": {
+                      "id": "rda.saas.dynamic.form",
+                      "refreshRequired": true,
+                      "formFieldList": [
+                        {
+                          "help": "Name",
+                          "dataType": "string",
+                          "controlType": "TEXT_FIELD",
+                          "required": true,
+                          "editable": true,
+                          "label": "Name",
+                          "hidden": false,
+                          "fieldId": "name"
+                        },
+                        {
+                          "help": "Type",
+                          "dataType": "string",
+                          "controlType": "TEXT_FIELD",
+                          "required": true,
+                          "editable": true,
+                          "label": "Type",
+                          "hidden": false,
+                          "fieldId": "type"
+                        },
+                        {
+                          "help": "type Description",
+                          "dataType": "string",
+                          "controlType": "TEXT_FIELD",
+                          "required": false,
+                          "editable": true,
+                          "label": "Type Description",
+                          "hidden": false,
+                          "fieldId": "typeDescription"
+                        },
+                        {
+                          "help": "Has Credential Check",
+                          "dataType": "string",
+                          "controlType": "TEXT_FIELD",
+                          "required": true,
+                          "editable": true,
+                          "label": "Has Credential Check",
+                          "hidden": false,
+                          "fieldId": "has_credential_check"
+                        },
+                        {
+                          "help": "Checksum",
+                          "dataType": "string",
+                          "controlType": "TEXT_FIELD",
+                          "required": true,
+                          "editable": true,
+                          "label": "Checksum",
+                          "hidden": false,
+                          "fieldId": "checksum"
+                        },
+                        {
+                          "help": "Tags",
+                          "dataType": "string",
+                          "controlType": "TEXT_FIELD",
+                          "required": false,
+                          "editable": true,
+                          "label": "Tags",
+                          "hidden": false,
+                          "fieldId": "tags"
+                        }
+                      ]
+                    },
+                    "actions": [
+                      {
+                        "type": "UPDATE_PSTREAM",
+                        "pstreamName": "rda_secrets_meta",
+                        "operation": "UPDATE",
+                        "cfxql_query": "_RDA_Id is '{{_RDA_Id}}'"
+                      }
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "permission": "rda:github:view",
+              "title": "Upload",
+              "type": "POPUP_FORM",
+              "selectionType": "NONE",
+              "identifier": "saas-service-action:userdashboard-add-yaml",
+              "api-endpoint": {
+                "service-name": "saas-reports",
+                "methodName": "getForm",
+                "stringified-params": true,
+                "parse-output": false,
+                "params": [
+                  {
+                    "formId": "rda.saas.dynamic.form",
+                    "formDefinition": {
+                      "id": "rda.saas.dynamic.form",
+                      "refreshRequired": true,
+                      "formFieldList": [
+                        {
+                          "help": "Choose file to upload",
+                          "dataType": "string",
+                          "required": true,
+                          "editable": true,
+                          "label": "Choose file to upload",
+                          "controlType": "FILE_UPLOAD",
+                          "hidden": false,
+                          "fieldId": "fileUpload"
+                        },
+                        {
+                          "help": "Overwrite existing onboarded data",
+                          "required": false,
+                          "editable": true,
+                          "label": "Replace Data",
+                          "hidden": false,
+                          "fieldId": "replace",
+                          "dataType": "boolean",
+                          "controlType": "BOOLEAN_FIELD",
+                          "defaultValue": false,
+                          "controlPropertyList": [
+                            {
+                              "attribute": "layout-group-id",
+                              "value": "Features"
+                            },
+                            {
+                              "attribute": "layout-percent",
+                              "value": "25"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    "actions": [
+                      {
+                        "type": "RUN_PIPELINE",
+                        "pipelineName": "",
+                        "isSync": true,
+                        "workerGroup": "rda-site-01"
+                      }
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "permission": "rda:credential:add",
+              "title": "Add",
+              "icon": "mdi mdi-plus",
+              "type": "POPUP_FORM",
+              "selectionType": "NONE",
+              "identifier": "saas-service-action:vault-add",
+              "api-endpoint": {
+                "service-name": "saas-reports",
+                "methodName": "getForm",
+                "stringified-params": true,
+                "parse-output": false,
+                "params": [
+                  {
+                    "formId": "rda.saas.vault.add"
+                  }
+                ]
+              }
+            },
+            {
+              "permission": "rda:credential:edit",
+              "title": "Edit",
+              "type": "POPUP_FORM",
+              "selectionType": "SINGLE",
+              "identifier": "saas-service-action:vault-edit",
+              "api-endpoint": {
+                "service-name": "saas-reports",
+                "methodName": "getForm",
+                "stringified-params": true,
+                "parse-output": false,
+                "params": [
+                  {
+                    "formId": "rda.saas.vault.edit"
+                  }
+                ]
+              }
+            },
+            {
+              "permission": "rda:credential:view",
+              "title": "View",
+              "type": "POPUP_FORM",
+              "selectionType": "SINGLE",
+              "displayLabelColumnId": "name",
+              "drillDownLinkField": "name",
+              "identifier": "saas-service-action:vault-view",
+              "api-endpoint": {
+                "service-name": "saas-reports",
+                "methodName": "getForm",
+                "stringified-params": true,
+                "parse-output": false,
+                "params": [
+                  {
+                    "formId": "rda.saas.vault.view"
+                  }
+                ]
+              }
+            },
+            {
+              "permission1": "rda:github:view",
+              "title": "View",
+              "type": "POPUP_FORM",
+              "selectionType": "SINGLE",
+              "identifier": "saas-service-action:userdashboard-add-yaml",
+              "api-endpoint": {
+                "service-name": "saas-reports",
+                "methodName": "getForm",
+                "stringified-params": true,
+                "parse-output": false,
+                "params": [
+                  {
+                    "formId": "rda.saas.dynamic.form",
+                    "formDefinition": {
+                      "id": "rda.saas.dynamic.form",
+                      "refreshRequired": true,
+                      "formFieldList": [
+                        {
+                          "help": "Name",
+                          "dataType": "string",
+                          "controlType": "TEXT_FIELD",
+                          "required": false,
+                          "editable": false,
+                          "label": "Name",
+                          "hidden": false,
+                          "fieldId": "name"
+                        },
+                        {
+                          "help": "Type",
+                          "dataType": "string",
+                          "controlType": "TEXT_FIELD",
+                          "required": false,
+                          "editable": false,
+                          "label": "Type",
+                          "hidden": false,
+                          "fieldId": "type"
+                        },
+                        {
+                          "help": "type Description",
+                          "dataType": "string",
+                          "controlType": "TEXT_FIELD",
+                          "required": false,
+                          "editable": false,
+                          "label": "Type Description",
+                          "hidden": false,
+                          "fieldId": "typeDescription"
+                        },
+                        {
+                          "help": "Has Credential Check",
+                          "dataType": "string",
+                          "controlType": "TEXT_FIELD",
+                          "required": false,
+                          "editable": false,
+                          "label": "Has Credential Check",
+                          "hidden": false,
+                          "fieldId": "has_credential_check"
+                        },
+                        {
+                          "help": "Checksum",
+                          "dataType": "string",
+                          "controlType": "TEXT_FIELD",
+                          "required": false,
+                          "editable": false,
+                          "label": "Checksum",
+                          "hidden": false,
+                          "fieldId": "checksum"
+                        },
+                        {
+                          "help": "Tags",
+                          "dataType": "string",
+                          "controlType": "TEXT_FIELD",
+                          "required": false,
+                          "editable": false,
+                          "label": "Tags",
+                          "hidden": false,
+                          "fieldId": "tags"
+                        }
+                      ]
+                    },
+                    "actions": [
+                      {
+                        "type": "UPDATE_PSTREAM",
+                        "pstreamName": "rda_secrets_meta"
+                      }
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "permission": "rda:credential:verify",
+              "title": "Verify Credentials",
+              "type": "POPUP_FORM",
+              "selectionType": "SINGLE",
+              "identifier": "saas-service-action:vault-edit",
+              "actionCondition": {
+                "actionControl": "HIDE_IF",
+                "conditionalField": [
+                  {
+                    "conditionType": "EQUAL",
+                    "conditionValue": "false",
+                    "fieldId": "has_credential_check"
+                  }
+                ]
+              },
+              "api-endpoint": {
+                "service-name": "saas-reports",
+                "methodName": "getForm",
+                "stringified-params": true,
+                "parse-output": false,
+                "params": [
+                  {
+                    "formId": "rda.saas.vault.validateConenctivity"
+                  }
+                ]
+              }
+            },
+            {
+              "permission": "rda:credential:assign_tag",
+              "title": "Manage Tags",
+              "type": "POPUP_FORM",
+              "selectionType": "SINGLE",
+              "identifier": "saas-service-action:assign-tag",
+              "api-endpoint": {
+                "methodName": "getForm",
+                "params": [
+                  {
+                    "formId": "rda.saas.tags.assign"
+                  }
+                ],
+                "parse-output": false,
+                "service-name": "saas-reports",
+                "stringified-params": true
+              }
+            },
+            {
+              "permission": "rda:credential:verify",
+              "title": "Delete",
+              "type": "POPUP_FORM",
+              "selectionType": "SINGLE",
+              "identifier": "saas-service-action:vault-delete",
+              "api-endpoint": {
+                "service-name": "saas-reports",
+                "methodName": "getForm",
+                "stringified-params": true,
+                "parse-output": false,
+                "params": [
+                  {
+                    "formId": "rda.saas.vault.delete"
+                  }
+                ]
+              }
+            },
+            {
+              "permission": "rda:credential:view",
+              "appName": "user-dashboard/rda-artifact-dependencies-app",
+              "identifier": "launch.url.dashboard",
+              "selectionType": "SINGLE",
+              "stateName": "app.featureapp",
+              "title": "View Dependencies",
+              "type": "GO_TO_APP_STATE"
+            }
+          ],
+          "widget_id": "9a21b5c6"
+        }
+      ]
     }
   ]
 }
