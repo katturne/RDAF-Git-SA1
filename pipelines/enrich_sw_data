@@ -1,40 +1,20 @@
-@c:new-block
- --> @dm:empty
- --> @dm:addrow name='edc_cust_pid_sw' and limit=0
- --> #dm:query-persistent-stream
- --> @dm:add-missing-columns columns="key" and value='key'
- --> @dm:add-missing-columns columns="source" and value='software'
- --> @dm:save name='temp-sw-data'
- --> @dm:save name='added-sw-data'
- ## creates a list of unique customers
-
- --> @c:new-block
- --> @dm:recall name='temp-sw-data'
- --> @dm:groupby columns='customer'
- ## --> @dm:to_type columns = 'contract_number' &
-
- ## type  = 'int'
-
- --> @dm:save name='temp-unique-cust-name'
- ## Queries data for the customer from edc_oi_enriched_stream
-
- --> @c:data-loop dataset='temp-unique-cust-name' and columns='customer'
- --> @dm:empty
- --> @dm:addrow name='edc_oi_inventory_enriched' and limit=0
- --> #dm:query-persistent-stream customer_name=='$customer'
- --> @dm:save name='temp-hw-eol-details' and append='yes'
- --> @dm:save name='test1-hw-eol-details' and append='yes'
- ## enriches the processed columns to edc_oi_inventory_enriched
-
- --> @c:new-block
- --> @dm:recall name='temp-hw-eol-details'
- ## --> @dm:selectcolumns exclude='sw_status_x|sw_expiring_qtr_x|sw_expiring_year_x'
-
- --> @dm:enrich dict='test-sw-eol-details' and src_key_cols='contract_number,customer_name,product_name' and dict_key_cols='contract_number_str,customer,product_id' and enrich_cols='swEOL_endOfSaleDate,swEOL_bulletinUrl,swEOL_bulletinTitle,swEOL_bulletinNumber,swEOL_softwareEOXId,EndOfLifeDate,sw_expiring_qtr,sw_expiring_year,sw_status'
- --> @dm:save name='final-enrich'
- --> @dm:rename-columns EndOfLifeDate='EndOfLifeDate_y'
- --> @dm:fixnull columns='swEOL_endOfSaleDate,swEOL_bulletinUrl,swEOL_bulletinTitle,swEOL_bulletinNumber,swEOL_softwareEOXId,EndOfLifeDate,sw_expiring_qtr,sw_expiring_year,sw_status' and value="Not Available"  and apply_for_empty="yes"
- --> @dm:rename-columns swEOL_lastDayOfSupportDate='EndOfLifeDate'
- --> @rn:write-stream name='edc_sweol_data'
- --> @dm:selectcolumns exclude='^(customer|product_id|contarct_number)$'
- --> @rn:write-stream name='edc_oi_inventory_enriched'
+folder: Default
+name: secadv_input
+description: test pipeline
+data_path: pipelines/data/secadv_input/1.1/data.json
+usecase: ''
+category: ''
+sources:
+  rn:
+    name: rn
+    type: rn
+artifacts:
+- artifact_type: dataset
+  artifact_name: uploaded-secadv-data
+  access: write
+- artifact_type: rda-network-stream
+  artifact_name: test2-stream-input
+  access: write
+version: '1.1'
+file_type: json
+checksum: e2da2025
