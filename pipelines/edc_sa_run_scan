@@ -1,81 +1,208 @@
+
+ ## snow-to-oia
 @c:new-block
- --> @dm:empty
- --> @dm:addrow name='edc_sec_adv_data_raw' and limit=0
- --> #dm:query-persistent-stream
- --> @dm:save name='temp-sa-exploded-data'
- --> @dm:save name='test-sa-exploded-data'
- --> @c:new-block
- --> @dm:recall name="temp-sa-exploded-data"
- --> @dm:selectcolumns exclude='^unique_key$'
- ## --> @dm:enrich dict="temp-sa-data" and src_key_cols='product_id,sw_version,sw_os_type' and dict_key_cols='product_id,sw_version,sw_os_type' and enrich_cols="contract_number,customer"
+ --> @exec:get-input
+ ## sourceName
 
- --> @dm:add-missing-columns columns="PsirtID,MatchConfidence,MatchReason,MatchDefinition,HeadlineName,AdvisoryId,BulletinURL,Summary,Details,RevisedDate,RevisionNumber,PublishedDate,SeverityLevelName,CvssScore,CveId,_id,advisoryId,created,customerVisible,external_text,external_title,firstIcAlertId,groups,icIssueId,icProblemId,ignored,lastIcAlertId,matchDefinition,matchInfo,matchConfidence,missingInfo,moreInfo,name,openedOn,resultType,resultSubType,severity,severityText,state,updated,deviceSN,source,runType,filename,icType,atticaStatus,cdetsList,retry,associatedGroups,key,current_time_ms_loop,token_expiry_time,access_token,expires_in,token_type,sw_version,sw_os_type,product_id,transaction_id,eoXAlert,eoXAlertType,DocumentId"
- --> @dm:eval matchConfidence = "'Potentially Vulnerable' if matchConfidence == 'POTVUL' else 'Vulnerable' if matchConfidence == 'VUL' else matchConfidence"
- --> @dm:eval secAdv_confidence_score = "100 if matchConfidence == 'Vulnerable' else 99 if matchConfidence == 'Potentially Vulnerable' else 98 if matchConfidence == 'Not Vulnerable' else 0"
- --> @dm:fixnull columns="PsirtID,MatchConfidence,MatchReason,MatchDefinition,HeadlineName,AdvisoryId,BulletinURL,Summary,Details,RevisedDate,RevisionNumber,PublishedDate,SeverityLevelName,CvssScore,CveId,_id,advisoryId,created,customerVisible,external_text,external_title,firstIcAlertId,groups,icIssueId,icProblemId,ignored,lastIcAlertId,matchDefinition,matchInfo,matchConfidence,missingInfo,moreInfo,name,openedOn,resultType,resultSubType,severity,severityText,state,updated,deviceSN,source,runType,filename,icType,atticaStatus,cdetsList,retry,associatedGroups,key,current_time_ms_loop,token_expiry_time,expires_in,token_type,sw_version,sw_os_type,product_id,transaction_id,eoXAlert,eoXAlertType,DocumentId,secAdv_confidence_score" and value="Not Available" and apply_for_empty="yes"
- --> @dm:fixnull-regex columns="Timestamp$|timestamp$"
- --> @dm:rename-columns secAdv_matchConfidence ='matchConfidence' and secAdv_securityImpactRating='SeverityLevelName' and bulletinTitle='external_title' and securityAdvisoryId='advisoryId' and ID = '_id'
- ## --> *dm:filter product_id=='CRS-FP140-E' and contract_number=='3610020'
+ --> *dm:filter (u_cfx_source == 'Alert Group')
+ --> @dm:skip-pipeline-if-shape row_count = 0
+ --> @dm:add-missing-columns columns = 'sourceName,payload,u_cfx_source'
+ --> @dm:eval sourceName="sourceName if sourceName else u_cfx_source"
+ --> @dm:save name="temp-input-data"
+ ## prepare empty-datasets to avoid runtime errors. some datasets are prepared based on conditional filters
 
- --> @dm:save name="temp-sec-adv-details"
- --> @dm:save name="test-sec-adv-details"
  --> @c:new-block
  --> @dm:empty
- --> @dm:addrow name='edc_cust_pid_sw' and limit=0
- --> #dm:query-persistent-stream
- --> @dm:groupby columns='customer'
- ## --> @dm:to_type columns = 'contract_number' and type  = 'int'
-
- --> @dm:save name='temp-unique-cust-name'
- ## Queries data for the customer from edc_oi_enriched_stream
-
- ## --> @c:data-loop dataset='temp-unique-cust-name' and columns='customer'
-
- ## --> @dm:empty
-
- ## --> @dm:addrow name='edc_oi_inventory_enriched' and limit=0
-
- ## --> #dm:query-persistent-stream customer_name=='$customer'
-
- ## --> @dm:save name='temp-hw-eol-details' and append='yes'
+ --> @dm:save name="temp-input-payload"
+ --> @dm:save name="temp-input-teamincident"
+ --> @dm:save name="temp-teamincidents"
+ --> @dm:save name="temp-input-teamincident-irm"
+ ## Prepare all required fields
 
  --> @c:new-block
- --> @dm:recall name='hweol-att'
- --> @dm:to_type columns = 'contract_number' and type  = 'int'
- --> @dm:save name='temp-hw-eol-details'
+ --> @dm:recall name="temp-input-data"
+ --> @dm:skip-block-if-shape row_count = 0
+ --> @dm:add-missing-columns columns = 'priority,severity,urgency,state,impact,number,work_notes'
+ ## --> @dm:explode-json column = 'payload' & prefix_parent_key="yes"
+
+ ## Sometime, we are not seeing payload from the input
+
+ --> @dm:copy-columns to="payload_comments" & from="comments"
+ --> @dm:copy-columns to="payload_comments_and_work_notes" & from="comments_and_work_notes"
+ --> @dm:copy-columns to="payload_number" & from="number"
+ --> @dm:copy-columns to="payload_work_notes" & from="work_notes"
+ --> @dm:copy-columns to="payload_state" & from="state"
+ --> @dm:copy-columns to="payload_impact" & from="impact"
+ --> @dm:copy-columns to="payload_priority" & from="priority"
+ --> @dm:copy-columns to="payload_severity" & from="severity"
+ --> @dm:copy-columns to="payload_urgency" & from="urgency"
+ --> @dm:copy-columns to="payload_close_notes" & from="close_notes"
+ --> @dm:copy-columns to="payload_closed_at" & from="closed_at"
+ --> @dm:copy-columns to="payload_closed_by" & from="closed_by"
+ --> @dm:copy-columns to="payload_sys_updated_by" & from="sys_updated_by"
+ --> @dm:copy-columns to="payload_resolved_at" & from="resolved_at"
+ --> @dm:copy-columns to="payload_sys_updated_on" & from="sys_updated_on"
+ --> @dm:copy-columns to="payload_resolved_by" & from="resolved_by"
+ --> @dm:copy-columns to="payload_close_code" & from="close_code"
+ --> @dm:selectcolumns include="payload|close|resolved|sys|urgency|severity|priority|impact|state|work|number|source"
+ --> @dm:save name="temp-input-data"
+ ## Apply filters on Input-Data
+
  --> @c:new-block
- --> @dm:recall name="temp-sec-adv-details"
- --> @dm:to-type columns='contract_number' and type='int'
- ## ## --> *dm:filter product_id=='CRS-FP140-E' and contract_number=='3610020'
+ --> @dm:recall name="temp-input-data"
+ --> @dm:skip-block-if-shape row_count = 0
+ --> @dm:check-columns must_contain="payload_number" & action="skip-block"
+ ## Any extra filter like Company etc...apply here to further narrow down
 
- --> @dm:enrich dict='temp-hw-eol-details' and dict_key_cols='product_id,contract_number,customer_name' and  src_key_cols='product_id,contract_number,customer' and enrich_cols='business_sub_entity,swEOL_bulletinTitle,bk_eol_bulletin_product_typ_cd,product_family_description,hw_expiring_year,product_description,portfolio_desc,sw_status_score,swEOL_softwareEOXId,_RDA_Id,hwEOL_endOfSoftwareMaintenanceReleasesDate,hw_expiring_qtr,PostDate,coverage,covered_line_status,swEOL_lastDayOfSupportDate,execution_reason,sw_expiring_qtr,hwEOL_lastDayOfSupportDate,swEOL_endOfLifeAnnouncementDate,hw_status,bk_end_of_life_request_num,usage_code,sw_version,transaction_id,item_type,swEOL_endOfSoftwareMaintenanceReleasesDate,savm_sales_level_4_name,product_list_price,swEOL_endOfSaleDate,hwEOL_endOfServiceContractRenewalDate,swEOL_endOfVulnerabilitySecuritySupportDate,unique_key,hwEOL_endOfRoutineFailureAnalysisDate,sw_expiring_year,eol_product_name,product_name,hwEOL_endOfLifeAnnouncementDate,swEOL_bulletinUrl,hwEOL_endOfSaleDate,sw_status,attempt_count,sw_os_type,key,gu_name,combination_count,swEOL_bulletinNumber,contract_number_str,execution_status,count_,source,hwEOL_endOfNewServiceAttachmentDate,product_family,last_updated_time,product_type,business_entity,timestamp,total_product_list_price'  and how_type='inner' and  replace_values='yes'
- --> @dm:rename-columns unique_key_inventory='unique_key'
- --> @dm:eval unique_key="str(unique_key_inventory) + str(securityAdvisoryId) +str(PsirtID)+ str(sw_version)+str(sw_os_type)"
- --> @dm:to-type columns='combination_count' and type='int'
- --> @dm:save name='final-sa-hw-enrich-left'
- --> @dm:selectcolumns exclude='^(Unique_id|ingestion_id|_RDA_Id|count_|timestamp|contract_number_str|__uuid)$'
- --> @dm:to-type columns='combination_count' and type='int'
- --> @dm:save name='final-enrich'
- --> @rn:write-stream name='edc_sec_adv_data_enriched'
+ ## To AVOID Update-LOOP, lets check work_notes and look for [code] in it. This means, this update is triggered by CFX and Snow is looping it back.
+
+ --> *dm:filter payload_work_notes is null or (payload_work_notes == '' or payload_work_notes not contains 'code')
+ ## We need to differentiate between Snow initiated ones and CFX ones.
+
+ --> @dm:to_type columns = 'payload_state,payload_impact,payload_priority,payload_severity,payload_urgency' & type  = 'int'
+ ## Resolved or Closed or Cancelled
+
+ --> *dm:filter payload_number != '' and (payload_state > 5)
+ --> @dm:skip-block-if-shape row_count = 0
+ ## Record The Step
+
+ --> @dm:eval pipeline="'snow-to-oia'" & step="'Source Data'" & stage="'Webhook Data'" & status_comments="'Ticket ' + payload_number + ', State:' + str(payload_state)" & status="'INFO'"
+ --> @exec:run-pipeline name="oia-incident-status-tracker-stream" & ignore_failures="yes"
+ ## Revisit HACK TODO    ## Pick Latest Record per each Incident/Ticket
+
+ --> @dm:dedup columns="payload_number" & keep="last"
+ --> @dm:save name="temp-input-payload"
+ --> @dm:save name="sto-input-payload"
+ ## Get the mapping CFX number for the external-ticket
+
+ --> @c:data-loop dataset="temp-input-payload" & columns="payload_number,sys_id"
+ --> @dm:empty
+ --> @dm:addrow name="oia-incidents-external-tickets-stream" & max_rows="10"
+ ## Columns: | team_id | customer_id | project_id  | incident_id  | collab_type | ticket_number | shared_time | ticket_id  | link |
+
+ --> #dm:query-persistent-stream ticket_number is '$payload_number' & collab_type is 'ServiceNow' & ticket_id is '$sys_id'
+ --> @dm:skip-block-if-shape row_count = 0
+ --> @dm:check-columns must_contain="ticket_number" & action="skip-block"
+ --> *dm:filter ticket_number is not null and incident_id is not null
+ ## helps in join. Unique for every record received
+
+ --> @dm:save name="temp-teamincidents" & append="yes"
+ ## Enrich InputData with TeamIncident
+
  --> @c:new-block
- --> @dm:recall name='temp-sec-adv-details'
- ## --> @dm:groupby columns='firstIcAlertId'
+ --> @dm:recall name="temp-teamincidents"
+ --> @dm:skip-block-if-shape row_count = 0
+ ## Revisit HACK TODO Why dups are coming
 
- --> @dm:skip-block-if-shape row_count="0"
- --> @dm:sort columns='secAdv_confidence_score' and order='descending'
- --> @dm:dedup columns='sw_version,sw_os_type,product_id'
- --> @dm:to_type columns = 'contract_number' and type  = 'int'
- --> @dm:save name="temp-pa-sec-adv-dedups"
- --> @dm:save name="test-pa-sec-adv-dedups"
+ --> @dm:dedup columns="ticket_number" & keep="last"
+ --> @dm:save name="temp-teamincidents"
+ --> @dm:save name="sto-teamincidents"
+ --> @dm:recall name="temp-input-payload"
+ --> @dm:skip-block-if-shape row_count = 0
+ --> @dm:enrich dict='temp-teamincidents' & dict_key_cols='ticket_number' & src_key_cols='payload_number' & enrich_cols='incident_id,project_id,ticket_id,team_id,team_name,collab_type,customer_id'
+ ## Record The Step
+
+ --> @dm:eval pipeline="'snow-to-oia'" & step="'External-To-CFX'" & stage="'External-to-CFX Mapping'" & status_comments="'External:' + ticket_number + ',CFX:' + incident_id + ',Team:' + team_name" & status="'INFO'"
+ --> @exec:run-pipeline name="oia-incident-status-tracker-stream" & ignore_failures="yes"
+ ## InputData + TeamIncident
+
+ --> @dm:save name="temp-input-teamincident"
+ --> @dm:save name="sto-input-teamincident"
+ ## Get the CFX IRM Record
+
+ --> @c:data-loop dataset="temp-input-teamincident" & columns="project_id,incident_id,ticket_number,ticket_id"
+ ## get latest IRM record for this incident
+
+ --> @dm:empty
+ ## Change-Here: Enter corresponding db name. make sure we have mysql bot
+
+ --> @dm:addrow table="incident" & dbname="4f0e13b909c44cd8b503962c22029ffb_cfxdimensions_app_irm_service"
+ --> #mysql:read incidentId is '$incident_id' & roomId is '$project_id'
+ --> @dm:skip-block-if-shape row_count = 0
+ ## Returns: incidentid, roomid, customerid, priority, state, resolved_user, resolved_at, resolution_code, closed_user, closed_at, sourceKey
+
+ --> @dm:check-columns must_contain="incidentid" & action="skip-block"
+ --> @dm:selectcolumns include="incident|room|customer|project|resolved|resolution_code|closed|state|source|priority"
+ --> @dm:rename-columns irm_closed_at = "closed_at"
+ --> @dm:rename-columns irm_closed_user = "closed_user"
+ --> @dm:rename-columns irm_resolved_user = "resolved_user"
+ --> @dm:rename-columns irm_resolved_at = "resolved_at"
+ --> @dm:rename-columns irm_priority = "priority"
+ --> @dm:rename-columns irm_state = "state"
+ --> @dm:rename-columns irm_resolution_code = "resolution_code"
+ ## Record The Step
+
+ --> @dm:eval pipeline="'snow-to-oia'" & step="'IRM-CFXIncident'" & stage="'IRM-CFXIncident'" & status_comments="'External:$ticket_number' + ',CFX:' + incidentid + ',State:' + irm_state" & status="'INFO'"
+ --> @exec:run-pipeline name="oia-incident-status-tracker-stream" & ignore_failures="yes"
+ ## PAYLOAD + TeamIncident + IRM - on a single record
+
+ --> @dm:save name="temp-irm-record"
+ --> @dm:recall name="temp-input-teamincident"
+ --> @dm:enrich dict='temp-irm-record' & src_key_cols='project_id,incident_id' & dict_key_cols='roomid,incidentid' & enrich_cols='customerid,irm_resolved_user,irm_resolved_at,irm_resolution_code,irm_closed_user,irm_closed_at,irm_state,source,sourceKey,irm_priority'
+ ## InputData + TeamIncident + IRM Record
+
+ --> @dm:save name="temp-input-teamincident-irm" & append="yes"
  --> @c:new-block
- --> @dm:recall name='temp-pa-sec-adv-dedups'
- --> @dm:enrich dict='temp-hw-eol-details' and dict_key_cols='product_id,contract_number,customer_name' and  src_key_cols='product_id,contract_number,customer' and  enrich_cols='business_sub_entity,swEOL_bulletinTitle,bk_eol_bulletin_product_typ_cd,product_family_description,hw_expiring_year,product_description,portfolio_desc,sw_status_score,swEOL_softwareEOXId,_RDA_Id,hwEOL_endOfSoftwareMaintenanceReleasesDate,hw_expiring_qtr,PostDate,coverage,covered_line_status,swEOL_lastDayOfSupportDate,execution_reason,sw_expiring_qtr,hwEOL_lastDayOfSupportDate,swEOL_endOfLifeAnnouncementDate,hw_status,bk_end_of_life_request_num,usage_code,sw_version,transaction_id,item_type,swEOL_endOfSoftwareMaintenanceReleasesDate,savm_sales_level_4_name,product_list_price,swEOL_endOfSaleDate,hwEOL_endOfServiceContractRenewalDate,swEOL_endOfVulnerabilitySecuritySupportDate,unique_key,hwEOL_endOfRoutineFailureAnalysisDate,sw_expiring_year,eol_product_name,product_name,hwEOL_endOfLifeAnnouncementDate,swEOL_bulletinUrl,hwEOL_endOfSaleDate,sw_status,attempt_count,sw_os_type,key,gu_name,combination_count,swEOL_bulletinNumber,contract_number_str,execution_status,count_,source,hwEOL_endOfNewServiceAttachmentDate,product_family,last_updated_time,product_type,business_entity,timestamp,total_product_list_price' and replace_values='yes' and how_type='inner'
- --> @dm:save name='enriched-sa-hw-enrich-left'
- ## --> @dm:selectcolumns include='^(gu_name|savm_sales_level_4_name|coverage|covered_line_status|business_entity|business_sub_entity|bk_end_of_life_request_num|bk_eol_bulletin_product_typ_cd|hwEOL_endOfNewServiceAttachmentDate|hwEOL_endOfRoutineFailureAnalysisDate|hwEOL_endOfSoftwareMaintenanceReleasesDate|hwEOL_endOfServiceContractRenewalDate|hwEOL_endOfLifeAnnouncementDate|eol_product_name|item_type|hwEOL_endOfSaleDate|hwEOL_lastDayOfSupportDate|product_description|product_family|product_family_description|product_type|product_list_price|portfolio_desc|usage_code|combination_count|execution_status|total_product_list_price|unique_key|hw_status|hw_expiring_qtr|hw_expiring_year|last_updated_time|product_name|execution_reason|attempt_count|customer_name|sw_status|sw_expiring_qtr|sw_expiring_year|secAdv_confidence_score|ID|securityAdvisoryId|bulletinTitle|secAdv_securityImpactRating|secAdv_matchConfidence|swEOL_endOfLifeAnnouncementDate|swEOL_endOfVulnerabilitySecuritySupportDate|swEOL_lastDayOfSupportDate|swEOL_endOfSoftwareMaintenanceReleasesDate|swEOL_endOfSaleDate|swEOL_bulletinUrl|swEOL_bulletinNumber|swEOL_bulletinTitle|swEOL_softwareEOXId|PostDate|groups_0|source|icType_source|icType_bug|icType_fieldNotice|icType_psirt|icType_ciscoBestPractice|icType_compliance|icType_engineeringFailureAnalysis|icType_eoXAlert|icType_susceptibility|icType_thirdPartyBestPractice|icType_detectionType|icType_remediation_additionalTroubleshootingNeeded|icType_remediation_informOnly|icType_remediation_problemFix|icType_remediation_returnMaterialAuthorization|icType_remediation_workaround|icType_cliCommand|atticaStatus_result|atticaStatus_message|atticaStatus_timestamp|atticaStatus_environment|atticaStatus_alertId|retry_0|associatedGroups_0__id|associatedGroups_0_name|key|sw_version|sw_os_type|transaction_id|sw_status_score|timestamp|count_|_RDA_Id|icType_rmaAvoidance)$'
+ --> @dm:recall name="temp-input-teamincident-irm"
+ ## revisit HACK TODO
 
- ## --> @rn:write-stream name='edc_oi_inventory_enriched' and direct_to_opensearch='yes'
+ --> @dm:dedup columns="ticket_number" & keep="last"
+ --> @dm:save name="temp-input-teamincident-irm"
+ ## Lets update AlertProc & IRM record
 
- --> @dm:selectcolumns exclude='^(PsirtID|MatchConfidence|MatchReason|MatchDefinition|HeadlineName|AdvisoryId|BulletinURL|Summary|Details|RevisedDate|RevisionNumber|PublishedDate|CvssScore|CveId|created|customerVisible|external_text|firstIcAlertId|groups|icIssueId|icProblemId|ignored|lastIcAlertId|matchDefinition|matchInfo|missingInfo|moreInfo|name|openedOn|resultType|resultSubType|severity|severityText|state|updated|runType|filename|icType|atticaStatus|cdetsList|retry|associatedGroups|key|current_time_ms_loop|token_expiry_time|expires_in|token_type|eoXAlert|eoXAlertType|DocumentId|source|deviceSN)$'
- --> @dm:save name='temp-enriched-sa'
- --> @dm:save name='test-enriched-sa'
- --> @rn:write-stream name='edc_oi_inventory_enriched' and direct_to_opensearch='yes'
+ --> @c:data-loop dataset="temp-input-teamincident-irm" & columns="project_id,incident_id,ticket_number,ticket_id,sourceKey"
+ --> @dm:recall name="temp-input-teamincident-irm"
+ --> *dm:filter project_id='$project_id' and incident_id='$incident_id' and ticket_number='$ticket_number'
+ ## External to CFX Mapping
+
+ --> @dm:to_type columns = 'payload_state,payload_impact,payload_priority,payload_severity,payload_urgency' & type  = 'int'
+ --> @dm:eval payload_state_str="'Open' if (payload_state == 1) else ('In Progress' if (payload_state == 2) else ('On Hold' if (payload_state == 3) else ('Resolved' if (payload_state == 6) else ('Closed' if (payload_state == 7) else ('Canceled' if (payload_state == 8) else 'Open')))))"
+ --> @dm:copy-columns to="state" & from="payload_state_str"
+ --> @dm:eval resolved_user = "payload_resolved_by if (payload_state_str == 'Resolved' and payload_resolved_by != '') else ( payload_sys_updated_by if (payload_state_str == 'Resolved') else irm_resolved_user)"
+ --> @dm:copy-columns to="resolved_by" & from="resolved_user"
+ --> @dm:eval resolved_at = "payload_resolved_at if (payload_state_str == 'Resolved' and payload_resolved_at != '') else ( payload_sys_updated_on if (payload_state_str == 'Resolved') else irm_resolved_at)"
+ --> @dm:change-time-format columns="resolved_at" & from_format="datetimestr" & to_format="ms"
+ --> @dm:eval closed_user = "payload_closed_by if (payload_state_str == 'Closed' and payload_closed_by != '') else ( payload_sys_updated_by if (payload_state_str == 'Closed') else irm_closed_user)"
+ --> @dm:eval closed_at = "payload_closed_at if (payload_state_str == 'Closed' and payload_closed_at != '') else ( payload_sys_updated_on if (payload_state_str == 'Closed') else irm_closed_at)"
+ --> @dm:change-time-format columns="closed_at" & from_format="datetimestr" & to_format="ms"
+ --> @dm:eval comments="payload_close_notes if (payload_close_notes != '' and (payload_state_str == 'Resolved' or payload_state_str == 'Closed')) else payload_comments"
+ --> @dm:eval resolution_code="payload_close_code if (payload_close_code != '' and (payload_state_str == 'Resolved' or payload_state_str == 'Closed')) else irm_resolution_code"
+ --> @dm:eval priority="'1 - Critical' if (payload_priority == 1) else ('2 - High' if (payload_priority == 2) else ('3 - Moderate' if (payload_priority == 3) else ('4 - Low' if (payload_priority == 4) else (priority))))"
+ ## Ready for IRM update.
+
+ --> @dm:save name="temp-irm-ready"
+ ## Update the Corresponding Alerts
+
+ --> @dm:copy-columns to="alertid" & from="sourceKey"
+ --> @agent:agent-alertproc:alertprocagent:clearAlerts alert_id="alertid" and cleared_notes="comments" and cleared_by="resolved_user"
+ --> @dm:eval incidentid="'$incident_id'"
+ --> @dm:eval projectid="'$project_id'"
+ ## Record The Step
+
+ --> @dm:eval pipeline="'snow-to-oia'" & step="'AlertProc-Clear-Alerts'" & stage="'AlertProc-Clear'" & status_comments="'External:$ticket_number' + ',CFX:$incident_id' + ',SourceKey:$sourceKey'" & status="'SUCCESS'"
+ --> @exec:run-pipeline name="oia-incident-status-tracker-stream" & ignore_failures="yes"
+ ## If you want to update any more - add here.
+
+ --> @dm:recall name="temp-irm-ready"
+ --> @dm:selectcolumns include="roomid|incidentid|state|resolved|priority|comments|resolution_code"
+ --> @agent:agent-irm:irmagent:updateIncidents
+ ## Record The Step
+
+ --> @dm:eval pipeline="'snow-to-oia'" & step="'IRM Updated'" & stage="'Updated Record'" & status_comments="'External:$ticket_number' + ',CFX:' + incidentid + ',State:' + state + ',Priority:' + priority" & status="'SUCCESS'"
+ --> @exec:run-pipeline name="oia-incident-status-tracker-stream" & ignore_failures="yes"
+ ## Notify Collab
+
+ --> @dm:recall name="temp-irm-ready"
+ --> @dm:copy-columns to="projectId" & from="project_id"
+ --> @dm:copy-columns to="source_system" & from="sourceName"
+ --> @dm:eval notification_subject="'Successfully updated Incident ' + incident_id"
+ --> @dm:eval notification_message="'Successfully updated Incident ' + incident_id"
+ --> @dm:eval summary="'Successfully Updated Incident ' + incident_id + ' with updates from External Ticket $ticket_number, System:' + sourceName"
+ --> @dm:map to="creator" & func="fixed" & value="RDA"
+ --> @dm:copy-columns to="notification_message" & from="summary"
+ --> @dm:selectcolumns include="notification_message|customerid|roomid|projectId|incidentid|summary|creator|notification_subject"
+ --> @rn:write-stream compression="auto" & name="oia-incident-collab-message-stream"
+ ## Record The Step
+
+ --> @dm:eval pipeline="'snow-to-oia'" & step="'Collab Notified'" & stage="'Collab Notified'" & status_comments="'Incident:$incident_id. External:$ticket_number' " & status="'SUCCESS'"
+ --> @exec:run-pipeline name="oia-incident-status-tracker-stream" & ignore_failures="yes"
