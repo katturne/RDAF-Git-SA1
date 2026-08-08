@@ -1,259 +1,150 @@
 {
-  "name": "cnc-network-assets-inventory",
-  "label": "Network Assets",
-  "description": "Network Assets",
-  "dashboard_folder": "MOW",
-  "version": "2023-03-18_1",
+  "name": "customer_access_status_failed_devices",
+  "description": "Customer Access Status",
+  "label": "Failed Devices",
+  "context_label_id": "ip_address",
   "enabled": false,
-  "debug": true,
-  "live_edit": true,
-  "stream": "cnc_device_inventory",
-  "dashboard_type": "dashboard",
+  "dashboard_type": "template",
+  "dashboard_folder": "NetworkDevicePack",
+  "template_variables": {
+    "PROJ_ID": {
+      "contextId": "project_id"
+    },
+    "PROJ_ID_SINGLE": {
+      "contextId": "project_id"
+    },
+    "DEVICE_IP": {
+      "contextId": "ip_address"
+    }
+  },
+  "version": "24.9.6.4",
   "dashboard_filters": {
     "time_filter": true,
     "default_time_filter_labels": [
-      "Last 12 months"
+      "Last 1 month"
     ],
-    "extra_filter": "`item_type` is  \"ASSET\"",
-    "columns_filter": [
-      {
-        "id": "device_ip",
-        "label": "IP Address",
-        "type": "TEXT"
-      },
-      {
-        "id": "device_family",
-        "label": "Device Family",
-        "type": "TEXT"
-      },
-      {
-        "id": "device_serial_number",
-        "label": "Serial Number",
-        "type": "TEXT"
-      },
-      {
-        "id": "device_fw_version",
-        "label": "Software Version",
-        "type": "TEXT"
-      },
-      {
-        "id": "clli_code",
-        "label": "CLLI Code",
-        "type": "TEXT"
-      }
-    ],
-    "group_filters": [
-      {
-        "stream": "cnc_device_inventory",
-        "title": "Manufacturer",
-        "duration_hours": 1080,
-        "extra_filter": "`item_type` is  \"ASSET\"",
-        "group_by": [
-          "manufacturer"
-        ],
-        "ts_column": "timestamp",
-        "agg": "value_count",
-        "column": "_RDA_Id",
-        "type": "str"
-      },
-      {
-        "stream": "cnc_device_inventory",
-        "title": "Model",
-        "duration_hours": 1080,
-        "extra_filter": "`item_type` is  \"ASSET\"",
-        "group_by": [
-          "device_model"
-        ],
-        "ts_column": "timestamp",
-        "agg": "value_count",
-        "column": "_RDA_Id",
-        "type": "str"
-      },
-      {
-        "stream": "cnc_device_inventory",
-        "title": "SW Versions",
-        "duration_hours": 1080,
-        "extra_filter": "`item_type` is  \"ASSET\"",
-        "group_by": [
-          "device_fw_version"
-        ],
-        "ts_column": "timestamp",
-        "agg": "value_count",
-        "column": "_RDA_Id",
-        "type": "str"
-      }
-    ]
+    "extra_filter": "source contains 'failed' and ip_address is '{{DEVICE_IP}}'"
   },
   "dashboard_sections": [
     {
-      "title": "Network Devices",
+      "title": "Success",
       "show_filter": true,
       "widgets": [
         {
-          "widget_type": "label",
-          "label": "<div style='text-align:center;width:100%;'><h1><a style='text-decoration:none;color:#0066ff;' target='_blank'> Network Assets </a></h1></div>",
-          "min_width": 12,
-          "height": 0.4,
-          "max_width": 12,
-          "widget_id": "dd3ae8ae"
-        },
-        {
-          "title": "Total Assets",
-          "widget_type": "custom_counter",
-          "duration_hours": 1080,
-          "stream": "cnc_device_inventory",
-          "ts_column": "timestamp",
-          "column": "_RDA_Id",
-          "agg": "value_count",
-          "type": "int",
-          "min_width": 2,
-          "height": 4,
-          "max_width": 2,
-          "style": {
-            "color-list": [
-              "#90CAF9"
-            ]
-          },
-          "widget_id": "f0ehB7He"
-        },
-        {
-          "title": "Network Assets",
+          "title": "Access Details",
           "widget_type": "tabular",
+          "stream": "network_access_verification",
           "duration_hours": 1080,
           "showRowSummary": true,
-          "query": "*",
-          "max_width": 12,
-          "height": 8,
           "min_width": 12,
-          "stream": "cnc_device_inventory",
-          "ts_column": "timestamp",
+          "height": 6,
+          "max_width": 12,
+          "paginated": true,
           "remote_searchable": true,
           "remote_searchable_cols": [
-            "device_ip",
-            "device_serial_number",
-            "device_family",
-            "device_fw_version"
+            "ip_address",
+            "protocol",
+            "used_cred",
+            "collection_status"
           ],
+          "max_rows": 50,
           "columns": {
-            "device_name": {
-              "title": "Device Name",
-              "type": "TEXT",
-              "key": true
+            "ip_address": {
+              "title": "IP Address",
+              "defaultWidth": 150
             },
-            "device_serial_number": {
-              "title": "Serial Number",
-              "type": "TEXT",
-              "visible": true
+            "protocol": {
+              "title": "Protocol",
+              "defaultWidth": 150
             },
-            "device_model": {
-              "title": "Model",
-              "type": "TEXT",
-              "visible": false
+            "used_cred": {
+              "title": "Credential Name",
+              "defaultWidth": 200
             },
-            "clli_code": {
-              "title": "CLLI Code",
-              "type": "TEXT",
-              "visible": true
+            "collection_status": {
+              "title": "Authentication State",
+              "defaultWidth": 150,
+              "htmlTemplateForRow": "{% raw %}<span class='badge' style='background-color: {{ row.collection_status_color}}' > {{ row.collection_status }} </span>{% endraw %}"
             },
-            "productName": {
-              "title": "Product Name",
-              "type": "TEXT",
-              "visible": true
+            "collection_status_color": {
+              "type": "COLOR-MAP",
+              "source-column": "collection_status",
+              "color-map": {
+                "Success": "#008000",
+                "Failed": "#FF0000",
+                "success": "#008000",
+                "failed": "#FF0000"
+              }
             },
-            "productType": {
-              "title": "Product Type",
-              "type": "TEXT",
-              "visible": true
-            }
+            "reason": {
+              "title": "Failure Reason",
+              "defaultWidth": 200
+            },
+            "timestamp": "Last Access Check Time"
           },
-          "widget_id": "fac6548b"
+          "widget_id": "4c2cfdd7"
         }
       ]
     }
   ],
   "pstream_dashboards": [
     {
-      "title": "Network Devices",
+      "title": "Success",
       "show_filter": true,
       "widgets": [
         {
-          "widget_type": "label",
-          "label": "<div style='text-align:center;width:100%;'><h1><a style='text-decoration:none;color:#0066ff;' target='_blank'> Network Assets </a></h1></div>",
-          "min_width": 12,
-          "height": 0.4,
-          "max_width": 12,
-          "widget_id": "dd3ae8ae"
-        },
-        {
-          "title": "Total Assets",
-          "widget_type": "custom_counter",
-          "duration_hours": 1080,
-          "stream": "cnc_device_inventory",
-          "ts_column": "timestamp",
-          "column": "_RDA_Id",
-          "agg": "value_count",
-          "type": "int",
-          "min_width": 2,
-          "height": 4,
-          "max_width": 2,
-          "style": {
-            "color-list": [
-              "#90CAF9"
-            ]
-          },
-          "widget_id": "f0ehB7He"
-        },
-        {
-          "title": "Network Assets",
+          "title": "Access Details",
           "widget_type": "tabular",
+          "stream": "network_access_verification",
           "duration_hours": 1080,
           "showRowSummary": true,
-          "query": "*",
-          "max_width": 12,
-          "height": 8,
           "min_width": 12,
-          "stream": "cnc_device_inventory",
-          "ts_column": "timestamp",
+          "height": 6,
+          "max_width": 12,
+          "paginated": true,
           "remote_searchable": true,
           "remote_searchable_cols": [
-            "device_ip",
-            "device_serial_number",
-            "device_family",
-            "device_fw_version"
+            "ip_address",
+            "protocol",
+            "used_cred",
+            "collection_status"
           ],
+          "max_rows": 50,
           "columns": {
-            "device_name": {
-              "title": "Device Name",
-              "type": "TEXT",
-              "key": true
+            "ip_address": {
+              "title": "IP Address",
+              "defaultWidth": 150
             },
-            "device_serial_number": {
-              "title": "Serial Number",
-              "type": "TEXT",
-              "visible": true
+            "protocol": {
+              "title": "Protocol",
+              "defaultWidth": 150
             },
-            "device_model": {
-              "title": "Model",
-              "type": "TEXT",
-              "visible": false
+            "used_cred": {
+              "title": "Credential Name",
+              "defaultWidth": 200
             },
-            "clli_code": {
-              "title": "CLLI Code",
-              "type": "TEXT",
-              "visible": true
+            "collection_status": {
+              "title": "Authentication State",
+              "defaultWidth": 150,
+              "htmlTemplateForRow": "{% raw %}<span class='badge' style='background-color: {{ row.collection_status_color}}' > {{ row.collection_status }} </span>{% endraw %}"
             },
-            "productName": {
-              "title": "Product Name",
-              "type": "TEXT",
-              "visible": true
+            "collection_status_color": {
+              "type": "COLOR-MAP",
+              "source-column": "collection_status",
+              "color-map": {
+                "Success": "#008000",
+                "Failed": "#FF0000",
+                "success": "#008000",
+                "failed": "#FF0000"
+              }
             },
-            "productType": {
-              "title": "Product Type",
-              "type": "TEXT",
-              "visible": true
-            }
+            "reason": {
+              "title": "Failure Reason",
+              "defaultWidth": 200
+            },
+            "timestamp": "Last Access Check Time"
           },
-          "widget_id": "fac6548b"
+          "widget_id": "4c2cfdd7"
         }
       ]
     }
