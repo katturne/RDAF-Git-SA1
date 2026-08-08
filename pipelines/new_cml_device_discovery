@@ -1,208 +1,257 @@
-
- ## snow-to-oia
 @c:new-block
- --> @exec:get-input
- ## sourceName
-
- --> *dm:filter (u_cfx_source == 'Alert Group')
- --> @dm:skip-pipeline-if-shape row_count = 0
- --> @dm:add-missing-columns columns = 'sourceName,payload,u_cfx_source'
- --> @dm:eval sourceName="sourceName if sourceName else u_cfx_source"
- --> @dm:save name="temp-input-data"
- ## prepare empty-datasets to avoid runtime errors. some datasets are prepared based on conditional filters
+ --> @agent:cfx-edgecollector:ec-group-01:createJob jobName = "cisco_ios_devices1" &
+seed_addresses = "9.3.252.91,9.3.252.92,9.3.252.93,9.3.252.94,9.3.252.38,9.3.252.32,9.3.252.35,9.3.252.36,9.3.252.37,9.3.252.31,9.3.252.33,9.3.252.34" &
+cli_access = true &
+extended_inventory = true &
+credentials ="cml-snmp,cml-ssh1,cml-ssh2,cml-ssh3"
+ --> @agent:cfx-edgecollector:ec-group-01:updateJob jobName = "cisco_ios_devices1" & seed_addresses = "9.3.252.91,9.3.252.92,9.3.252.93,9.3.252.94,9.3.252.38,9.3.252.32,9.3.252.35,9.3.252.36,9.3.252.37,9.3.252.31,9.3.252.33,9.3.252.34"
+ --> @c:new-block
+ --> @agent:cfx-edgecollector:ec-group-01:runDiscovery jobName = "cisco_ios_devices1"
+ --> @dm:save name = "temp-discovery-results"
+ --> @c:data-loop dataset = "temp-discovery-results" and columns="Minio_location"
+ --> @dm:recall name = "temp-discovery-results"
+ --> @files:ec-get-discovery-results minio_file_location = "$Minio_location" & json_path = "base.data,system.data,entityPhysical.data,interfaces.data,entAliasMappingTable.data,cdpGlobal.data,ipAddrTable.data,cdpCache.data,cli_show_ether_channel_summary.data,management-target"
+ --> @dm:save name="temp-df"
+ --> @c:simple-loop loop_var="base.data,system.data,entityPhysical.data,interfaces.data,entAliasMappingTable.data,cdpGlobal.data,ipAddrTable.data,cdpCache.data,cli_show_ether_channel_summary.data,management-target"
+ --> @dm:set-tracing-context __block__="$loop_var"
+ --> @dm:recall name="temp-df"
+ --> @dm:selectcolumns include="$loop_var|target"
+ --> @dm:rename-columns data="$loop_var"
+ --> @dm:add-missing-columns columns="data"
+ --> *dm:filter data is not null
+ --> @dm:eval-multi-proc data ="data.replace('[[','[') if str(data).startswith('[[') else data" and _max_procs=4
+ --> @dm:eval-multi-proc data ="data.replace(']]',']') if str(data).endswith(']]') else data" and _max_procs=4
+ --> @dm:explode-json column='data'
+ --> @dm:save name="temp-Group-$loop_var"
+ ## temp-ifindex-entPhysicalIndex DATASET: Create 'ifIndex' & 'entPhysicalIndex' mapping columns by reading entAliasMappingTable group
 
  --> @c:new-block
- --> @dm:empty
- --> @dm:save name="temp-input-payload"
- --> @dm:save name="temp-input-teamincident"
- --> @dm:save name="temp-teamincidents"
- --> @dm:save name="temp-input-teamincident-irm"
- ## Prepare all required fields
+ --> @dm:set-tracing-context __block__="entity-alias-mapping"
+ --> @dm:recall name="temp-Group-entAliasMappingTable.data"
+ --> @dm:skip-block-if-shape row_count='0'
+ --> @dm:skip-block-if-shape column_count=1
+ --> @dm:add-missing-columns columns="if_index,entPhysicalIndex"
+ --> @dm:eval-multi-proc if_index=" entAliasMappingIdentifier[entAliasMappingIdentifier.rfind('.') + 1: len(entAliasMappingIdentifier)] if entAliasMappingIdentifier else None" and _max_procs=4
+ --> *dm:filter if_index is not None
+ --> @dm:selectcolumns include="target|if_index|entPhysicalIndex"
+ --> @dm:to-type columns="entPhysicalIndex" and type="int"
+ --> @dm:to-type columns="if_index" and type="int"
+ --> @dm:save name="temp-ifindex-entPhysicalIndex"
+ --> @c:new-block
+ --> @dm:recall name="temp-Group-entityPhysical.data"
+ --> @dm:skip-block-if-shape row_count='0'
+ --> @dm:skip-block-if-shape column_count=1
+ --> *dm:filter entPhysicalClassEnumeratedLabel in ["Port","port","PORT"]
+ --> @dm:to-type columns="entPhysicalIndex" and type="int"
+ --> @dm:enrich dict="temp-ifindex-entPhysicalIndex" and src_key_cols="target,entPhysicalIndex" and dict_key_cols="target,entPhysicalIndex" and enrich_cols="if_index"
+ --> @dm:to-type columns="if_index" and type="int"
+ --> @dm:save name="temp-entityPhysical_logical_data"
+ ## Read interfaces data
 
  --> @c:new-block
- --> @dm:recall name="temp-input-data"
- --> @dm:skip-block-if-shape row_count = 0
- --> @dm:add-missing-columns columns = 'priority,severity,urgency,state,impact,number,work_notes'
- ## --> @dm:explode-json column = 'payload' & prefix_parent_key="yes"
-
- ## Sometime, we are not seeing payload from the input
-
- --> @dm:copy-columns to="payload_comments" & from="comments"
- --> @dm:copy-columns to="payload_comments_and_work_notes" & from="comments_and_work_notes"
- --> @dm:copy-columns to="payload_number" & from="number"
- --> @dm:copy-columns to="payload_work_notes" & from="work_notes"
- --> @dm:copy-columns to="payload_state" & from="state"
- --> @dm:copy-columns to="payload_impact" & from="impact"
- --> @dm:copy-columns to="payload_priority" & from="priority"
- --> @dm:copy-columns to="payload_severity" & from="severity"
- --> @dm:copy-columns to="payload_urgency" & from="urgency"
- --> @dm:copy-columns to="payload_close_notes" & from="close_notes"
- --> @dm:copy-columns to="payload_closed_at" & from="closed_at"
- --> @dm:copy-columns to="payload_closed_by" & from="closed_by"
- --> @dm:copy-columns to="payload_sys_updated_by" & from="sys_updated_by"
- --> @dm:copy-columns to="payload_resolved_at" & from="resolved_at"
- --> @dm:copy-columns to="payload_sys_updated_on" & from="sys_updated_on"
- --> @dm:copy-columns to="payload_resolved_by" & from="resolved_by"
- --> @dm:copy-columns to="payload_close_code" & from="close_code"
- --> @dm:selectcolumns include="payload|close|resolved|sys|urgency|severity|priority|impact|state|work|number|source"
- --> @dm:save name="temp-input-data"
- ## Apply filters on Input-Data
+ --> @dm:recall name="temp-Group-interfaces.data"
+ --> @dm:skip-block-if-shape row_count='0'
+ --> @dm:skip-block-if-shape column_count=1
+ --> @dm:to-type columns="ifIndex" and type="int"
+ --> @dm:enrich dict="temp-entityPhysical_logical_data" and src_key_cols="target,ifIndex" and dict_key_cols="target,if_index" and enrich_cols="entPhysicalDescr,entPhysicalContainedIn,entPhysicalClass,entPhysicalName,entPhysicalSoftwareRev,entPhysicalSerialNum,entPhysicalModelName,entPhysicalVendorName,entPhysicalClassEnumeratedLabel,entPhysicalAlias,entPhysicalIndex"
+ --> @dm:to-type columns="ifIndex" and type="int"
+ --> @dm:to-type columns="entPhysicalIndex" and type="int"
+ --> @dm:eval type="'PORT_CHANNEL' if ifDescr and ifDescr.startswith('Port-channel') else 'PHYSICAL_PORT' if entPhysicalIndex else 'LOGICAL_PORT'"
+ --> @dm:save name="temp-interface"
+ ## Read cdp data
 
  --> @c:new-block
- --> @dm:recall name="temp-input-data"
- --> @dm:skip-block-if-shape row_count = 0
- --> @dm:check-columns must_contain="payload_number" & action="skip-block"
- ## Any extra filter like Company etc...apply here to further narrow down
-
- ## To AVOID Update-LOOP, lets check work_notes and look for [code] in it. This means, this update is triggered by CFX and Snow is looping it back.
-
- --> *dm:filter payload_work_notes is null or (payload_work_notes == '' or payload_work_notes not contains 'code')
- ## We need to differentiate between Snow initiated ones and CFX ones.
-
- --> @dm:to_type columns = 'payload_state,payload_impact,payload_priority,payload_severity,payload_urgency' & type  = 'int'
- ## Resolved or Closed or Cancelled
-
- --> *dm:filter payload_number != '' and (payload_state > 5)
- --> @dm:skip-block-if-shape row_count = 0
- ## Record The Step
-
- --> @dm:eval pipeline="'snow-to-oia'" & step="'Source Data'" & stage="'Webhook Data'" & status_comments="'Ticket ' + payload_number + ', State:' + str(payload_state)" & status="'INFO'"
- --> @exec:run-pipeline name="oia-incident-status-tracker-stream" & ignore_failures="yes"
- ## Revisit HACK TODO    ## Pick Latest Record per each Incident/Ticket
-
- --> @dm:dedup columns="payload_number" & keep="last"
- --> @dm:save name="temp-input-payload"
- --> @dm:save name="sto-input-payload"
- ## Get the mapping CFX number for the external-ticket
-
- --> @c:data-loop dataset="temp-input-payload" & columns="payload_number,sys_id"
- --> @dm:empty
- --> @dm:addrow name="oia-incidents-external-tickets-stream" & max_rows="10"
- ## Columns: | team_id | customer_id | project_id  | incident_id  | collab_type | ticket_number | shared_time | ticket_id  | link |
-
- --> #dm:query-persistent-stream ticket_number is '$payload_number' & collab_type is 'ServiceNow' & ticket_id is '$sys_id'
- --> @dm:skip-block-if-shape row_count = 0
- --> @dm:check-columns must_contain="ticket_number" & action="skip-block"
- --> *dm:filter ticket_number is not null and incident_id is not null
- ## helps in join. Unique for every record received
-
- --> @dm:save name="temp-teamincidents" & append="yes"
- ## Enrich InputData with TeamIncident
+ --> @dm:set-tracing-context __block__="parse-cdp-cache"
+ --> @dm:recall name="temp-Group-cdpCache.data"
+ --> @dm:add-missing-columns columns="data"
+ --> *dm:filter data is not "[]"
+ --> @dm:skip-block-if-shape row_count='0'
+ --> @dm:skip-block-if-shape column_count=1
+ --> @dm:to-type columns = 'cdpCacheIfIndex' & type = 'int'
+ --> @dm:save name="temp-cdp"
+ ## Enrich interface with cdp data
 
  --> @c:new-block
- --> @dm:recall name="temp-teamincidents"
- --> @dm:skip-block-if-shape row_count = 0
- ## Revisit HACK TODO Why dups are coming
+ --> @dm:recall name="temp-interface"
+ --> @dm:enrich dict="temp-cdp" and dict_key_cols="target,cdpCacheIfIndex" and src_key_cols="target,ifIndex" and enrich_cols="cdpCacheAddress,cdpCacheDevicePort,cdpCacheDeviceId,cdpCachePlatform,cdpCacheCapabilitiesEnumeratedLabel"
+ --> @dm:to-type columns="cdpCacheIfIndex" and type="int"
+ --> @dm:to-type columns="ifIndex" and type="int"
+ --> @dm:save name="temp-interface"
+ ## Port Chassis SN
 
- --> @dm:dedup columns="ticket_number" & keep="last"
- --> @dm:save name="temp-teamincidents"
- --> @dm:save name="sto-teamincidents"
- --> @dm:recall name="temp-input-payload"
- --> @dm:skip-block-if-shape row_count = 0
- --> @dm:enrich dict='temp-teamincidents' & dict_key_cols='ticket_number' & src_key_cols='payload_number' & enrich_cols='incident_id,project_id,ticket_id,team_id,team_name,collab_type,customer_id'
- ## Record The Step
-
- --> @dm:eval pipeline="'snow-to-oia'" & step="'External-To-CFX'" & stage="'External-to-CFX Mapping'" & status_comments="'External:' + ticket_number + ',CFX:' + incident_id + ',Team:' + team_name" & status="'INFO'"
- --> @exec:run-pipeline name="oia-incident-status-tracker-stream" & ignore_failures="yes"
- ## InputData + TeamIncident
-
- --> @dm:save name="temp-input-teamincident"
- --> @dm:save name="sto-input-teamincident"
- ## Get the CFX IRM Record
-
- --> @c:data-loop dataset="temp-input-teamincident" & columns="project_id,incident_id,ticket_number,ticket_id"
- ## get latest IRM record for this incident
-
- --> @dm:empty
- ## Change-Here: Enter corresponding db name. make sure we have mysql bot
-
- --> @dm:addrow table="incident" & dbname="4f0e13b909c44cd8b503962c22029ffb_cfxdimensions_app_irm_service"
- --> #mysql:read incidentId is '$incident_id' & roomId is '$project_id'
- --> @dm:skip-block-if-shape row_count = 0
- ## Returns: incidentid, roomid, customerid, priority, state, resolved_user, resolved_at, resolution_code, closed_user, closed_at, sourceKey
-
- --> @dm:check-columns must_contain="incidentid" & action="skip-block"
- --> @dm:selectcolumns include="incident|room|customer|project|resolved|resolution_code|closed|state|source|priority"
- --> @dm:rename-columns irm_closed_at = "closed_at"
- --> @dm:rename-columns irm_closed_user = "closed_user"
- --> @dm:rename-columns irm_resolved_user = "resolved_user"
- --> @dm:rename-columns irm_resolved_at = "resolved_at"
- --> @dm:rename-columns irm_priority = "priority"
- --> @dm:rename-columns irm_state = "state"
- --> @dm:rename-columns irm_resolution_code = "resolution_code"
- ## Record The Step
-
- --> @dm:eval pipeline="'snow-to-oia'" & step="'IRM-CFXIncident'" & stage="'IRM-CFXIncident'" & status_comments="'External:$ticket_number' + ',CFX:' + incidentid + ',State:' + irm_state" & status="'INFO'"
- --> @exec:run-pipeline name="oia-incident-status-tracker-stream" & ignore_failures="yes"
- ## PAYLOAD + TeamIncident + IRM - on a single record
-
- --> @dm:save name="temp-irm-record"
- --> @dm:recall name="temp-input-teamincident"
- --> @dm:enrich dict='temp-irm-record' & src_key_cols='project_id,incident_id' & dict_key_cols='roomid,incidentid' & enrich_cols='customerid,irm_resolved_user,irm_resolved_at,irm_resolution_code,irm_closed_user,irm_closed_at,irm_state,source,sourceKey,irm_priority'
- ## InputData + TeamIncident + IRM Record
-
- --> @dm:save name="temp-input-teamincident-irm" & append="yes"
  --> @c:new-block
- --> @dm:recall name="temp-input-teamincident-irm"
- ## revisit HACK TODO
+ --> @dm:set-tracing-context __block__="get-port-chassis-sr"
+ --> @dm:recall name="temp-Group-entityPhysical.data"
+ --> @dm:skip-block-if-shape row_count='0'
+ --> @dm:skip-block-if-shape column_count=1
+ --> *dm:filter entPhysicalClassEnumeratedLabel in ["chassis","Chassis","CHASSIS"]
+ --> @dm:rename-columns chassis_phyindex="entPhysicalIndex" & chassis_containedin="entPhysicalContainedIn"
+ --> @dm:selectcolumns include="chassis_phyindex|entPhysicalClassEnumeratedLabel|entPhysicalSerialNum|target|entPhysicalName"
+ --> @dm:to-type columns="chassis_phyindex" and type="int"
+ --> @dm:save name="temp-chassis"
+ --> @dm:recall name="temp-Group-entityPhysical.data"
+ --> @dm:skip-block-if-shape row_count='0'
+ --> @dm:skip-block-if-shape column_count=1
+ --> @dm:build-hierarchy entity_key_column = "entPhysicalIndex" and relation_key_column = "entPhysicalContainedIn" and hierarchy_end_key_column="entPhysicalClassEnumeratedLabel" and hierarchy_end_value="Chassis" and include_column_to_primary_key="target"
+ --> @dm:copy-columns from="hierarchy" and to="chassis_phyindex" and func="split" and value="-"
+ --> @dm:eval-multi-proc chassis_phyindex="chassis_phyindex[-1] if hierarchy else None" and _max_procs=4
+ --> *dm:filter entPhysicalClassEnumeratedLabel in ["Port","PORT","port"]
+ --> @dm:rename-columns port_phyindex="entPhysicalIndex"
+ --> @dm:to-type columns="chassis_phyindex" and type="int"
+ --> @dm:selectcolumns include="port_phyindex|chassis_phyindex|target"
+ --> @dm:enrich dict="temp-chassis" and src_key_cols="chassis_phyindex,target" and dict_key_cols="chassis_phyindex,target" and enrich_cols="entPhysicalSerialNum"
+ --> @dm:selectcolumns include="port_phyindex|entPhysicalSerialNum|entPhysicalClassEnumeratedLabel|target"
+ --> @dm:rename-columns chassis_sn="entPhysicalSerialNum"
+ --> @dm:to-type columns="port_phyindex" and type="int"
+ --> @dm:gc
+ --> @dm:save name="temp-port-chassis-sr"
+ --> @c:new-block
+ --> @dm:set-tracing-context __block__="merge-port-chassis-sr-to-if"
+ --> @dm:recall name="temp-ifindex-entPhysicalIndex"
+ --> @dm:skip-block-if-shape row_count='0'
+ --> @dm:skip-block-if-shape column_count=1
+ --> @dm:recall name="temp-interface"
+ --> @dm:enrich dict="temp-port-chassis-sr" and src_key_cols="entPhysicalIndex,target" and dict_key_cols="port_phyindex,target" and enrich_cols="chassis_sn"
+ --> @dm:to-type columns="port_phyindex" and type="int"
+ --> @dm:to-type columns="entPhysicalIndex" and type="int"
+ --> @dm:gc
+ --> @dm:save name="temp-interface"
+ ## device_additional_ips: Read 'ipAddrTable' group & create comma separated list of ipAdEntAddr based on target and merge it with temp-df
 
- --> @dm:dedup columns="ticket_number" & keep="last"
- --> @dm:save name="temp-input-teamincident-irm"
- ## Lets update AlertProc & IRM record
+ --> @c:new-block
+ --> @dm:set-tracing-context __block__="merge device_additional_ips"
+ --> @dm:recall name="temp-Group-ipAddrTable.data"
+ --> @dm:add-missing-columns columns="data"
+ --> *dm:filter data is not "[]"
+ --> @dm:skip-block-if-shape row_count=0
+ --> @dm:skip-block-if-shape column_count=1
+ --> @dm:fixnull columns="ipAdEntAddr" and value=''
+ --> @dm:implode key_columns = "target" and merge_columns="ipAdEntAddr"
+ --> @dm:save name="temp-additional-ip"
+ --> @dm:recall name="temp-interface"
+ --> @dm:enrich dict="temp-additional-ip" and src_key_cols="target" and dict_key_cols="target" and enrich_cols="ipAdEntAddr" and enrich_cols_as="device_additional_ips"
+ --> @dm:save name="temp-interface"
+ ## mgmt_ip: create mgmt_ip list by reading management-target group & merge with temp-df
 
- --> @c:data-loop dataset="temp-input-teamincident-irm" & columns="project_id,incident_id,ticket_number,ticket_id,sourceKey"
- --> @dm:recall name="temp-input-teamincident-irm"
- --> *dm:filter project_id='$project_id' and incident_id='$incident_id' and ticket_number='$ticket_number'
- ## External to CFX Mapping
+ ## ip_address: Merge temp-df with management-target group & map mgmt ip to ip_address
 
- --> @dm:to_type columns = 'payload_state,payload_impact,payload_priority,payload_severity,payload_urgency' & type  = 'int'
- --> @dm:eval payload_state_str="'Open' if (payload_state == 1) else ('In Progress' if (payload_state == 2) else ('On Hold' if (payload_state == 3) else ('Resolved' if (payload_state == 6) else ('Closed' if (payload_state == 7) else ('Canceled' if (payload_state == 8) else 'Open')))))"
- --> @dm:copy-columns to="state" & from="payload_state_str"
- --> @dm:eval resolved_user = "payload_resolved_by if (payload_state_str == 'Resolved' and payload_resolved_by != '') else ( payload_sys_updated_by if (payload_state_str == 'Resolved') else irm_resolved_user)"
- --> @dm:copy-columns to="resolved_by" & from="resolved_user"
- --> @dm:eval resolved_at = "payload_resolved_at if (payload_state_str == 'Resolved' and payload_resolved_at != '') else ( payload_sys_updated_on if (payload_state_str == 'Resolved') else irm_resolved_at)"
- --> @dm:change-time-format columns="resolved_at" & from_format="datetimestr" & to_format="ms"
- --> @dm:eval closed_user = "payload_closed_by if (payload_state_str == 'Closed' and payload_closed_by != '') else ( payload_sys_updated_by if (payload_state_str == 'Closed') else irm_closed_user)"
- --> @dm:eval closed_at = "payload_closed_at if (payload_state_str == 'Closed' and payload_closed_at != '') else ( payload_sys_updated_on if (payload_state_str == 'Closed') else irm_closed_at)"
- --> @dm:change-time-format columns="closed_at" & from_format="datetimestr" & to_format="ms"
- --> @dm:eval comments="payload_close_notes if (payload_close_notes != '' and (payload_state_str == 'Resolved' or payload_state_str == 'Closed')) else payload_comments"
- --> @dm:eval resolution_code="payload_close_code if (payload_close_code != '' and (payload_state_str == 'Resolved' or payload_state_str == 'Closed')) else irm_resolution_code"
- --> @dm:eval priority="'1 - Critical' if (payload_priority == 1) else ('2 - High' if (payload_priority == 2) else ('3 - Moderate' if (payload_priority == 3) else ('4 - Low' if (payload_priority == 4) else (priority))))"
- ## Ready for IRM update.
+ --> @c:new-block
+ --> @dm:set-tracing-context __block__=" map mgmt ip to ip_address"
+ --> @dm:recall name="temp-Group-management-target"
+ --> @dm:skip-block-if-shape row_count=0
+ --> @dm:skip-block-if-shape column_count=1
+ --> @dm:sort columns="data,target"
+ --> @dm:save name="temp-mgmt"
+ --> @dm:implode key_columns="target" and merge_columns="data"
+ --> @dm:save name="temp-mgmt-list"
+ --> @dm:recall name="temp-interface"
+ --> @dm:enrich dict="temp-mgmt-list" and src_key_cols="target" and dict_key_cols="target" and enrich_cols="data" and enrich_cols_as="mgmt_ip"
+ --> @dm:enrich dict="temp-mgmt" and src_key_cols="target" and dict_key_cols="target" and enrich_cols="data" and enrich_cols_as="target_ip"
+ --> @dm:selectcolumns exclude="^data$"
+ --> @dm:save name="temp-interface"
+ --> @c:data-loop dataset = "temp-discovery-results" and columns="Minio_location"
+ --> @dm:recall name = "temp-discovery-results"
+ --> @files:ec-get-discovery-results minio_file_location = "$Minio_location" &
+json_path = "system.data"
+ --> @dm:rename-columns data="system.data"
+ --> *dm:filter data is not null
+ --> @dm:explode-json column= "data"
+ --> @dm:selectcolumns exclude ='^sysObjectID$|^systemVendorSubID$'
+ --> @dm:save name = "temp-system-info"
+ --> @c:data-loop dataset = "temp-discovery-results" and columns="Minio_location"
+ --> @dm:recall name = "temp-discovery-results"
+ --> @files:ec-get-discovery-results minio_file_location = "$Minio_location" &
+json_path = "entityPhysical.data"
+ --> @dm:rename-columns data="entityPhysical.data"
+ --> *dm:filter data is not null
+ --> @dm:explode-json column= "data"
+ --> *dm:filter entPhysicalClassEnumeratedLabel in [ "Chassis" ]
+ --> @dm:save name = "temp-ent-info"
+ --> @c:data-loop dataset = "temp-discovery-results" and columns="Minio_location"
+ --> @dm:recall name = "temp-discovery-results"
+ --> @files:ec-get-discovery-results minio_file_location = "$Minio_location" &
+json_path = "base.data"
+ --> @dm:rename-columns data="base.data"
+ --> *dm:filter data is not null
+ --> @dm:explode-json column= "data"
+ --> *dm:filter sysDescr contains "Cisco"
+ --> @dm:manipulate-string from="sysDescr" and func = "split" and value="Version" and to ="version"
+ --> @dm:eval version= "version[1].split(',')[0].split('[')[0].split()[0] if sysDescr else None"
+ --> @dm:save name="temp-base"
+ --> *dm:filter * get target as 'device_ip',sysDescr as 'device_version_summary',systemManagerIP as 'device_mgmt_ip',systemVendorOS as 'device_fw_type',version as 'device_fw_version'
+ --> @dm:save name = 'temp-base-updated-info'
+ --> @c:new-block
+ --> @dm:recall name = 'temp-system-info'
+ --> *dm:filter * get sysContact as 'device_contact',sysLocation as 'device_location',sysName as 'device_hostname',target as 'device_ip'
+ --> @dm:save name="temp-system-updated-info"
+ --> @c:new-block
+ --> @dm:recall name = 'temp-ent-info'
+ --> @dm:save name = 'temp-ent-info'
+ --> *dm:filter * get entPhysicalClassEnumeratedLabel as 'device_equip_type',entPhysicalDescr as 'device_eq_description',entPhysicalMfgName as 'device_vendor',entPhysicalModelName as 'device_model',entPhysicalSerialNum as 'device_serial_number',target as 'device_ip'
+ --> @dm:enrich dict = 'temp-base-updated-info' & src_key_cols = 'device_ip' & dict_key_cols = 'device_ip' & enrich_cols = 'device_version_summary,device_mgmt_ip,device_fw_type,device_fw_version'
+ --> @dm:enrich dict = 'temp-system-updated-info' & src_key_cols = 'device_ip' & dict_key_cols = 'device_ip' & enrich_cols = 'device_contact,device_location,device_hostname'
+ --> @dm:save name = 'cml_cisco_device_chassis_dict'
+ --> @c:new-block
+ --> @dm:set-tracing-context __block__=" map source_ip"
+ --> @dm:recall name="temp-interface"
+ --> @dm:add-missing-columns columns="target_ip"
+ --> @cfxaia:conditional-statement condition_column = "target_ip" and return_if = "target_ip" and return_else = "target" and to_column = "ip_address"
+ --> @dm:selectcolumns exclude="target-ip|if_index"
+ --> @dm:save name="temp-interface"
+ --> *dm:filter * get target as 'device_ip',ifDescr as 'device_int_name',ifIndex as 'device_int_index',ifName as 'device_int_shortname',ifOperStatusEnumeratedLabel as 'device_interface_status',type as 'device_interface_type',cdpCacheIfIndex as 'remote_device_int_index',cdpCacheAddress as 'remote_device_ip',cdpCacheDevicePort as 'remote_device_int_name',cdpCacheDeviceId as 'remote_device_id',cdpCachePlatform as 'remote_device_model',cdpCacheCapabilitiesEnumeratedLabel as 'remote_device_capabilities',chassis_sn as 'device_serial_number'
+ --> @dm:enrich dict = 'cisco_device_chassis_dict' & src_key_cols = 'device_ip' & dict_key_cols = 'device_ip' & enrich_cols = 'device_eq_description,device_mgmt_ip,device_fw_version,device_fw_type,device_model,device_vendor,device_hostname,device_contact,device_location,device_version_summary'
+ --> @dm:eval cdp_device_order = "':'.join(sorted([device_ip, remote_device_ip]))"
+ --> @dm:save name = 'cml_cisco_device_interface_data'
+ --> *dm:filter remote_device_int_name is not empty get device_ip,device_int_name,device_int_shortname,remote_device_ip,remote_device_int_name
+ --> @dm:eval cdp_device_order = "':'.join(sorted([device_ip, remote_device_ip]))"
+ --> @dm:save name = 'cml_cisco_device_interface_cdp_dict'
+ ## Adding Cisco Simulated devices
 
- --> @dm:save name="temp-irm-ready"
- ## Update the Corresponding Alerts
+ ## Cisco Device Chassis
 
- --> @dm:copy-columns to="alertid" & from="sourceKey"
- --> @agent:agent-alertproc:alertprocagent:clearAlerts alert_id="alertid" and cleared_notes="comments" and cleared_by="resolved_user"
- --> @dm:eval incidentid="'$incident_id'"
- --> @dm:eval projectid="'$project_id'"
- ## Record The Step
+ --> @c:new-block
+ --> @dm:recall name = "cml_cisco_device_chassis_dict"
+ --> @dm:save name = "temp-chassis-1"
+ --> *dm:filter device_ip = "9.3.140.7"
+ --> @dm:eval device_ip = "'10.122.127.184'"
+ --> @dm:eval device_mgmt_ip = "'10.122.127.184'"
+ --> @dm:eval device_serial_number = "'FJC2535ACME'"
+ --> @dm:eval device_hostname = "'CNXSSIM-C1100TG-4.attpsl.cisco.com'"
+ --> @dm:save name = "temp-chassis-2"
+ --> @c:new-block
+ --> @dm:concat names = "temp-chassis-.*"
+ ## Overwrite dataset
 
- --> @dm:eval pipeline="'snow-to-oia'" & step="'AlertProc-Clear-Alerts'" & stage="'AlertProc-Clear'" & status_comments="'External:$ticket_number' + ',CFX:$incident_id' + ',SourceKey:$sourceKey'" & status="'SUCCESS'"
- --> @exec:run-pipeline name="oia-incident-status-tracker-stream" & ignore_failures="yes"
- ## If you want to update any more - add here.
+ --> @dm:save name = "cml_cisco_device_chassis_sim_dict"
+ ## Cisco Device Interfaces
 
- --> @dm:recall name="temp-irm-ready"
- --> @dm:selectcolumns include="roomid|incidentid|state|resolved|priority|comments|resolution_code"
- --> @agent:agent-irm:irmagent:updateIncidents
- ## Record The Step
+ --> @c:new-block
+ --> @dm:recall name = "cml_cisco_device_interface_data"
+ --> @dm:save name = "temp-chassis-1"
+ --> *dm:filter device_ip = "9.3.140.7"
+ --> @dm:eval device_ip = "'10.122.127.184'"
+ ## --> @dm:evalMap values using evaluate function. Speciy one of more column = 'expression' pairs device_mgmt_ip = "'10.122.127.184'"
 
- --> @dm:eval pipeline="'snow-to-oia'" & step="'IRM Updated'" & stage="'Updated Record'" & status_comments="'External:$ticket_number' + ',CFX:' + incidentid + ',State:' + state + ',Priority:' + priority" & status="'SUCCESS'"
- --> @exec:run-pipeline name="oia-incident-status-tracker-stream" & ignore_failures="yes"
- ## Notify Collab
+ --> @dm:eval device_serial_number = "'FJC2535ACME'"
+ --> @dm:eval device_hostname = "'CNXSSIM-C1100TG-4.attpsl.cisco.com'"
+ --> @dm:save name = "temp-chassis-2"
+ --> @c:new-block
+ --> @dm:concat names = "temp-chassis-.*"
+ --> @dm:save name="temp-output"
+ --> @dm:add-missing-columns columns="left_id"
+ --> @dm:selectcolumns include="^left_id$|^device_ip$"
+ --> @dm:add-checksum checksum_type="rows-only" and row_checksum_column="left_id" and key="yes"
+ --> @dm:save name = "temp-node_id"
+ --> @dm:recall name="temp-output"
+ --> @dm:enrich dict="temp-node_id" and src_key_cols="device_ip" and dict_key_cols="device_ip" and enrich_cols="left_id"
+ --> @dm:save name="cml_disc_output1"
+ --> @dm:save name="temp-output"
+ --> @dm:add-missing-columns columns="right_id"
+ --> @dm:selectcolumns include="^right_id$|^remote_device_ip$"
+ --> @dm:add-checksum checksum_type="rows-only" and row_checksum_column="right_id" and key="yes"
+ --> @dm:save name = "temp-node_id"
+ --> @dm:recall name="temp-output"
+ --> @dm:enrich dict="temp-node_id" and src_key_cols="remote_device_ip" and dict_key_cols="device_ip" and enrich_cols="left_id" and enrich_cols_as="right_id"
+ ## Overwrite dataset
 
- --> @dm:recall name="temp-irm-ready"
- --> @dm:copy-columns to="projectId" & from="project_id"
- --> @dm:copy-columns to="source_system" & from="sourceName"
- --> @dm:eval notification_subject="'Successfully updated Incident ' + incident_id"
- --> @dm:eval notification_message="'Successfully updated Incident ' + incident_id"
- --> @dm:eval summary="'Successfully Updated Incident ' + incident_id + ' with updates from External Ticket $ticket_number, System:' + sourceName"
- --> @dm:map to="creator" & func="fixed" & value="RDA"
- --> @dm:copy-columns to="notification_message" & from="summary"
- --> @dm:selectcolumns include="notification_message|customerid|roomid|projectId|incidentid|summary|creator|notification_subject"
- --> @rn:write-stream compression="auto" & name="oia-incident-collab-message-stream"
- ## Record The Step
-
- --> @dm:eval pipeline="'snow-to-oia'" & step="'Collab Notified'" & stage="'Collab Notified'" & status_comments="'Incident:$incident_id. External:$ticket_number' " & status="'SUCCESS'"
- --> @exec:run-pipeline name="oia-incident-status-tracker-stream" & ignore_failures="yes"
+ --> @dm:save name = "cml_cisco_device_interface_sim_data"

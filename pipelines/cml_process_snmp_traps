@@ -1,208 +1,110 @@
-
- ## snow-to-oia
-@c:new-block
- --> @exec:get-input
- ## sourceName
-
- --> *dm:filter (u_cfx_source == 'Alert Group')
- --> @dm:skip-pipeline-if-shape row_count = 0
- --> @dm:add-missing-columns columns = 'sourceName,payload,u_cfx_source'
- --> @dm:eval sourceName="sourceName if sourceName else u_cfx_source"
- --> @dm:save name="temp-input-data"
- ## prepare empty-datasets to avoid runtime errors. some datasets are prepared based on conditional filters
-
+@dm:empty
+ --> @dm:addrow alert_severity_str="CRITICAL" and dict_alert_severity_num=0
+ --> @dm:addrow alert_severity_str="MAJOR" and dict_alert_severity_num=1
+ --> @dm:addrow alert_severity_str="HIGH" and dict_alert_severity_num=1
+ --> @dm:addrow alert_severity_str="MODERATE" and dict_alert_severity_num=2
+ --> @dm:addrow alert_severity_str="MINOR" and dict_alert_severity_num=2
+ --> @dm:addrow alert_severity_str="LOW" and dict_alert_severity_num=3
+ --> @dm:addrow alert_severity_str="WARNING" and dict_alert_severity_num=3
+ --> @dm:addrow alert_severity_str="NOTIFICATION" and dict_alert_severity_num=4
+ --> @dm:addrow alert_severity_str="PLANNING" and dict_alert_severity_num=5
+ --> @dm:addrow alert_severity_str="INFORMATION" and dict_alert_severity_num=5
+ --> @dm:addrow alert_severity_str="INFO" and dict_alert_severity_num=5
+ --> @dm:save name="temp-sev-mapping"
  --> @c:new-block
- --> @dm:empty
- --> @dm:save name="temp-input-payload"
- --> @dm:save name="temp-input-teamincident"
- --> @dm:save name="temp-teamincidents"
- --> @dm:save name="temp-input-teamincident-irm"
- ## Prepare all required fields
+ --> @rn:read-stream name = 'snmp_trap_event_stream' & group = '06_15_2023'
+ --> @dm:map-snmp-trap-to-alert template_folder="trap2alert2"
+ ## For now, process this only for cml devices
 
- --> @c:new-block
- --> @dm:recall name="temp-input-data"
- --> @dm:skip-block-if-shape row_count = 0
- --> @dm:add-missing-columns columns = 'priority,severity,urgency,state,impact,number,work_notes'
- ## --> @dm:explode-json column = 'payload' & prefix_parent_key="yes"
+ --> *dm:filter rda_gw_client_ip contains '9.3.252'
+ ## Handle link up/down traps
 
- ## Sometime, we are not seeing payload from the input
+ --> *exec:if-condition snmpTrapName is 'linkDown' or snmpTrapName is 'linkUp'
+ ## For some reason cisco sends the interface name as ifAdminStatus varbind
 
- --> @dm:copy-columns to="payload_comments" & from="comments"
- --> @dm:copy-columns to="payload_comments_and_work_notes" & from="comments_and_work_notes"
- --> @dm:copy-columns to="payload_number" & from="number"
- --> @dm:copy-columns to="payload_work_notes" & from="work_notes"
- --> @dm:copy-columns to="payload_state" & from="state"
- --> @dm:copy-columns to="payload_impact" & from="impact"
- --> @dm:copy-columns to="payload_priority" & from="priority"
- --> @dm:copy-columns to="payload_severity" & from="severity"
- --> @dm:copy-columns to="payload_urgency" & from="urgency"
- --> @dm:copy-columns to="payload_close_notes" & from="close_notes"
- --> @dm:copy-columns to="payload_closed_at" & from="closed_at"
- --> @dm:copy-columns to="payload_closed_by" & from="closed_by"
- --> @dm:copy-columns to="payload_sys_updated_by" & from="sys_updated_by"
- --> @dm:copy-columns to="payload_resolved_at" & from="resolved_at"
- --> @dm:copy-columns to="payload_sys_updated_on" & from="sys_updated_on"
- --> @dm:copy-columns to="payload_resolved_by" & from="resolved_by"
- --> @dm:copy-columns to="payload_close_code" & from="close_code"
- --> @dm:selectcolumns include="payload|close|resolved|sys|urgency|severity|priority|impact|state|work|number|source"
- --> @dm:save name="temp-input-data"
- ## Apply filters on Input-Data
+ --> @dm:rename-columns local_interface="ifAdminStatus"
+ --> @dm:enrich dict="cml-cdp-data"
+and src_key_cols="ipAddress,local_interface"
+and dict_key_cols="source_ip,local_port"
+and enrich_cols="mgmt_ip,remote_port"
+ --> @dm:enrich dict="cml-interface-data"
+and src_key_cols="mgmt_ip,remote_port"
+and dict_key_cols="ipaddr,intf"
+and enrich_cols="source_ip"
+and enrich_cols_as="remote_ip"
+ --> @dm:selectcolumns exclude="mgmt_ip"
+ --> @dm:selectcolumns exclude="intf"
+ --> @dm:selectcolumns exclude="ipaddr"
+ --> @dm:selectcolumns exclude="source_ip"
+ --> @dm:rename-columns remote_interface="remote_port"
+ --> @dm:eval link_type="'CDP'"
+ --> @dm:enrich dict="temp-sev-mapping" and src_key_cols="alert_severity" and dict_key_cols="alert_severity_str" and enrich_cols="dict_alert_severity_num"
+ --> @dm:rename-columns severity="alert_severity"
+ --> @dm:rename-columns key="alert_key"
+ --> @dm:rename-columns snmp_trap_name="snmpTrapName"
+ --> @dm:rename-columns snmp_trap_oid="snmpTrapOID"
+ --> @dm:rename-columns state="alert_state"
+ --> @dm:eval dict_name = "'INTERFACE'"
+ --> @rn:write-stream name = 'new_cml_snmp_trap_alerts_debug'
+ --> @dm:map attr ="snmp_trap_timestamp" & func = 'ts_to_datetimestr' & unit = 'ms'
+ --> @dm:apply-template-by-row template_name = 'snmp_trap_alert_template' & output_col = 'payload'
+ --> @restclient:write url is "https://10.122.127.182:7443/webhooks/hookid/0427678a-fc73-453b-9ecb-fdb6ecab9d57" & envelope is '{{payload}}' & batch_size = 1
+ --> @exec:end-if
+ ## END link up/down traps
 
- --> @c:new-block
- --> @dm:recall name="temp-input-data"
- --> @dm:skip-block-if-shape row_count = 0
- --> @dm:check-columns must_contain="payload_number" & action="skip-block"
- ## Any extra filter like Company etc...apply here to further narrow down
+ ## Handle OSPF NBR CHANGE traps
 
- ## To AVOID Update-LOOP, lets check work_notes and look for [code] in it. This means, this update is triggered by CFX and Snow is looping it back.
+ --> *exec:if-condition snmpTrapName is 'ospfNbrStateChange'
+ --> @dm:eval link_type="'OSPF'"
+ --> @dm:enrich-using-pstream dict="cml_topo_edges"
+and src_key_cols="device,ospfNbrRtrId,link_type"
+and dict_key_cols="left_id,neighbor_id,link_type"
+and enrich_cols="right_id,local_interface,neighbor_interface"
+and enrich_cols_as="remote_ip,local_interface,remote_interface"
+ --> @dm:enrich dict="temp-sev-mapping"
+and src_key_cols="alert_severity"
+and dict_key_cols="alert_severity_str"
+and enrich_cols="dict_alert_severity_num"
+ --> @dm:rename-columns severity="alert_severity"
+ --> @dm:rename-columns key="alert_key"
+ --> @dm:rename-columns snmp_trap_name="snmpTrapName"
+ --> @dm:rename-columns snmp_trap_oid="snmpTrapOID"
+ --> @dm:rename-columns state="alert_state"
+ --> @dm:eval dict_name = "'OSPF'"
+ --> @rn:write-stream name = 'new_cml_snmp_trap_alerts_debug'
+ --> @dm:map attr ="snmp_trap_timestamp" & func = 'ts_to_datetimestr' & unit = 'ms'
+ --> @dm:apply-template-by-row template_name = 'snmp_trap_alert_template' & output_col = 'payload'
+ --> @restclient:write url is "https://10.122.127.182:7443/webhooks/hookid/0427678a-fc73-453b-9ecb-fdb6ecab9d57" & envelope is '{{payload}}' & batch_size = 1
+ --> @exec:end-if
+ ## Handle BGP NBR CHANGE traps
 
- --> *dm:filter payload_work_notes is null or (payload_work_notes == '' or payload_work_notes not contains 'code')
- ## We need to differentiate between Snow initiated ones and CFX ones.
-
- --> @dm:to_type columns = 'payload_state,payload_impact,payload_priority,payload_severity,payload_urgency' & type  = 'int'
- ## Resolved or Closed or Cancelled
-
- --> *dm:filter payload_number != '' and (payload_state > 5)
- --> @dm:skip-block-if-shape row_count = 0
- ## Record The Step
-
- --> @dm:eval pipeline="'snow-to-oia'" & step="'Source Data'" & stage="'Webhook Data'" & status_comments="'Ticket ' + payload_number + ', State:' + str(payload_state)" & status="'INFO'"
- --> @exec:run-pipeline name="oia-incident-status-tracker-stream" & ignore_failures="yes"
- ## Revisit HACK TODO    ## Pick Latest Record per each Incident/Ticket
-
- --> @dm:dedup columns="payload_number" & keep="last"
- --> @dm:save name="temp-input-payload"
- --> @dm:save name="sto-input-payload"
- ## Get the mapping CFX number for the external-ticket
-
- --> @c:data-loop dataset="temp-input-payload" & columns="payload_number,sys_id"
- --> @dm:empty
- --> @dm:addrow name="oia-incidents-external-tickets-stream" & max_rows="10"
- ## Columns: | team_id | customer_id | project_id  | incident_id  | collab_type | ticket_number | shared_time | ticket_id  | link |
-
- --> #dm:query-persistent-stream ticket_number is '$payload_number' & collab_type is 'ServiceNow' & ticket_id is '$sys_id'
- --> @dm:skip-block-if-shape row_count = 0
- --> @dm:check-columns must_contain="ticket_number" & action="skip-block"
- --> *dm:filter ticket_number is not null and incident_id is not null
- ## helps in join. Unique for every record received
-
- --> @dm:save name="temp-teamincidents" & append="yes"
- ## Enrich InputData with TeamIncident
-
- --> @c:new-block
- --> @dm:recall name="temp-teamincidents"
- --> @dm:skip-block-if-shape row_count = 0
- ## Revisit HACK TODO Why dups are coming
-
- --> @dm:dedup columns="ticket_number" & keep="last"
- --> @dm:save name="temp-teamincidents"
- --> @dm:save name="sto-teamincidents"
- --> @dm:recall name="temp-input-payload"
- --> @dm:skip-block-if-shape row_count = 0
- --> @dm:enrich dict='temp-teamincidents' & dict_key_cols='ticket_number' & src_key_cols='payload_number' & enrich_cols='incident_id,project_id,ticket_id,team_id,team_name,collab_type,customer_id'
- ## Record The Step
-
- --> @dm:eval pipeline="'snow-to-oia'" & step="'External-To-CFX'" & stage="'External-to-CFX Mapping'" & status_comments="'External:' + ticket_number + ',CFX:' + incident_id + ',Team:' + team_name" & status="'INFO'"
- --> @exec:run-pipeline name="oia-incident-status-tracker-stream" & ignore_failures="yes"
- ## InputData + TeamIncident
-
- --> @dm:save name="temp-input-teamincident"
- --> @dm:save name="sto-input-teamincident"
- ## Get the CFX IRM Record
-
- --> @c:data-loop dataset="temp-input-teamincident" & columns="project_id,incident_id,ticket_number,ticket_id"
- ## get latest IRM record for this incident
-
- --> @dm:empty
- ## Change-Here: Enter corresponding db name. make sure we have mysql bot
-
- --> @dm:addrow table="incident" & dbname="4f0e13b909c44cd8b503962c22029ffb_cfxdimensions_app_irm_service"
- --> #mysql:read incidentId is '$incident_id' & roomId is '$project_id'
- --> @dm:skip-block-if-shape row_count = 0
- ## Returns: incidentid, roomid, customerid, priority, state, resolved_user, resolved_at, resolution_code, closed_user, closed_at, sourceKey
-
- --> @dm:check-columns must_contain="incidentid" & action="skip-block"
- --> @dm:selectcolumns include="incident|room|customer|project|resolved|resolution_code|closed|state|source|priority"
- --> @dm:rename-columns irm_closed_at = "closed_at"
- --> @dm:rename-columns irm_closed_user = "closed_user"
- --> @dm:rename-columns irm_resolved_user = "resolved_user"
- --> @dm:rename-columns irm_resolved_at = "resolved_at"
- --> @dm:rename-columns irm_priority = "priority"
- --> @dm:rename-columns irm_state = "state"
- --> @dm:rename-columns irm_resolution_code = "resolution_code"
- ## Record The Step
-
- --> @dm:eval pipeline="'snow-to-oia'" & step="'IRM-CFXIncident'" & stage="'IRM-CFXIncident'" & status_comments="'External:$ticket_number' + ',CFX:' + incidentid + ',State:' + irm_state" & status="'INFO'"
- --> @exec:run-pipeline name="oia-incident-status-tracker-stream" & ignore_failures="yes"
- ## PAYLOAD + TeamIncident + IRM - on a single record
-
- --> @dm:save name="temp-irm-record"
- --> @dm:recall name="temp-input-teamincident"
- --> @dm:enrich dict='temp-irm-record' & src_key_cols='project_id,incident_id' & dict_key_cols='roomid,incidentid' & enrich_cols='customerid,irm_resolved_user,irm_resolved_at,irm_resolution_code,irm_closed_user,irm_closed_at,irm_state,source,sourceKey,irm_priority'
- ## InputData + TeamIncident + IRM Record
-
- --> @dm:save name="temp-input-teamincident-irm" & append="yes"
- --> @c:new-block
- --> @dm:recall name="temp-input-teamincident-irm"
- ## revisit HACK TODO
-
- --> @dm:dedup columns="ticket_number" & keep="last"
- --> @dm:save name="temp-input-teamincident-irm"
- ## Lets update AlertProc & IRM record
-
- --> @c:data-loop dataset="temp-input-teamincident-irm" & columns="project_id,incident_id,ticket_number,ticket_id,sourceKey"
- --> @dm:recall name="temp-input-teamincident-irm"
- --> *dm:filter project_id='$project_id' and incident_id='$incident_id' and ticket_number='$ticket_number'
- ## External to CFX Mapping
-
- --> @dm:to_type columns = 'payload_state,payload_impact,payload_priority,payload_severity,payload_urgency' & type  = 'int'
- --> @dm:eval payload_state_str="'Open' if (payload_state == 1) else ('In Progress' if (payload_state == 2) else ('On Hold' if (payload_state == 3) else ('Resolved' if (payload_state == 6) else ('Closed' if (payload_state == 7) else ('Canceled' if (payload_state == 8) else 'Open')))))"
- --> @dm:copy-columns to="state" & from="payload_state_str"
- --> @dm:eval resolved_user = "payload_resolved_by if (payload_state_str == 'Resolved' and payload_resolved_by != '') else ( payload_sys_updated_by if (payload_state_str == 'Resolved') else irm_resolved_user)"
- --> @dm:copy-columns to="resolved_by" & from="resolved_user"
- --> @dm:eval resolved_at = "payload_resolved_at if (payload_state_str == 'Resolved' and payload_resolved_at != '') else ( payload_sys_updated_on if (payload_state_str == 'Resolved') else irm_resolved_at)"
- --> @dm:change-time-format columns="resolved_at" & from_format="datetimestr" & to_format="ms"
- --> @dm:eval closed_user = "payload_closed_by if (payload_state_str == 'Closed' and payload_closed_by != '') else ( payload_sys_updated_by if (payload_state_str == 'Closed') else irm_closed_user)"
- --> @dm:eval closed_at = "payload_closed_at if (payload_state_str == 'Closed' and payload_closed_at != '') else ( payload_sys_updated_on if (payload_state_str == 'Closed') else irm_closed_at)"
- --> @dm:change-time-format columns="closed_at" & from_format="datetimestr" & to_format="ms"
- --> @dm:eval comments="payload_close_notes if (payload_close_notes != '' and (payload_state_str == 'Resolved' or payload_state_str == 'Closed')) else payload_comments"
- --> @dm:eval resolution_code="payload_close_code if (payload_close_code != '' and (payload_state_str == 'Resolved' or payload_state_str == 'Closed')) else irm_resolution_code"
- --> @dm:eval priority="'1 - Critical' if (payload_priority == 1) else ('2 - High' if (payload_priority == 2) else ('3 - Moderate' if (payload_priority == 3) else ('4 - Low' if (payload_priority == 4) else (priority))))"
- ## Ready for IRM update.
-
- --> @dm:save name="temp-irm-ready"
- ## Update the Corresponding Alerts
-
- --> @dm:copy-columns to="alertid" & from="sourceKey"
- --> @agent:agent-alertproc:alertprocagent:clearAlerts alert_id="alertid" and cleared_notes="comments" and cleared_by="resolved_user"
- --> @dm:eval incidentid="'$incident_id'"
- --> @dm:eval projectid="'$project_id'"
- ## Record The Step
-
- --> @dm:eval pipeline="'snow-to-oia'" & step="'AlertProc-Clear-Alerts'" & stage="'AlertProc-Clear'" & status_comments="'External:$ticket_number' + ',CFX:$incident_id' + ',SourceKey:$sourceKey'" & status="'SUCCESS'"
- --> @exec:run-pipeline name="oia-incident-status-tracker-stream" & ignore_failures="yes"
- ## If you want to update any more - add here.
-
- --> @dm:recall name="temp-irm-ready"
- --> @dm:selectcolumns include="roomid|incidentid|state|resolved|priority|comments|resolution_code"
- --> @agent:agent-irm:irmagent:updateIncidents
- ## Record The Step
-
- --> @dm:eval pipeline="'snow-to-oia'" & step="'IRM Updated'" & stage="'Updated Record'" & status_comments="'External:$ticket_number' + ',CFX:' + incidentid + ',State:' + state + ',Priority:' + priority" & status="'SUCCESS'"
- --> @exec:run-pipeline name="oia-incident-status-tracker-stream" & ignore_failures="yes"
- ## Notify Collab
-
- --> @dm:recall name="temp-irm-ready"
- --> @dm:copy-columns to="projectId" & from="project_id"
- --> @dm:copy-columns to="source_system" & from="sourceName"
- --> @dm:eval notification_subject="'Successfully updated Incident ' + incident_id"
- --> @dm:eval notification_message="'Successfully updated Incident ' + incident_id"
- --> @dm:eval summary="'Successfully Updated Incident ' + incident_id + ' with updates from External Ticket $ticket_number, System:' + sourceName"
- --> @dm:map to="creator" & func="fixed" & value="RDA"
- --> @dm:copy-columns to="notification_message" & from="summary"
- --> @dm:selectcolumns include="notification_message|customerid|roomid|projectId|incidentid|summary|creator|notification_subject"
- --> @rn:write-stream compression="auto" & name="oia-incident-collab-message-stream"
- ## Record The Step
-
- --> @dm:eval pipeline="'snow-to-oia'" & step="'Collab Notified'" & stage="'Collab Notified'" & status_comments="'Incident:$incident_id. External:$ticket_number' " & status="'SUCCESS'"
- --> @exec:run-pipeline name="oia-incident-status-tracker-stream" & ignore_failures="yes"
+ --> *exec:if-condition snmpTrapOid is '1.3.6.1.4.1.9.9.187.0.1'
+ --> @dm:eval link_type="'BGP'"
+ --> @dm:eval neighbor_ip = "'.'.join(vb_oid_0.split('.')[-4:])"
+ --> @dm:eval snmpTrapName = "'cbgpFsmStateChange'"
+ --> @dm:copy-columns from="snmpTrapName" and to="alert_name"
+ --> @dm:eval snmpTrapMIB = "'ciscoBgp4MIB'"
+ --> @dm:rename-columns bgpPeerState = "vb_value_1"
+ --> @dm:copy-columns from="ipAddress" and to="device"
+ --> @dm:eval alert_key = "device + '_' + alert_name + '_' + neighbor_ip"
+ --> @dm:eval alert_severity = "'MAJOR'"
+ --> @dm:eval alert_state = "'CLEARED' if bgpPeerState  == 'established' else 'ACTIVE'"
+ --> @dm:enrich-using-pstream dict="cml_topo_edges"
+and src_key_cols="device,neighbor_ip,link_type"
+and dict_key_cols="left_id,remote_ip,link_type"
+and enrich_cols="right_id,local_interface,neighbor_interface,local_ip"
+and enrich_cols_as="remote_router_ip,local_interface,remote_interface,local_ip"
+ --> @dm:rename-columns remote_ip="remote_router_ip"
+ --> @dm:eval message="'SNMP cbgpFsmStateChange Trap received from ' + device + ', local_ip=' + local_ip + ', bgpPeerIp=' + neighbor_ip + ', bgpPeerState=' + bgpPeerState + ', cbgpPeerLastErrorTxt=' + vb_value_2 + ', cbgpPeerPrevState=' + vb_value_3"
+ --> @dm:enrich dict="temp-sev-mapping" and src_key_cols="alert_severity" and dict_key_cols="alert_severity_str" and enrich_cols="dict_alert_severity_num"
+ --> @dm:rename-columns severity="alert_severity"
+ --> @dm:rename-columns key="alert_key"
+ --> @dm:rename-columns snmp_trap_name="snmpTrapName"
+ --> @dm:rename-columns snmp_trap_oid="snmpTrapOID"
+ --> @dm:rename-columns state="alert_state"
+ --> @dm:eval dict_name = "'BGP'"
+ --> @rn:write-stream name = 'new_cml_snmp_trap_alerts_debug'
+ --> @dm:map attr ="snmp_trap_timestamp" & func = 'ts_to_datetimestr' & unit = 'ms'
+ --> @dm:apply-template-by-row template_name = 'snmp_trap_alert_template' & output_col = 'payload'
+ --> @restclient:write url is "https://10.122.127.182:7443/webhooks/hookid/0427678a-fc73-453b-9ecb-fdb6ecab9d57" & envelope is '{{payload}}' & batch_size = 1
+ --> @exec:end-if
