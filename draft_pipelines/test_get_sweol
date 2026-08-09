@@ -1,581 +1,85 @@
-{
-  "name": "customer_discovery_runs",
-  "label": "On Demand Discovery",
-  "description": "onboarded_devices: Insights",
-  "dashboard_folder": "NetworkDevicePack",
-  "version": "1.0.3",
-  "enabled": false,
-  "dashboard_type": "template",
-  "live_edit": true,
-  "template_variables": {
-    "CUST_ID": {
-      "contextId": "customerId"
-    },
-    "PROJ_ID": {
-      "contextId": "project_id"
-    },
-    "PROJ_ID_SINGLE": {
-      "contextId": "project_id"
-    },
-    "CUST_TAG": {
-      "contextId": "customerTag"
-    }
-  },
-  "dashboard_filters": {
-    "time_filter": true,
-    "extra_filter0": "(target_type contains 'DEVICE')",
-    "default_time_filter_labels": [
-      "Last 1 month"
-    ],
-    "columns_filter": [
-      {
-        "id": "timestamp",
-        "label": "Timestamp",
-        "type": "DATETIME"
-      }
-    ],
-    "group_filters": []
-  },
-  "dashboard_sections": [
-    {
-      "title": "Onboarded Devices",
-      "show_filter": true,
-      "widgets": [
-        {
-          "title": "Discovery Runs",
-          "widget_type": "tabular",
-          "stream": "asset_inventory_collection_status_stream",
-          "extra_filter0": "customer_tag contains '{{CUST_TAG}}' or customer_tag is empty",
-          "extra_filter1": "(jobname contains '{{CUST_TAG}}' or jobname is empty) and type_ is 'overall_status' and total is not empty and pending is 0",
-          "extra_filter": "(jobname contains '{{CUST_TAG}}' or jobname contains 'job') and type_ is 'overall_status' and total is not empty and pending is 0",
-          "height": 4,
-          "max_width": 12,
-          "min_width": 12,
-          "columns": {
-            "collection_timestamp": {
-              "title": "Discovery End time",
-              "type": "DATETIME"
-            },
-            "total": "Total Devices",
-            "success": {
-              "title": "Total Successful",
-              "htmlTemplateForRow0": "<{%raw%}span class='badge' style='background-color: {{ row.response_colors}}' > {{ row.success}} </span>{%endraw%}"
-            },
-            "failed": {
-              "title": "Total Failed",
-              "htmlTemplateForRow0": "{%raw%}<span class='badge' style='background-color: {{ row.response_colorf}}' > {{ row.failed}} </span>{%endraw%}"
-            },
-            "jobname": {
-              "title": "Jobname",
-              "type": "TEXT",
-              "hidden": true
-            },
-            "jobid": {
-              "title": "job id",
-              "type": "TEXT",
-              "hidden": true
-            },
-            "duplicates": {
-              "title": "Duplicates(Serial Number)",
-              "type": "TEXT",
-              "hidden": false
-            }
-          },
-          "custom_columns": [
-            {
-              "id": "response_colors",
-              "label": "Enable Color",
-              "expr": "['#b3b3b3'] if success == 0 else ['#4CAF50']",
-              "hidden": true,
-              "visible": false,
-              "sortable": false
-            },
-            {
-              "id": "response_colorf",
-              "label": "Enable Color",
-              "expr": "['#b3b3b3'] if failed == 0 else ['#BB0000']",
-              "hidden": true,
-              "visible": false,
-              "sortable": false
-            },
-            {
-              "id": "status",
-              "label": "Status",
-              "expr": "'Success' if failed == 0 else 'Failed'",
-              "hidden": false,
-              "visible": true,
-              "sortable": false
-            }
-          ],
-          "actions": [
-            {
-              "permission": "rda:github:view",
-              "title": "Run Discovery",
-              "type": "POPUP_FORM",
-              "selectionType": "NONE",
-              "identifier": "saas-service-action:userdashboard-add-yaml",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.dynamic.form",
-                    "formActionList": {
-                      "formActions": [
-                        {
-                          "identifier": "Submit",
-                          "actionLabel": "Run"
-                        }
-                      ]
-                    },
-                    "formDefinition": {
-                      "id": "rda.saas.dynamic.form",
-                      "refreshRequired": true,
-                      "formFieldList": [
-                        {
-                          "help": "Make sure access Verification is run for the devices you want to run discovery on",
-                          "dataType": "string",
-                          "required": true,
-                          "editable": true,
-                          "label": "NOTE: Make sure that access verification is completed for  devices for which discovery needs to be run.",
-                          "controlType": "LABEL",
-                          "hidden": false,
-                          "fieldId": "note_field"
-                        },
-                        {
-                          "help": "Select network devices for which you want to run discovery",
-                          "dataType": "string",
-                          "required": true,
-                          "editable": true,
-                          "label": "Network Devices",
-                          "hidden": false,
-                          "fieldId": "Others",
-                          "controlType": "SELECTOR_TABLE",
-                          "controlPropertyList": [
-                            {
-                              "attribute": "column-key",
-                              "value": "device_ip"
-                            },
-                            {
-                              "attribute": "selection",
-                              "value": "MULTIPLE"
-                            }
-                          ],
-                          "widget": {
-                            "title": "Device Details",
-                            "timebased": false,
-                            "max_width": 12,
-                            "height": 8,
-                            "min_width": 12,
-                            "extra_filter0": "type contains 'windows'",
-                            "stream": "discovery",
-                            "extra_filter": "customer_tag contains '{{CUST_TAG}}' or customer_tag is empty",
-                            "ts_column": "timestamp",
-                            "sorting": [],
-                            "columns": {
-                              "device_ip": {
-                                "title": "IP Address",
-                                "key": true
-                              },
-                              "discovery_scope": {
-                                "title": "discovery Scope",
-                                "key": true,
-                                "visible": false
-                              }
-                            }
-                          }
-                        }
-                      ]
-                    },
-                    "actions": [
-                      {
-                        "type": "RUN_PIPELINE",
-                        "pipelineName": "ondemand_discovery_main",
-                        "isSync": false,
-                        "workerGroup": "{{CUST_TAG}}.*"
-                      }
-                    ]
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "aia:page:view",
-              "drillDownLinkField": "success",
-              "identifier": "success",
-              "selectionType": "SINGLE",
-              "stateName": "app.featureapp",
-              "title": "View Success",
-              "contextParamList": {
-                "contextParams": [
-                  {
-                    "paramKey": "jobid",
-                    "paramId": "jobid"
-                  }
-                ]
-              },
-              "actionCondition": {
-                "actionControl": "SHOW_IF",
-                "conditionalField": [
-                  {
-                    "conditionType": "IS_NOT_NULL",
-                    "fieldId": "success"
-                  }
-                ]
-              },
-              "type": "GO_TO_APP_STATE",
-              "appName": "user-dashboard/customer_discovery_runs_details_success"
-            },
-            {
-              "permission": "aia:page:view",
-              "drillDownLinkField": "duplicates",
-              "identifier": "duplicates",
-              "selectionType": "SINGLE",
-              "stateName": "app.featureapp",
-              "title": "View Duplicates",
-              "contextParamList": {
-                "contextParams": [
-                  {
-                    "paramKey": "jobid",
-                    "paramId": "jobid"
-                  }
-                ]
-              },
-              "actionCondition": {
-                "actionControl": "SHOW_IF",
-                "conditionalField": [
-                  {
-                    "conditionType": "IS_NOT_NULL",
-                    "fieldId": "duplicates"
-                  }
-                ]
-              },
-              "type": "GO_TO_APP_STATE",
-              "appName": "user-dashboard/customer_discovery_runs_details_duplicates"
-            },
-            {
-              "appName": "user-dashboard/customer_discovery_runs_details_failed",
-              "permission": "aia:page:view",
-              "drillDownContext": "failed",
-              "drillDownLinkField": "failed",
-              "identifier": "failed",
-              "selectionType": "SINGLE",
-              "stateName": "app.featureapp",
-              "title": "View Failed",
-              "contextParamList": {
-                "contextParams": [
-                  {
-                    "paramKey": "jobid",
-                    "paramId": "jobid"
-                  }
-                ]
-              },
-              "actionCondition": {
-                "actionControl": "SHOW_IF",
-                "conditionalField": [
-                  {
-                    "conditionType": "IS_NOT_NULL",
-                    "fieldId": "failed"
-                  }
-                ]
-              },
-              "type": "GO_TO_APP_STATE"
-            },
-            {
-              "appName": "user-dashboard/logs",
-              "permission": "aia:page:view",
-              "identifier": "failed",
-              "drillDownLinkField": "total",
-              "selectionType": "SINGLE",
-              "stateName": "app.featureapp",
-              "title": "View Logs",
-              "type": "GO_TO_APP_STATE",
-              "contextParamList": {
-                "contextParams": [
-                  {
-                    "paramKey": "jobid",
-                    "paramId": "jobid"
-                  }
-                ]
-              }
-            }
-          ],
-          "widget_id": "b2c8d81c"
-        }
-      ]
-    }
-  ],
-  "pstream_dashboards": [
-    {
-      "title": "Onboarded Devices",
-      "show_filter": true,
-      "widgets": [
-        {
-          "title": "Discovery Runs",
-          "widget_type": "tabular",
-          "stream": "asset_inventory_collection_status_stream",
-          "extra_filter0": "customer_tag contains '{{CUST_TAG}}' or customer_tag is empty",
-          "extra_filter1": "(jobname contains '{{CUST_TAG}}' or jobname is empty) and type_ is 'overall_status' and total is not empty and pending is 0",
-          "extra_filter": "(jobname contains '{{CUST_TAG}}' or jobname contains 'job') and type_ is 'overall_status' and total is not empty and pending is 0",
-          "height": 4,
-          "max_width": 12,
-          "min_width": 12,
-          "columns": {
-            "collection_timestamp": {
-              "title": "Discovery End time",
-              "type": "DATETIME"
-            },
-            "total": "Total Devices",
-            "success": {
-              "title": "Total Successful",
-              "htmlTemplateForRow0": "<{%raw%}span class='badge' style='background-color: {{ row.response_colors}}' > {{ row.success}} </span>{%endraw%}"
-            },
-            "failed": {
-              "title": "Total Failed",
-              "htmlTemplateForRow0": "{%raw%}<span class='badge' style='background-color: {{ row.response_colorf}}' > {{ row.failed}} </span>{%endraw%}"
-            },
-            "jobname": {
-              "title": "Jobname",
-              "type": "TEXT",
-              "hidden": true
-            },
-            "jobid": {
-              "title": "job id",
-              "type": "TEXT",
-              "hidden": true
-            },
-            "duplicates": {
-              "title": "Duplicates(Serial Number)",
-              "type": "TEXT",
-              "hidden": false
-            }
-          },
-          "custom_columns": [
-            {
-              "id": "response_colors",
-              "label": "Enable Color",
-              "expr": "['#b3b3b3'] if success == 0 else ['#4CAF50']",
-              "hidden": true,
-              "visible": false,
-              "sortable": false
-            },
-            {
-              "id": "response_colorf",
-              "label": "Enable Color",
-              "expr": "['#b3b3b3'] if failed == 0 else ['#BB0000']",
-              "hidden": true,
-              "visible": false,
-              "sortable": false
-            },
-            {
-              "id": "status",
-              "label": "Status",
-              "expr": "'Success' if failed == 0 else 'Failed'",
-              "hidden": false,
-              "visible": true,
-              "sortable": false
-            }
-          ],
-          "actions": [
-            {
-              "permission": "rda:github:view",
-              "title": "Run Discovery",
-              "type": "POPUP_FORM",
-              "selectionType": "NONE",
-              "identifier": "saas-service-action:userdashboard-add-yaml",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.dynamic.form",
-                    "formActionList": {
-                      "formActions": [
-                        {
-                          "identifier": "Submit",
-                          "actionLabel": "Run"
-                        }
-                      ]
-                    },
-                    "formDefinition": {
-                      "id": "rda.saas.dynamic.form",
-                      "refreshRequired": true,
-                      "formFieldList": [
-                        {
-                          "help": "Make sure access Verification is run for the devices you want to run discovery on",
-                          "dataType": "string",
-                          "required": true,
-                          "editable": true,
-                          "label": "NOTE: Make sure that access verification is completed for  devices for which discovery needs to be run.",
-                          "controlType": "LABEL",
-                          "hidden": false,
-                          "fieldId": "note_field"
-                        },
-                        {
-                          "help": "Select network devices for which you want to run discovery",
-                          "dataType": "string",
-                          "required": true,
-                          "editable": true,
-                          "label": "Network Devices",
-                          "hidden": false,
-                          "fieldId": "Others",
-                          "controlType": "SELECTOR_TABLE",
-                          "controlPropertyList": [
-                            {
-                              "attribute": "column-key",
-                              "value": "device_ip"
-                            },
-                            {
-                              "attribute": "selection",
-                              "value": "MULTIPLE"
-                            }
-                          ],
-                          "widget": {
-                            "title": "Device Details",
-                            "timebased": false,
-                            "max_width": 12,
-                            "height": 8,
-                            "min_width": 12,
-                            "extra_filter0": "type contains 'windows'",
-                            "stream": "discovery",
-                            "extra_filter": "customer_tag contains '{{CUST_TAG}}' or customer_tag is empty",
-                            "ts_column": "timestamp",
-                            "sorting": [],
-                            "columns": {
-                              "device_ip": {
-                                "title": "IP Address",
-                                "key": true
-                              },
-                              "discovery_scope": {
-                                "title": "discovery Scope",
-                                "key": true,
-                                "visible": false
-                              }
-                            }
-                          }
-                        }
-                      ]
-                    },
-                    "actions": [
-                      {
-                        "type": "RUN_PIPELINE",
-                        "pipelineName": "ondemand_discovery_main",
-                        "isSync": false,
-                        "workerGroup": "{{CUST_TAG}}.*"
-                      }
-                    ]
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "aia:page:view",
-              "drillDownLinkField": "success",
-              "identifier": "success",
-              "selectionType": "SINGLE",
-              "stateName": "app.featureapp",
-              "title": "View Success",
-              "contextParamList": {
-                "contextParams": [
-                  {
-                    "paramKey": "jobid",
-                    "paramId": "jobid"
-                  }
-                ]
-              },
-              "actionCondition": {
-                "actionControl": "SHOW_IF",
-                "conditionalField": [
-                  {
-                    "conditionType": "IS_NOT_NULL",
-                    "fieldId": "success"
-                  }
-                ]
-              },
-              "type": "GO_TO_APP_STATE",
-              "appName": "user-dashboard/customer_discovery_runs_details_success"
-            },
-            {
-              "permission": "aia:page:view",
-              "drillDownLinkField": "duplicates",
-              "identifier": "duplicates",
-              "selectionType": "SINGLE",
-              "stateName": "app.featureapp",
-              "title": "View Duplicates",
-              "contextParamList": {
-                "contextParams": [
-                  {
-                    "paramKey": "jobid",
-                    "paramId": "jobid"
-                  }
-                ]
-              },
-              "actionCondition": {
-                "actionControl": "SHOW_IF",
-                "conditionalField": [
-                  {
-                    "conditionType": "IS_NOT_NULL",
-                    "fieldId": "duplicates"
-                  }
-                ]
-              },
-              "type": "GO_TO_APP_STATE",
-              "appName": "user-dashboard/customer_discovery_runs_details_duplicates"
-            },
-            {
-              "appName": "user-dashboard/customer_discovery_runs_details_failed",
-              "permission": "aia:page:view",
-              "drillDownContext": "failed",
-              "drillDownLinkField": "failed",
-              "identifier": "failed",
-              "selectionType": "SINGLE",
-              "stateName": "app.featureapp",
-              "title": "View Failed",
-              "contextParamList": {
-                "contextParams": [
-                  {
-                    "paramKey": "jobid",
-                    "paramId": "jobid"
-                  }
-                ]
-              },
-              "actionCondition": {
-                "actionControl": "SHOW_IF",
-                "conditionalField": [
-                  {
-                    "conditionType": "IS_NOT_NULL",
-                    "fieldId": "failed"
-                  }
-                ]
-              },
-              "type": "GO_TO_APP_STATE"
-            },
-            {
-              "appName": "user-dashboard/logs",
-              "permission": "aia:page:view",
-              "identifier": "failed",
-              "drillDownLinkField": "total",
-              "selectionType": "SINGLE",
-              "stateName": "app.featureapp",
-              "title": "View Logs",
-              "type": "GO_TO_APP_STATE",
-              "contextParamList": {
-                "contextParams": [
-                  {
-                    "paramKey": "jobid",
-                    "paramId": "jobid"
-                  }
-                ]
-              }
-            }
-          ],
-          "widget_id": "b2c8d81c"
-        }
-      ]
-    }
-  ]
-}
+@dm:empty
+ --> @dm:addrow name = 'edc_customer_inventory' and limit=0
+ --> #dm:query-persistent-stream project_name='CRS' and sw_version!='Not Available'
+ --> @dm:selectcolumns exclude='PID'
+ --> @dm:manipulate-string to="customer" and func="eval" and value="'ATT'"
+ --> @dm:save name='temp-contract_data'
+ --> @dm:empty
+ --> @dm:empty
+ --> @dm:save name = "project-enriched-sweol-values"
+ ## Generate unique list of PID-SW version to process
+
+ --> @c:new-block
+ --> @dm:recall name="temp-contract_data"
+ --> *dm:filter sw_version!='Not Available'
+ --> *dm:filter sw_os_type is not null
+ --> @dm:selectcolumns include="customer|^product_id|sw_os_type|sw_version|instance_id"
+ --> @dm:groupby columns ="customer,product_id,sw_os_type,sw_version"
+ --> @dm:rename-columns instance_id="total"
+ --> @dm:eval unique_key = "str(product_id) + str(sw_os_type) + str(sw_version)"
+ --> @dm:save name="temp-input-dataset"
+ ## Process SW EoL
+
+ ## declaring thrid level child pipelines
+
+ --> @c:new-block
+ --> @dm:empty
+ --> @exec:define-function name="define_child_pipelines"
+ --> @exec:run-pipeline name ="edc_generate_token" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_sw_get_data" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_sweol_enrich" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_processing_sw_data" & ignore_failures = "no"
+ --> @exec:end-function
+ ## collecting the file and storing it in edc_cust_pid_sw stream, collecting the API data and adding the processed data to edc_sw_raw_data
+
+ --> @c:new-block
+ --> @dm:recall name='temp-input-dataset'
+ ## --> @rn:write-stream name='edc_cust_pid_sw'
+
+ --> @dm:save name="temp-cust_pid_sw"
+ --> @exec:run-pipeline name ="edc_sw_run_scan" & ignore_failures = "no"
+ --> @dm:save name='project-enriched-sweol-values'
+ --> @dm:save name='temp-enriched-sweol-values'
+ ## Process SWEoL
+
+ --> @c:new-block
+ --> @dm:recall name='temp-enriched-sweol-values'
+ --> @dm:save name='temp-sweol-data'
+ ## creates a list of unique customers
+
+ --> @c:new-block
+ --> @dm:recall name='temp-sweol-data'
+ --> @dm:groupby columns='customer'
+ --> @dm:save name='temp-unique-cust-name'
+ ## Queries data for the customer from edc_customer inventory
+
+ --> @c:data-loop dataset='temp-unique-cust-name' and columns='customer'
+ --> @dm:recall name='temp-contract_data'
+ --> *dm:filter customer == '$customer'
+ --> @dm:save name='temp-hw-eol-details' and append='yes'
+ ## processes the software columns for the customer
+
+ --> @c:data-loop columns='customer' and dataset='temp-unique-cust-name'
+ --> @dm:recall name='temp-sweol-data'
+ --> *dm:filter customer == '$customer'
+ --> @exec:run-pipeline name='edc_processing_sw_data'
+ --> @dm:save name='temp-sw-eol-details'
+ --> @dm:save name='test-sw-eol-details'
+ ## enriches the processed columns to  edc_customer inventory
+
+ --> @c:new-block
+ --> @dm:recall name='temp-hw-eol-details'
+ ## --> @dm:selectcolumns exclude='sw_status_x|sw_expiring_qtr_x|sw_expiring_year_x'
+
+ --> @dm:enrich dict='temp-sw-eol-details' and src_key_cols='contract_number,customer,product_id' and dict_key_cols='contract_number_str,customer,product_id' and enrich_cols='SoftwareEOXId,BulletinNumber,BulletinHeadline,BulletinURL,EndOfSaleDate,EndOfEngineeringDate,EndOfLifeDate,PostDate,EndOfLifeInternalAnnouncementDate,EndOfLifeExternalAnnouncementDate,EndOfLastHardwareShipDate,EndOfHardwareNewServiceAttachmentDate,EndOfHardwareRoutineFailureAnalysisDate,EndOfBUEngineeringSupportTACDate,EndOfHardwareServiceContractRenewalDate,EndOfSignatureReleasesDate,EndOfSoftwareAvailabilityDate,EndOfSoftwareLicenseAvailabilityDate,EndOfSoftwareVulnerabilityOrSecuritySupportDate,created,customerVisible,external_text,external_title,firstIcAlertId,groups,icIssueId,icProblemId,ignored,lastIcAlertId,eoXAlertType,name,openedOn,resultType,severity,severityText,state,updated,deviceSN,runType,filename,icType,atticaStatus,cdetsList,retry,associatedGroups,sw_expiring_qtr,sw_expiring_year,sw_status' and replace_values='yes'
+ --> @dm:save name='final-enrich'
+ --> @dm:rename-columns EndOfLifeDate='EndOfLifeDate_y'
+ --> @dm:fixnull columns='SoftwareEOXId,BulletinNumber,BulletinHeadline,BulletinURL,EndOfSaleDate,EndOfEngineeringDate,EndOfLifeDate,PostDate,EndOfLifeInternalAnnouncementDate,EndOfLifeExternalAnnouncementDate,EndOfLastHardwareShipDate,EndOfHardwareNewServiceAttachmentDate,EndOfHardwareRoutineFailureAnalysisDate,EndOfBUEngineeringSupportTACDate,EndOfHardwareServiceContractRenewalDate,EndOfSignatureReleasesDate,EndOfSoftwareAvailabilityDate,EndOfSoftwareLicenseAvailabilityDate,EndOfSoftwareVulnerabilityOrSecuritySupportDate,created,customerVisible,external_text,external_title,firstIcAlertId,groups,icIssueId,icProblemId,ignored,lastIcAlertId,eoXAlertType,name,openedOn,resultType,severity,severityText,state,updated,deviceSN,runType,filename,icType,atticaStatus,cdetsList,retry,associatedGroups,sw_expiring_qtr,sw_expiring_year,sw_status' and value="Not Available"  and apply_for_empty="yes"
+ --> @dm:rename-columns swEOL_softwareEOXId='SoftwareEOXId' and swEOL_bulletinNumber='BulletinNumber' and swEOL_bulletinTitle='BulletinHeadline' and swEOL_bulletinUrl='BulletinURL' and swEOL_endOfSaleDate='EndOfSaleDate' and
+swEOL_endOfSoftwareMaintenanceReleasesDate='EndOfEngineeringDate' and swEOL_lastDayOfSupportDate='EndOfLifeDate' and
+swEOL_endOfVulnerabilitySecuritySupportDate='EndOfSoftwareVulnerabilityOrSecuritySupportDate' and swEOL_endOfLifeAnnouncementDate='EndOfLifeExternalAnnouncementDate'
+ --> @rn:write-stream name='edc_sweol_data'
+ --> @dm:selectcolumns exclude='^(EndOfLifeInternalAnnouncementDate|EndOfLastHardwareShipDate|EndOfHardwareNewServiceAttachmentDate|EndOfHardwareRoutineFailureAnalysisDate|EndOfBUEngineeringSupportTACDate|EndOfHardwareServiceContractRenewalDate|EndOfSignatureReleasesDate|EndOfSoftwareAvailabilityDate|EndOfSoftwareLicenseAvailabilityDate|created|customerVisible|external_text|external_title|firstIcAlertId|groups|icIssueId|icProblemId|ignored|lastIcAlertId|eoXAlertType|name|openedOn|resultType|severity|severityText|state|updated|deviceSN|runType|filename|icType|atticaStatus|cdetsList|retry|associatedGroups)$'
+ --> @dm:save name='temp-enriched-data'
+ --> @dm:save name='test-contract_data'
+ --> *dm:filter sw_version!='Not Available'
