@@ -1,76 +1,90 @@
-
- ## name: collab-db-to-pstream-main
-
- ## .
-
- ## Use this if we want to reset bookmark and re-run again
-@c:new-block
- --> @dm:empty
- ## --> @dm:addrow i_created_ts="2023-08-01 00:00:00"
-
- ## --> @dm:save_bookmark name = 'irm_incident_bkmrk' & value_column = 'i_created_ts' & value_type = 'timestamp' & value_func = 'max'
-
- --> @dm:save name = "temp-1"
- ## .
-
- ## Main Driver is IRM's oia-incidents-stream.
-
- ## As one time activity, We pull all incidents from oia-incidents-stream and use them to migrate corresponding collab messages, and team incidents. we may have duplicates from last 90 days.
-
- ## .
-
- --> @c:new-block
- --> @dm:empty
- --> @dm:save name="temp-irm-incident-ids-concat"
- ## We can do read all in one go and split them up by 999 and use sql-in clause.
-
- ## or
-
- ## Read in batches using bookmark and process them in batches
-
- ## SQL IN clause might have limitation of max 999 IDs
-
- --> @c:bookmark-loop bookmark="irm_incident_bkmrk" & initial_value ="2023-08-01 00:00:00" & max_iterations=1
- --> @dm:empty
- --> @dm:addrow name="oia-incidents-stream" & limit=999 & sort_by_col="i_created_ts" & sort_type="asc"
- --> #dm:query-persistent-stream i_created_ts is after '${bookmark}'
+@c:data-loop dataset="oia-meapm-metrics-list" & columns="asset_id,RESOURCEID,AttributeID,metric_label,unit"
+ --> @me-apm:metrics resourceid = '$RESOURCEID' and attributeid='$AttributeID' and timestamp is after -60 min
+ --> @dm:add-missing-columns columns='collection_timestamp,AvgValue'
+ --> @dm:dropnull columns='collection_timestamp,AvgValue'
+ --> @dm:to-type columns='AvgValue' and type='float'
+ --> *dm:filter AvgValue > 0.0
  --> @dm:skip-block-if-shape row_count=0
- --> @dm:check-columns must_contain="incident_id" & action="skip-block"
- ## .
-
- --> @dm:selectcolumns include="project_id|customer_id|incident_id|i_state|i_created_ts|i_updated_ts|timestamp"
- --> @dm:save name="temp-irm-incidents"
- ## .
-
- --> @dm:selectcolumns include="incident_id|project_id"
- --> @dm:map to="name" & func="fixed" & value="incident"
- --> @dm:save name="temp-irm-incident-ids"
- ## .
-
- ## --> @exec:for-loop num_rows = 999
-
- --> @dm:eval incident_id="incident_id + '\',\''"
- --> @dm:eval project_id="project_id + '\',\''"
- --> @dm:groupby columns="name" & agg="sum"
- ## .
-
- --> @dm:eval incident_id="incident_id.replace('CFX', '\'CFX', 1)"
- --> @dm:eval incident_id="incident_id[:-2] if (incident_id.endswith(',\'')) else incident_id"
- ## .
-
- --> @dm:eval project_id="project_id.replace('', '\'', 1)"
- --> @dm:eval project_id="project_id[:-2] if (project_id.endswith(',\'')) else project_id"
- ## .
-
- --> @dm:save name="temp-irm-incident-ids-concat"
- ## --> @exec:end-loop & append="yes"
-
- ## .
-
- --> @exec:run-pipeline name="collab-db-to-pstream-processor" & ignore_failures="no"
- ## increment the bookmark
-
- --> @dm:recall name="temp-irm-incidents"
- --> @dm:change-time-format columns="i_created_ts" & from_format="ms" & to_format="datetimestr"
- --> @dm:save_bookmark name = 'irm_incident_bkmrk' & value_column = 'i_created_ts' & value_type = 'timestamp' & value_func = 'max'
- --> @dm:sleep seconds = 1
+ --> @dm:rename-columns metric_timestamp='collection_timestamp'
+ --> @dm:rename-columns value='AvgValue'
+ --> @dm:eval metric_source="'ManageEngine'"
+ --> @dm:eval asset_id = "'$asset_id'"
+ --> @dm:eval RESOURCEID = "'$RESOURCEID'"
+ --> @dm:eval AttributeID = "'$AttributeID'"
+ --> @dm:eval metric_label = `str("$metric_label")`
+ --> @dm:eval metric_name = "metric_label"
+ --> @dm:eval unit = "'$unit'"
+ --> @dm:map from = 'RESOURCEID,AttributeID' and to = 'metric_id' and func = "join" and sep = ' - '
+ --> @dm:eval metric_source="'ManageEngine'"
+ --> @dm:change-time-format columns='metric_timestamp' & from_format='ms' & to_format='%Y-%m-%dT%H:%M:%S'
+ --> @dm:add-missing-columns columns='asset_name' and value='Not Available'
+ --> @dm:add-missing-columns columns='customer' and value='ACME'
+ --> @dm:selectcolumns include="^asset_id$|^asset_name$|^metric_id$|^metric_label$|^metric_name$|^metric_source$|^metric_timestamp$|^unit$|^value$|^customer$"
+ --> @rn:write-stream name='oia-metrics-data'
+ --> @dm:selectcolumns include="^asset_id$|^asset_name$|^metric_id$|^metric_label$|^metric_name$|^metric_source$|^unit$|^customer$"
+ --> @rn:write-stream name='oia-selected-metrics'
+ --> @c:data-loop dataset="oia-prometheus-metrics-list" & columns="asset_id,metric_id,instance,metric_label,unit"
+ --> @prometheus:metric-range metric is `$metric_id{instance="$instance"}` and timestamp is after -60 min
+ --> @dm:add-missing-columns columns='timestamp,value'
+ --> @dm:dropnull columns='timestamp,value'
+ --> @dm:to-type columns='value' and type='float'
+ --> *dm:filter value > 0.0
+ --> @dm:skip-block-if-shape row_count=0
+ --> @dm:rename-columns metric_timestamp='timestamp'
+ --> @dm:eval metric_source = "'Prometheus'"
+ --> @dm:eval asset_id = "'$asset_id'"
+ --> @dm:eval metric_id = "'$metric_id'"
+ --> @dm:eval metric_label = `str("$metric_label")`
+ --> @dm:eval metric_name = "metric_label"
+ --> @dm:eval unit = "'$unit'"
+ --> @dm:change-time-format columns='metric_timestamp' & from_format='ms' & to_format='%Y-%m-%dT%H:%M:%S'
+ --> @dm:add-missing-columns columns='asset_name' and value='Not Available'
+ --> @dm:add-missing-columns columns='customer' and value='ACME'
+ --> @dm:selectcolumns include="^asset_id$|^asset_name$|^metric_id$|^metric_label$|^metric_name$|^metric_source$|^metric_timestamp$|^unit$|^value$|^customer$"
+ --> @rn:write-stream name='oia-metrics-data'
+ --> @dm:selectcolumns include="^asset_id$|^asset_name$|^metric_id$|^metric_label$|^metric_name$|^metric_source$|^unit$|^customer$"
+ --> @rn:write-stream name='oia-selected-metrics'
+ --> @c:data-loop dataset='oia-vrops-metrics-list' & columns='metric_id,resource_id,asset_id,asset_name,metric_label,unit'
+ --> @vrops:metrics resource_id= '$resource_id' & metric_name='$metric_id' & timestamp is after -60 min & interval is '15min' and skip_on_error='yes'
+ --> *dm:filter rda_status is 'Success'
+ --> @dm:skip-block-if-shape row_count=0
+ --> @dm:dropnull columns='timestamps,data'
+ --> @dm:to-type columns='data' and type='float'
+ --> *dm:filter data > 0.0
+ --> @dm:skip-block-if-shape row_count=0
+ --> @dm:rename-columns metric_timestamp='timestamps' & value='data'
+ --> @dm:eval metric_source = "'vROps'"
+ --> @dm:eval asset_id = "'$asset_id'"
+ --> @dm:eval asset_name = "'$asset_name'"
+ --> @dm:eval metric_id = "'$metric_id'"
+ --> @dm:eval metric_label = `str("$metric_label")`
+ --> @dm:eval metric_name = "metric_label"
+ --> @dm:eval unit = "'$unit'"
+ --> @dm:change-time-format columns='metric_timestamp' & from_format='ms' & to_format='%Y-%m-%dT%H:%M:%S'
+ --> @dm:add-missing-columns columns='asset_name' and value='Not Available'
+ --> @dm:add-missing-columns columns='customer' and value='ACME'
+ --> @dm:selectcolumns include="^asset_id$|^asset_name$|^metric_id$|^metric_label$|^metric_name$|^metric_source$|^metric_timestamp$|^unit$|^value$|^customer$"
+ --> @rn:write-stream name='oia-metrics-data'
+ --> @dm:selectcolumns include="^asset_id$|^asset_name$|^metric_id$|^metric_label$|^metric_name$|^metric_source$|^unit$|^customer$"
+ --> @rn:write-stream name='oia-selected-metrics'
+ --> @dm:empty
+ --> @dm:recall name='oia-dynatrace-metrics-list'
+ --> @dynatrace:dynatrace-bulk-metric-collection entity_id_col='asset_id' and metric_col='metric_id' and timestamp is after -1month
+ --> @dm:skip-block-if-shape row_count=0
+ --> @dm:dropnull columns='timestamp,value'
+ --> @dm:to-type columns='value' and type='float'
+ --> *dm:filter value > 0.0
+ --> @dm:add-missing-columns columns='timestamp,value'
+ --> @dm:rename-columns metric_timestamp='timestamp'
+ --> @dm:eval-multi-proc metric_source="'Dynatrace'"
+ --> @dm:enrich dict='oia-dynatrace-metrics-list' and src_key_cols='metric' and dict_key_cols='metric_id' and enrich_cols='metric_label'
+ --> @dm:map-multi-proc from = 'component' and to = 'asset_id' and func = 'split' and sep = ':'
+ --> @dm:eval-multi-proc asset_id = 'asset_id[0]'
+ --> @dm:eval-multi-proc metric_name = "metric_label"
+ --> @dm:change-time-format columns='metric_timestamp' & from_format='ms' & to_format='%Y-%m-%dT%H:%M:%S'
+ --> @dm:add-missing-columns columns='asset_name' and value='Not Available'
+ --> @dm:add-missing-columns columns='customer' and value='ACME'
+ --> @dm:selectcolumns include="^asset_id$|^asset_name$|^metric_id$|^metric_label$|^metric_name$|^metric_source$|^metric_timestamp$|^unit$|^value$|^customer$"
+ --> @rn:write-stream name='oia-metrics-data'
+ --> @dm:selectcolumns include="^asset_id$|^asset_name$|^metric_id$|^metric_label$|^metric_name$|^metric_source$|^unit$|^customer$"
+ --> @rn:write-stream name='oia-selected-metrics'
