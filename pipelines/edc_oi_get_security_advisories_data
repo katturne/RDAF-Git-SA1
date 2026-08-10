@@ -1,144 +1,105 @@
-
- ## get the uploaded sw data
-@c:new-block
+@dm:empty
  --> @exec:get-input
- --> @dm:add-missing-columns columns="key" and value='key'
- --> @dm:add-missing-columns columns="source" and value='software'
- --> @dm:eval sw_os_type="('IOS XR' if sw_os_type=='IOS-XR' else sw_os_type)"
- --> @dm:save name='temp-sw-data'
- --> @dm:save name='added-sw-data'
- ## declaring thrid level child pipelines
+ --> @dm:save name='temp-sa-exploded-data'
+ --> @dm:save name='test-1sa-exploded-data'
+ --> @c:new-block
+ --> @dm:recall name="temp-sa-exploded-data"
+ --> @dm:selectcolumns exclude='^unique_key$'
+ ## --> @dm:enrich dict="temp-sa-data" and src_key_cols='product_id,sw_version,sw_os_type' and dict_key_cols='product_id,sw_version,sw_os_type' and enrich_cols="contract_number,customer"
 
+ --> @dm:add-missing-columns columns="PsirtID,MatchConfidence,MatchReason,MatchDefinition,HeadlineName,AdvisoryId,BulletinURL,Summary,Details,RevisedDate,RevisionNumber,PublishedDate,SeverityLevelName,CvssScore,CveId,_id,advisoryId,created,customerVisible,external_text,external_title,firstIcAlertId,groups,icIssueId,icProblemId,ignored,lastIcAlertId,matchDefinition,matchInfo,matchConfidence,missingInfo,moreInfo,name,openedOn,resultType,resultSubType,severity,severityText,state,updated,deviceSN,source,runType,filename,icType,atticaStatus,cdetsList,retry,associatedGroups,key,current_time_ms_loop,token_expiry_time,access_token,expires_in,token_type,sw_version,sw_os_type,product_id,transaction_id,eoXAlert,eoXAlertType,DocumentId"
+ --> @dm:eval matchConfidence = "'Potentially Vulnerable' if matchConfidence == 'POTVUL' else 'Vulnerable' if matchConfidence == 'VUL' else matchConfidence"
+ --> @dm:eval secAdv_confidence_score = "100 if matchConfidence == 'Vulnerable' else 99 if matchConfidence == 'Potentially Vulnerable' else 98 if matchConfidence == 'Not Vulnerable' else 0"
+ --> @dm:fixnull columns="PsirtID,MatchConfidence,MatchReason,MatchDefinition,HeadlineName,AdvisoryId,BulletinURL,Summary,Details,RevisedDate,RevisionNumber,PublishedDate,SeverityLevelName,CvssScore,CveId,_id,advisoryId,created,customerVisible,external_text,external_title,firstIcAlertId,groups,icIssueId,icProblemId,ignored,lastIcAlertId,matchDefinition,matchInfo,matchConfidence,missingInfo,moreInfo,name,openedOn,resultType,resultSubType,severity,severityText,state,updated,deviceSN,source,runType,filename,icType,atticaStatus,cdetsList,retry,associatedGroups,key,current_time_ms_loop,token_expiry_time,expires_in,token_type,sw_version,sw_os_type,product_id,transaction_id,eoXAlert,eoXAlertType,DocumentId,secAdv_confidence_score" and value="Not Available" and apply_for_empty="yes"
+ --> @dm:fixnull-regex columns="Timestamp$|timestamp$"
+ --> @dm:rename-columns secAdv_matchConfidence ='matchConfidence' and secAdv_securityImpactRating='SeverityLevelName' and secAdv_bulletinTitle='external_title' and securityAdvisoryId='advisoryId' and ID = '_id' and secAdv_BulletinURL ='BulletinURL'
+ --> @dm:save name="temp-sec-adv-details"
  --> @c:new-block
  --> @dm:empty
- --> @exec:define-function name="define_child_pipelines"
- --> @exec:run-pipeline name ="edc_generate_token" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_sw_get_data" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_sweol_enrich" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_processing_sw_data" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_get_sw_sa_details" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_sw_run_scan" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_sa_run_scan" & ignore_failures = "no"
- --> @exec:end-function
- ## function to generate the access token
-
- --> @c:new-block
+ --> @dm:addrow name='edc_cust_pid_sw' and limit=0
+ --> #dm:query-persistent-stream
+ --> @dm:groupby columns='customer'
+ --> @dm:save name='temp-unique-cust-name'
+ --> @c:data-loop dataset='temp-unique-cust-name' and columns='customer'
  --> @dm:empty
- --> @exec:define-function name="generate_access_token"
- --> @dm:recall name='generate_token_creds'
- ## --> @dm:empty
-
- --> @exec:run-pipeline name ="edc_generate_token" & ignore_failures = "no"
- --> @dm:addrow key='key'
- --> @dm:eval current_time_ms="int(time_now_as_ms())"
- --> @dm:eval token_expiry_time='current_time_ms+3000000'
- --> @dm:save name='temp-expiry-time'
- --> @exec:end-function
- ## get the dataset with unique sw_version,sw_os_type,product_id combinations to make the API call
-
+ --> @dm:addrow name='edc_oi_inventory_enriched' and limit=0
+ --> #dm:query-persistent-stream customer_name=='$customer' and coverage=='COVERED'
+ --> @dm:save name='temp-hw-eol-details' and append='yes'
  --> @c:new-block
- --> @dm:recall name='temp-sw-data'
- --> @dm:add-missing-columns columns="key" and value='key'
- --> @dm:manipulate-string from="sw_version,sw_os_type,product_id" and func="concat_columns" and to="unique_payload_inputs"
- --> @dm:dedup columns ='unique_payload_inputs'
- --> @dm:save name='temp-unique-sw-data'
- --> @dm:save name='unique-added-sw-data'
- ## gneerate the access token
+ --> @dm:recall name='temp-hw-eol-details'
+ --> @dm:to-type columns='contract_number' and type='int'
+ --> @dm:save name='temp-hw-eol-details'
+ ## Queries data for the customer from edc_oi_enriched_stream
 
- --> @c:new-block
+ --> @c:data-loop dataset='temp-unique-cust-name' and columns='customer'
  --> @dm:empty
- --> @exec:call-function name='generate_access_token'
- ## get the API output for the above created dataset
+ --> @dm:addrow name='edc_oi_inventory_enriched' and limit=0 and groupby='contract_number,customer_name,product_name,product_id,portfolio_desc' and aggs='sum:combination_count'
+ --> #dm:query-persistent-stream coverage=='COVERED' and customer_name is '$customer'
+ --> @dm:save name='temp-hw-eol-details-grouped' and append='yes'
+ --> @c:new-block
+ --> @dm:recall name='temp-hw-eol-details-grouped'
+ --> @dm:to-type columns='contract_number' and type='int'
+ --> @dm:save name='temp-hw-eol-details-grouped'
+ ## enriches the processed columns to edc_oi_inventory_enriched
 
- --> @c:data-loop columns='sw_version,sw_os_type,product_id,source' and dataset='temp-unique-sw-data'
- ## --> @dm:recall name='temp-unique-sw-data'
-
- --> @dm:empty
- --> @dm:addrow key='key'
- --> @dm:eval current_time_ms_loop="int(time_now_as_ms())"
- --> @dm:save name='temp-loop-time'
- --> @dm:enrich dict='temp-expiry-time' and src_key_cols='key' and dict_key_cols='key' and enrich_cols='token_expiry_time,access_token,expires_in,token_type'
- --> *exec:if-condition token_expiry_time is null or current_time_ms_loop  is greater than or equal to token_expiry_time
- --> @exec:call-function name='generate_access_token'
- --> @exec:end-if
- --> @dm:dropnull columns='access_token'
- --> @dm:add-missing-columns columns='sw_version' and value='$sw_version'
- --> @dm:add-missing-columns columns='sw_os_type' and value='$sw_os_type'
- --> @dm:add-missing-columns columns='product_id' and value='$product_id'
- --> @dm:add-missing-columns columns='source' and value='$source'
- ## --> *dm:filter sw_os_type is not null and product_id is not null and sw_version is not null
-
- --> *exec:if-condition sw_version is not null and sw_os_type is not null and product_id is not null
- --> @exec:run-pipeline name ="edc_sw_get_data" & ignore_failures = "yes"
- --> @dm:save name='temp-sw-token'
- --> @dm:save name='temp-sweol-before-explode' and append='yes'
- ## --> @rn:write-stream name='dummy_sweol_enriched'
-
- --> @dm:save name='sweol-data-run-scan-op-1' and append='yes'
- --> @exec:end-if
- ## filter out the rows whose API output is not empty
+ ## enriches the processed columns to edc_oi_inventory_enriched
 
  --> @c:new-block
- --> @dm:recall name='temp-sweol-before-explode'
- --> @dm:dedup columns='product_id,sw_os_type,sw_version'
- --> @dm:copy-columns from='issues' and to='issues_str'
- --> @dm:to-type columns='issues_str' and type='str'
- --> *dm:filter issues_str is not '[]'
- --> @dm:selectcolumns exclude='^issues_str$'
- --> @dm:save name='temp-sweol-before-explode-dedup'
- --> @dm:save name='sweol-data-run-scan-op-dedup'
- ## enrich to add API output to rows with same sw_version,sw_os_type,product_id combination but different contract_number
+ --> @dm:recall name='temp-sec-adv-details'
+ --> @dm:to-type columns='contract_number' and type='int'
+ ## --> @dm:eval product_name="product_id if product_name is 'Not Available' else product_name"
+
+ --> @dm:enrich dict='temp-hw-eol-details-grouped' and dict_key_cols='contract_number,customer_name,product_name' and src_key_cols='contract_number,customer,product_name' and enrich_cols='combination_count_sum,portfolio_desc' and how_type='left' and dedup_dict='no'
+ --> @dm:add-missing-columns columns="combination_count_sum"
+ --> @dm:eval unique_key='str(PsirtID) + str(securityAdvisoryId) + str(product_id) + str(product_name) + str(contract_number)'
+ --> @dm:to-type columns='combination_count_sum' and type='int'
+ --> @dm:save name='temp-sec-adv-combination-count-sum'
+ --> @c:new-block
+ --> @dm:recall name='temp-hw-eol-details'
+ --> @dm:selectcolumns exclude='^(PsirtID|securityAdvisoryId|secAdv_confidence_score|secAdv_securityImpactRating|secAdv_matchConfidence|match|customer|sw_os_type|sw_version|secAdv_BulletinURL|secAdv_bulletinTitle|CveId|CvssScore|matchInfo|RevisedDate|RevisionNumber|PublishedDate)$'
+ --> @dm:save name='temp-hw-eol-details'
+ --> @c:new-block
+ --> @dm:recall name='temp-sec-adv-combination-count-sum'
+ --> @dm:enrich dict='temp-hw-eol-details'  and dict_key_cols='contract_number,customer_name,product_name' and src_key_cols='contract_number,customer,product_name' and enrich_cols='item_type,product_family'
+ --> @dm:save name='sa-enriched-final-enrich-before-dropnull'
+ --> @dm:dropnull columns='secAdv_securityImpactRating'
+ --> @dm:selectcolumns exclude='^(key|Unique_id|_RDA_Id|count_|timestamp|customer_name_y)'
+ --> @dm:eval customer_name='customer_name_x'
+ --> @dm:save name='sa-enriched-final-enrich'
+ --> @dm:save name='temp-edc-sweol-data'
+ --> @rn:write-stream name='edc_sec_adv_data_enriched'
+ ## Queries data for the customer from edc_oi_enriched_stream
 
  --> @c:new-block
- --> @dm:recall name='temp-sw-data'
- --> @dm:enrich dict='temp-sweol-before-explode-dedup' and src_key_cols='product_id,sw_os_type,sw_version' and dict_key_cols='product_id,sw_os_type,sw_version' and enrich_cols='issues,transaction_id,id' and how_type='inner' and dedup_dict='no'
- ## --> @dm:save name='test-sweol_cn_enriched'
-
- --> @dm:save name='temp-edc-sw-run-scan-op-not-exploded'
- --> @c:new-block
- --> @dm:recall name='temp-edc-sw-run-scan-op-not-exploded'
- --> *exec:if-condition source=='software'
- --> @dm:recall name='temp-edc-sw-run-scan-op-not-exploded'
- ## --> @dm:eval issues='eval(issues)'
-
- --> @dm:eval issues='json_dumps(issues)'
- --> @dm:explode-json column="issues"
- --> @dm:eval eoXAlert='json_dumps(eoXAlert)'
- --> @dm:explode-json column="eoXAlert"
- --> @dm:save name='temp-sweol-exploded'
- --> @dm:save name='exploded-sweol'
- --> @exec:end-if
- ## Logging the repeated counts of the data from run scan api
+ --> @dm:recall name='temp-hw-eol-details'
+ --> @dm:to_type columns = 'contract_number' and type  = 'int'
+ --> @dm:save name='temp-hw-eol-details'
+ ## dedup security advisory based on the secAdv_confidence_score
 
  --> @c:new-block
- --> @dm:recall name='temp-edc-sw-run-scan-op-not-exploded'
- --> *exec:if-condition source=='software'
- --> @dm:recall name="temp-sweol-exploded"
- --> @dm:to-type columns="BulletinNumber" and type="str"
- --> @dm:implode key_columns='product_id,sw_version,sw_os_type' and merge_columns='BulletinNumber' and dedup_merge_values='no' and keep_columns='id,transaction_id'
- --> @dm:eval BulletinNumber="str(BulletinNumber).split(',')"
- --> @dm:eval total_records = "len(BulletinNumber)"
- --> *dm:filter total_records > 1
- --> @dm:skip-block-if-shape row_count=0
- --> @dm:eval duplicate_record_count="total_records-1"
- --> @dm:eval unique_key="str(product_id)+'_'+str(sw_version)+'_'+str(sw_os_type)"
- --> @rn:write-stream name="edc_run_scan_duplicate_records"
- --> @exec:end-if
- --> @c:new-block
- --> @dm:recall name='temp-edc-sw-run-scan-op-not-exploded'
- --> *exec:if-condition source=='security_advisory'
- --> @dm:recall name='temp-edc-sw-run-scan-op-not-exploded'
- --> @dm:dedup columns='product_id'
- --> @dm:eval issues='json_dumps(issues)'
- --> @dm:explode-json column="issues"
- --> @dm:eval psirtAlert='json_dumps(psirtAlert)'
- --> @dm:explode-json column="psirtAlert"
- ## --> @dm:to-type columns='contract_number,customer,product_id,advisoryId,PsirtID' and type='str'
+ --> @dm:recall name='temp-sec-adv-details'
+ ## --> @dm:groupby columns='firstIcAlertId'
 
- ## --> @dm:map from = 'contract_number,customer,product_id,advisoryId,PsirtID' & to = 'unique_key' & func = 'join' & sep = '_'
+ --> @dm:skip-block-if-shape row_count="0"
+ ## --> @dm:save name='test-sec-adv-details'
 
- --> @dm:save name='temp-sweol-exploded'
- --> @dm:save name='exploded-sa-output'
- --> @exec:end-if
+ --> @dm:sort columns='secAdv_confidence_score' and order='descending'
+ --> @dm:dedup columns='product_id,sw_version,sw_os_type,contract_number,customer'
+ --> @dm:to_type columns = 'contract_number' and type  = 'int'
+ --> @dm:eval match="'yes'"
+ --> @dm:save name="temp-pa-sec-adv-dedups"
  --> @c:new-block
- --> @dm:recall name="temp-sweol-exploded"
+ --> @dm:recall name='temp-hw-eol-details'
+ --> @dm:enrich dict='temp-pa-sec-adv-dedups' and dict_key_cols='contract_number,customer,product_id' and src_key_cols='contract_number,customer_name,product_id' and enrich_cols='match' and how_type='left'
+ --> @dm:dropnull columns='match'
+ --> @dm:selectcolumns exclude='^(PsirtID|securityAdvisoryId|secAdv_confidence_score|secAdv_securityImpactRating|secAdv_matchConfidence|match|customer|sw_os_type|sw_version|secAdv_BulletinURL|secAdv_bulletinTitle|CveId|CvssScore|matchInfo|RevisedDate|RevisionNumber|PublishedDate)$'
+ --> @dm:save name='temp-matched-inv'
+ --> @c:new-block
+ --> @dm:recall name='temp-matched-inv'
+ --> @dm:enrich dict='temp-pa-sec-adv-dedups' and dict_key_cols='contract_number,customer,product_id' and src_key_cols='contract_number,customer_name,product_id' and enrich_cols='PsirtID,secAdv_confidence_score,securityAdvisoryId,secAdv_securityImpactRating,secAdv_matchConfidence,sw_os_type,sw_version,secAdv_bulletinTitle,secAdv_BulletinURL,CveId,CvssScore,matchInfo,RevisedDate,RevisionNumber,PublishedDate'
+ --> @dm:selectcolumns exclude="^(customer_x|customer_y|deviceSN|source|secAdv_bulletinTitle_x)"
+ --> @dm:rename-columns secAdv_bulletinTitle ='secAdv_bulletinTitle_y'
+ --> @dm:save name='temp-final-enrich'
+ ## --> @dm:save name='sa-final-enrich'
+
+ --> @rn:write-stream name='edc_oi_inventory_enriched'
