@@ -1,11 +1,15 @@
-folder: Default
-name: oia_tools_remediation_logcleanup
-description: ''
-data_path: draft-pipelines/data/oia_tools_remediation_logcleanup/2025_12_12_1/data.json
-usecase: ''
-category: null
-sources: []
-artifacts: []
-version: '2025_12_12_1'
-file_type: json
-checksum: cba44262
+
+ ## Bernie Wynia, Cisco Systems, 2025
+@c:new-block
+ ## Wait for an Incident
+
+ --> @rn:read-stream name = "oia-incidents-stream" & group = "group_oia-incidents-stream"
+ --> @dm:json-to-html output_column = "h_config_items" & input_column = "i_config_items"
+ --> @dm:eval lMessage = "'IncidentId:' + (incident_id) + '</br>Alerts:' + str(i_alert_count)  + '</br></br>' + (i_description) + '</br></br>' + (h_config_items) "
+ --> @dm:add-missing-columns columns = 'Template_Id' & value = 'incident_received'
+ ## I don't know why it can't find the timestamp column. Works fine in Studio, but live pipeline fails
+
+ --> @dm:change-time-format columns = "i_updated_ts" & from_format = "ms" & to_format = "datetimestr"
+ --> @dm:eval Subject_Suffix = "(incident_id) + ' to state ' + (i_state) + ' at ' + (i_updated_ts) "
+ --> @dm:selectcolumns include = "^Template_Id$|^lMessage$|^Subject_Suffix$"
+ --> @rn:write-stream name = "genericEmailSender"
