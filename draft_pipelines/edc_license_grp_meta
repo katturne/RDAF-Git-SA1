@@ -1,29 +1,5 @@
-folder: OI
-name: edc_license_grp
-description: test pipeline
-data_path: draft-pipelines/data/edc_license_grp/2025-06-30_2/data.json
-usecase: Pipeline to collect and process license data
-category: ''
-sources:
-  snowflake:
-    name: snowflake
-    type: snowflake
-  rn:
-    name: rn
-    type: rn
-artifacts:
-- artifact_type: dataset
-  artifact_name: edc_license_domains
-  access: read
-- artifact_type: rda-network-stream
-  artifact_name: edc_license_details
-  access: write
-- artifact_type: dataset
-  artifact_name: license_tap_dict
-  access: read
-- artifact_type: rda-network-stream
-  artifact_name: edc_license_summary
-  access: write
-version: 2025-06-30_2
-file_type: json
-checksum: 5a32932c
+@dm:query-persistent-stream-from-bookmark name='oia-incidents-stream' and query="i_recommendation_ts is empty" and bookmark='incidents-genai' and offset='latest'
+ --> @dm:dedup columns='incident_id'
+ --> @dm:eval fromTime="i_cfx_incident_occurred-(12*60*60*1000)" and toTime="i_cfx_incident_occurred+(4*60*60*1000)"
+ --> @dm:change-time-format from_format='ms' and to_format='datetimestr' and columns='fromTime,toTime'
+ --> @exec:run-pipeline name='genai-incident-recommendation-child'
