@@ -1,47 +1,39 @@
 
- ## oia-to-snow-cfx
-
- ## All debugging is captured on oia-to-snow-debug-stream
-
- ## 
-
- ## A work around is to mention all child and dependent pipelines here.
+ ## Generate token
 @c:new-block
+ --> @restclient:read url="https://int-id.cisco.com/oauth2/aussduh26AoUqMpmQ1d6/v1/token?grant_type=client_credentials&client_id=0oaknwhn14c4dkz131d7&client_secret=5uFg2IE0bCHKV75823fFZ-HYJGfIawA5UyZg_KrxArhLghWlLoTSV5EA6G_wjymB" and
+`method`="POST" and
+`Content-Type`='application/x-www-form-urlencoded' and
+`Accept`='*/*'
+ --> @dm:eval key="'key'"
+ --> @dm:save name="test2_token"
+ --> @dm:save name='temp-token'
+ ## Build payload
+
+ --> @c:new-block
  --> @dm:empty
- --> @dm:skip-block-if-shape row_count = 0 & column_count = 0
- --> @exec:run-pipeline name="oia-to-snow-cfx-processor" & ignore_failures="no"
- --> @exec:run-pipeline name="oia-incident-status-tracker-stream" & ignore_failures="no"
- ## Read from Stream
+ ## This payload is for Security Advisories
 
- --> @c:bookmark-loop bookmark = 'oia-to-snow-cfx-bkmrk' & initial_value = '-1 minute'
- --> @dm:empty
- --> @dm:addrow name="oia-incidents-delta-stream" & max_rows="1000"
- --> @dm:sleep seconds=5
- ## Query records from Stream
+ --> @dm:addrow data='{"input":{"transaction_id":"6e86f3db55880afdc57e11c278637c19748faae6d","cloudStorage":true,"scanTrigger":"ManualScan","icTypes":["securityAdvisory"],"includePotentialVulnerableResults":true,"client_app":{"app_name":"OI","client_id":"0oaknwhn14c4dkz131d7"},"device_details":{"deviceType":"IOS-XE","model":"ASR9K","version":"6.5.3","serialNumber":"FXS2014Q1KG"}}}'
+ ## This payload is for SW EoX
 
- ## Change-Here: Pulse to what ever you want
+ ## --> @dm:addrow data='{"input": { "transaction_id": "6e86f3db55880afdc57e11c278637c19748faae62","cloudStorage": true,"scanTrigger": "ManualScan","icTypes": ["softwareEoX"],"client_app": {"app_name": "OI","client_id": "0oaknwhn14c4dkz131d7"},"device_details": {"softwareType": "IOS XR","model": "CISCO2501","softwareVersionNumber":"12.0(21a)", "serialNumber": "coronas2"}}}'
 
- --> #dm:query-persistent-stream timestamp is after '${bookmark}' & (i_source contains 'SNMP_TRAP_Notifications' or i_source contains 'Syslog_udp_Notifications' or i_source contains 'Alert Group') & i_state != 'Closed' & i_state != 'Cancelled'
- --> @dm:skip-block-if-shape row_count = 0
- ## Change-Here: Temp workaround. Flow is NOT gracefully coming back from post exec:run-pipeline
+ --> @dm:eval key="'key'"
+ --> @dm:enrich dict ="temp-token" and src_key_cols="key" and dict_key_cols="key" and enrich_cols = "access_token"
+ --> @dm:save name="temp_scan_payload_2"
+ ## Run Scan
 
- --> @dm:save_bookmark name = 'oia-to-snow-cfx-bkmrk' & value_column = 'timestamp' & value_type = 'timestamp' & value_func = 'max'
- --> @dm:save name="temp-qresults"
- ## Debug
+ --> @c:data-loop columns="access_token,data" and dataset="temp_scan_payload_2"
+ --> @restclient:read url="https://api-cx.cisco.com/us/perf/ironbank/v1/scan/jobs/feb_device_scan/async" and payload = '$data' and method="POST" and Authorization= "Bearer $access_token"
+ --> @dm:eval key="'key'"
+ --> @dm:enrich dict ="temp_scan_payload" and src_key_cols="key" and dict_key_cols="key" and enrich_cols = "access_token"
+ --> @dm:save name="temp_scan_id_2"
+ --> @dm:sleep seconds = 5
+ ## Get results from scan
 
- --> @dm:map to="step" & func="fixed" & value="temp-query-stream-results-${bookmark}"
- --> @rn:write-stream compression="auto" & name="oia-to-snow-debug-stream"
- ## Record The Step
-
- --> @dm:eval pipeline="'oia-to-snow-cfx'" & step="'query-persistent-stream'" & stage="'bookmark ${bookmark}'" & status_comments="'Incident:' + incident_id + ',State:' + i_state + ',Delta:' + str(delta)" & status="'INFO'"
- --> @exec:run-pipeline name="oia-incident-status-tracker-stream" & ignore_failures="yes"
- ## Set the Tracing Context
-
- --> @dm:set-tracing-context-from-input columns = "project_id,incident_id"
- --> @dm:save name="temp-query-result-cfx"
- --> @exec:run-pipeline name="oia-to-snow-cfx-processor" & ignore_failures="no"
- ## Save bookmark - only after finishing up processing all the records
-
- --> @dm:recall name="temp-qresults"
- --> @dm:save_bookmark name = 'oia-to-snow-cfx-bkmrk' & value_column = 'timestamp' & value_type = 'timestamp' & value_func = 'max'
- --> @dm:empty
+ --> @c:data-loop columns="access_token,id" and dataset="temp_scan_id_2"
+ --> @restclient:read url="https://api-cx.cisco.com/us/perf/ironbank/v1/scan/jobs/$id" and method="GET" and Authorization= "Bearer $access_token" and `Accept`="*/*" and Connection="keep-alive"
+ --> @dm:explode-json column="issues"
+ --> @dm:save name="temp-scan_result"
+ --> @dm:save name="sweox-scan_result_2"
