@@ -1,55 +1,632 @@
 {
-  "name": "oi-asp-documentation-test-saummmond",
-  "label": "OI Org Chart",
-  "live_edit": true,
-  "version": "25.2.25.1",
-  "description": "OI ASP Documentation Widgets",
-  "dashboard_folder": "Default",
-  "dashboard_type": "dashboard",
+  "name": "alert_analysis",
+  "label": "Alert Trend Analysis",
+  "description": "Alert Trend Analysis",
+  "dashboard_folder": "RDAF_Health_Trends",
+  "version": "1.0.0",
   "enabled": false,
+  "dashboard_type": "template",
+  "stream": "oia-alerts-stream",
+  "live_edit": true,
+  "dashboard_filters": {
+    "time_filter": true,
+    "default_time_filter_labels": [
+      "Last 1 week"
+    ],
+    "columns_filters": [
+      {
+        "id": "a_rule_name",
+        "label": "Rule Name",
+        "type": "TEXT"
+      },
+      {
+        "id": "i_priority_label",
+        "label": "Priority",
+        "type": "TEXT"
+      },
+      {
+        "id": "a_source_systemname",
+        "label": "Source",
+        "type": "TEXT"
+      }
+    ],
+    "group_filters": [
+      {
+        "stream": "oia-alerts-stream",
+        "extra_filter": "(a_source_systemname is  'Alert Group')",
+        "title": "Rule Name",
+        "duration_hours": 3240,
+        "limit": 200,
+        "group_by": [
+          "a_rule_name"
+        ],
+        "ts_column": "timestamp",
+        "agg": "cardinality",
+        "column": "count_",
+        "show_counts": false
+      },
+      {
+        "stream": "oia-alerts-stream",
+        "extra_filter": "(a_source_systemname is not 'Alert Group')",
+        "title": "Source",
+        "duration_hours": 3240,
+        "limit": 200,
+        "group_by": [
+          "a_source_systemname"
+        ],
+        "ts_column": "timestamp",
+        "agg": "cardinality",
+        "column": "count_",
+        "show_counts": false
+      }
+    ]
+  },
   "dashboard_sections": [
     {
-      "title": "Documentation",
+      "title": "Alerts Analysis",
+      "show_filter": true,
       "widgets": [
         {
-          "title": "Documentation",
-          "widget_type": "custom_widget",
-          "widget_implementation": "oi-asp-documentation-test-saummmond/oi-asp-documentation-test-saummmond_widget",
+          "widget_type": "label",
+          "max_width": 12,
+          "height": 0.5,
           "min_width": 12,
-          "min_height": 12,
-          "widget_id": "4e2d534c"
+          "label": "<div style='text-align:center;width:100%;'><h1><a style='text-decoration:none;color:#0066ff;' target='_blank'> Alerts Trend Analysis </a></h1></div>",
+          "widget_id": "33317e49"
+        },
+        {
+          "widget_type": "custom_counter",
+          "title": "Events (Alert Groups)",
+          "formatter": "K",
+          "ts_column": "a_updated_ts",
+          "duration_hours": 3240,
+          "stream": "oia-alerts-stream",
+          "extra_filter": "(a_source_systemname is not 'Alert Group') and  (a_rule_name is not 'Not Available')",
+          "column": "a_correlation_parent",
+          "agg": "cardinality",
+          "min_width": 3,
+          "height": 3,
+          "max_width": 3,
+          "widget_id": "ddeb719c"
+        },
+        {
+          "title": "Events by Rule Name",
+          "widget_type": "counter",
+          "formatter": "K",
+          "duration_hours": 3240,
+          "stream": "oia-alerts-stream",
+          "extra_filter": "(a_source_systemname is not 'Alert Group') and  (a_rule_name is not 'Not Available')",
+          "ts_column": "a_updated_ts",
+          "min_width": 9,
+          "height": 3,
+          "max_width": 9,
+          "group_by": [
+            "a_rule_name"
+          ],
+          "limit": 10,
+          "column": "a_correlation_parent",
+          "agg": "cardinality",
+          "type": "int",
+          "widget_id": "AHhjvtpq"
+        },
+        {
+          "widget_type": "custom_counter",
+          "title": "Alerts",
+          "formatter": "K",
+          "ts_column": "a_updated_ts",
+          "duration_hours": 3240,
+          "stream": "oia-alerts-stream",
+          "extra_filter": "(a_source_systemname is not 'Alert Group')",
+          "column": "count_",
+          "agg": "value_count",
+          "min_width": 3,
+          "height": 3,
+          "max_width": 3,
+          "widget_id": "b9b42981"
+        },
+        {
+          "title": "Alerts by Source",
+          "widget_type": "counter",
+          "formatter": "K",
+          "duration_hours": 3240,
+          "stream": "oia-alerts-stream",
+          "extra_filter": "(a_source_systemname is not 'Alert Group')",
+          "ts_column": "a_updated_ts",
+          "min_width": 9,
+          "height": 3,
+          "max_width": 9,
+          "group_by": [
+            "a_source_systemname"
+          ],
+          "limit": 10,
+          "column": "count_",
+          "agg": "value_count",
+          "type": "int",
+          "widget_id": "23d1de1c"
+        },
+        {
+          "title": "Unique Devices",
+          "widget_type": "custom_counter",
+          "label": "",
+          "min_width": 3,
+          "max_width": 3,
+          "height": 3,
+          "unit": "",
+          "stream": "oia-alerts-stream",
+          "extra_filter": "(a_source_systemname is not 'Alert Group')",
+          "ts_column": "a_updated_ts",
+          "duration_hours": 3240,
+          "column": "a_asset_ip_address",
+          "agg": "cardinality",
+          "type": "int",
+          "widget_id": "d73e52ec8"
+        },
+        {
+          "title": "Top Noisy Alert Sources",
+          "description": "Alerts with repeat count > 1",
+          "widget_type": "bar_chart",
+          "stream": "oia-alerts-stream",
+          "ts_column": "a_updated_ts",
+          "duration_hours": 3240,
+          "extra_filter": "(a_source_systemname is not 'Alert Group') and (a_repeat_count >1)",
+          "group_by": [
+            "a_source_systemname"
+          ],
+          "chartProperties": {
+            "yAxisLabel": "Sources",
+            "xAxisLabel": "Unique Devices Count",
+            "legendLocation": "right",
+            "orientation": "horizontal"
+          },
+          "descending_order": false,
+          "column": "a_asset_ip_address",
+          "agg": "cardinality",
+          "type": "int",
+          "max_width": 9,
+          "height": 4,
+          "min_width": 6,
+          "widget_id": "40c44086"
+        },
+        {
+          "widget_type": "multi_bar_chart",
+          "title": "Alerts per Source and  Alert Group",
+          "duration_hours": 3240,
+          "extra_filter": "(a_source_systemname is not 'Alert Group')",
+          "stream": "oia-alerts-stream",
+          "ts_column": "a_updated_ts",
+          "min_width": 6,
+          "height": 4,
+          "max_width": 6,
+          "group_by": [
+            "a_rule_name",
+            "a_source_systemname"
+          ],
+          "agg": "value_count",
+          "column": "count_",
+          "type": "int",
+          "chartProperties": {
+            "legendLocation": "bottom",
+            "stacked": true,
+            "xAxisLabel": "Source",
+            "yAxisLabel": "Count"
+          },
+          "widget_id": "8gp7ZgI2"
+        },
+        {
+          "title": "Events per Alert Group, Source and Class",
+          "widget_type": "tabular",
+          "duration_hours": 3240,
+          "extra_filter": "(a_source_systemname is not 'Alert Group')",
+          "stream": "oia-alerts-stream",
+          "ts_column": "a_updated_ts",
+          "paginated": true,
+          "remote_searchable": true,
+          "remote_searchable_cols": [
+            "a_rule_name",
+            "a_source_systemname",
+            "a_en_alarm_class"
+          ],
+          "sorting": [
+            {
+              "Count": "desc"
+            }
+          ],
+          "height": 7,
+          "min_width": 6,
+          "max_width": 6,
+          "columns": {
+            "a_source_systemname": {
+              "title": "Alert Source",
+              "type": "TEXT"
+            },
+            "a_rule_name": {
+              "title": "Alert Group",
+              "type": "TEXT"
+            },
+            "a_en_alarm_class": {
+              "title": "Alert Class",
+              "type": "TEXT"
+            }
+          },
+          "pivot": {
+            "pivot_type": "advanced",
+            "group_by": [
+              "a_source_systemname",
+              "a_rule_name",
+              "a_en_alarm_class"
+            ],
+            "series": [
+              {
+                "column": "count_",
+                "agg": "value_count",
+                "type": "int",
+                "label": "Count"
+              }
+            ]
+          },
+          "widget_id": "a4852089"
+        },
+        {
+          "title": "Alert Trend",
+          "widget_type": "timeseries",
+          "stream": "oia-alerts-stream",
+          "ts_column": "a_updated_ts",
+          "duration_hours": 3240,
+          "extra_filter": "a_source_systemname is not 'Alert Group'",
+          "max_width": 12,
+          "height": 5,
+          "min_width": 12,
+          "propagateTimeFilter": {
+            "enabled": true,
+            "ts_column": "a_updated_ts"
+          },
+          "chartProperties": {
+            "yAxisLabel": "count",
+            "xAxisLabel": "time",
+            "stacked": true,
+            "legendLocation": "right",
+            "orientation": "horizontal",
+            "mode": "selection",
+            "column-id": "a_updated_ts"
+          },
+          "interval": "15m",
+          "group_by": [
+            "a_severity"
+          ],
+          "alert_markers": [
+            {
+              "stream": "oia-alerts-stream",
+              "ts_column": "a_updated_ts",
+              "message_column": "a_message",
+              "extra_filter": "a_severity is 'CRITICAL'",
+              "severity_column": "a_severity"
+            }
+          ],
+          "style": {
+            "color-map": {
+              "SEVERE": [
+                "#B71C1C",
+                "#ffffff"
+              ],
+              "CRITICAL": [
+                "#E53935",
+                "#ffffff"
+              ],
+              "MAJOR": [
+                "#F57C00",
+                "#ffffff"
+              ],
+              "MINOR": [
+                "#FFA726",
+                "#ffffff"
+              ],
+              "WARNING": [
+                "#FFD54F",
+                "#ffffff"
+              ],
+              "NOTIFICATION": [
+                "#4DD0E1",
+                "#ffffff"
+              ],
+              "INFORMATION": [
+                "#03A9F4",
+                "#ffffff"
+              ]
+            }
+          },
+          "series_spec": [
+            {
+              "column": "count_",
+              "agg": "sum",
+              "type": "int"
+            }
+          ],
+          "widget_id": "35903114"
         }
       ]
     }
   ],
-  "custom_widgets": {
-    "oi-asp-documentation-test-saummmond_widget": {
-      "artifacts": {
-        "main": {
-          "attachment": "main.html",
-          "content_type": "text/html",
-          "is_template": true
-        }
-      }
-    }
-  },
-  "attachments": [
-    {
-      "name": "main.html",
-      "value": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"UTF-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n<title>Organization & Executive Summary</title>\n<style>\n    body {\n        font-family: Arial, sans-serif;\n        padding: 20px;\n        background: url(\"/iconlib/background\") no-repeat center center fixed;\n        background-size: cover;\n        color: white;\n    }\n\n    .section {\n        border: 2px solid #ccc;\n        border-radius: 8px;\n        background: rgba(255, 255, 255, 0.95);\n        color: black;\n        margin-bottom: 40px;\n        overflow: hidden;\n    }\n\n    .section-header {\n        background-color: #07182D;\n        color: white;\n        font-size: 20px;\n        font-weight: bold;\n        padding: 10px;\n    }\n\n    .section-content {\n        padding: 20px;\n        text-align: center;\n    }\n\n    img {\n        max-width: 100%;\n        border-radius: 5px;\n        height: auto;\n        margin: 10px 0;\n    }\n\n    table {\n        width: 100%;\n        border-collapse: collapse;\n        margin-top: 20px;\n    }\n    th, td {\n        padding: 10px;\n        border: 1px solid #ccc;\n        text-align: center;\n    }\n    th {\n        background-color: #07182D;\n        color: white;\n    }\n    tr:nth-child(even) {\n        background-color: #f2f2f2;\n    }\n</style>\n</head>\n<body>\n\n<!-- Organization Section -->\n<div class=\"section\">\n    <div class=\"section-header\">Organization</div>\n    <div class=\"section-content\">\n        <img src=\"/iconlib/orgchart\" alt=\"Organization Chart\">\n        <img src=\"/iconlib/orgchart-1\" alt=\"Organization Chart 2\">\n    </div>\n</div>\n\n<!-- Executive Summary Section -->\n<div class=\"section\">\n    <div class=\"section-header\">Executive Summary</div>\n    <div class=\"section-content\">\n        <table id=\"dataTable\">\n            <thead>\n                <tr><th>Metric</th><th>Value</th></tr>\n            </thead>\n            <tbody></tbody>\n        </table>\n    </div>\n</div>\n\n<script>\nasync function loadData() {\n    try {\n        const response = await fetch('/api/v2/pstreams/pstream/data_trial/data');\n        if (!response.ok) throw new Error('Failed to fetch data');\n        \n        const json = await response.json();\n        console.log(\"Fetched JSON:\", json);\n\n        const table = document.getElementById(\"dataTable\");\n        const thead = table.querySelector(\"thead\");\n        const tbody = table.querySelector(\"tbody\");\n\n        tbody.innerHTML = \"\";\n        thead.innerHTML = \"\";\n\n        if (!json.pstream_data || json.pstream_data.length === 0) {\n            tbody.innerHTML = `<tr><td colspan=\"100%\">No data available</td></tr>`;\n            return;\n        }\n\n        const excludeKeys = [\"__uuid\", \"timestamp\", \"count_\", \"_RDA_Id\"];\n        const columns = Object.keys(json.pstream_data[0]).filter(k => !excludeKeys.includes(k));\n\n        // Create table header\n        const headerRow = document.createElement(\"tr\");\n        columns.forEach(col => {\n            const th = document.createElement(\"th\");\n            th.textContent = col;\n            headerRow.appendChild(th);\n        });\n        thead.appendChild(headerRow);\n\n        // Create rows\n        json.pstream_data.forEach(row => {\n            const tr = document.createElement(\"tr\");\n            columns.forEach(col => {\n                const td = document.createElement(\"td\");\n                td.textContent = row[col] || \"\";\n                tr.appendChild(td);\n            });\n            tbody.appendChild(tr);\n        });\n\n    } catch (err) {\n        console.error(\"Error fetching/parsing stream:\", err);\n    }\n}\n\nloadData();\n</script>\n\n</body>\n</html>\n"
-    }
-  ],
   "pstream_dashboards": [
     {
-      "title": "Documentation",
+      "title": "Alerts Analysis",
+      "show_filter": true,
       "widgets": [
         {
-          "title": "Documentation",
-          "widget_type": "custom_widget",
-          "widget_implementation": "oi-asp-documentation-test-saummmond/oi-asp-documentation-test-saummmond_widget",
+          "widget_type": "label",
+          "max_width": 12,
+          "height": 0.5,
           "min_width": 12,
-          "min_height": 12,
-          "widget_id": "4e2d534c"
+          "label": "<div style='text-align:center;width:100%;'><h1><a style='text-decoration:none;color:#0066ff;' target='_blank'> Alerts Trend Analysis </a></h1></div>",
+          "widget_id": "33317e49"
+        },
+        {
+          "widget_type": "custom_counter",
+          "title": "Events (Alert Groups)",
+          "formatter": "K",
+          "ts_column": "a_updated_ts",
+          "duration_hours": 3240,
+          "stream": "oia-alerts-stream",
+          "extra_filter": "(a_source_systemname is not 'Alert Group') and  (a_rule_name is not 'Not Available')",
+          "column": "a_correlation_parent",
+          "agg": "cardinality",
+          "min_width": 3,
+          "height": 3,
+          "max_width": 3,
+          "widget_id": "ddeb719c"
+        },
+        {
+          "title": "Events by Rule Name",
+          "widget_type": "counter",
+          "formatter": "K",
+          "duration_hours": 3240,
+          "stream": "oia-alerts-stream",
+          "extra_filter": "(a_source_systemname is not 'Alert Group') and  (a_rule_name is not 'Not Available')",
+          "ts_column": "a_updated_ts",
+          "min_width": 9,
+          "height": 3,
+          "max_width": 9,
+          "group_by": [
+            "a_rule_name"
+          ],
+          "limit": 10,
+          "column": "a_correlation_parent",
+          "agg": "cardinality",
+          "type": "int",
+          "widget_id": "AHhjvtpq"
+        },
+        {
+          "widget_type": "custom_counter",
+          "title": "Alerts",
+          "formatter": "K",
+          "ts_column": "a_updated_ts",
+          "duration_hours": 3240,
+          "stream": "oia-alerts-stream",
+          "extra_filter": "(a_source_systemname is not 'Alert Group')",
+          "column": "count_",
+          "agg": "value_count",
+          "min_width": 3,
+          "height": 3,
+          "max_width": 3,
+          "widget_id": "b9b42981"
+        },
+        {
+          "title": "Alerts by Source",
+          "widget_type": "counter",
+          "formatter": "K",
+          "duration_hours": 3240,
+          "stream": "oia-alerts-stream",
+          "extra_filter": "(a_source_systemname is not 'Alert Group')",
+          "ts_column": "a_updated_ts",
+          "min_width": 9,
+          "height": 3,
+          "max_width": 9,
+          "group_by": [
+            "a_source_systemname"
+          ],
+          "limit": 10,
+          "column": "count_",
+          "agg": "value_count",
+          "type": "int",
+          "widget_id": "23d1de1c"
+        },
+        {
+          "title": "Unique Devices",
+          "widget_type": "custom_counter",
+          "label": "",
+          "min_width": 3,
+          "max_width": 3,
+          "height": 3,
+          "unit": "",
+          "stream": "oia-alerts-stream",
+          "extra_filter": "(a_source_systemname is not 'Alert Group')",
+          "ts_column": "a_updated_ts",
+          "duration_hours": 3240,
+          "column": "a_asset_ip_address",
+          "agg": "cardinality",
+          "type": "int",
+          "widget_id": "d73e52ec8"
+        },
+        {
+          "title": "Top Noisy Alert Sources",
+          "description": "Alerts with repeat count > 1",
+          "widget_type": "bar_chart",
+          "stream": "oia-alerts-stream",
+          "ts_column": "a_updated_ts",
+          "duration_hours": 3240,
+          "extra_filter": "(a_source_systemname is not 'Alert Group') and (a_repeat_count >1)",
+          "group_by": [
+            "a_source_systemname"
+          ],
+          "chartProperties": {
+            "yAxisLabel": "Sources",
+            "xAxisLabel": "Unique Devices Count",
+            "legendLocation": "right",
+            "orientation": "horizontal"
+          },
+          "descending_order": false,
+          "column": "a_asset_ip_address",
+          "agg": "cardinality",
+          "type": "int",
+          "max_width": 9,
+          "height": 4,
+          "min_width": 6,
+          "widget_id": "40c44086"
+        },
+        {
+          "widget_type": "multi_bar_chart",
+          "title": "Alerts per Source and  Alert Group",
+          "duration_hours": 3240,
+          "extra_filter": "(a_source_systemname is not 'Alert Group')",
+          "stream": "oia-alerts-stream",
+          "ts_column": "a_updated_ts",
+          "min_width": 6,
+          "height": 4,
+          "max_width": 6,
+          "group_by": [
+            "a_rule_name",
+            "a_source_systemname"
+          ],
+          "agg": "value_count",
+          "column": "count_",
+          "type": "int",
+          "chartProperties": {
+            "legendLocation": "bottom",
+            "stacked": true,
+            "xAxisLabel": "Source",
+            "yAxisLabel": "Count"
+          },
+          "widget_id": "8gp7ZgI2"
+        },
+        {
+          "title": "Events per Alert Group, Source and Class",
+          "widget_type": "tabular",
+          "duration_hours": 3240,
+          "extra_filter": "(a_source_systemname is not 'Alert Group')",
+          "stream": "oia-alerts-stream",
+          "ts_column": "a_updated_ts",
+          "paginated": true,
+          "remote_searchable": true,
+          "remote_searchable_cols": [
+            "a_rule_name",
+            "a_source_systemname",
+            "a_en_alarm_class"
+          ],
+          "sorting": [
+            {
+              "Count": "desc"
+            }
+          ],
+          "height": 7,
+          "min_width": 6,
+          "max_width": 6,
+          "columns": {
+            "a_source_systemname": {
+              "title": "Alert Source",
+              "type": "TEXT"
+            },
+            "a_rule_name": {
+              "title": "Alert Group",
+              "type": "TEXT"
+            },
+            "a_en_alarm_class": {
+              "title": "Alert Class",
+              "type": "TEXT"
+            }
+          },
+          "pivot": {
+            "pivot_type": "advanced",
+            "group_by": [
+              "a_source_systemname",
+              "a_rule_name",
+              "a_en_alarm_class"
+            ],
+            "series": [
+              {
+                "column": "count_",
+                "agg": "value_count",
+                "type": "int",
+                "label": "Count"
+              }
+            ]
+          },
+          "widget_id": "a4852089"
+        },
+        {
+          "title": "Alert Trend",
+          "widget_type": "timeseries",
+          "stream": "oia-alerts-stream",
+          "ts_column": "a_updated_ts",
+          "duration_hours": 3240,
+          "extra_filter": "a_source_systemname is not 'Alert Group'",
+          "max_width": 12,
+          "height": 5,
+          "min_width": 12,
+          "propagateTimeFilter": {
+            "enabled": true,
+            "ts_column": "a_updated_ts"
+          },
+          "chartProperties": {
+            "yAxisLabel": "count",
+            "xAxisLabel": "time",
+            "stacked": true,
+            "legendLocation": "right",
+            "orientation": "horizontal",
+            "mode": "selection",
+            "column-id": "a_updated_ts"
+          },
+          "interval": "15m",
+          "group_by": [
+            "a_severity"
+          ],
+          "alert_markers": [
+            {
+              "stream": "oia-alerts-stream",
+              "ts_column": "a_updated_ts",
+              "message_column": "a_message",
+              "extra_filter": "a_severity is 'CRITICAL'",
+              "severity_column": "a_severity"
+            }
+          ],
+          "style": {
+            "color-map": {
+              "SEVERE": [
+                "#B71C1C",
+                "#ffffff"
+              ],
+              "CRITICAL": [
+                "#E53935",
+                "#ffffff"
+              ],
+              "MAJOR": [
+                "#F57C00",
+                "#ffffff"
+              ],
+              "MINOR": [
+                "#FFA726",
+                "#ffffff"
+              ],
+              "WARNING": [
+                "#FFD54F",
+                "#ffffff"
+              ],
+              "NOTIFICATION": [
+                "#4DD0E1",
+                "#ffffff"
+              ],
+              "INFORMATION": [
+                "#03A9F4",
+                "#ffffff"
+              ]
+            }
+          },
+          "series_spec": [
+            {
+              "column": "count_",
+              "agg": "sum",
+              "type": "int"
+            }
+          ],
+          "widget_id": "35903114"
         }
       ]
     }
