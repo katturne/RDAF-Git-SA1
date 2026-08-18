@@ -1,13 +1,85 @@
 {
-  "name": "rda-mgmt-page-textfsm-templates",
-  "label": "TextFSM Templates",
-  "description": "TextFSM Templates",
-  "enabled": true,
+  "name": "rda-mgmt-page-pstreams",
+  "label": "Persistent Streams",
+  "description": " Persistent Streams Management Page",
+  "enabled": false,
   "dashboard_type": "dashboard",
   "dashboard_folder": "System",
+  "dashboard_style": "auto",
+  "stream": "rda_pstreams_meta",
   "dashboard_filters": {
     "time_filter": true,
+    "group_filters": [
+      {
+        "stream": "rda_pstreams_meta",
+        "title": "Datastore",
+        "duration_hours": 87600,
+        "limit": 200,
+        "group_by": [
+          "datastore_type"
+        ],
+        "ts_column": "timestamp",
+        "agg": "value_count",
+        "column": "count_",
+        "type": "int"
+      }
+    ],
     "columns_filter": [
+      {
+        "id": "saved_time",
+        "label": "Saved Time",
+        "type": "DATETIME"
+      },
+      {
+        "id": "_RDA_Id",
+        "label": "_RDA_ID",
+        "type": "TEXT"
+      },
+      {
+        "id": "reltime",
+        "label": "Reltime",
+        "type": "DATETIME"
+      },
+      {
+        "id": "system_defined",
+        "label": "System Defined",
+        "type": "TEXT"
+      },
+      {
+        "id": "collection_status",
+        "label": "Collection_status",
+        "type": "TEXT"
+      },
+      {
+        "id": "count_",
+        "label": "Count_",
+        "type": "DOUBLE"
+      },
+      {
+        "id": "database",
+        "label": "Database ",
+        "type": "TEXT"
+      },
+      {
+        "id": "datastore_type",
+        "label": "Datastore Type",
+        "type": "TEXT"
+      },
+      {
+        "id": "status",
+        "label": "Status ",
+        "type": "TEXT"
+      },
+      {
+        "id": "retention_days",
+        "label": "Retention Days",
+        "type": "DOUBLE"
+      },
+      {
+        "id": "timestamp",
+        "label": "Timestamp",
+        "type": "DATETIME"
+      },
       {
         "id": "name",
         "label": "Name",
@@ -17,17 +89,22 @@
   },
   "dashboard_sections": [
     {
-      "title": "TextFSM Templates",
+      "title": "Persistent Streams",
       "show_filter": true,
       "widgets": [
         {
-          "title": "TextFSM Templates",
+          "title": "Persistent Streams",
           "widget_type": "tabular",
+          "stream": "rda_pstreams_meta",
           "duration_hours": 87600,
-          "stream": "rda_textfsm_meta",
           "remote_searchable": true,
           "remote_searchable_cols": [
-            "name"
+            "name",
+            "datastore_type",
+            "index_name",
+            "collection_status",
+            "system_defined",
+            "database"
           ],
           "ts_column": "saved_time",
           "paginated": true,
@@ -38,27 +115,105 @@
               "title": "Name",
               "key": true
             },
-            "type": "Type",
-            "description": "Description",
-            "folder": "Folder",
-            "system": "System Defined",
-            "version": {
-              "title": "LatestVersion",
+            "datastore_type": {
+              "title": "Datastore"
+            },
+            "index_name": {
+              "title": "Index / Table Name"
+            },
+            "collection_status": {
+              "title": "Collection Status"
+            },
+            "retention_days": {
+              "title": "Retention (Days)",
+              "sortable": false
+            },
+            "system_defined": {
+              "title": "System PStream",
+              "visible": false
+            },
+            "tags": {
+              "title": "Tags",
+              "type": "TEXT",
               "key": true
             },
             "saved_time": {
               "title": "Saved Time",
               "type": "DATETIME"
+            },
+            "timestamp": {
+              "title": "When",
+              "type": "HUMANIZE_TIME_DELTA",
+              "source-column": "saved_time",
+              "sortable": false
+            },
+            "ts_column": {
+              "title": "Timestamp Column",
+              "visible": false,
+              "key": true,
+              "type": "DATETIME"
+            },
+            "default_data_preview_time_filter": {
+              "title": "Default Data Preview Time Filter",
+              "visible": false,
+              "key": true
+            },
+            "ism": {
+              "title": "ISM",
+              "visible": false,
+              "key": true
+            },
+            "ism_policy_template": {
+              "title": "ism_policy_template",
+              "visible": false,
+              "key": true
             }
           },
-          "custom_columns": [],
+          "custom_columns": [
+            {
+              "id": "pstream_name",
+              "title": "PSTREAM",
+              "expr": "name",
+              "visible": false,
+              "key": true
+            },
+            {
+              "id": "database",
+              "title": "Database",
+              "expr": "'default' if not database else database"
+            },
+            {
+              "id": "rowStyleClass",
+              "hidden": true,
+              "visiblle": false,
+              "expr": "'bg-fading-blue' if time_now_as_ms() - isoformat_to_ms(saved_time) <= 120000 else None",
+              "sortable": false
+            },
+            {
+              "id": "artifact_name",
+              "label": "Artifact Name",
+              "expr": "name",
+              "key": true,
+              "visible": false,
+              "sortable": false
+            },
+            {
+              "id": "artifact_type",
+              "label": "Artifact Type",
+              "expr": "'rda-network-stream'",
+              "key": true,
+              "visible": false,
+              "sortable": false
+            }
+          ],
           "actions": [
             {
-              "permission": "rda:text_fsm:add",
+              "permission": "rda:pstream:add",
               "title": "Add",
+              "icon": "mdi mdi-plus",
               "type": "POPUP_FORM",
               "selectionType": "NONE",
-              "identifier": "saas-service-action:rda.saas.textfsm.add",
+              "identifier": "saas-service-action:pstream-add",
               "api-endpoint": {
                 "service-name": "saas-reports",
                 "methodName": "getForm",
@@ -66,35 +221,28 @@
                 "parse-output": false,
                 "params": [
                   {
-                    "formId": "rda.saas.textfsm.add"
+                    "formId": "rda.saas.pstream.add"
                   }
                 ]
               }
             },
             {
-              "permission": "rda:text_fsm:view",
-              "title": "View",
-              "type": "POPUP_FORM",
+              "permission": "rda:pstream:view",
+              "appName": "user-dashboard/rda-pstream-app",
+              "displayLabelColumnId": "name",
+              "drillDownLinkField": "name",
+              "identifier": "launch.url.dashboard",
               "selectionType": "SINGLE",
-              "identifier": "saas-service-action:rda.saas.textfsm.view",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.textfsm.view"
-                  }
-                ]
-              }
+              "stateName": "app.featureapp",
+              "title": "Dashboard",
+              "type": "GO_TO_APP_STATE"
             },
             {
-              "permission": "rda:text_fsm:update",
-              "title": "Update",
+              "permission": "rda:pstream:edit",
+              "title": "Edit",
               "type": "POPUP_FORM",
               "selectionType": "SINGLE",
-              "identifier": "saas-service-action:rda.saas.textfsm.update",
+              "identifier": "saas-service-action:pstream-edit",
               "api-endpoint": {
                 "service-name": "saas-reports",
                 "methodName": "getForm",
@@ -102,7 +250,7 @@
                 "parse-output": false,
                 "params": [
                   {
-                    "formId": "rda.saas.textfsm.update"
+                    "formId": "rda.saas.pstream.edit"
                   }
                 ]
               },
@@ -110,55 +258,37 @@
                 "actionControl": "SHOW_IF",
                 "conditionalField": [
                   {
-                    "conditionType": "NOT_EQUAL",
-                    "conditionValue": "true",
-                    "fieldId": "system"
+                    "conditionType": "EQUAL",
+                    "conditionValue": "no",
+                    "fieldId": "system_defined"
                   }
                 ]
               }
             },
             {
-              "permission": "rda:text_fsm:verify",
-              "title": "Verify",
+              "permission": "rda:pstream:assign_tag",
+              "title": "Manage Tags",
               "type": "POPUP_FORM",
               "selectionType": "SINGLE",
-              "identifier": "saas-service-action:rda.saas.textfsm.verify",
+              "identifier": "saas-service-action:assign-tag",
               "api-endpoint": {
-                "service-name": "saas-reports",
                 "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
                 "params": [
                   {
-                    "formId": "rda.saas.textfsm.verify"
+                    "formId": "rda.saas.tags.assign"
                   }
-                ]
+                ],
+                "parse-output": false,
+                "service-name": "saas-reports",
+                "stringified-params": true
               }
             },
             {
-              "permission": "rda:text_fsm:clone",
-              "title": "Clone",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:rda.saas.textfsm.clone",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.textfsm.clone"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:text_fsm:delete",
+              "permission": "rda:pstream:delete",
               "title": "Delete",
               "type": "POPUP_FORM",
               "selectionType": "SINGLE",
-              "identifier": "saas-service-action:rda.saas.textfsm.delete",
+              "identifier": "saas-service-action:pstream-delete",
               "api-endpoint": {
                 "service-name": "saas-reports",
                 "methodName": "getForm",
@@ -166,7 +296,7 @@
                 "parse-output": false,
                 "params": [
                   {
-                    "formId": "rda.saas.textfsm.delete"
+                    "formId": "rda.saas.pstream.delete"
                   }
                 ]
               },
@@ -174,32 +304,74 @@
                 "actionControl": "SHOW_IF",
                 "conditionalField": [
                   {
-                    "conditionType": "NOT_EQUAL",
-                    "conditionValue": "true",
-                    "fieldId": "system"
+                    "conditionType": "EQUAL",
+                    "conditionValue": "no",
+                    "fieldId": "system_defined"
                   }
                 ]
               }
+            },
+            {
+              "permission": "rda:pstream:edit",
+              "title": "Generate Dashboard",
+              "type": "POPUP_FORM",
+              "selectionType": "SINGLE",
+              "identifier": "saas-service-action:pstream-dashboard-generate",
+              "api-endpoint": {
+                "service-name": "saas-reports",
+                "methodName": "getForm",
+                "stringified-params": true,
+                "parse-output": false,
+                "params": [
+                  {
+                    "formId": "rda.saas.pstream.dashboard"
+                  }
+                ]
+              },
+              "actionCondition": {
+                "actionControl": "SHOW_IF",
+                "conditionalField": [
+                  {
+                    "conditionType": "EQUAL",
+                    "conditionValue": "no",
+                    "fieldId": "system_defined"
+                  }
+                ]
+              }
+            },
+            {
+              "permission": "rda:pstream:view",
+              "appName": "user-dashboard/rda-artifact-dependencies-app",
+              "identifier": "launch.url.dashboard",
+              "selectionType": "SINGLE",
+              "stateName": "app.featureapp",
+              "title": "View Dependencies",
+              "type": "GO_TO_APP_STATE"
             }
           ],
-          "widget_id": "d5b2wsd5"
+          "widget_id": "26052c9a"
         }
       ]
     }
   ],
   "pstream_dashboards": [
     {
-      "title": "TextFSM Templates",
+      "title": "Persistent Streams",
       "show_filter": true,
       "widgets": [
         {
-          "title": "TextFSM Templates",
+          "title": "Persistent Streams",
           "widget_type": "tabular",
+          "stream": "rda_pstreams_meta",
           "duration_hours": 87600,
-          "stream": "rda_textfsm_meta",
           "remote_searchable": true,
           "remote_searchable_cols": [
-            "name"
+            "name",
+            "datastore_type",
+            "index_name",
+            "collection_status",
+            "system_defined",
+            "database"
           ],
           "ts_column": "saved_time",
           "paginated": true,
@@ -210,27 +382,105 @@
               "title": "Name",
               "key": true
             },
-            "type": "Type",
-            "description": "Description",
-            "folder": "Folder",
-            "system": "System Defined",
-            "version": {
-              "title": "LatestVersion",
+            "datastore_type": {
+              "title": "Datastore"
+            },
+            "index_name": {
+              "title": "Index / Table Name"
+            },
+            "collection_status": {
+              "title": "Collection Status"
+            },
+            "retention_days": {
+              "title": "Retention (Days)",
+              "sortable": false
+            },
+            "system_defined": {
+              "title": "System PStream",
+              "visible": false
+            },
+            "tags": {
+              "title": "Tags",
+              "type": "TEXT",
               "key": true
             },
             "saved_time": {
               "title": "Saved Time",
               "type": "DATETIME"
+            },
+            "timestamp": {
+              "title": "When",
+              "type": "HUMANIZE_TIME_DELTA",
+              "source-column": "saved_time",
+              "sortable": false
+            },
+            "ts_column": {
+              "title": "Timestamp Column",
+              "visible": false,
+              "key": true,
+              "type": "DATETIME"
+            },
+            "default_data_preview_time_filter": {
+              "title": "Default Data Preview Time Filter",
+              "visible": false,
+              "key": true
+            },
+            "ism": {
+              "title": "ISM",
+              "visible": false,
+              "key": true
+            },
+            "ism_policy_template": {
+              "title": "ism_policy_template",
+              "visible": false,
+              "key": true
             }
           },
-          "custom_columns": [],
+          "custom_columns": [
+            {
+              "id": "pstream_name",
+              "title": "PSTREAM",
+              "expr": "name",
+              "visible": false,
+              "key": true
+            },
+            {
+              "id": "database",
+              "title": "Database",
+              "expr": "'default' if not database else database"
+            },
+            {
+              "id": "rowStyleClass",
+              "hidden": true,
+              "visiblle": false,
+              "expr": "'bg-fading-blue' if time_now_as_ms() - isoformat_to_ms(saved_time) <= 120000 else None",
+              "sortable": false
+            },
+            {
+              "id": "artifact_name",
+              "label": "Artifact Name",
+              "expr": "name",
+              "key": true,
+              "visible": false,
+              "sortable": false
+            },
+            {
+              "id": "artifact_type",
+              "label": "Artifact Type",
+              "expr": "'rda-network-stream'",
+              "key": true,
+              "visible": false,
+              "sortable": false
+            }
+          ],
           "actions": [
             {
-              "permission": "rda:text_fsm:add",
+              "permission": "rda:pstream:add",
               "title": "Add",
+              "icon": "mdi mdi-plus",
               "type": "POPUP_FORM",
               "selectionType": "NONE",
-              "identifier": "saas-service-action:rda.saas.textfsm.add",
+              "identifier": "saas-service-action:pstream-add",
               "api-endpoint": {
                 "service-name": "saas-reports",
                 "methodName": "getForm",
@@ -238,35 +488,28 @@
                 "parse-output": false,
                 "params": [
                   {
-                    "formId": "rda.saas.textfsm.add"
+                    "formId": "rda.saas.pstream.add"
                   }
                 ]
               }
             },
             {
-              "permission": "rda:text_fsm:view",
-              "title": "View",
-              "type": "POPUP_FORM",
+              "permission": "rda:pstream:view",
+              "appName": "user-dashboard/rda-pstream-app",
+              "displayLabelColumnId": "name",
+              "drillDownLinkField": "name",
+              "identifier": "launch.url.dashboard",
               "selectionType": "SINGLE",
-              "identifier": "saas-service-action:rda.saas.textfsm.view",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.textfsm.view"
-                  }
-                ]
-              }
+              "stateName": "app.featureapp",
+              "title": "Dashboard",
+              "type": "GO_TO_APP_STATE"
             },
             {
-              "permission": "rda:text_fsm:update",
-              "title": "Update",
+              "permission": "rda:pstream:edit",
+              "title": "Edit",
               "type": "POPUP_FORM",
               "selectionType": "SINGLE",
-              "identifier": "saas-service-action:rda.saas.textfsm.update",
+              "identifier": "saas-service-action:pstream-edit",
               "api-endpoint": {
                 "service-name": "saas-reports",
                 "methodName": "getForm",
@@ -274,7 +517,7 @@
                 "parse-output": false,
                 "params": [
                   {
-                    "formId": "rda.saas.textfsm.update"
+                    "formId": "rda.saas.pstream.edit"
                   }
                 ]
               },
@@ -282,55 +525,37 @@
                 "actionControl": "SHOW_IF",
                 "conditionalField": [
                   {
-                    "conditionType": "NOT_EQUAL",
-                    "conditionValue": "true",
-                    "fieldId": "system"
+                    "conditionType": "EQUAL",
+                    "conditionValue": "no",
+                    "fieldId": "system_defined"
                   }
                 ]
               }
             },
             {
-              "permission": "rda:text_fsm:verify",
-              "title": "Verify",
+              "permission": "rda:pstream:assign_tag",
+              "title": "Manage Tags",
               "type": "POPUP_FORM",
               "selectionType": "SINGLE",
-              "identifier": "saas-service-action:rda.saas.textfsm.verify",
+              "identifier": "saas-service-action:assign-tag",
               "api-endpoint": {
-                "service-name": "saas-reports",
                 "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
                 "params": [
                   {
-                    "formId": "rda.saas.textfsm.verify"
+                    "formId": "rda.saas.tags.assign"
                   }
-                ]
+                ],
+                "parse-output": false,
+                "service-name": "saas-reports",
+                "stringified-params": true
               }
             },
             {
-              "permission": "rda:text_fsm:clone",
-              "title": "Clone",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:rda.saas.textfsm.clone",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.textfsm.clone"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:text_fsm:delete",
+              "permission": "rda:pstream:delete",
               "title": "Delete",
               "type": "POPUP_FORM",
               "selectionType": "SINGLE",
-              "identifier": "saas-service-action:rda.saas.textfsm.delete",
+              "identifier": "saas-service-action:pstream-delete",
               "api-endpoint": {
                 "service-name": "saas-reports",
                 "methodName": "getForm",
@@ -338,7 +563,7 @@
                 "parse-output": false,
                 "params": [
                   {
-                    "formId": "rda.saas.textfsm.delete"
+                    "formId": "rda.saas.pstream.delete"
                   }
                 ]
               },
@@ -346,15 +571,52 @@
                 "actionControl": "SHOW_IF",
                 "conditionalField": [
                   {
-                    "conditionType": "NOT_EQUAL",
-                    "conditionValue": "true",
-                    "fieldId": "system"
+                    "conditionType": "EQUAL",
+                    "conditionValue": "no",
+                    "fieldId": "system_defined"
                   }
                 ]
               }
+            },
+            {
+              "permission": "rda:pstream:edit",
+              "title": "Generate Dashboard",
+              "type": "POPUP_FORM",
+              "selectionType": "SINGLE",
+              "identifier": "saas-service-action:pstream-dashboard-generate",
+              "api-endpoint": {
+                "service-name": "saas-reports",
+                "methodName": "getForm",
+                "stringified-params": true,
+                "parse-output": false,
+                "params": [
+                  {
+                    "formId": "rda.saas.pstream.dashboard"
+                  }
+                ]
+              },
+              "actionCondition": {
+                "actionControl": "SHOW_IF",
+                "conditionalField": [
+                  {
+                    "conditionType": "EQUAL",
+                    "conditionValue": "no",
+                    "fieldId": "system_defined"
+                  }
+                ]
+              }
+            },
+            {
+              "permission": "rda:pstream:view",
+              "appName": "user-dashboard/rda-artifact-dependencies-app",
+              "identifier": "launch.url.dashboard",
+              "selectionType": "SINGLE",
+              "stateName": "app.featureapp",
+              "title": "View Dependencies",
+              "type": "GO_TO_APP_STATE"
             }
           ],
-          "widget_id": "d5b2wsd5"
+          "widget_id": "26052c9a"
         }
       ]
     }

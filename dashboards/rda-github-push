@@ -1,124 +1,85 @@
 {
-  "name": "rda-github-push",
-  "label": "RDA Artifacts in GitHub",
-  "is_template": true,
-  "description": "RDA Artifacts in GitHub",
-  "version": "23.11.7.1",
+  "name": "ai-admin-page-personas",
+  "label": "AI Personas",
+  "description": "AI Personas",
   "enabled": true,
   "dashboard_type": "dashboard",
-  "dashboard_folder": "System",
+  "dashboard_folder": "AI",
+  "live_edit": true,
   "dashboard_style": "auto",
-  "stream": "rda_github_push_stream",
+  "stream": "rda_secret_meta",
   "dashboard_filters": {
-    "time_filter": true,
-    "columns_filter": [
-      {
-        "id": "filepath",
-        "label": "Full Path",
-        "type": "TEXT"
-      },
-      {
-        "id": "artifact_type",
-        "label": "Type",
-        "type": "TEXT"
-      },
-      {
-        "id": "file",
-        "label": "Name",
-        "type": "TEXT"
-      },
-      {
-        "id": "user",
-        "label": "User",
-        "type": "TEXT"
-      },
-      {
-        "id": "timestamp",
-        "label": "Timestamp",
-        "type": "DATETIME"
-      }
-    ],
-    "group_filters": [
-      {
-        "stream": "rda_github_push_stream",
-        "title": "Type",
-        "duration_hours": 87600,
-        "limit": 200,
-        "extra_filter": null,
-        "group_by": [
-          "artifact_type"
-        ],
-        "ts_column": "timestamp",
-        "agg": "sum",
-        "column": "count_",
-        "type": "int"
-      },
-      {
-        "stream": "rda_github_push_stream",
-        "title": "User",
-        "duration_hours": 87600,
-        "limit": 200,
-        "extra_filter": null,
-        "group_by": [
-          "user"
-        ],
-        "ts_column": "timestamp",
-        "agg": "sum",
-        "column": "count_",
-        "type": "int"
-      }
-    ]
+    "time_filter": false
   },
   "dashboard_sections": [
     {
-      "title": "RDA artifacts in GitHub",
+      "title": "Personas",
+      "show_filter": true,
       "widgets": [
         {
-          "title": "RDA artifacts in GitHub",
-          "widget_type": "github_push_details",
-          "widget_id": "0850d622"
-        },
-        {
-          "title": "RDA artifacts in GitHub",
+          "title": "Personas",
           "widget_type": "tabular",
-          "stream": "rda_github_push_stream",
-          "timebased": false,
+          "stream": "rda_ai_admin_meta",
+          "duration_hours": 87600,
           "remote_searchable": true,
           "remote_searchable_cols": [
-            "filepath",
-            "artifact_type",
-            "file",
-            "user"
+            "name"
           ],
-          "ts_column": "timestamp",
+          "ts_column": "saved_time",
           "paginated": true,
           "height": 10,
           "min_wdith": 12,
           "columns": {
-            "filepath": {
-              "title": "Full Path"
+            "name": {
+              "title": "Name",
+              "key": true
             },
-            "artifact_type": {
-              "title": "Type"
+            "description": {
+              "title": "Description",
+              "key": false
             },
-            "file": {
-              "title": "Name"
+            "llms": {
+              "title": "LLMs",
+              "htmlTemplateForRow": "<span class='badge' style='background-color: {{ row.static_color }}' > {{ row.llms }} </span>"
             },
-            "user": {
-              "title": "User"
+            "guardrails": {
+              "title": "Guardrails",
+              "htmlTemplateForRow": "<span class='badge' style='background-color: {{ row.static_color }}' > {{ row.guardrails }} </span>"
+            },
+            "color": {
+              "title": "Color",
+              "key": true,
+              "type": "DYNAMIC_HTML",
+              "htmlTemplate": "<div class='d-flex'><div style='width:18px;height:18px;margin-right:8px;' :style='{backgroundColor:rowData.color}'></div></div>"
+            },
+            "saved_time": {
+              "title": "Saved Time",
+              "type": "DATETIME"
             },
             "timestamp": {
-              "title": "Timestamp",
-              "type": "DATETIME"
+              "title": "When",
+              "type": "HUMANIZE_TIME_DELTA",
+              "source-column": "saved_time",
+              "sortable": false
             }
           },
+          "custom_columns": [
+            {
+              "id": "static_color",
+              "expr": "['#3F51B5']",
+              "visible": false,
+              "hidden": true,
+              "label": "Static Color"
+            }
+          ],
           "actions": [
             {
-              "permission": "rda:github:push",
-              "title": "Push Now",
+              "permission": "rda:credential:add",
+              "title": "Add",
+              "icon": "mdi mdi-plus",
               "type": "POPUP_FORM",
               "selectionType": "NONE",
-              "identifier": "saas-service-action:push-github",
+              "identifier": "saas-service-action:personas-add",
               "api-endpoint": {
                 "service-name": "saas-reports",
                 "methodName": "getForm",
@@ -126,67 +87,140 @@
                 "parse-output": false,
                 "params": [
                   {
-                    "formId": "rda.saas.git.push"
+                    "formId": "rda.saas.aipersona.add"
+                  }
+                ]
+              }
+            },
+            {
+              "permission": "rda:credential:edit",
+              "title": "Edit",
+              "type": "POPUP_FORM",
+              "selectionType": "SINGLE",
+              "identifier": "saas-service-action:personas-edit",
+              "api-endpoint": {
+                "service-name": "saas-reports",
+                "methodName": "getForm",
+                "stringified-params": true,
+                "parse-output": false,
+                "params": [
+                  {
+                    "formId": "rda.saas.aipersona.edit"
+                  }
+                ]
+              }
+            },
+            {
+              "permission": "rda:credential:verify",
+              "title": "View",
+              "type": "POPUP_FORM",
+              "selectionType": "SINGLE",
+              "identifier": "saas-service-action:vault-persona-view",
+              "api-endpoint": {
+                "service-name": "saas-reports",
+                "methodName": "getForm",
+                "stringified-params": true,
+                "parse-output": false,
+                "params": [
+                  {
+                    "formId": "rda.saas.aipersona.view.json"
+                  }
+                ]
+              }
+            },
+            {
+              "permission": "rda:credential:verify",
+              "title": "Delete",
+              "type": "POPUP_FORM",
+              "selectionType": "SINGLE",
+              "identifier": "saas-service-action:vault-delete",
+              "api-endpoint": {
+                "service-name": "saas-reports",
+                "methodName": "getForm",
+                "stringified-params": true,
+                "parse-output": false,
+                "params": [
+                  {
+                    "formId": "rda.saas.aipersona.delete"
                   }
                 ]
               }
             }
           ],
-          "widget_id": "01dc3a55"
+          "widget_id": "c9d555e3"
         }
       ]
     }
   ],
   "pstream_dashboards": [
     {
-      "title": "RDA artifacts in GitHub",
+      "title": "Personas",
+      "show_filter": true,
       "widgets": [
         {
-          "title": "RDA artifacts in GitHub",
-          "widget_type": "github_push_details",
-          "widget_id": "0850d622"
-        },
-        {
-          "title": "RDA artifacts in GitHub",
+          "title": "Personas",
           "widget_type": "tabular",
-          "stream": "rda_github_push_stream",
-          "timebased": false,
+          "stream": "rda_ai_admin_meta",
+          "duration_hours": 87600,
           "remote_searchable": true,
           "remote_searchable_cols": [
-            "filepath",
-            "artifact_type",
-            "file",
-            "user"
+            "name"
           ],
-          "ts_column": "timestamp",
+          "ts_column": "saved_time",
           "paginated": true,
           "height": 10,
           "min_wdith": 12,
           "columns": {
-            "filepath": {
-              "title": "Full Path"
+            "name": {
+              "title": "Name",
+              "key": true
             },
-            "artifact_type": {
-              "title": "Type"
+            "description": {
+              "title": "Description",
+              "key": false
             },
-            "file": {
-              "title": "Name"
+            "llms": {
+              "title": "LLMs",
+              "htmlTemplateForRow": "<span class='badge' style='background-color: {{ row.static_color }}' > {{ row.llms }} </span>"
             },
-            "user": {
-              "title": "User"
+            "guardrails": {
+              "title": "Guardrails",
+              "htmlTemplateForRow": "<span class='badge' style='background-color: {{ row.static_color }}' > {{ row.guardrails }} </span>"
+            },
+            "color": {
+              "title": "Color",
+              "key": true,
+              "type": "DYNAMIC_HTML",
+              "htmlTemplate": "<div class='d-flex'><div style='width:18px;height:18px;margin-right:8px;' :style='{backgroundColor:rowData.color}'></div></div>"
+            },
+            "saved_time": {
+              "title": "Saved Time",
+              "type": "DATETIME"
             },
             "timestamp": {
-              "title": "Timestamp",
-              "type": "DATETIME"
+              "title": "When",
+              "type": "HUMANIZE_TIME_DELTA",
+              "source-column": "saved_time",
+              "sortable": false
             }
           },
+          "custom_columns": [
+            {
+              "id": "static_color",
+              "expr": "['#3F51B5']",
+              "visible": false,
+              "hidden": true,
+              "label": "Static Color"
+            }
+          ],
           "actions": [
             {
-              "permission": "rda:github:push",
-              "title": "Push Now",
+              "permission": "rda:credential:add",
+              "title": "Add",
+              "icon": "mdi mdi-plus",
               "type": "POPUP_FORM",
               "selectionType": "NONE",
-              "identifier": "saas-service-action:push-github",
+              "identifier": "saas-service-action:personas-add",
               "api-endpoint": {
                 "service-name": "saas-reports",
                 "methodName": "getForm",
@@ -194,13 +228,67 @@
                 "parse-output": false,
                 "params": [
                   {
-                    "formId": "rda.saas.git.push"
+                    "formId": "rda.saas.aipersona.add"
+                  }
+                ]
+              }
+            },
+            {
+              "permission": "rda:credential:edit",
+              "title": "Edit",
+              "type": "POPUP_FORM",
+              "selectionType": "SINGLE",
+              "identifier": "saas-service-action:personas-edit",
+              "api-endpoint": {
+                "service-name": "saas-reports",
+                "methodName": "getForm",
+                "stringified-params": true,
+                "parse-output": false,
+                "params": [
+                  {
+                    "formId": "rda.saas.aipersona.edit"
+                  }
+                ]
+              }
+            },
+            {
+              "permission": "rda:credential:verify",
+              "title": "View",
+              "type": "POPUP_FORM",
+              "selectionType": "SINGLE",
+              "identifier": "saas-service-action:vault-persona-view",
+              "api-endpoint": {
+                "service-name": "saas-reports",
+                "methodName": "getForm",
+                "stringified-params": true,
+                "parse-output": false,
+                "params": [
+                  {
+                    "formId": "rda.saas.aipersona.view.json"
+                  }
+                ]
+              }
+            },
+            {
+              "permission": "rda:credential:verify",
+              "title": "Delete",
+              "type": "POPUP_FORM",
+              "selectionType": "SINGLE",
+              "identifier": "saas-service-action:vault-delete",
+              "api-endpoint": {
+                "service-name": "saas-reports",
+                "methodName": "getForm",
+                "stringified-params": true,
+                "parse-output": false,
+                "params": [
+                  {
+                    "formId": "rda.saas.aipersona.delete"
                   }
                 ]
               }
             }
           ],
-          "widget_id": "01dc3a55"
+          "widget_id": "c9d555e3"
         }
       ]
     }
