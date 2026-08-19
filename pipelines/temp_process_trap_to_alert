@@ -1,15 +1,35 @@
 @dm:empty
- --> @exec:get-input
- ## --> @dm:save name='stream-input'
+ --> @c:new-block
+ --> @rn:read-stream name = 'snmp_trap_event_stream' & group = '06_14_2023'
+ --> @dm:map-snmp-trap-to-alert template_folder="trap2alert2"
+ ## For now, process this only for cml devices
 
- --> @dm:save name='temp-generate_token_creds'
- ## Generate token
+ --> *dm:filter rda_gw_client_ip contains '9.3.252'
+ ## Handle OSPF NBR CHANGE traps
 
- --> @c:data-loop columns='content_type,client_secret,client_id,grant_type' and dataset='temp-generate_token_creds'
- --> @restclient:read url="https://int-id.cisco.com/oauth2/aussduh26AoUqMpmQ1d6/v1/token?grant_type=$grant_type&client_id=$client_id&client_secret=$client_secret" and
-`method`="POST" and
-`Content-Type`='$content_type' and
-`Accept`='*/*'
- --> @dm:eval key="'key'"
- --> @dm:save name="temp-token"
- --> @dm:save name='test-token'
+ --> *exec:if-condition snmpTrapName is 'ospfNbrStateChange'
+ --> @dm:eval link_type="'OSPF'"
+ --> @dm:save name="temp-ospf-raw-trap"
+ --> #dm:query-persistent-stream left_id is '{{row.device}}' and neighbor_id="{{row.ospfNbrRtrId}}" and timestamp is after -1440 hours with-input name="cml_topo_edges" and limit="1" and max_rows="1"
+ --> @dm:selectcolumns include="^left_id$|^right_id$"
+ ## -->  @dm:eval left_id="left_id.strip()"
+
+ --> @dm:map attr="left_id" & func="strip"
+ --> @dm:eval dict_name = "'temp-topo-data'"
+ --> @rn:write-stream name = 'new_cml_snmp_trap_alerts_debug'
+ --> @dm:save name="temp-topo-data"
+ --> @dm:recall name="temp-ospf-raw-trap"
+ --> @dm:selectcolumns include="^device$"
+ ## -->  @dm:eval device="device.strip()"
+
+ --> @dm:map attr="device" & func="strip"
+ --> @dm:eval dict_name = "'current'"
+ --> @rn:write-stream name = 'new_cml_snmp_trap_alerts_debug'
+ --> @dm:enrich dict="temp-topo-data"
+and src_key_cols="device"
+and dict_key_cols="left_id"
+and enrich_cols="right_id"
+and enrich_cols_as="remote_ip_new"
+ --> @dm:eval dict_name = "'final'"
+ --> @rn:write-stream name = 'new_cml_snmp_trap_alerts_debug'
+ --> @exec:end-if
