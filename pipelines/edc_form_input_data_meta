@@ -1,17 +1,23 @@
-folder: OI
-name: edc_form_input_data
-description: test pipeline
-data_path: pipelines/data/edc_form_input_data/2025-09-18_1/data.json
-usecase: ''
-category: ''
-sources:
-  rn:
-    name: rn
-    type: rn
-artifacts:
-- artifact_type: rda-network-stream
-  artifact_name: edc_cust_pid_sw
-  access: write
-version: 2025-09-18_1
-file_type: json
-checksum: c6aea6b9
+@c:new-block
+ --> @exec:get-input
+ --> @dm:save name="temp-file_upload0"
+ --> @dm:save name="10dataset"
+ --> @dm:recall name="10dataset"
+ --> @dm:selectcolumns include = 'USER_ID|proj_name|customer_name'
+ --> @dm:add-missing-columns columns = 'pipeline_name' &
+value = 'swdata-status-test'
+ --> @dm:add-missing-columns columns = 'status_type' &
+value = 'Initiating'
+ --> @dm:add-missing-columns columns = 'jobid' &
+value = 'Initiating'
+ --> @dm:save name="temp1-temp"
+ --> @rn:write-stream name = "status-stream"
+ --> @exec:run-pipeline name ="swdata-status-test"
+ --> @dm:sleep seconds = 40
+ --> @dm:empty
+ --> @dm:recall name="temp1-temp"
+ --> @dm:replace-data columns = 'status_type' &
+expr = 'in-progress' &
+replace = 'Completed'
+ --> @dm:save name="temp1-temp"
+ --> @rn:write-stream name = "status-stream"
