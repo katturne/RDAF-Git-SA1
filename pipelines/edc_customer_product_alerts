@@ -1,41 +1,40 @@
-folder: Default
-name: new_cml_device_discovery
-description: test pipeline
-data_path: pipelines/data/new_cml_device_discovery/1.0.0/data.json
-usecase: ''
-category: ''
-sources:
-  files:
-    name: files
-    type: file
-artifacts:
-- artifact_type: dataset
-  artifact_name: cml_cisco_device_chassis_dict
-  access: write
-- artifact_type: dataset
-  artifact_name: cisco_device_chassis_dict
-  access: read
-- artifact_type: dataset
-  artifact_name: cml_cisco_device_interface_data
-  access: write
-- artifact_type: dataset
-  artifact_name: cml_cisco_device_interface_cdp_dict
-  access: write
-- artifact_type: dataset
-  artifact_name: cml_cisco_device_chassis_dict
-  access: read
-- artifact_type: dataset
-  artifact_name: cml_cisco_device_chassis_sim_dict
-  access: write
-- artifact_type: dataset
-  artifact_name: cml_cisco_device_interface_data
-  access: read
-- artifact_type: dataset
-  artifact_name: cml_disc_output1
-  access: write
-- artifact_type: dataset
-  artifact_name: cml_cisco_device_interface_sim_data
-  access: write
-version: 1.0.0
-file_type: json
-checksum: 3c5ba189
+
+ ## Pipeline to add Sec Adv data to inventory
+
+ ## Sec Adv data comes from data processed from NP. It is already formatted and should include
+
+ ## columns: cusctomer_name, project_name
+@dm:empty
+ --> @dm:recall name='edc_project_product_alerts'
+ --> *dm:filter project_name =="ATT-Mobility" and customer_name == "ATT"
+ --> *dm:filter serial_number is not Null
+ --> @dm:fixnull columns="secAdv_bulletinFirstPublished,secAdv_bulletinLastUpdated,secAdv_bulletinMappingCaveat,secAdv_bulletinSummary,secAdv_bulletinTitle,secAdv_bulletinUrl,secAdv_bulletinVersion,secAdv_ciscoBugIds,secAdv_cveId,secAdv_cvssBase,secAdv_cvssTemporal,secAdv_match_confidence,secAdv_match_confidence_reason,secAdv_psirtAdvisoryId,secAdv_psirtColdId,secAdv_psirt_advisory_id,secAdv_psirt_cold_id,secAdv_securityImpactRating" and value="Not Available" and apply_for_empty="yes"
+ --> @dm:eval secAdv_confidence_score = " 100 if secAdv_match_confidence == 'Vulnerable' else 99 if secAdv_match_confidence == 'Potentially Vulnerable' else 98 if secAdv_match_confidence == 'Not Vulnerable' else 0"
+ --> @dm:eval secAdv_impact_score = "100 if secAdv_securityImpactRating == 'Critical' else 99 if secAdv_securityImpactRating == 'High' else 98 if secAdv_securityImpactRating == 'Medium' else 97 if secAdv_securityImpactRating == 'Low' else 0"
+ --> @dm:manipulate-string from="customer_name,project_name,secAdv_psirtColdId,serial_number" and func="concat_columns" and to="unique_key" and value="_"
+ --> @dm:selectcolumns exclude="secAdv_count"
+ --> @dm:save name='temp-productAlerts-secAdv-details'
+ --> @rn:write-stream name="edc_customer_productAlerts"
+ --> @c:new-block
+ --> @dm:empty
+ --> @dm:addrow name="edc_customer_inventory" & limit = '0' and sort_by_col='timestamp' and sort_type='desc'
+ --> #dm:query-persistent-stream project_name is 'ATT-Mobility' and customer_name is 'ATT' and match_inv in ['Only in Network','IB + In Network']
+ --> @dm:save name='temp-customer_inventory'
+ ## Deduping Security Advisories based on matchConfidence priority
+
+ --> @c:new-block
+ --> @dm:recall name="temp-productAlerts-secAdv-details"
+ --> @dm:skip-block-if-shape row_count="0"
+ --> @dm:sort columns='secAdv_confidence_score,secAdv_impact_score' and order='descending'
+ --> @dm:dedup columns='serial_number'
+ --> @dm:save name="temp-pa-sec_adv-device-dedups"
+ ## Merging Inventory with Security Advisories Dataset. Also enrich specific Moblity network attrs
+
+ --> @c:new-block
+ --> @dm:recall name='temp-customer_inventory'
+ --> @dm:enrich dict="temp-pa-sec_adv-device-dedups" and src_key_cols="serial_number" and dict_key_cols="serial_number" and enrich_cols="secAdv_match_confidence,secAdv_securityImpactRating" and replace_values="yes"
+ --> @dm:add-missing-columns columns="secAdv_match_confidence,secAdv_securityImpactRating"
+ --> @dm:fixnull columns="secAdv_match_confidence,secAdv_securityImpactRating" and value="Not Available" and apply_for_empty="yes"
+ --> @dm:gc
+ --> @dm:save name='temp-bcs-inventory-data'
+ --> @rn:write-stream name="edc_customer_inventory"
