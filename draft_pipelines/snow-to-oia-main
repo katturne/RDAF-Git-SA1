@@ -1,31 +1,7 @@
-
- ## snow-to-oia-main
-
- ## 
-
- ## A work around is to mention all child and dependent pipelines here.
 @c:new-block
- --> @dm:empty
- --> @dm:skip-block-if-shape row_count = 0 & column_count = 0
- --> @exec:run-pipeline name="oia-incident-status-tracker-stream" & ignore_failures="no"
- --> @exec:run-pipeline name="snow-to-oia" & ignore_failures="no"
- --> @c:bookmark-loop bookmark = 'snow-to-oia-bkmrk' & initial_value = '-1 minute'
- --> @dm:empty
- --> @dm:addrow name="snow_ticket_notifications" & max_rows="1000"
- ## Query records from Stream
+ --> @dm:recall name='added-sw-data'
+ --> @dm:enrich dict='test-sweol' and src_key_cols='sw_os_type,sw_version,product_id' and dict_key_cols='sw_os_type,sw_version,product_id' and enrich_cols='SoftwareEOXId,BulletinNumber,BulletinHeadline,BulletinURL,EndOfSaleDate,EndOfEngineeringDate,EndOfLifeDate,PostDate,EndOfLifeInternalAnnouncementDate,EndOfLifeExternalAnnouncementDate,EndOfLastHardwareShipDate,EndOfHardwareNewServiceAttachmentDate,EndOfHardwareRoutineFailureAnalysisDate,EndOfBUEngineeringSupportTACDate,EndOfHardwareServiceContractRenewalDate,EndOfSignatureReleasesDate,EndOfSoftwareAvailabilityDate,EndOfSoftwareLicenseAvailabilityDate,EndOfSoftwareVulnerabilityOrSecuritySupportDate,created,customerVisible,external_text,external_title,firstIcAlertId,groups,icIssueId,icProblemId,ignored,lastIcAlertId,eoXAlertType,name,openedOn,resultType,severity,severityText,state,updated,deviceSN,source,runType,filename,icType,atticaStatus,cdetsList,retry,associatedGroups'
+and how_type='outer'
+ ## --> @dm:manipulate-string from="customer,contract_number,product_id" and func="concat_columns" and to="enrich_ingestion_id"
 
- --> #dm:query-persistent-stream timestamp is after '${bookmark}' and u_cfx_source is 'Alert Group'
- --> @dm:save name="temp-raw-input"
- --> @dm:skip-block-if-shape row_count = 0 & column_count = 0
- --> @rn:write-stream compression="auto" & name="debug-external-to-oia-main-1"
- ## Record The Step
-
- --> @dm:eval pipeline="'snow-to-oia-main'" & step="'snow_ticket_notifications'" & stage="'bookmark ${bookmark}'" & status_comments="'External:' + number" & status="'INFO'"
- --> @exec:run-pipeline name="oia-incident-status-tracker-stream" & ignore_failures="yes"
- ## Load the corresponding Handler
-
- --> @exec:run-pipeline name="snow-to-oia" & ignore_failures="no"
- --> @dm:recall name="temp-raw-input"
- --> @dm:save_bookmark name = 'snow-to-oia-bkmrk' & value_column = 'timestamp' & value_type = 'timestamp' & value_func = 'max'
- --> @dm:sleep seconds=5
- --> @dm:empty
+ --> @dm:save name='test-values'
