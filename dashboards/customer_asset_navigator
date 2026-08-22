@@ -1,478 +1,290 @@
 {
-  "name": "event-tracking-details",
-  "label": "Alert Tracking Details",
-  "description": "OIA Alert Details",
-  "version": "23.2.13",
+  "name": "customer_asset_navigator",
+  "label": "Asset Navigator",
+  "description": "Asset Navigator",
   "enabled": true,
-  "exportable": false,
   "dashboard_style": "auto",
   "dashboard_type": "template",
+  "dashboard_folder": "NetworkDevicePack",
+  "version": "24.1.27.2",
+  "short_label": "Stack",
+  "live_edit": true,
+  "context_label_id": "stack_name",
   "template_variables": {
-    "PROJECT_ID": {
-      "default": null,
-      "contextId": "projectid"
+    "NODE_ID": {
+      "contextId": [
+        "navigatorSelectionContexts",
+        "secondaryListSelection",
+        "node_id"
+      ]
     },
-    "INCIDENT_ID": {
-      "default": null,
-      "contextId": "incidentid"
+    "PROJ_ID": {
+      "contextId": "project_id"
     },
-    "EVENT_ID": {
-      "default": null,
-      "contextId": "e_id"
-    },
-    "ALERT_ID": {
-      "default": null,
-      "contextId": "processedeventid"
-    },
-    "ALERT_KEY": {
-      "default": null,
-      "contextId": "eventkey"
-    },
-    "SOURCE_DASHBOARD_ID": {
-      "default": "user-dashboard-incident-details-alerts",
-      "contextId": "sourceDashboardId"
+    "CUST_TAG": {
+      "contextId": "customerTag"
     }
-  },
-  "custom_context": {
-    "alert-context": true
   },
   "dashboard_filters": {
-    "time_filter": false,
-    "default_time_filter_non_removable": false,
-    "show_default_time_filter": false
+    "extra_filter0": "(customer_tag is '{{CUST_TAG}}' or customer_tag is empty or customer_tag is '' or customer_tag is 'None')"
   },
-  "import": [
-    {
-      "from": "oia-alerts-os",
-      "as": "alerts"
+  "navigation_dashboards": {
+    "tree_data": {
+      "column_name": "node_type",
+      "pstream_name": "cfx_rdaf_topology_nodes",
+      "cfxql_query0": "(project_id is '{{PROJ_ID}}' and node_type != 'Gateway')",
+      "cfxql_query": "(device_object is not 'Interface'  and node_type not in ['Components', 'Gateway'] and device_status is not 'UNMANAGED') and (customer_tag is '{{CUST_TAG}}' or customer_tag is empty)"
+    },
+    "tree_detail": {
+      "display_column": "node_label",
+      "selected_columns": {
+        "node_id": "Node Id",
+        "node_label": "Node Name"
+      },
+      "pstream_name": "cfx_rdaf_topology_nodes",
+      "cfxql_query0": "node_type != 'Gateway'",
+      "cfxql_query": "(device_object is not 'Interface'  and node_type not in ['Components', 'Gateway'] and device_status is not 'UNMANAGED') and (customer_tag is '{{CUST_TAG}}' or customer_tag is empty)",
+      "duration_hours": 24
+    },
+    "showNodeIcon": true,
+    "showSearchBox": false
+  },
+  "computedContext0": {
+    "customer_tag": {
+      "expr": "customer_tag if customer_tag else ''",
+      "defaultValue": ""
     }
-  ],
+  },
   "dashboard_sections": [
     {
-      "title": "Alert Trail",
-      "show_filter": false,
+      "title": "Node Details",
       "widgets": [
         {
-          "title": "Source Event",
-          "widget_type": "summary",
-          "stream": "oia-events-stream",
-          "ts_column": "e_updatedat",
-          "extra_filter": "e_id is '{{EVENT_ID}}'",
-          "min_width": 12,
-          "height": 5,
+          "widget_type": "launch_actions",
+          "dashboard_name_template": "{node_type}-view-dashboard",
+          "dashboard_name_template0": "{node_type}-alert_device_app",
+          "extra_filter": "(customer_tag is '{{CUST_TAG}}' or customer_tag is empty or customer_tag is 'None')",
           "max_width": 12,
-          "paginated": true,
-          "resizableColumns": false,
-          "remote_searchable": true,
-          "remote_searchable_cols": [
-            "e_sourceeventid",
-            "e_id",
-            "e_processedeventid",
-            "e_eventkey",
-            "e_triggeredevent"
-          ],
-          "refreshRequired": true,
-          "timebased": false,
-          "max_rows": 50,
-          "sorting": [
-            {
-              "e_createdat": "desc"
-            }
-          ],
-          "columns": {
-            "e_sourceeventid": {
-              "title": "Source Event Id",
-              "visible": true,
-              "defaultWidth": 150
-            },
-            "e_id": {
-              "title": "Event Id",
-              "visible": true,
-              "defaultWidth": 150
-            },
-            "e_eventkey": {
-              "title": "Alert Key",
-              "visible": true,
-              "defaultWidth": 150
-            },
-            "e_processedeventid": {
-              "title": "Alert Id",
-              "visible": true,
-              "defaultWidth": 150
-            },
-            "e_sourcereceivedat": {
-              "title": "Received At",
-              "type": "DATETIME",
-              "visible": true,
-              "defaultWidth": 150
-            },
-            "e_createdat": {
-              "title": "Created At",
-              "type": "DATETIME",
-              "visible": true,
-              "defaultWidth": 150
-            }
-          },
-          "actions": [
-            {
-              "title": "View Source Payload",
-              "type": "POPUP_FORM",
-              "selectionType": "NONE",
-              "permission": "oia:event-tracking:downloadSourcePayload",
-              "identifier": "ingestion-tracker:com.cfx.form.view.sourceevent.payload",
-              "api-endpoint": {
-                "service-name": "ingestion-tracker",
-                "namespace": "io.cfx.dimensions.app",
-                "methodName": "invokeAppApi:getFormById",
-                "stringified-params": true,
-                "useReportContext": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "form_id": "com.cfx.form.view.sourceevent.payload",
-                    "context": {}
-                  }
-                ]
-              }
-            },
-            {
-              "title": "Download Source Payload",
-              "type": "POPUP_FORM",
-              "selectionType": "NONE",
-              "permission": "oia:event-tracking:downloadSourcePayload",
-              "identifier": "ingestion-tracker:com.cfx.form.download.sourceevent.payload",
-              "api-endpoint": {
-                "service-name": "ingestion-tracker",
-                "namespace": "io.cfx.dimensions.app",
-                "methodName": "invokeAppApi:getFormById",
-                "stringified-params": true,
-                "useReportContext": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "form_id": "com.cfx.form.download.sourceevent.payload",
-                    "context": {}
-                  }
-                ]
-              }
-            }
-          ],
-          "widget_id": "f0d249a2"
+          "height": 0.25,
+          "min_width": 12,
+          "widget_id": "181129d8",
+          "context_attributes": {
+            "CHASSIS": [
+              "parent_sn",
+              "device_ip"
+            ],
+            "Edge": [
+              "edgeName",
+              "edge_ip",
+              "serialNumber",
+              "edge_id"
+            ]
+          }
         },
         {
-          "title": "Alert Trail",
-          "widget_type": "tabular",
-          "stream": "oia-event-trail-stream",
-          "ts_column": "et_createdat",
-          "extra_filter": "et_eventid is '{{EVENT_ID}}'",
-          "min_width": 12,
+          "title": "Summary",
+          "widget_type": "portal_summary",
+          "reportId": "rda.saas.topology.node_details.report",
+          "stream0": "cfx_rdaf_topology_nodes",
+          "max_width": 4,
           "height": 5,
-          "max_width": 12,
-          "paginated": true,
-          "resizableColumns": false,
-          "remote_searchable": true,
-          "remote_searchable_cols": [
-            "et_eventstate",
-            "et_status",
-            "et_message"
-          ],
-          "refreshRequired": true,
+          "min_width": 4,
+          "widget_id": "182229d8"
+        },
+        {
+          "title": "Edges Summary",
+          "widget_type": "tabular",
+          "extra_filter": "(customer_tag is '{{CUST_TAG}}' or customer_tag is empty or customer_tag is 'None')",
+          "max_width": 8,
+          "height": 5,
+          "min_width": 8,
+          "stream": "cfx_rdaf_topology_edges",
           "timebased": false,
-          "max_rows": 50,
           "columns": {
-            "et_eventstate": {
-              "title": "Processing State",
+            "left_label": {
+              "title": "Left Label",
               "visible": true,
-              "defaultWidth": 150
+              "key": true
             },
-            "et_status": {
-              "title": "Status",
+            "right_label": {
+              "title": "Right Label",
               "visible": true,
-              "defaultWidth": 150
+              "key": true
             },
-            "et_message": {
-              "title": "Message",
+            "relation_type": {
+              "title": "Relation",
               "visible": true,
-              "defaultWidth": 150
-            },
-            "et_createdat": {
-              "title": "Created At",
-              "type": "DATETIME",
-              "visible": true,
-              "defaultWidth": 150
+              "key": true
             }
           },
-          "widget_id": "f0f5dc42"
-        }
-      ]
-    },
-    {
-      "title": "Alert Payload",
-      "show_filter": false,
-      "widgets": [
+          "query": "(left_id is '{{NODE_ID}}' or right_id is '{{NODE_ID}}')",
+          "duration_hours": 2160,
+          "widget_id": "dc7103e1"
+        },
         {
-          "title": " Alert Payload",
-          "widget_type": "summary",
-          "min_width": 12,
-          "height": 10,
-          "refreshRequired": false,
-          "timebased": false,
-          "api-endpoint": {
-            "service-name": "ingestion-tracker",
-            "namespace": "io.cfx.dimensions.app",
-            "version": "*",
-            "methodName": "invokeAppApi:viewEventPayload",
-            "stringified-params": true,
-            "parse-output": false,
-            "params": [
-              {}
+          "title": "Topology",
+          "widget_type": "topology",
+          "register_search_endpoints": true,
+          "reportId": "rda.saas.stack.view.topo",
+          "context_attributes": {
+            "CHASSIS": [
+              "parent_sn",
+              "device_ip"
+            ],
+            "Edge": [
+              "edgeName",
+              "edge_ip",
+              "serialNumber",
+              "edge_id"
             ]
           },
-          "widget_id": "2c46ed87"
-        }
-      ]
-    },
-    {
-      "title": "Enrichments",
-      "show_filter": true,
-      "projects": [
-        "ACME"
-      ],
-      "widgets": [
-        {
-          "title": "Enrichments",
-          "widget_type": "summary",
-          "min_width": 12,
-          "height": 10,
-          "refreshRequired": false,
-          "timebased": false,
-          "api-endpoint": {
-            "service-name": "ingestion-tracker",
-            "namespace": "io.cfx.dimensions.app",
-            "version": "*",
-            "methodName": "invokeAppApi:getEventAttributes",
-            "stringified-params": true,
-            "parse-output": false,
-            "params": [
-              {}
-            ]
+          "limit_to_node_types": [
+            "CHASSIS",
+            "Edge",
+            "Tunnel_end_point"
+          ],
+          "has_more_data_flag": false,
+          "stack_type": "dynamic",
+          "expand_all": true,
+          "stack_definition": {
+            "name": "Network Device Discovery Pack Stack",
+            "description": "",
+            "saved_time": "2023-09-12T21:08:31.418255",
+            "is_dynamic": true,
+            "hierarchical": false,
+            "dynamic_nodes": {
+              "stream": "cfx_rdaf_topology_nodes",
+              "query": "node_type != 'Gateway' and (customer_tag is '{{CUST_TAG}}' or customer_tag is empty or customer_tag is '')",
+              "limit": 0,
+              "sorting": null
+            },
+            "dynamic_relationships": {
+              "stream": "cfx_rdaf_topology_edges",
+              "query": "(customer_tag is '{{CUST_TAG}}' or customer_tag is empty or customer_tag is '')",
+              "limit": 0,
+              "sorting": null
+            }
           },
-          "widget_id": "df653485"
+          "height": 10,
+          "min_wdith": 12,
+          "widget_id": "182287d8"
         }
       ]
     }
   ],
   "pstream_dashboards": [
     {
-      "title": "Alert Trail",
-      "show_filter": false,
+      "title": "Node Details",
       "widgets": [
         {
-          "title": "Source Event",
-          "widget_type": "summary",
-          "stream": "oia-events-stream",
-          "ts_column": "e_updatedat",
-          "extra_filter": "e_id is '{{EVENT_ID}}'",
-          "min_width": 12,
-          "height": 5,
+          "widget_type": "launch_actions",
+          "dashboard_name_template": "{node_type}-view-dashboard",
+          "dashboard_name_template0": "{node_type}-alert_device_app",
+          "extra_filter": "(customer_tag is '{{CUST_TAG}}' or customer_tag is empty or customer_tag is 'None')",
           "max_width": 12,
-          "paginated": true,
-          "resizableColumns": false,
-          "remote_searchable": true,
-          "remote_searchable_cols": [
-            "e_sourceeventid",
-            "e_id",
-            "e_processedeventid",
-            "e_eventkey",
-            "e_triggeredevent"
-          ],
-          "refreshRequired": true,
-          "timebased": false,
-          "max_rows": 50,
-          "sorting": [
-            {
-              "e_createdat": "desc"
-            }
-          ],
-          "columns": {
-            "e_sourceeventid": {
-              "title": "Source Event Id",
-              "visible": true,
-              "defaultWidth": 150
-            },
-            "e_id": {
-              "title": "Event Id",
-              "visible": true,
-              "defaultWidth": 150
-            },
-            "e_eventkey": {
-              "title": "Alert Key",
-              "visible": true,
-              "defaultWidth": 150
-            },
-            "e_processedeventid": {
-              "title": "Alert Id",
-              "visible": true,
-              "defaultWidth": 150
-            },
-            "e_sourcereceivedat": {
-              "title": "Received At",
-              "type": "DATETIME",
-              "visible": true,
-              "defaultWidth": 150
-            },
-            "e_createdat": {
-              "title": "Created At",
-              "type": "DATETIME",
-              "visible": true,
-              "defaultWidth": 150
-            }
-          },
-          "actions": [
-            {
-              "title": "View Source Payload",
-              "type": "POPUP_FORM",
-              "selectionType": "NONE",
-              "permission": "oia:event-tracking:downloadSourcePayload",
-              "identifier": "ingestion-tracker:com.cfx.form.view.sourceevent.payload",
-              "api-endpoint": {
-                "service-name": "ingestion-tracker",
-                "namespace": "io.cfx.dimensions.app",
-                "methodName": "invokeAppApi:getFormById",
-                "stringified-params": true,
-                "useReportContext": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "form_id": "com.cfx.form.view.sourceevent.payload",
-                    "context": {}
-                  }
-                ]
-              }
-            },
-            {
-              "title": "Download Source Payload",
-              "type": "POPUP_FORM",
-              "selectionType": "NONE",
-              "permission": "oia:event-tracking:downloadSourcePayload",
-              "identifier": "ingestion-tracker:com.cfx.form.download.sourceevent.payload",
-              "api-endpoint": {
-                "service-name": "ingestion-tracker",
-                "namespace": "io.cfx.dimensions.app",
-                "methodName": "invokeAppApi:getFormById",
-                "stringified-params": true,
-                "useReportContext": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "form_id": "com.cfx.form.download.sourceevent.payload",
-                    "context": {}
-                  }
-                ]
-              }
-            }
-          ],
-          "widget_id": "f0d249a2"
+          "height": 0.25,
+          "min_width": 12,
+          "widget_id": "181129d8",
+          "context_attributes": {
+            "CHASSIS": [
+              "parent_sn",
+              "device_ip"
+            ],
+            "Edge": [
+              "edgeName",
+              "edge_ip",
+              "serialNumber",
+              "edge_id"
+            ]
+          }
         },
         {
-          "title": "Alert Trail",
-          "widget_type": "tabular",
-          "stream": "oia-event-trail-stream",
-          "ts_column": "et_createdat",
-          "extra_filter": "et_eventid is '{{EVENT_ID}}'",
-          "min_width": 12,
+          "title": "Summary",
+          "widget_type": "portal_summary",
+          "reportId": "rda.saas.topology.node_details.report",
+          "stream0": "cfx_rdaf_topology_nodes",
+          "max_width": 4,
           "height": 5,
-          "max_width": 12,
-          "paginated": true,
-          "resizableColumns": false,
-          "remote_searchable": true,
-          "remote_searchable_cols": [
-            "et_eventstate",
-            "et_status",
-            "et_message"
-          ],
-          "refreshRequired": true,
+          "min_width": 4,
+          "widget_id": "182229d8"
+        },
+        {
+          "title": "Edges Summary",
+          "widget_type": "tabular",
+          "extra_filter": "(customer_tag is '{{CUST_TAG}}' or customer_tag is empty or customer_tag is 'None')",
+          "max_width": 8,
+          "height": 5,
+          "min_width": 8,
+          "stream": "cfx_rdaf_topology_edges",
           "timebased": false,
-          "max_rows": 50,
           "columns": {
-            "et_eventstate": {
-              "title": "Processing State",
+            "left_label": {
+              "title": "Left Label",
               "visible": true,
-              "defaultWidth": 150
+              "key": true
             },
-            "et_status": {
-              "title": "Status",
+            "right_label": {
+              "title": "Right Label",
               "visible": true,
-              "defaultWidth": 150
+              "key": true
             },
-            "et_message": {
-              "title": "Message",
+            "relation_type": {
+              "title": "Relation",
               "visible": true,
-              "defaultWidth": 150
-            },
-            "et_createdat": {
-              "title": "Created At",
-              "type": "DATETIME",
-              "visible": true,
-              "defaultWidth": 150
+              "key": true
             }
           },
-          "widget_id": "f0f5dc42"
-        }
-      ]
-    },
-    {
-      "title": "Alert Payload",
-      "show_filter": false,
-      "widgets": [
+          "query": "(left_id is '{{NODE_ID}}' or right_id is '{{NODE_ID}}')",
+          "duration_hours": 2160,
+          "widget_id": "dc7103e1"
+        },
         {
-          "title": " Alert Payload",
-          "widget_type": "summary",
-          "min_width": 12,
-          "height": 10,
-          "refreshRequired": false,
-          "timebased": false,
-          "api-endpoint": {
-            "service-name": "ingestion-tracker",
-            "namespace": "io.cfx.dimensions.app",
-            "version": "*",
-            "methodName": "invokeAppApi:viewEventPayload",
-            "stringified-params": true,
-            "parse-output": false,
-            "params": [
-              {}
+          "title": "Topology",
+          "widget_type": "topology",
+          "register_search_endpoints": true,
+          "reportId": "rda.saas.stack.view.topo",
+          "context_attributes": {
+            "CHASSIS": [
+              "parent_sn",
+              "device_ip"
+            ],
+            "Edge": [
+              "edgeName",
+              "edge_ip",
+              "serialNumber",
+              "edge_id"
             ]
           },
-          "widget_id": "2c46ed87"
-        }
-      ]
-    },
-    {
-      "title": "Enrichments",
-      "show_filter": true,
-      "projects": [
-        "ACME"
-      ],
-      "widgets": [
-        {
-          "title": "Enrichments",
-          "widget_type": "summary",
-          "min_width": 12,
-          "height": 10,
-          "refreshRequired": false,
-          "timebased": false,
-          "api-endpoint": {
-            "service-name": "ingestion-tracker",
-            "namespace": "io.cfx.dimensions.app",
-            "version": "*",
-            "methodName": "invokeAppApi:getEventAttributes",
-            "stringified-params": true,
-            "parse-output": false,
-            "params": [
-              {}
-            ]
+          "limit_to_node_types": [
+            "CHASSIS",
+            "Edge",
+            "Tunnel_end_point"
+          ],
+          "has_more_data_flag": false,
+          "stack_type": "dynamic",
+          "expand_all": true,
+          "stack_definition": {
+            "name": "Network Device Discovery Pack Stack",
+            "description": "",
+            "saved_time": "2023-09-12T21:08:31.418255",
+            "is_dynamic": true,
+            "hierarchical": false,
+            "dynamic_nodes": {
+              "stream": "cfx_rdaf_topology_nodes",
+              "query": "node_type != 'Gateway' and (customer_tag is '{{CUST_TAG}}' or customer_tag is empty or customer_tag is '')",
+              "limit": 0,
+              "sorting": null
+            },
+            "dynamic_relationships": {
+              "stream": "cfx_rdaf_topology_edges",
+              "query": "(customer_tag is '{{CUST_TAG}}' or customer_tag is empty or customer_tag is '')",
+              "limit": 0,
+              "sorting": null
+            }
           },
-          "widget_id": "df653485"
+          "height": 10,
+          "min_wdith": 12,
+          "widget_id": "182287d8"
         }
       ]
     }
