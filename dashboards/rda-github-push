@@ -1,137 +1,124 @@
 {
-  "name": "rda-mgmt-page-credentials",
-  "label": "Credentials",
-  "description": " Credentials Management Page",
+  "name": "rda-github-push",
+  "label": "RDA Artifacts in GitHub",
+  "is_template": true,
+  "description": "RDA Artifacts in GitHub",
+  "version": "23.11.7.1",
   "enabled": true,
   "dashboard_type": "dashboard",
   "dashboard_folder": "System",
   "dashboard_style": "auto",
-  "stream": "rda_secret_meta",
+  "stream": "rda_github_push_stream",
   "dashboard_filters": {
     "time_filter": true,
     "columns_filter": [
       {
-        "id": "name",
-        "label": "Name",
+        "id": "filepath",
+        "label": "Full Path",
         "type": "TEXT"
       },
       {
-        "id": "type",
+        "id": "artifact_type",
         "label": "Type",
         "type": "TEXT"
       },
       {
-        "id": "typeDescription",
-        "label": "Type Description",
+        "id": "file",
+        "label": "Name",
         "type": "TEXT"
       },
       {
-        "id": "checksum",
-        "label": "Checksum",
+        "id": "user",
+        "label": "User",
         "type": "TEXT"
       },
       {
-        "id": "saved_time",
-        "label": "Saved Time",
+        "id": "timestamp",
+        "label": "Timestamp",
         "type": "DATETIME"
+      }
+    ],
+    "group_filters": [
+      {
+        "stream": "rda_github_push_stream",
+        "title": "Type",
+        "duration_hours": 87600,
+        "limit": 200,
+        "extra_filter": null,
+        "group_by": [
+          "artifact_type"
+        ],
+        "ts_column": "timestamp",
+        "agg": "sum",
+        "column": "count_",
+        "type": "int"
+      },
+      {
+        "stream": "rda_github_push_stream",
+        "title": "User",
+        "duration_hours": 87600,
+        "limit": 200,
+        "extra_filter": null,
+        "group_by": [
+          "user"
+        ],
+        "ts_column": "timestamp",
+        "agg": "sum",
+        "column": "count_",
+        "type": "int"
       }
     ]
   },
   "dashboard_sections": [
     {
-      "title": "Credentials",
-      "show_filter": true,
+      "title": "RDA artifacts in GitHub",
       "widgets": [
         {
-          "title": "Credentials",
+          "title": "RDA artifacts in GitHub",
+          "widget_type": "github_push_details",
+          "widget_id": "0850d622"
+        },
+        {
+          "title": "RDA artifacts in GitHub",
           "widget_type": "tabular",
-          "stream": "rda_secrets_meta",
-          "duration_hours": 87600,
+          "stream": "rda_github_push_stream",
+          "timebased": false,
           "remote_searchable": true,
           "remote_searchable_cols": [
-            "name",
-            "type",
-            "typeDescription",
-            "checksum"
+            "filepath",
+            "artifact_type",
+            "file",
+            "user"
           ],
-          "ts_column": "saved_time",
+          "ts_column": "timestamp",
           "paginated": true,
-          "extra_filter": "customerTag is empty",
           "height": 10,
           "min_wdith": 12,
           "columns": {
-            "name": {
-              "title": "Name",
-              "key": true
+            "filepath": {
+              "title": "Full Path"
             },
-            "type": {
-              "title": "Type",
-              "key": true
+            "artifact_type": {
+              "title": "Type"
             },
-            "typeDescription": {
-              "title": "description"
+            "file": {
+              "title": "Name"
             },
-            "has_credential_check": {
-              "title": "Credential Check",
-              "visible": false
-            },
-            "checksum": {
-              "title": "Checksum"
-            },
-            "tags": {
-              "title": "Tags",
-              "type": "TEXT",
-              "key": true
-            },
-            "customerTag": {
-              "title": "Customer Tag",
-              "type": "TEXT",
-              "key": true,
-              "hidden": true
-            },
-            "saved_time": {
-              "title": "Saved Time",
-              "type": "DATETIME"
+            "user": {
+              "title": "User"
             },
             "timestamp": {
-              "title": "When",
-              "type": "HUMANIZE_TIME_DELTA",
-              "source-column": "saved_time",
-              "sortable": false
+              "title": "Timestamp",
+              "type": "DATETIME"
             }
           },
-          "custom_columns": [
-            {
-              "id": "rowStyleClass",
-              "hidden": true,
-              "visiblle": false,
-              "expr": "'bg-fading-blue' if time_now_as_ms() - isoformat_to_ms(saved_time) <= 120000 else None"
-            },
-            {
-              "id": "artifact_name",
-              "label": "Artifact Name",
-              "expr": "name",
-              "key": true,
-              "visible": false,
-              "sortable": false
-            },
-            {
-              "id": "artifact_type",
-              "label": "Artifact Type",
-              "expr": "'source'",
-              "key": true,
-              "visible": false,
-              "sortable": false
-            }
-          ],
           "actions": [
             {
-              "permission": "rda:credential:add",
-              "title": "Add",
-              "icon": "mdi mdi-plus",
+              "permission": "rda:github:push",
+              "title": "Push Now",
               "type": "POPUP_FORM",
               "selectionType": "NONE",
-              "identifier": "saas-service-action:vault-add",
+              "identifier": "saas-service-action:push-github",
               "api-endpoint": {
                 "service-name": "saas-reports",
                 "methodName": "getForm",
@@ -139,238 +126,67 @@
                 "parse-output": false,
                 "params": [
                   {
-                    "formId": "rda.saas.vault.add"
+                    "formId": "rda.saas.git.push"
                   }
                 ]
               }
-            },
-            {
-              "permission": "rda:credential:edit",
-              "title": "Edit",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:vault-edit",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.vault.edit"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:credential:view",
-              "title": "View",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "displayLabelColumnId": "name",
-              "drillDownLinkField": "name",
-              "identifier": "saas-service-action:vault-view",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.vault.view"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:credential:verify",
-              "title": "Verify Credentials",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:vault-edit",
-              "actionCondition": {
-                "actionControl": "HIDE_IF",
-                "conditionalField": [
-                  {
-                    "conditionType": "EQUAL",
-                    "conditionValue": "false",
-                    "fieldId": "has_credential_check"
-                  }
-                ]
-              },
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.vault.validateConenctivity"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:credential:assign_tag",
-              "title": "Manage Tags",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:assign-tag",
-              "api-endpoint": {
-                "methodName": "getForm",
-                "params": [
-                  {
-                    "formId": "rda.saas.tags.assign"
-                  }
-                ],
-                "parse-output": false,
-                "service-name": "saas-reports",
-                "stringified-params": true
-              }
-            },
-            {
-              "permission": "rda:credential:verify",
-              "title": "Delete",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:vault-delete",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.vault.delete"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:credential:view",
-              "appName": "user-dashboard/rda-artifact-dependencies-app",
-              "identifier": "launch.url.dashboard",
-              "selectionType": "SINGLE",
-              "stateName": "app.featureapp",
-              "title": "View Dependencies",
-              "type": "GO_TO_APP_STATE"
             }
           ],
-          "widget_id": "9a21b5c6"
-        }
-      ]
-    },
-    {
-      "title": "Site Profiles",
-      "show_filter": false,
-      "widgets": [
-        {
-          "title": "Site Profiles",
-          "widget_type": "portal_tabular",
-          "reportId": "siteprofiles.list.tabular",
-          "height": 10,
-          "min_wdith": 12,
-          "paginated": true,
-          "widget_id": "59969e8c"
+          "widget_id": "01dc3a55"
         }
       ]
     }
   ],
   "pstream_dashboards": [
     {
-      "title": "Credentials",
-      "show_filter": true,
+      "title": "RDA artifacts in GitHub",
       "widgets": [
         {
-          "title": "Credentials",
+          "title": "RDA artifacts in GitHub",
+          "widget_type": "github_push_details",
+          "widget_id": "0850d622"
+        },
+        {
+          "title": "RDA artifacts in GitHub",
           "widget_type": "tabular",
-          "stream": "rda_secrets_meta",
-          "duration_hours": 87600,
+          "stream": "rda_github_push_stream",
+          "timebased": false,
           "remote_searchable": true,
           "remote_searchable_cols": [
-            "name",
-            "type",
-            "typeDescription",
-            "checksum"
+            "filepath",
+            "artifact_type",
+            "file",
+            "user"
           ],
-          "ts_column": "saved_time",
+          "ts_column": "timestamp",
           "paginated": true,
-          "extra_filter": "customerTag is empty",
           "height": 10,
           "min_wdith": 12,
           "columns": {
-            "name": {
-              "title": "Name",
-              "key": true
+            "filepath": {
+              "title": "Full Path"
             },
-            "type": {
-              "title": "Type",
-              "key": true
+            "artifact_type": {
+              "title": "Type"
             },
-            "typeDescription": {
-              "title": "description"
+            "file": {
+              "title": "Name"
             },
-            "has_credential_check": {
-              "title": "Credential Check",
-              "visible": false
-            },
-            "checksum": {
-              "title": "Checksum"
-            },
-            "tags": {
-              "title": "Tags",
-              "type": "TEXT",
-              "key": true
-            },
-            "customerTag": {
-              "title": "Customer Tag",
-              "type": "TEXT",
-              "key": true,
-              "hidden": true
-            },
-            "saved_time": {
-              "title": "Saved Time",
-              "type": "DATETIME"
+            "user": {
+              "title": "User"
             },
             "timestamp": {
-              "title": "When",
-              "type": "HUMANIZE_TIME_DELTA",
-              "source-column": "saved_time",
-              "sortable": false
+              "title": "Timestamp",
+              "type": "DATETIME"
             }
           },
-          "custom_columns": [
-            {
-              "id": "rowStyleClass",
-              "hidden": true,
-              "visiblle": false,
-              "expr": "'bg-fading-blue' if time_now_as_ms() - isoformat_to_ms(saved_time) <= 120000 else None"
-            },
-            {
-              "id": "artifact_name",
-              "label": "Artifact Name",
-              "expr": "name",
-              "key": true,
-              "visible": false,
-              "sortable": false
-            },
-            {
-              "id": "artifact_type",
-              "label": "Artifact Type",
-              "expr": "'source'",
-              "key": true,
-              "visible": false,
-              "sortable": false
-            }
-          ],
           "actions": [
             {
-              "permission": "rda:credential:add",
-              "title": "Add",
-              "icon": "mdi mdi-plus",
+              "permission": "rda:github:push",
+              "title": "Push Now",
               "type": "POPUP_FORM",
               "selectionType": "NONE",
-              "identifier": "saas-service-action:vault-add",
+              "identifier": "saas-service-action:push-github",
               "api-endpoint": {
                 "service-name": "saas-reports",
                 "methodName": "getForm",
@@ -378,139 +194,13 @@
                 "parse-output": false,
                 "params": [
                   {
-                    "formId": "rda.saas.vault.add"
+                    "formId": "rda.saas.git.push"
                   }
                 ]
               }
-            },
-            {
-              "permission": "rda:credential:edit",
-              "title": "Edit",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:vault-edit",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.vault.edit"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:credential:view",
-              "title": "View",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "displayLabelColumnId": "name",
-              "drillDownLinkField": "name",
-              "identifier": "saas-service-action:vault-view",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.vault.view"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:credential:verify",
-              "title": "Verify Credentials",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:vault-edit",
-              "actionCondition": {
-                "actionControl": "HIDE_IF",
-                "conditionalField": [
-                  {
-                    "conditionType": "EQUAL",
-                    "conditionValue": "false",
-                    "fieldId": "has_credential_check"
-                  }
-                ]
-              },
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.vault.validateConenctivity"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:credential:assign_tag",
-              "title": "Manage Tags",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:assign-tag",
-              "api-endpoint": {
-                "methodName": "getForm",
-                "params": [
-                  {
-                    "formId": "rda.saas.tags.assign"
-                  }
-                ],
-                "parse-output": false,
-                "service-name": "saas-reports",
-                "stringified-params": true
-              }
-            },
-            {
-              "permission": "rda:credential:verify",
-              "title": "Delete",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:vault-delete",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.vault.delete"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:credential:view",
-              "appName": "user-dashboard/rda-artifact-dependencies-app",
-              "identifier": "launch.url.dashboard",
-              "selectionType": "SINGLE",
-              "stateName": "app.featureapp",
-              "title": "View Dependencies",
-              "type": "GO_TO_APP_STATE"
             }
           ],
-          "widget_id": "9a21b5c6"
-        }
-      ]
-    },
-    {
-      "title": "Site Profiles",
-      "show_filter": false,
-      "widgets": [
-        {
-          "title": "Site Profiles",
-          "widget_type": "portal_tabular",
-          "reportId": "siteprofiles.list.tabular",
-          "height": 10,
-          "min_wdith": 12,
-          "paginated": true,
-          "widget_id": "59969e8c"
+          "widget_id": "01dc3a55"
         }
       ]
     }

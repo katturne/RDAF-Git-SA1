@@ -1,275 +1,214 @@
 {
-  "name": "rda-mgmt-page-nonsystem-dashboards",
-  "label": "Dashboards",
-  "description": "User Dashboard Management Page",
-  "enabled": false,
-  "dashboard_type": "dashboard",
+  "name": "rda_system_single_snapshot_details",
+  "label": "Snapshot Details",
+  "description": "Snapshot Details",
   "dashboard_folder": "System",
-  "stream": "rda_dashboards_meta",
+  "version": "1.0.2",
+  "live_edit": true,
+  "enabled": false,
+  "stream": "rda_system_snapshots_details",
+  "dashboard_type": "template",
+  "template_variables": {
+    "SNAPSHOT_NAME": {
+      "contextId": "snapshot_name"
+    }
+  },
   "dashboard_filters": {
     "time_filter": true,
-    "extra_filter": "( dashboard_folder not in 'System')",
-    "group_filters": [
-      {
-        "stream": "rda_dashboards_meta",
-        "title": "Folder",
-        "duration_hours": 87600,
-        "limit": 200,
-        "extra_filter": null,
-        "group_by": [
-          "dashboard_folder"
-        ],
-        "ts_column": "saved_time",
-        "agg": "value_count",
-        "column": "count_",
-        "type": "int"
-      },
-      {
-        "stream": "rda_dashboards_meta",
-        "title": "Type",
-        "duration_hours": 87600,
-        "limit": 200,
-        "group_by": [
-          "dashboard_type"
-        ],
-        "ts_column": "saved_time",
-        "agg": "value_count",
-        "column": "count_",
-        "type": "int"
-      }
+    "default_time_filter_labels": [
+      "All Time"
     ],
+    "extra_filter": "snapshot_name is '{{SNAPSHOT_NAME}}'",
     "columns_filter": [
       {
-        "id": "saved_time",
-        "label": "Saved Time",
-        "type": "DATETIME"
-      },
-      {
-        "id": "name",
-        "label": "Name",
+        "id": "artifact_name",
+        "label": "Artifact Name",
         "type": "TEXT"
       },
       {
-        "id": "label",
-        "label": "Label",
+        "id": "artifact_type",
+        "label": "Artifact Type",
         "type": "TEXT"
       },
       {
-        "id": "dashboard_folder",
-        "label": "Folder",
+        "id": "artifact_version_visibility",
+        "label": "Artifact Checksum In Snapshot Repo",
         "type": "TEXT"
       },
       {
-        "id": "dashboard_type",
-        "label": "Dashboard Type",
+        "id": "checksum",
+        "label": "Checksum",
         "type": "TEXT"
       },
       {
-        "id": "_RDA_Id",
-        "label": "_RDA_ID",
+        "id": "object_name",
+        "label": "Object Name",
         "type": "TEXT"
       },
       {
-        "id": "count_",
-        "label": "Count_",
+        "id": "snapshot_name",
+        "label": "Snapshot Name",
+        "type": "TEXT"
+      },
+      {
+        "id": "snapshot_type",
+        "label": "Snapshot Type",
+        "type": "TEXT"
+      },
+      {
+        "id": "size",
+        "label": "Size",
         "type": "DOUBLE"
+      }
+    ],
+    "group_filters": [
+      {
+        "stream": "rda_system_snapshots_details",
+        "title": "Artifact Type",
+        "duration_hours": 87600,
+        "limit": 200,
+        "extra_filter": "snapshot_name is '{{SNAPSHOT_NAME}}'",
+        "group_by": [
+          "artifact_type"
+        ],
+        "ts_column": "timestamp",
+        "agg": "sum",
+        "column": "count_",
+        "type": "int"
       },
       {
-        "id": "description",
-        "label": "Description",
-        "type": "TEXT"
-      },
-      {
-        "id": "enabled",
-        "label": "Enabled",
-        "type": "BOOLEAN"
-      },
-      {
-        "id": "reltime",
-        "label": "RelTime",
-        "type": "DATETIME"
-      },
-      {
-        "id": "timestamp",
-        "label": "Timestamp",
-        "type": "DATETIME"
+        "stream": "rda_system_snapshots_details",
+        "title": "Artifact Checksum In Snapshot Repo",
+        "duration_hours": 87600,
+        "limit": 200,
+        "extra_filter": "snapshot_name is '{{SNAPSHOT_NAME}}'",
+        "group_by": [
+          "artifact_version_visibility"
+        ],
+        "ts_column": "timestamp",
+        "agg": "sum",
+        "column": "count_",
+        "type": "int"
       }
     ]
   },
   "dashboard_sections": [
     {
-      "title": "Dashboards",
+      "title": "rda_system_snapshots_details",
       "show_filter": true,
       "widgets": [
         {
-          "widget_type": "pie_chart",
-          "title": "Dashboards by Folders",
-          "stream": "rda_dashboards_meta",
-          "ts_column": "saved_time",
-          "duration_hours": 87600,
-          "min_width": 6,
-          "height": 4,
+          "widget_type": "label",
+          "min_width": 3,
+          "height": 3,
           "max_width": 6,
-          "limit": 25,
-          "column": "count_",
-          "agg": "value_count",
-          "group_by": [
-            "dashboard_folder"
+          "label": "{% raw %}<div><div style='color: #00aa00; font-size: 20px;'>Changes Since Last Snapshot: {{new_count|int}}</div><div style='color: #888888; font-size: 20px;'>Unchanged: {{unchanged_count|int}}</div></div>{% endraw %}",
+          "segments": [
+            {
+              "stream": "rda_system_snapshots_details",
+              "variable": "new_count",
+              "ts_column": "timestamp",
+              "extra_filter": "artifact_version_visibility == 'new' AND snapshot_name is '{{SNAPSHOT_NAME}}'",
+              "agg": "sum",
+              "group_by0": "artifact_version_visibility",
+              "column": "count_"
+            },
+            {
+              "stream": "rda_system_snapshots_details",
+              "variable": "unchanged_count",
+              "ts_column": "timestamp",
+              "extra_filter": "artifact_version_visibility == 'unchanged' AND snapshot_name is '{{SNAPSHOT_NAME}}'",
+              "agg": "sum",
+              "group_by0": "artifact_version_visibility",
+              "column": "count_"
+            }
           ],
-          "type": "int",
-          "widget_id": "cb0706e6"
+          "widget_id": "23af24fa"
         },
         {
           "widget_type": "pie_chart",
-          "title": "Dashboards by Type",
-          "stream": "rda_dashboards_meta",
-          "ts_column": "saved_time",
-          "duration_hours": 87600,
-          "min_width": 6,
-          "height": 4,
-          "max_width": 6,
-          "limit": 25,
+          "title": "Artifact Type",
+          "stream": "rda_system_snapshots_details",
+          "ts_column": "timestamp",
+          "extra_filter": "snapshot_name is '{{SNAPSHOT_NAME}}'",
           "column": "count_",
-          "agg": "value_count",
+          "agg": "sum",
           "group_by": [
-            "dashboard_type"
+            "artifact_type"
           ],
           "type": "int",
-          "widget_id": "9ec324da"
+          "min_width": 3,
+          "height": 3,
+          "max_width": 6,
+          "widget_id": "cc2794c5"
         },
         {
-          "title": "Dashboards",
+          "title": "Snapshot Manifest",
           "widget_type": "tabular",
-          "stream": "rda_dashboards_meta",
           "duration_hours": 87600,
-          "timebased": true,
-          "remote_searchable": true,
-          "remote_searchable_cols": [
-            "name",
-            "dashboard_folder",
-            "dashboard_type",
-            "label",
-            "description"
-          ],
-          "ts_column": "saved_time",
+          "max_width": 12,
+          "height": 8,
+          "min_width": 12,
           "paginated": true,
-          "height": 10,
-          "min_wdith": 12,
+          "stream": "rda_system_snapshots_details",
+          "ts_column": "timestamp",
+          "extra_filter": "snapshot_name is '{{SNAPSHOT_NAME}}'",
           "columns": {
-            "name": {
-              "title": "Name",
-              "key": true
-            },
-            "dashboard_folder": {
-              "title": "Dashboard Folder"
-            },
-            "type": {
-              "title": "Type",
-              "type": "FIXED_VALUE",
-              "value": "Dashboard",
-              "visible": false,
-              "sortable": false
-            },
-            "dashboard_type": {
-              "title": "Dashboard Type"
-            },
-            "label": {
-              "title": "Label",
-              "key": true
-            },
-            "description": {
-              "title": "description"
-            },
-            "saved_time": {
-              "title": "Saved Time",
-              "type": "DATETIME"
-            },
-            "tags": {
-              "title": "Tags",
+            "snapshot_type": {
+              "title": "Snapshot Type",
               "type": "TEXT",
+              "hidden": false
+            },
+            "snapshot_name": {
+              "title": "Snapshot Name",
+              "type": "TEXT",
+              "hidden": false
+            },
+            "artifact_type": {
+              "title": "Artifact Type",
+              "type": "TEXT",
+              "hidden": false,
+              "key": true
+            },
+            "artifact_name": {
+              "title": "Artifact Name",
+              "type": "TEXT",
+              "hidden": false,
+              "key": true
+            },
+            "artifact_version_visibility": {
+              "title": "Artifact Checksum In Snapshot Repo",
+              "type": "TEXT",
+              "hidden": false
+            },
+            "size": {
+              "title": "Size",
+              "type": "DOUBLE",
+              "hidden": false
+            },
+            "checksum": {
+              "title": "Checksum",
+              "type": "TEXT",
+              "hidden": false
+            },
+            "object_name": {
+              "title": "Object Name",
+              "type": "TEXT",
+              "visible": false,
               "key": true
             },
             "timestamp": {
-              "title": "When",
-              "type": "HUMANIZE_TIME_DELTA",
-              "source-column": "saved_time",
-              "sortable": false
-            },
-            "menu_folder": {
-              "title": "Menu Folder",
-              "type": "TEXT",
-              "hidden": false,
-              "key": true
-            },
-            "has_storyboard": {
-              "title": "Has Storyboard",
-              "type": "BOOLEAN",
-              "hidden": false,
-              "key": true
+              "title": "Timestamp",
+              "type": "DATETIME"
             }
           },
-          "custom_columns": [
-            {
-              "id": "enabled",
-              "label": "Enabled",
-              "expr": "'yes' if enabled else 'no'",
-              "htmlTemplateForRow": "<span class='badge' style='background-color: {{ row.enableColor }}' > {{ row.enabled }} </span>"
-            },
-            {
-              "id": "id",
-              "label": "ID",
-              "expr": "'user-dashboard-' + name",
-              "visible": false,
-              "key": true,
-              "sortable": false
-            },
-            {
-              "id": "url",
-              "label": "URL",
-              "expr": "'/workspace/dashboard/user-dashboard-' + name",
-              "visible": false,
-              "sortable": false
-            },
-            {
-              "id": "enableColor",
-              "label": "Enable Color",
-              "expr": "['#4CAF50'] if enabled == 'yes' else ['#9E9E9E']",
-              "hidden": true,
-              "visible": false,
-              "sortable": false
-            },
-            {
-              "id": "rowStyleClass",
-              "hidden": true,
-              "visible": false,
-              "expr": "'bg-fading-blue' if time_now_as_ms() - isoformat_to_ms(saved_time) <= 120000 else None",
-              "sortable": false
-            },
-            {
-              "id": "artifact_name",
-              "label": "Artifact Name",
-              "expr": "name",
-              "key": true,
-              "visible": false,
-              "sortable": false
-            },
-            {
-              "id": "artifact_type",
-              "label": "Artifact Type",
-              "expr": "'dashboard'",
-              "key": true,
-              "visible": false,
-              "sortable": false
-            }
-          ],
           "actions": [
             {
-              "permission": "rda:user_dashboard:add",
-              "title": "Add",
-              "icon": "mdi mdi-plus",
+              "title": "View",
               "type": "POPUP_FORM",
-              "selectionType": "NONE",
-              "identifier": "saas-service-action:userdashboard-add-yaml",
+              "selectionType": "SINGLE",
+              "permission": "rda:dataset:view",
+              "identifier": "rda.saas.snapshot.obj.view",
               "api-endpoint": {
                 "service-name": "saas-reports",
                 "methodName": "getForm",
@@ -277,513 +216,177 @@
                 "parse-output": false,
                 "params": [
                   {
-                    "formId": "rda.saas.userdashboard.add.yaml"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:user_dashboard:createpack",
-              "title": "Create Pack",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:userdashboard-create-pack",
-              "api-endpoint": {
-                "methodName": "getForm",
-                "params": [
-                  {
-                    "formId": "rda.saas.dashboard.create.pack"
-                  }
-                ],
-                "parse-output": false,
-                "service-name": "saas-reports",
-                "stringified-params": true
-              }
-            },
-            {
-              "permission": "rda:user_dashboard:view",
-              "appName": "user-dashboard",
-              "displayLabelColumnId": "id",
-              "drillDownLinkField": "name",
-              "identifier": "user.dashboard.view",
-              "selectionType": "SINGLE",
-              "stateName": "app.featureapp",
-              "title": "Dashboard",
-              "type": "GO_TO_APP_STATE"
-            },
-            {
-              "permission": "rda:user_dashboard:layout_editor",
-              "title": "Storyboard Editor",
-              "type": "GO_TO_APP_STATE",
-              "appName": "new-app/canvas_dashboard_editor",
-              "identifier": "user.dashboard.layout_editor",
-              "selectionType": "SINGLE",
-              "actionCondition": {
-                "actionControl": "SHOW_IF",
-                "conditionalField": [
-                  {
-                    "conditionType": "EQUAL",
-                    "conditionValue": "true",
-                    "fieldId": "use_storyboard"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:user_dashboard:edit",
-              "title": "Menu Association",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:assign-to-menu",
-              "api-endpoint": {
-                "methodName": "getForm",
-                "params": [
-                  {
-                    "formId": "rda.saas.uimenu.associate"
-                  }
-                ],
-                "parse-output": false,
-                "service-name": "saas-reports",
-                "stringified-params": true
-              },
-              "actionCondition": {
-                "actionControl": "HIDE_IF",
-                "conditionalField": [
-                  {
-                    "conditionType": "EQUAL",
-                    "conditionValue": "System",
-                    "fieldId": "dashboard_folder"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:user_dashboard:assign_tag",
-              "title": "Manage Tags",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:assign-dashboard-tag",
-              "api-endpoint": {
-                "methodName": "getForm",
-                "params": [
-                  {
-                    "formId": "rda.saas.tags.assign"
-                  }
-                ],
-                "parse-output": false,
-                "service-name": "saas-reports",
-                "stringified-params": true
-              }
-            },
-            {
-              "permission": "rda:user_dashboard:view",
-              "title": "View YAML",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:userdashboard-view-yaml",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.userdashboard.view.yaml"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:user_dashboard:view",
-              "title": "View JSON",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:userdashboard-view-json",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.userdashboard.view.json"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:user_dashboard:edit",
-              "title": "Edit YAML",
-              "icon": "mdi mdi-plus",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:userdashboard-edit-yaml",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.userdashboard.edit.yaml"
-                  }
-                ]
-              },
-              "actionCondition": {
-                "actionControl": "HIDE_IF",
-                "conditionalField": [
-                  {
-                    "conditionType": "EQUAL",
-                    "conditionValue": "System",
-                    "fieldId": "dashboard_folder"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:user_dashboard:edit",
-              "title": "Edit JSON",
-              "icon": "mdi mdi-plus",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:userdashboard-edit-json",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.userdashboard.edit.json"
-                  }
-                ]
-              },
-              "actionCondition": {
-                "actionControl": "HIDE_IF",
-                "conditionalField": [
-                  {
-                    "conditionType": "EQUAL",
-                    "conditionValue": "System",
-                    "fieldId": "dashboard_folder"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:user_dashboard:disable",
-              "title": "Disable",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:userdashboard-deactivate-dashboard",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.userdashboard.deactivate"
-                  }
-                ]
-              },
-              "actionCondition": {
-                "actionControl": "SHOW_IF",
-                "conditionalField": [
-                  {
-                    "conditionType": "EQUAL",
-                    "conditionValue": "yes",
-                    "fieldId": "enabled"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:user_dashboard:enable",
-              "title": "Enable",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:userdashboard-activate-dashboard",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.userdashboard.activate"
-                  }
-                ]
-              },
-              "actionCondition": {
-                "actionControl": "SHOW_IF",
-                "conditionalField": [
-                  {
-                    "conditionType": "EQUAL",
-                    "conditionValue": "no",
-                    "fieldId": "enabled"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:user_dashboard:delete",
-              "title": "Delete",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:userdashboard-delete-dashboard",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.userdashboard.delete"
-                  }
-                ]
-              },
-              "actionCondition": {
-                "actionControl": "HIDE_IF",
-                "conditionalField": [
-                  {
-                    "conditionType": "EQUAL",
-                    "conditionValue": "System",
-                    "fieldId": "dashboard_folder"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:user_dashboard:view",
-              "appName": "user-dashboard/rda-artifact-dependencies-app",
-              "identifier": "launch.url.dashboard",
-              "selectionType": "SINGLE",
-              "stateName": "app.featureapp",
-              "title": "View Dependencies",
-              "type": "GO_TO_APP_STATE"
-            },
-            {
-              "permission": "rda:user_dashboard:generate",
-              "title": "Generate Storyboard",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:userdashboard-generate-storyboard",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.storyboard.generate"
-                  }
-                ]
-              },
-              "actionConditions": {
-                "actionControl": "SHOW_IF",
-                "operator": "AND",
-                "actionCondition": [
-                  {
-                    "conditionalField": [
-                      {
-                        "conditionType": "EQUAL",
-                        "conditionValue": "false",
-                        "fieldId": "has_storyboard"
-                      }
-                    ]
-                  },
-                  {
-                    "conditionalField": [
-                      {
-                        "conditionType": "NOT_EQUAL",
-                        "conditionValue": "app",
-                        "fieldId": "dashboard_type"
-                      }
-                    ]
+                    "formId": "rda.saas.snapshot.obj.view"
                   }
                 ]
               }
             }
           ],
-          "widget_id": "d5b2edf0"
+          "widget_id": "7089a9ae"
+        },
+        {
+          "title": "Snapshot Errors",
+          "widget_type": "tabular",
+          "max_width": 12,
+          "height": 8,
+          "min_width": 12,
+          "paginated": true,
+          "stream": "rda_system_snapshots_errors",
+          "ts_column": "timestamp",
+          "extra_filter0": "snapshot_name is '{{SNAPSHOT_NAME}}'",
+          "columns": {
+            "snapshot_type": {
+              "title": "Snapshot Type",
+              "type": "TEXT",
+              "hidden": false
+            },
+            "snapshot_name": {
+              "title": "Snapshot Name",
+              "type": "TEXT",
+              "hidden": false
+            },
+            "artifact_type": {
+              "title": "Artifact Type",
+              "type": "TEXT",
+              "hidden": false
+            },
+            "artifact_name": {
+              "title": "Artifact Name",
+              "type": "TEXT",
+              "hidden": false
+            },
+            "message": {
+              "title": "Message",
+              "type": "TEXT",
+              "hidden": false
+            },
+            "timestamp": {
+              "title": "Timestamp",
+              "type": "DATETIME"
+            }
+          },
+          "widget_id": "53447b4f"
         }
       ]
     }
   ],
   "pstream_dashboards": [
     {
-      "title": "Dashboards",
+      "title": "rda_system_snapshots_details",
       "show_filter": true,
       "widgets": [
         {
-          "widget_type": "pie_chart",
-          "title": "Dashboards by Folders",
-          "stream": "rda_dashboards_meta",
-          "ts_column": "saved_time",
-          "duration_hours": 87600,
-          "min_width": 6,
-          "height": 4,
+          "widget_type": "label",
+          "min_width": 3,
+          "height": 3,
           "max_width": 6,
-          "limit": 25,
-          "column": "count_",
-          "agg": "value_count",
-          "group_by": [
-            "dashboard_folder"
+          "label": "{% raw %}<div><div style='color: #00aa00; font-size: 20px;'>Changes Since Last Snapshot: {{new_count|int}}</div><div style='color: #888888; font-size: 20px;'>Unchanged: {{unchanged_count|int}}</div></div>{% endraw %}",
+          "segments": [
+            {
+              "stream": "rda_system_snapshots_details",
+              "variable": "new_count",
+              "ts_column": "timestamp",
+              "extra_filter": "artifact_version_visibility == 'new' AND snapshot_name is '{{SNAPSHOT_NAME}}'",
+              "agg": "sum",
+              "group_by0": "artifact_version_visibility",
+              "column": "count_"
+            },
+            {
+              "stream": "rda_system_snapshots_details",
+              "variable": "unchanged_count",
+              "ts_column": "timestamp",
+              "extra_filter": "artifact_version_visibility == 'unchanged' AND snapshot_name is '{{SNAPSHOT_NAME}}'",
+              "agg": "sum",
+              "group_by0": "artifact_version_visibility",
+              "column": "count_"
+            }
           ],
-          "type": "int",
-          "widget_id": "cb0706e6"
+          "widget_id": "23af24fa"
         },
         {
           "widget_type": "pie_chart",
-          "title": "Dashboards by Type",
-          "stream": "rda_dashboards_meta",
-          "ts_column": "saved_time",
-          "duration_hours": 87600,
-          "min_width": 6,
-          "height": 4,
-          "max_width": 6,
-          "limit": 25,
+          "title": "Artifact Type",
+          "stream": "rda_system_snapshots_details",
+          "ts_column": "timestamp",
+          "extra_filter": "snapshot_name is '{{SNAPSHOT_NAME}}'",
           "column": "count_",
-          "agg": "value_count",
+          "agg": "sum",
           "group_by": [
-            "dashboard_type"
+            "artifact_type"
           ],
           "type": "int",
-          "widget_id": "9ec324da"
+          "min_width": 3,
+          "height": 3,
+          "max_width": 6,
+          "widget_id": "cc2794c5"
         },
         {
-          "title": "Dashboards",
+          "title": "Snapshot Manifest",
           "widget_type": "tabular",
-          "stream": "rda_dashboards_meta",
           "duration_hours": 87600,
-          "timebased": true,
-          "remote_searchable": true,
-          "remote_searchable_cols": [
-            "name",
-            "dashboard_folder",
-            "dashboard_type",
-            "label",
-            "description"
-          ],
-          "ts_column": "saved_time",
+          "max_width": 12,
+          "height": 8,
+          "min_width": 12,
           "paginated": true,
-          "height": 10,
-          "min_wdith": 12,
+          "stream": "rda_system_snapshots_details",
+          "ts_column": "timestamp",
+          "extra_filter": "snapshot_name is '{{SNAPSHOT_NAME}}'",
           "columns": {
-            "name": {
-              "title": "Name",
-              "key": true
-            },
-            "dashboard_folder": {
-              "title": "Dashboard Folder"
-            },
-            "type": {
-              "title": "Type",
-              "type": "FIXED_VALUE",
-              "value": "Dashboard",
-              "visible": false,
-              "sortable": false
-            },
-            "dashboard_type": {
-              "title": "Dashboard Type"
-            },
-            "label": {
-              "title": "Label",
-              "key": true
-            },
-            "description": {
-              "title": "description"
-            },
-            "saved_time": {
-              "title": "Saved Time",
-              "type": "DATETIME"
-            },
-            "tags": {
-              "title": "Tags",
+            "snapshot_type": {
+              "title": "Snapshot Type",
               "type": "TEXT",
+              "hidden": false
+            },
+            "snapshot_name": {
+              "title": "Snapshot Name",
+              "type": "TEXT",
+              "hidden": false
+            },
+            "artifact_type": {
+              "title": "Artifact Type",
+              "type": "TEXT",
+              "hidden": false,
+              "key": true
+            },
+            "artifact_name": {
+              "title": "Artifact Name",
+              "type": "TEXT",
+              "hidden": false,
+              "key": true
+            },
+            "artifact_version_visibility": {
+              "title": "Artifact Checksum In Snapshot Repo",
+              "type": "TEXT",
+              "hidden": false
+            },
+            "size": {
+              "title": "Size",
+              "type": "DOUBLE",
+              "hidden": false
+            },
+            "checksum": {
+              "title": "Checksum",
+              "type": "TEXT",
+              "hidden": false
+            },
+            "object_name": {
+              "title": "Object Name",
+              "type": "TEXT",
+              "visible": false,
               "key": true
             },
             "timestamp": {
-              "title": "When",
-              "type": "HUMANIZE_TIME_DELTA",
-              "source-column": "saved_time",
-              "sortable": false
-            },
-            "menu_folder": {
-              "title": "Menu Folder",
-              "type": "TEXT",
-              "hidden": false,
-              "key": true
-            },
-            "has_storyboard": {
-              "title": "Has Storyboard",
-              "type": "BOOLEAN",
-              "hidden": false,
-              "key": true
+              "title": "Timestamp",
+              "type": "DATETIME"
             }
           },
-          "custom_columns": [
-            {
-              "id": "enabled",
-              "label": "Enabled",
-              "expr": "'yes' if enabled else 'no'",
-              "htmlTemplateForRow": "<span class='badge' style='background-color: {{ row.enableColor }}' > {{ row.enabled }} </span>"
-            },
-            {
-              "id": "id",
-              "label": "ID",
-              "expr": "'user-dashboard-' + name",
-              "visible": false,
-              "key": true,
-              "sortable": false
-            },
-            {
-              "id": "url",
-              "label": "URL",
-              "expr": "'/workspace/dashboard/user-dashboard-' + name",
-              "visible": false,
-              "sortable": false
-            },
-            {
-              "id": "enableColor",
-              "label": "Enable Color",
-              "expr": "['#4CAF50'] if enabled == 'yes' else ['#9E9E9E']",
-              "hidden": true,
-              "visible": false,
-              "sortable": false
-            },
-            {
-              "id": "rowStyleClass",
-              "hidden": true,
-              "visible": false,
-              "expr": "'bg-fading-blue' if time_now_as_ms() - isoformat_to_ms(saved_time) <= 120000 else None",
-              "sortable": false
-            },
-            {
-              "id": "artifact_name",
-              "label": "Artifact Name",
-              "expr": "name",
-              "key": true,
-              "visible": false,
-              "sortable": false
-            },
-            {
-              "id": "artifact_type",
-              "label": "Artifact Type",
-              "expr": "'dashboard'",
-              "key": true,
-              "visible": false,
-              "sortable": false
-            }
-          ],
           "actions": [
             {
-              "permission": "rda:user_dashboard:add",
-              "title": "Add",
-              "icon": "mdi mdi-plus",
+              "title": "View",
               "type": "POPUP_FORM",
-              "selectionType": "NONE",
-              "identifier": "saas-service-action:userdashboard-add-yaml",
+              "selectionType": "SINGLE",
+              "permission": "rda:dataset:view",
+              "identifier": "rda.saas.snapshot.obj.view",
               "api-endpoint": {
                 "service-name": "saas-reports",
                 "methodName": "getForm",
@@ -791,335 +394,56 @@
                 "parse-output": false,
                 "params": [
                   {
-                    "formId": "rda.saas.userdashboard.add.yaml"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:user_dashboard:createpack",
-              "title": "Create Pack",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:userdashboard-create-pack",
-              "api-endpoint": {
-                "methodName": "getForm",
-                "params": [
-                  {
-                    "formId": "rda.saas.dashboard.create.pack"
-                  }
-                ],
-                "parse-output": false,
-                "service-name": "saas-reports",
-                "stringified-params": true
-              }
-            },
-            {
-              "permission": "rda:user_dashboard:view",
-              "appName": "user-dashboard",
-              "displayLabelColumnId": "id",
-              "drillDownLinkField": "name",
-              "identifier": "user.dashboard.view",
-              "selectionType": "SINGLE",
-              "stateName": "app.featureapp",
-              "title": "Dashboard",
-              "type": "GO_TO_APP_STATE"
-            },
-            {
-              "permission": "rda:user_dashboard:layout_editor",
-              "title": "Storyboard Editor",
-              "type": "GO_TO_APP_STATE",
-              "appName": "new-app/canvas_dashboard_editor",
-              "identifier": "user.dashboard.layout_editor",
-              "selectionType": "SINGLE",
-              "actionCondition": {
-                "actionControl": "SHOW_IF",
-                "conditionalField": [
-                  {
-                    "conditionType": "EQUAL",
-                    "conditionValue": "true",
-                    "fieldId": "use_storyboard"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:user_dashboard:edit",
-              "title": "Menu Association",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:assign-to-menu",
-              "api-endpoint": {
-                "methodName": "getForm",
-                "params": [
-                  {
-                    "formId": "rda.saas.uimenu.associate"
-                  }
-                ],
-                "parse-output": false,
-                "service-name": "saas-reports",
-                "stringified-params": true
-              },
-              "actionCondition": {
-                "actionControl": "HIDE_IF",
-                "conditionalField": [
-                  {
-                    "conditionType": "EQUAL",
-                    "conditionValue": "System",
-                    "fieldId": "dashboard_folder"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:user_dashboard:assign_tag",
-              "title": "Manage Tags",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:assign-dashboard-tag",
-              "api-endpoint": {
-                "methodName": "getForm",
-                "params": [
-                  {
-                    "formId": "rda.saas.tags.assign"
-                  }
-                ],
-                "parse-output": false,
-                "service-name": "saas-reports",
-                "stringified-params": true
-              }
-            },
-            {
-              "permission": "rda:user_dashboard:view",
-              "title": "View YAML",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:userdashboard-view-yaml",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.userdashboard.view.yaml"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:user_dashboard:view",
-              "title": "View JSON",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:userdashboard-view-json",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.userdashboard.view.json"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:user_dashboard:edit",
-              "title": "Edit YAML",
-              "icon": "mdi mdi-plus",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:userdashboard-edit-yaml",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.userdashboard.edit.yaml"
-                  }
-                ]
-              },
-              "actionCondition": {
-                "actionControl": "HIDE_IF",
-                "conditionalField": [
-                  {
-                    "conditionType": "EQUAL",
-                    "conditionValue": "System",
-                    "fieldId": "dashboard_folder"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:user_dashboard:edit",
-              "title": "Edit JSON",
-              "icon": "mdi mdi-plus",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:userdashboard-edit-json",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.userdashboard.edit.json"
-                  }
-                ]
-              },
-              "actionCondition": {
-                "actionControl": "HIDE_IF",
-                "conditionalField": [
-                  {
-                    "conditionType": "EQUAL",
-                    "conditionValue": "System",
-                    "fieldId": "dashboard_folder"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:user_dashboard:disable",
-              "title": "Disable",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:userdashboard-deactivate-dashboard",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.userdashboard.deactivate"
-                  }
-                ]
-              },
-              "actionCondition": {
-                "actionControl": "SHOW_IF",
-                "conditionalField": [
-                  {
-                    "conditionType": "EQUAL",
-                    "conditionValue": "yes",
-                    "fieldId": "enabled"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:user_dashboard:enable",
-              "title": "Enable",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:userdashboard-activate-dashboard",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.userdashboard.activate"
-                  }
-                ]
-              },
-              "actionCondition": {
-                "actionControl": "SHOW_IF",
-                "conditionalField": [
-                  {
-                    "conditionType": "EQUAL",
-                    "conditionValue": "no",
-                    "fieldId": "enabled"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:user_dashboard:delete",
-              "title": "Delete",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:userdashboard-delete-dashboard",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.userdashboard.delete"
-                  }
-                ]
-              },
-              "actionCondition": {
-                "actionControl": "HIDE_IF",
-                "conditionalField": [
-                  {
-                    "conditionType": "EQUAL",
-                    "conditionValue": "System",
-                    "fieldId": "dashboard_folder"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:user_dashboard:view",
-              "appName": "user-dashboard/rda-artifact-dependencies-app",
-              "identifier": "launch.url.dashboard",
-              "selectionType": "SINGLE",
-              "stateName": "app.featureapp",
-              "title": "View Dependencies",
-              "type": "GO_TO_APP_STATE"
-            },
-            {
-              "permission": "rda:user_dashboard:generate",
-              "title": "Generate Storyboard",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:userdashboard-generate-storyboard",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.storyboard.generate"
-                  }
-                ]
-              },
-              "actionConditions": {
-                "actionControl": "SHOW_IF",
-                "operator": "AND",
-                "actionCondition": [
-                  {
-                    "conditionalField": [
-                      {
-                        "conditionType": "EQUAL",
-                        "conditionValue": "false",
-                        "fieldId": "has_storyboard"
-                      }
-                    ]
-                  },
-                  {
-                    "conditionalField": [
-                      {
-                        "conditionType": "NOT_EQUAL",
-                        "conditionValue": "app",
-                        "fieldId": "dashboard_type"
-                      }
-                    ]
+                    "formId": "rda.saas.snapshot.obj.view"
                   }
                 ]
               }
             }
           ],
-          "widget_id": "d5b2edf0"
+          "widget_id": "7089a9ae"
+        },
+        {
+          "title": "Snapshot Errors",
+          "widget_type": "tabular",
+          "max_width": 12,
+          "height": 8,
+          "min_width": 12,
+          "paginated": true,
+          "stream": "rda_system_snapshots_errors",
+          "ts_column": "timestamp",
+          "extra_filter0": "snapshot_name is '{{SNAPSHOT_NAME}}'",
+          "columns": {
+            "snapshot_type": {
+              "title": "Snapshot Type",
+              "type": "TEXT",
+              "hidden": false
+            },
+            "snapshot_name": {
+              "title": "Snapshot Name",
+              "type": "TEXT",
+              "hidden": false
+            },
+            "artifact_type": {
+              "title": "Artifact Type",
+              "type": "TEXT",
+              "hidden": false
+            },
+            "artifact_name": {
+              "title": "Artifact Name",
+              "type": "TEXT",
+              "hidden": false
+            },
+            "message": {
+              "title": "Message",
+              "type": "TEXT",
+              "hidden": false
+            },
+            "timestamp": {
+              "title": "Timestamp",
+              "type": "DATETIME"
+            }
+          },
+          "widget_id": "53447b4f"
         }
       ]
     }
