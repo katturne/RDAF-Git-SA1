@@ -1,35 +1,82 @@
-@dm:empty
+
+ ## declaring child pipelines
+@c:new-block
+ --> @dm:empty
+ --> @exec:define-function name="define_child_pipelines"
+ --> @exec:run-pipeline name ="edc_oi_get_product_alerts" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_oi_product_alerts_raw" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_oi_product_alerts_run_scan" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_oi_generate_token" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_oi_process_sw_data" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_oi_get_sweol_data" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_oi_get_security_advisories_data" & ignore_failures = "no"
+ --> @exec:end-function
  --> @c:new-block
- --> @rn:read-stream name = 'snmp_trap_event_stream' & group = '06_14_2023'
- --> @dm:map-snmp-trap-to-alert template_folder="trap2alert2"
- ## For now, process this only for cml devices
+ --> @dm:empty
+ --> @dm:addrow name='edc_cust_pid_sw' and limit=0
+ --> #dm:query-persistent-stream
+ --> *dm:filter product_id is not null and sw_version is not null and sw_os_type is not null and contract_number is not null
+ --> @dm:save name='temp-user-uploaded-input'
+ --> @c:new-block
+ --> @dm:recall name='temp-user-uploaded-input'
+ --> @dm:eval source="'software'"
+ --> @exec:run-pipeline name ="edc_oi_product_alerts_raw" & ignore_failures = "no"
+ --> @dm:save name='temp-edc-raw-op-exploded-sw'
+ --> @c:new-block
+ --> @dm:recall name='temp-edc-raw-op-exploded-sw'
+ --> *exec:if-condition source=='software'
+ --> @dm:recall name='temp-edc-raw-op-exploded-sw'
+ ## --> @dm:eval key="'key'"
 
- --> *dm:filter rda_gw_client_ip contains '9.3.252'
- ## Handle OSPF NBR CHANGE traps
+ ## --> @dm:enrich dict="temp-ingestion_id" and src_key_cols="key" and dict_key_cols="key" and enrich_cols="ingestion_id"
 
- --> *exec:if-condition snmpTrapName is 'ospfNbrStateChange'
- --> @dm:eval link_type="'OSPF'"
- --> @dm:save name="temp-ospf-raw-trap"
- --> #dm:query-persistent-stream left_id is '{{row.device}}' and neighbor_id="{{row.ospfNbrRtrId}}" and timestamp is after -1440 hours with-input name="cml_topo_edges" and limit="1" and max_rows="1"
- --> @dm:selectcolumns include="^left_id$|^right_id$"
- ## -->  @dm:eval left_id="left_id.strip()"
+ ## --> @dm:selectcolumns exclude="^key$"
 
- --> @dm:map attr="left_id" & func="strip"
- --> @dm:eval dict_name = "'temp-topo-data'"
- --> @rn:write-stream name = 'new_cml_snmp_trap_alerts_debug'
- --> @dm:save name="temp-topo-data"
- --> @dm:recall name="temp-ospf-raw-trap"
- --> @dm:selectcolumns include="^device$"
- ## -->  @dm:eval device="device.strip()"
+ --> @dm:to-type columns='contract_number,customer,product_id,sw_version,sw_os_type' and type='str'
+ --> @dm:to-type columns='contract_number,product_id,customer,product_name,sw_version,sw_os_type' and type='str'
+ --> @dm:map from = 'contract_number,customer,product_name,product_id,sw_version,sw_os_type' & to = 'unique_key' & func = 'join' & sep = '_'
+ --> @dm:save name='temp-edc-raw-op-exploded-sw-raw'
+ --> @dm:selectcolumns exclude='^timestamp$'
+ ## --> @dm:save name='sw-raw-data'
 
- --> @dm:map attr="device" & func="strip"
- --> @dm:eval dict_name = "'current'"
- --> @rn:write-stream name = 'new_cml_snmp_trap_alerts_debug'
- --> @dm:enrich dict="temp-topo-data"
-and src_key_cols="device"
-and dict_key_cols="left_id"
-and enrich_cols="right_id"
-and enrich_cols_as="remote_ip_new"
- --> @dm:eval dict_name = "'final'"
- --> @rn:write-stream name = 'new_cml_snmp_trap_alerts_debug'
+ --> @rn:write-stream name='edc_sw_raw_data'
  --> @exec:end-if
+ ## addingt the software and security advisories data
+
+ --> @c:new-block
+ --> @dm:recall name='temp-edc-raw-op-exploded-sw-raw'
+ --> @dm:selectcolumns exclude='^(unique_key)$'
+ --> @dm:save name='temp-edc-sw-raw-op-exploded'
+ --> @exec:run-pipeline name='edc_oi_get_sweol_data' and ignore_failures = "no"
+ --> @c:new-block
+ --> @dm:recall name='temp-user-uploaded-input'
+ --> @dm:eval source="'security_advisory'"
+ --> @exec:run-pipeline name ="edc_oi_product_alerts_raw" & ignore_failures = "no"
+ --> @dm:save name='temp-edc-raw-op-exploded-sa'
+ --> @c:new-block
+ --> @dm:recall name='temp-edc-raw-op-exploded-sa'
+ --> *exec:if-condition source=='security_advisory'
+ --> @dm:recall name='temp-edc-raw-op-exploded-sa'
+ ## --> @dm:eval key="'key'"
+
+ ## --> @dm:enrich dict="temp-ingestion_id" and src_key_cols="key" and dict_key_cols="key" and enrich_cols="ingestion_id"
+
+ ## --> @dm:selectcolumns exclude="^key$"
+
+ ## --> @dm:to-type columns='customer,product_id,sw_version,sw_os_type,advisoryId,PsirtID' and type='str'
+
+ ## --> @dm:map from = 'advisoryId,PsirtID,customer,product_id,sw_version,sw_os_type' & to = 'unique_key' & func = 'join' & sep = ##'_'
+
+ --> @dm:to-type columns='customer,product_name,product_id,sw_version,sw_os_type,advisoryId,PsirtID,contract_number' and type='str'
+ --> @dm:map from = 'advisoryId,PsirtID,customer,product_name,product_id,sw_version,sw_os_type,contract_number' & to = 'unique_key' & func = 'join' & sep = '_'
+ --> @dm:save name='temp-edc-raw-op-exploded-sa-raw'
+ --> @dm:selectcolumns exclude='^timestamp$'
+ ## --> @dm:save name='sa-raw-data'
+
+ --> @rn:write-stream name='edc_sec_adv_data_raw'
+ --> @exec:end-if
+ --> @c:new-block
+ --> @dm:recall name='temp-edc-raw-op-exploded-sa-raw'
+ --> @dm:selectcolumns exclude='^(unique_key)$'
+ --> @dm:save name='temp-edc-sa-raw-op-exploded'
+ --> @exec:run-pipeline name='edc_oi_get_security_advisories_data' and ignore_failures = "no"
