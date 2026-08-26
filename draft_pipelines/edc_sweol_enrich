@@ -1,76 +1,51 @@
+@dm:empty
+ --> @exec:get-input
+ --> @dm:save name='temp-sweol-data'
+ ## --> @dm:eval contract_number='str(contract_number)'
 
- ## name: collab-db-to-pstream-main
-
- ## .
-
- ## Use this if we want to reset bookmark and re-run again
-@c:new-block
- --> @dm:empty
- ## --> @dm:addrow i_created_ts="2023-08-01 00:00:00"
-
- ## --> @dm:save_bookmark name = 'irm_incident_bkmrk' & value_column = 'i_created_ts' & value_type = 'timestamp' & value_func = 'max'
-
- --> @dm:save name = "temp-1"
- ## .
-
- ## Main Driver is IRM's oia-incidents-stream.
-
- ## As one time activity, We pull all incidents from oia-incidents-stream and use them to migrate corresponding collab messages, and team incidents. we may have duplicates from last 90 days.
-
- ## .
+ --> @dm:save name='test-sweol-data'
+ ## creates a list of unique customers
 
  --> @c:new-block
+ --> @dm:recall name='temp-sweol-data'
+ --> @dm:groupby columns='customer'
+ --> @dm:save name='temp-unique-cust-name'
+ ## Queries data for the customer from edc_oi_enriched_stream
+
+ --> @c:data-loop dataset='temp-unique-cust-name' and columns='customer'
  --> @dm:empty
- --> @dm:save name="temp-irm-incident-ids-concat"
- ## We can do read all in one go and split them up by 999 and use sql-in clause.
+ --> @dm:addrow name='edc_oi_inventory_enriched' and limit=0
+ --> #dm:query-persistent-stream customer_name=='$customer'
+ --> *dm:filter sw_os_type is 'Not Available'
+ --> @dm:to-type columns='contract_number' and type='int'
+ --> @dm:save name='temp-hw-eol-details' and append='yes'
+ ## --> @dm:save name='dataset-3'
 
- ## or
+ ## processes the software columns for the customer
 
- ## Read in batches using bookmark and process them in batches
+ --> @c:data-loop columns='customer' and dataset='temp-unique-cust-name'
+ --> @dm:recall name='temp-sweol-data'
+ --> *dm:filter customer == '$customer'
+ --> @exec:run-pipeline name='edc_processing_sw_data'
+ --> @dm:save name='temp-sw-eol-details'
+ --> @dm:save name='test-sw-eol-details'
+ ## enriches the processed columns to edc_oi_inventory_enriched
 
- ## SQL IN clause might have limitation of max 999 IDs
+ --> @c:new-block
+ --> @dm:recall name='temp-sw-eol-details'
+ ## --> @dm:eval product_name="product_id if product_name is 'Not Available' else product_name"
 
- --> @c:bookmark-loop bookmark="irm_incident_bkmrk" & initial_value ="2023-08-01 00:00:00" & max_iterations=1
- --> @dm:empty
- --> @dm:addrow name="oia-incidents-stream" & limit=999 & sort_by_col="i_created_ts" & sort_type="asc"
- --> #dm:query-persistent-stream i_created_ts is after '${bookmark}'
- --> @dm:skip-block-if-shape row_count=0
- --> @dm:check-columns must_contain="incident_id" & action="skip-block"
- ## .
+ --> @dm:enrich dict='temp-hw-eol-details' and dict_key_cols='contract_number,customer_name,product_id' and src_key_cols='contract_number,customer,product_id' and enrich_cols='gu_name,savm_sales_level_4_name,coverage,covered_line_status,business_entity,business_sub_entity,bk_end_of_life_request_num,bk_eol_bulletin_product_typ_cd,hwEOL_endOfNewServiceAttachmentDate,hwEOL_endOfRoutineFailureAnalysisDate,hwEOL_endOfSoftwareMaintenanceReleasesDate,hwEOL_endOfServiceContractRenewalDate,hwEOL_endOfLifeAnnouncementDate,eol_product_name,item_type,hwEOL_endOfSaleDate,hwEOL_lastDayOfSupportDate,product_description,product_family,product_family_description,product_type,product_list_price,portfolio_desc,usage_code,combination_count,execution_status,total_product_list_price,unique_key,hw_status,hw_expiring_qtr,hw_expiring_year,last_updated_time' and replace_values='yes' and how_type='inner'
+ --> @dm:save name='final-enrich'
+ ## --> @dm:rename-columns EndOfLifeDate='EndOfLifeDate_y'
 
- --> @dm:selectcolumns include="project_id|customer_id|incident_id|i_state|i_created_ts|i_updated_ts|timestamp"
- --> @dm:save name="temp-irm-incidents"
- ## .
+ ## --> @dm:fixnull columns='SoftwareEOXId,BulletinNumber,BulletinHeadline,BulletinURL,EndOfSaleDate,EndOfEngineeringDate,EndOfLifeDate,PostDate,EndOfLifeInternalAnnouncementDate,EndOfLifeExternalAnnouncementDate,EndOfLastHardwareShipDate,EndOfHardwareNewServiceAttachmentDate,EndOfHardwareRoutineFailureAnalysisDate,EndOfBUEngineeringSupportTACDate,EndOfHardwareServiceContractRenewalDate,EndOfSignatureReleasesDate,EndOfSoftwareAvailabilityDate,EndOfSoftwareLicenseAvailabilityDate,EndOfSoftwareVulnerabilityOrSecuritySupportDate,created,customerVisible,external_text,external_title,firstIcAlertId,groups,icIssueId,icProblemId,ignored,lastIcAlertId,eoXAlertType,name,openedOn,resultType,severity,severityText,state,updated,deviceSN,runType,filename,icType,atticaStatus,cdetsList,retry,associatedGroups,sw_expiring_qtr,sw_expiring_year,sw_status,sw_version,sw_os_type' and value="Not Available"  and apply_for_empty="yes"
 
- --> @dm:selectcolumns include="incident_id|project_id"
- --> @dm:map to="name" & func="fixed" & value="incident"
- --> @dm:save name="temp-irm-incident-ids"
- ## .
+ --> @dm:rename-columns swEOL_softwareEOXId='SoftwareEOXId' and swEOL_bulletinNumber='BulletinNumber' and swEOL_bulletinTitle='BulletinHeadline' and swEOL_bulletinUrl='BulletinURL' and swEOL_endOfSaleDate='EndOfSaleDate' and
+swEOL_endOfSoftwareMaintenanceReleasesDate='EndOfEngineeringDate' and swEOL_lastDayOfSupportDate='EndOfLifeDate' and
+swEOL_endOfVulnerabilitySecuritySupportDate='EndOfSoftwareVulnerabilityOrSecuritySupportDate' and swEOL_endOfLifeAnnouncementDate='EndOfLifeExternalAnnouncementDate'
+ --> @rn:write-stream name='edc_sweol_data'
+ --> @dm:selectcolumns exclude='^(EndOfLifeInternalAnnouncementDate|EndOfLastHardwareShipDate|EndOfHardwareNewServiceAttachmentDate|EndOfHardwareRoutineFailureAnalysisDate|EndOfBUEngineeringSupportTACDate|EndOfHardwareServiceContractRenewalDate|EndOfSignatureReleasesDate|EndOfSoftwareAvailabilityDate|EndOfSoftwareLicenseAvailabilityDate|created|customerVisible|external_text|external_title|firstIcAlertId|groups|icIssueId|icProblemId|ignored|lastIcAlertId|eoXAlertType|name|openedOn|resultType|severity|severityText|state|updated|deviceSN|runType|filename|icType|atticaStatus|cdetsList|retry|associatedGroups)$'
+ ## --> @rn:write-stream name='edc_oi_inventory_enriched'
 
- ## --> @exec:for-loop num_rows = 999
-
- --> @dm:eval incident_id="incident_id + '\',\''"
- --> @dm:eval project_id="project_id + '\',\''"
- --> @dm:groupby columns="name" & agg="sum"
- ## .
-
- --> @dm:eval incident_id="incident_id.replace('CFX', '\'CFX', 1)"
- --> @dm:eval incident_id="incident_id[:-2] if (incident_id.endswith(',\'')) else incident_id"
- ## .
-
- --> @dm:eval project_id="project_id.replace('', '\'', 1)"
- --> @dm:eval project_id="project_id[:-2] if (project_id.endswith(',\'')) else project_id"
- ## .
-
- --> @dm:save name="temp-irm-incident-ids-concat"
- ## --> @exec:end-loop & append="yes"
-
- ## .
-
- --> @exec:run-pipeline name="collab-db-to-pstream-processor" & ignore_failures="no"
- ## increment the bookmark
-
- --> @dm:recall name="temp-irm-incidents"
- --> @dm:change-time-format columns="i_created_ts" & from_format="ms" & to_format="datetimestr"
- --> @dm:save_bookmark name = 'irm_incident_bkmrk' & value_column = 'i_created_ts' & value_type = 'timestamp' & value_func = 'max'
- --> @dm:sleep seconds = 1
+ --> @dm:save name='temp-enriched-data'
