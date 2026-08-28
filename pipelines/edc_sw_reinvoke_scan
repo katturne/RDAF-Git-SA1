@@ -1,26 +1,14 @@
-
- ## declaring thrid level child pipelines
-@c:new-block
- --> @dm:empty
- --> @exec:define-function name="define_child_pipelines"
- --> @exec:run-pipeline name ="edc_generate_token" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_sw_get_data" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_sweol_enrich" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_processing_sw_data" & ignore_failures = "no"
- --> @exec:end-function
- --> @dm:empty
- --> @dm:addrow name='edc_cust_pid_sw' and limit=0
- --> #dm:query-persistent-stream
- --> *dm:filter product_id is not null and sw_version is not null and sw_os_type is not null and contract_number is not null
- --> @dm:add-missing-columns columns="source" and value='software'
- --> @dm:save name='added-minio-file'
- --> @exec:run-pipeline name ="edc_sw_run_scan" & ignore_failures = "no"
- --> @dm:save name='temp-edc-sw-run-scan-op-exploded'
+@dm:empty
+ --> @dm:recall name='att_mobility_rma'
+ --> @dm:fixcolumns
+ --> @dm:to-type columns="product_total_rma_2024_count,product_total_rma_2025_count,product_total_stock_forecast" and type="int"
+ --> @dm:save name="temp-rma-devices"
  --> @c:new-block
- --> @dm:recall name='temp-edc-sw-run-scan-op-exploded'
- --> @rn:write-stream name='edc_sw_raw_data'
- ## calling the enrich pipeline
-
- --> @c:new-block
- --> @dm:recall name='temp-edc-sw-run-scan-op-exploded'
- --> @exec:run-pipeline name='edc_sweol_enrich' and ignore_failures = "no"
+ --> @dm:empty
+ --> @dm:addrow name="edc_customer_inventory" & limit = '0' and sort_by_col='timestamp' and sort_type='desc'
+ --> #dm:query-persistent-stream project_name = 'ATT-Mobility'
+ --> @dm:selectcolumns exclude ="product_total_rma_2024_count|product_total_rma_2025_count|product_total_stock_forecast|product_id_rma_2025|product_id_rma_2024"
+ --> @dm:enrich dict="temp-rma-devices" and src_key_cols="product_id" and dict_key_cols="product_id" and enrich_cols="product_total_rma_2024_count,product_total_rma_2025_count,product_total_stock_forecast" and case_insensitive="yes"
+ --> @dm:fixnull columns="product_total_rma_2024_count,product_total_rma_2025_count,product_total_stock_forecast" and value=0 and apply_for_empty="yes"
+ --> @dm:save name="temp-devices"
+ --> @rn:write-stream name='edc_customer_inventory' and direct_to_opensearch="yes"
