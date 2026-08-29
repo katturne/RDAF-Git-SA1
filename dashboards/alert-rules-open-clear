@@ -1,415 +1,471 @@
 {
-  "name": "alert-rules-open-clear",
-  "label": "Alert rules based Open and Clear Alerts",
-  "description": "Alert rules based Open and Clear Alerts",
-  "version": "25.5.13.1",
-  "enabled": true,
+  "name": "oi-sec-adv-details",
+  "label": "Product Alerts - Security Advisories Details",
+  "description": "BCS Product Alerts Security Advisories dashboard",
+  "version": "2025-09-01-01",
+  "enabled": false,
+  "debug": false,
+  "stream": "edc_sec_adv_data_enriched",
   "live_edit": true,
+  "dashboard_folder": "OI",
+  "dashboard_style": "auto",
   "dashboard_type": "template",
-  "status_poller": {
-    "stream": "rda_alert_state_management_data",
-    "frequency": 15,
-    "columns": [
-      "timestamp"
-    ],
-    "sorting": [
-      {
-        "timestamp": "desc"
-      }
-    ],
-    "query": "timestamp is after '$timestamp'",
-    "defaults": {
-      "timestamp": "$UTCNOW"
+  "template_variables": {
+    "SEC_ADV_ID": {
+      "contextId": "securityAdvisoryId"
     },
-    "action": "refresh"
+    "STATUS": {
+      "contextId": "secAdv_matchConfidence"
+    },
+    "Psirt": {
+      "contextId": "PsirtID"
+    },
+    "Bulletin_Title": {
+      "contextId": "secAdv_bulletinTitle"
+    },
+    "BulletinURL": {
+      "contextId": "BulletinURL"
+    }
   },
+  "dashboard_pages": [],
   "dashboard_filters": {
     "time_filter": true,
-    "default_time_filter_non_removable": true,
-    "show_default_time_filter": false,
+    "default_time_filter_labels": [
+      "Last 12 months"
+    ],
+    "extra_filter": "securityAdvisoryId is '{{SEC_ADV_ID}}' and secAdv_matchConfidence is '{{STATUS}}'",
     "columns_filter": [
       {
-        "id": "type",
-        "label": "Alert Type",
+        "id": "deviceSN",
+        "label": "Serial Number",
         "type": "TEXT"
       },
       {
-        "id": "name",
-        "label": "Alert Name",
+        "id": "product_id",
+        "label": "Product ID",
         "type": "TEXT"
       },
       {
-        "id": "state",
-        "label": "State",
+        "id": "bulletinTitle",
+        "label": "Title",
         "type": "TEXT"
       },
       {
-        "id": "severity",
-        "label": "Open Severity",
+        "id": "BulletinURL",
+        "label": "URL",
         "type": "TEXT"
       },
       {
-        "id": "clear_severity",
-        "label": "Clear Severity",
+        "id": "cveId",
+        "label": "CveIds",
         "type": "TEXT"
       },
       {
-        "id": "md5",
-        "label": "Alert Id",
+        "id": "securityAdvisoryId",
+        "label": "Security Advisory ID",
+        "type": "TEXT",
+        "key": true
+      },
+      {
+        "id": "secAdv_securityImpactRating",
+        "label": "Security Advisory Severity",
         "type": "TEXT"
       },
       {
-        "id": "unique_keys",
-        "label": "Alert Keys",
-        "type": "TEXT"
-      },
-      {
-        "id": "payload",
-        "label": "Payload",
+        "id": "secAdv_matchConfidence",
+        "label": "Security Advisory Status",
         "type": "TEXT"
       }
-    ],
-    "default_time_filter_labels": [
-      "Last 24 hours"
     ],
     "group_filters": [
       {
-        "stream": "rda_alert_state_management_data",
-        "title": "Alert Type",
+        "stream": "edc_sec_adv_data_enriched",
+        "title": "Equipment Type",
+        "extra_filter": "(`secAdv_matchConfidence` not in [\"Not Vulnerable\",\"Not Available\"])",
         "group_by": [
-          "type"
+          "item_type"
         ],
         "ts_column": "timestamp",
+        "duration_hours": 1080,
+        "limit": 200,
         "agg": "sum",
-        "column": "count_",
-        "type": "str"
+        "column": "combination_count_sum",
+        "type": "int"
       },
       {
-        "stream": "rda_alert_state_management_data",
-        "title": "Alert Name",
+        "stream": "edc_sec_adv_data_enriched",
+        "title": "Product ID",
+        "extra_filter": "(`secAdv_matchConfidence` not in [\"Not Vulnerable\",\"Not Available\"])",
         "group_by": [
-          "name"
+          "product_id"
         ],
         "ts_column": "timestamp",
+        "duration_hours": 1080,
+        "limit": 200,
         "agg": "sum",
-        "column": "count_",
-        "type": "str"
+        "column": "combination_count_sum",
+        "type": "int"
       },
       {
-        "stream": "rda_alert_state_management_data",
-        "title": "State",
+        "stream": "edc_sec_adv_data_enriched",
+        "title": "SW OS Type",
+        "extra_filter": "(secAdv_matchConfidence is not 'Not Available')  and secAdv_securityImpactRating is not empty",
         "group_by": [
-          "state"
+          "sw_os_type"
         ],
         "ts_column": "timestamp",
+        "duration_hours": 1080,
+        "limit": 200,
         "agg": "sum",
-        "column": "count_",
-        "type": "str"
+        "column": "combination_count_sum",
+        "type": "int"
+      },
+      {
+        "stream": "edc_sec_adv_data_enriched",
+        "title": "SW Version",
+        "extra_filter": "(`secAdv_matchConfidence` not in [\"Not Vulnerable\",\"Not Available\"])",
+        "group_by": [
+          "sw_version"
+        ],
+        "ts_column": "timestamp",
+        "duration_hours": 1080,
+        "limit": 200,
+        "agg": "sum",
+        "column": "combination_count_sum",
+        "type": "int"
+      },
+      {
+        "stream": "edc_sec_adv_data_enriched",
+        "title": "Security Advisory Status",
+        "group_by": [
+          "secAdv_matchConfidence"
+        ],
+        "ts_column": "timestamp",
+        "duration_hours": 1080,
+        "limit": 200,
+        "agg": "sum",
+        "column": "combination_count_sum",
+        "type": "int"
+      },
+      {
+        "stream": "edc_sec_adv_data_enriched",
+        "title": "Security Advisory Severity",
+        "group_by": [
+          "secAdv_securityImpactRating"
+        ],
+        "ts_column": "timestamp",
+        "duration_hours": 1080,
+        "limit": 200,
+        "agg": "sum",
+        "column": "combination_count_sum",
+        "type": "int"
       }
     ]
   },
   "dashboard_sections": [
     {
-      "title": "alerts",
+      "title": "Security Advisories Details",
       "show_filter": true,
       "widgets": [
         {
-          "extends": [
-            "self:alerts_tabular_widget",
-            "self:actions_lib.alerts_tabular_widget_actions"
-          ],
-          "extend_vars": {
-            "alerts_tabular_widget_extra_filter": "state in ['OPEN', 'CLEAR']"
+          "widget_type": "label",
+          "label": "<div style='text-align:center;width:100%;color:#0066ff'><h2> Security Advisory </h2><br><a style='text-decoration:none;color:#90CAF9;font-size:20px' target='_blank'>  {{Bulletin_Title}}</a></div>",
+          "min_width": 12,
+          "height": 2,
+          "max_width": 12,
+          "widget_id": "dd3ae8ae"
+        },
+        {
+          "widget_type": "label",
+          "max_width": 6,
+          "height": 4,
+          "min_width": 6,
+          "label": "<div style='text-align:center;width:100%;'><br><br><br><br><p>PSirtID<br><b><a style='text-decoration:none;color:#90CAF9;font-size:35px' target='_blank'>{{Psirt}}</a></p></div>",
+          "widget_id": "b0186542"
+        },
+        {
+          "title": "Total Device Count",
+          "widget_type": "custom_counter",
+          "max_width": 6,
+          "height": 4,
+          "min_width": 6,
+          "stream": "edc_sec_adv_data_enriched",
+          "ts_column": "timestamp",
+          "column": "combination_count_sum",
+          "style": {
+            "color-list": [
+              "#90CAF9"
+            ]
           },
-          "widget_id": "94a3fc99"
+          "agg": "sum",
+          "type": "int",
+          "widget_id": "de97a4e2"
+        },
+        {
+          "title": "Security Advisories Details",
+          "widget_type": "tabular",
+          "max_width": 12,
+          "height": 6,
+          "min_width": 12,
+          "stream": "edc_sec_adv_data_enriched",
+          "duration_hours": 10800000,
+          "ts_column": "timestamp",
+          "columns": {
+            "combination_count_sum": {
+              "title": "Total Count",
+              "type": "TEXT",
+              "key": true,
+              "visible": true
+            },
+            "CveId": {
+              "title": "CVE IDs",
+              "type": "TEXT"
+            },
+            "securityAdvisoryId": {
+              "title": "Security Advisory ID",
+              "type": "TEXT",
+              "htmlTemplateForRow": "{% raw %} <a href=\"{{row.BulletinURL}}\" target='_blank'>{{row.securityAdvisoryId}}</a>{% endraw %}"
+            },
+            "bulletinTitle": {
+              "title": "Title",
+              "visible": false
+            },
+            "secAdv_confidence_color": {
+              "type": "COLOR-MAP",
+              "source-column": "secAdv_matchConfidence",
+              "color-map": {
+                "Not Vulnerable": "#00BB00",
+                "Vulnerable": "#BB0000",
+                "Potentially Vulnerable": "#F6C309"
+              }
+            },
+            "secAdv_matchConfidence": {
+              "title": "Security Advisory Status",
+              "type": "TEXT",
+              "htmlTemplateForRow": "{% raw %} <span class='badge' style='background-color: {{ row.secAdv_confidence_color }}' > {{ row.secAdv_matchConfidence }} </span>{% endraw %}",
+              "visible": true
+            },
+            "secAdv_impact_rating_color": {
+              "type": "COLOR-MAP",
+              "source-column": "secAdv_securityImpactRating",
+              "color-map": {
+                "Critical": "#8B0000",
+                "High": "#FF4500",
+                "Medium": "#F6C309",
+                "Low": "#00BB00"
+              }
+            },
+            "secAdv_securityImpactRating": {
+              "title": "Security Advisory Severity",
+              "type": "TEXT",
+              "htmlTemplateForRow": "{% raw %}<span class='badge' style='background-color: {{ row.secAdv_impact_rating_color }}' > {{ row.secAdv_securityImpactRating }} </span>{% endraw %}",
+              "visible": true
+            },
+            "CvssScore": {
+              "title": "Cvss Score",
+              "type": "TEXT",
+              "visible": true
+            },
+            "matchInfo": {
+              "title": "Match Info",
+              "type": "TEXT",
+              "visible": true
+            },
+            "RevisionNumber": {
+              "title": "Revision Number",
+              "type": "TEXT",
+              "visible": true
+            },
+            "PublishedDate": {
+              "title": "Published Date",
+              "type": "DATE",
+              "visible": true
+            },
+            "RevisedDate": {
+              "title": "Last Updated",
+              "type": "TEXT",
+              "visible": true
+            },
+            "item_type": {
+              "title": "Equipment Type",
+              "type": "TEXT",
+              "key": true,
+              "visible": true
+            },
+            "product_id": {
+              "title": "Product ID",
+              "type": "TEXT",
+              "key": true,
+              "visible": true
+            },
+            "sw_os_type": {
+              "title": "SW OS Type",
+              "type": "TEXT",
+              "key": true,
+              "visible": true
+            },
+            "sw_version": {
+              "title": "SW Version",
+              "type": "TEXT",
+              "key": true,
+              "visible": true
+            }
+          },
+          "widget_id": "79c76f48"
         }
       ]
     }
   ],
-  "library": {
-    "widgets": {
-      "alerts_tabular_widget": {
-        "extra_filter": "$alerts_tabular_widget_extra_filter",
-        "title": "Alerts",
-        "widget_type": "tabular",
-        "stream": "rda_alert_state_management_data",
-        "min_width": 12,
-        "height": 12,
-        "max_width": 12,
-        "paginated": true,
-        "resizableColumns": false,
-        "remote_searchable": true,
-        "remote_searchable_cols": [
-          "type",
-          "name",
-          "state",
-          "severity",
-          "clear_severity",
-          "md5",
-          "unique_keys"
-        ],
-        "refreshRequired": true,
-        "timebased": false,
-        "max_rows": 50,
-        "columns": {
-          "type": {
-            "title": "Alert Type",
-            "key": true
-          },
-          "name": {
-            "title": "Alert Name",
-            "key": true
-          },
-          "md5": {
-            "title": "Alert Id",
-            "key": true
-          },
-          "unique_keys": {
-            "title": "Alert Keys"
-          },
-          "state_color": {
-            "type": "COLOR-MAP",
-            "source-column": "state",
-            "color-map": {
-              "CLEAR": "#4CAF50",
-              "OPEN": "#FFA726"
-            }
-          },
-          "state": {
-            "title": "State",
-            "htmlTemplateForRow": "<span class='badge' style='background-color: {{'{{ row.state_color }}'}}' > {{'{{ row.state }}'}} </span>",
-            "defaultWidth": 150,
-            "key": true
-          },
-          "severity_color": {
-            "type": "COLOR-MAP",
-            "source-column": "severity",
-            "color-map": {
-              "SEVERE": "#B71C1C",
-              "CRITICAL": "#E53935",
-              "MAJOR": "#F57C00",
-              "MINOR": "#FFA726",
-              "WARNING": "#FFD54F",
-              "NOTIFICATION": "#4DD0E1",
-              "INFORMATION": "#03A9F4"
-            }
-          },
-          "severity": {
-            "title": "Open Severity",
-            "type": "DYNAMIC_HTML",
-            "htmlTemplate": "<span class='badge' v-if='rowData.severity' :style='{ backgroundColor: rowData.severity_color }'>{{'{{ rowData.severity }}'}}</span>",
-            "defaultWidth": 150
-          },
-          "clear_severity_color": {
-            "type": "COLOR-MAP",
-            "source-column": "clear_severity",
-            "color-map": {
-              "SEVERE": "#B71C1C",
-              "CRITICAL": "#E53935",
-              "MAJOR": "#F57C00",
-              "MINOR": "#FFA726",
-              "WARNING": "#FFD54F",
-              "NOTIFICATION": "#4DD0E1",
-              "INFORMATION": "#03A9F4"
-            }
-          },
-          "clear_severity": {
-            "title": "Clear Severity",
-            "type": "DYNAMIC_HTML",
-            "htmlTemplate": "<span class='badge' v-if='rowData.clear_severity' :style='{ backgroundColor: rowData.clear_severity_color }'>{{'{{ rowData.clear_severity }}'}}</span>",
-            "defaultWidth": 150,
-            "visible": false
-          },
-          "open_timestamp": {
-            "title": "Open Timestamp",
-            "type": "DATETIME"
-          },
-          "clear_timestamp": {
-            "title": "Clear Timestamp",
-            "type": "DATETIME",
-            "visible": false
-          },
-          "timestamp": {
-            "title": "Timestamp",
-            "type": "DATETIME",
-            "visible": false
-          }
-        }
-      }
-    },
-    "actions_lib": {
-      "alerts_tabular_widget_actions": {
-        "actions": [
-          {
-            "permission": "rda:user_dashboard:clear",
-            "title": "Clear Alerts",
-            "type": "POPUP_FORM",
-            "selectionType": "NONE",
-            "identifier": "saas-service-action:alertrule-clear-batch",
-            "api-endpoint": {
-              "service-name": "saas-reports",
-              "methodName": "getForm",
-              "stringified-params": true,
-              "parse-output": false,
-              "params": [
-                {
-                  "formId": "rda.saas.dynamic.form",
-                  "formDefinition": {
-                    "id": "rda.saas.dynamic.form",
-                    "refreshRequired": true,
-                    "formFieldList": [
-                      {
-                        "help": "Clear Alerts",
-                        "dataType": "string",
-                        "controlType": "SELECTOR_TABLE",
-                        "controlPropertyList": [
-                          {
-                            "attribute": "column-key",
-                            "value": "md5"
-                          },
-                          {
-                            "attribute": "selection",
-                            "value": "MULTIPLE"
-                          }
-                        ],
-                        "widget": {
-                          "extends": "self:alerts_tabular_widget",
-                          "extend_vars": {
-                            "alerts_tabular_widget_extra_filter": "state in ['OPEN']"
-                          }
-                        },
-                        "required": true,
-                        "editable": true,
-                        "label": "Alerts",
-                        "hidden": false,
-                        "fieldId": "selectedAlerts"
-                      },
-                      {
-                        "fieldId": "notification",
-                        "dataType": "boolean",
-                        "controlType": "BOOLEAN_FIELD",
-                        "hidden": false,
-                        "required": false,
-                        "editable": true,
-                        "defaultValue": false,
-                        "label": "Send Notification",
-                        "help": "Send Clear Notification"
-                      }
-                    ]
-                  },
-                  "formActionList": {
-                    "formActions": [
-                      {
-                        "identifier": "Submit",
-                        "actionLabel": "Clear",
-                        "type": "SUBMIT"
-                      }
-                    ]
-                  },
-                  "actions": [
-                    {
-                      "type": "UPDATE_PSTREAM",
-                      "pstreamName": "alert_rules_clear_jobs_custom_nats_stream",
-                      "collapse_json": true,
-                      "collapsed_json_column": "payload"
-                    }
-                  ]
-                }
-              ]
-            }
-          },
-          {
-            "permission": "rda:user_dashboard:view",
-            "title": "Clear Alert",
-            "type": "POPUP_FORM",
-            "selectionType": "SINGLE",
-            "identifier": "saas-service-action:alertrule-clear",
-            "api-endpoint": {
-              "service-name": "saas-reports",
-              "methodName": "getForm",
-              "stringified-params": true,
-              "parse-output": false,
-              "params": [
-                {
-                  "formId": "rda.saas.alertrule.clear_alert"
-                }
-              ]
-            },
-            "actionCondition": {
-              "actionControl": "SHOW_IF",
-              "conditionalField": [
-                {
-                  "conditionType": "EQUAL",
-                  "conditionValue": "OPEN",
-                  "fieldId": "state"
-                }
-              ]
-            }
-          },
-          {
-            "permission": "rda:user_dashboard:view",
-            "title": "View Open Payload",
-            "type": "POPUP_FORM",
-            "selectionType": "SINGLE",
-            "identifier": "saas-service-action:alertrule-view-payload",
-            "api-endpoint": {
-              "service-name": "saas-reports",
-              "methodName": "getForm",
-              "stringified-params": true,
-              "parse-output": false,
-              "params": [
-                {
-                  "formId": "rda.saas.alertrule.view_payload"
-                }
-              ]
-            }
-          },
-          {
-            "permission": "rda:user_dashboard:view",
-            "title": "View Clear Payload",
-            "type": "POPUP_FORM",
-            "selectionType": "SINGLE",
-            "identifier": "saas-service-action:alertrule-view-clear-payload",
-            "api-endpoint": {
-              "service-name": "saas-reports",
-              "methodName": "getForm",
-              "stringified-params": true,
-              "parse-output": false,
-              "params": [
-                {
-                  "formId": "rda.saas.alertrule.view_clear_payload"
-                }
-              ]
-            },
-            "actionCondition": {
-              "actionControl": "SHOW_IF",
-              "conditionalField": [
-                {
-                  "conditionType": "EQUAL",
-                  "conditionValue": "CLEAR",
-                  "fieldId": "state"
-                }
-              ]
-            }
-          }
-        ]
-      }
-    }
-  },
   "pstream_dashboards": [
     {
-      "title": "alerts",
+      "title": "Security Advisories Details",
       "show_filter": true,
       "widgets": [
         {
-          "extends": [
-            "self:alerts_tabular_widget",
-            "self:actions_lib.alerts_tabular_widget_actions"
-          ],
-          "extend_vars": {
-            "alerts_tabular_widget_extra_filter": "state in ['OPEN', 'CLEAR']"
+          "widget_type": "label",
+          "label": "<div style='text-align:center;width:100%;color:#0066ff'><h2> Security Advisory </h2><br><a style='text-decoration:none;color:#90CAF9;font-size:20px' target='_blank'>  {{Bulletin_Title}}</a></div>",
+          "min_width": 12,
+          "height": 2,
+          "max_width": 12,
+          "widget_id": "dd3ae8ae"
+        },
+        {
+          "widget_type": "label",
+          "max_width": 6,
+          "height": 4,
+          "min_width": 6,
+          "label": "<div style='text-align:center;width:100%;'><br><br><br><br><p>PSirtID<br><b><a style='text-decoration:none;color:#90CAF9;font-size:35px' target='_blank'>{{Psirt}}</a></p></div>",
+          "widget_id": "b0186542"
+        },
+        {
+          "title": "Total Device Count",
+          "widget_type": "custom_counter",
+          "max_width": 6,
+          "height": 4,
+          "min_width": 6,
+          "stream": "edc_sec_adv_data_enriched",
+          "ts_column": "timestamp",
+          "column": "combination_count_sum",
+          "style": {
+            "color-list": [
+              "#90CAF9"
+            ]
           },
-          "widget_id": "94a3fc99"
+          "agg": "sum",
+          "type": "int",
+          "widget_id": "de97a4e2"
+        },
+        {
+          "title": "Security Advisories Details",
+          "widget_type": "tabular",
+          "max_width": 12,
+          "height": 6,
+          "min_width": 12,
+          "stream": "edc_sec_adv_data_enriched",
+          "duration_hours": 10800000,
+          "ts_column": "timestamp",
+          "columns": {
+            "combination_count_sum": {
+              "title": "Total Count",
+              "type": "TEXT",
+              "key": true,
+              "visible": true
+            },
+            "CveId": {
+              "title": "CVE IDs",
+              "type": "TEXT"
+            },
+            "securityAdvisoryId": {
+              "title": "Security Advisory ID",
+              "type": "TEXT",
+              "htmlTemplateForRow": "{% raw %} <a href=\"{{row.BulletinURL}}\" target='_blank'>{{row.securityAdvisoryId}}</a>{% endraw %}"
+            },
+            "bulletinTitle": {
+              "title": "Title",
+              "visible": false
+            },
+            "secAdv_confidence_color": {
+              "type": "COLOR-MAP",
+              "source-column": "secAdv_matchConfidence",
+              "color-map": {
+                "Not Vulnerable": "#00BB00",
+                "Vulnerable": "#BB0000",
+                "Potentially Vulnerable": "#F6C309"
+              }
+            },
+            "secAdv_matchConfidence": {
+              "title": "Security Advisory Status",
+              "type": "TEXT",
+              "htmlTemplateForRow": "{% raw %} <span class='badge' style='background-color: {{ row.secAdv_confidence_color }}' > {{ row.secAdv_matchConfidence }} </span>{% endraw %}",
+              "visible": true
+            },
+            "secAdv_impact_rating_color": {
+              "type": "COLOR-MAP",
+              "source-column": "secAdv_securityImpactRating",
+              "color-map": {
+                "Critical": "#8B0000",
+                "High": "#FF4500",
+                "Medium": "#F6C309",
+                "Low": "#00BB00"
+              }
+            },
+            "secAdv_securityImpactRating": {
+              "title": "Security Advisory Severity",
+              "type": "TEXT",
+              "htmlTemplateForRow": "{% raw %}<span class='badge' style='background-color: {{ row.secAdv_impact_rating_color }}' > {{ row.secAdv_securityImpactRating }} </span>{% endraw %}",
+              "visible": true
+            },
+            "CvssScore": {
+              "title": "Cvss Score",
+              "type": "TEXT",
+              "visible": true
+            },
+            "matchInfo": {
+              "title": "Match Info",
+              "type": "TEXT",
+              "visible": true
+            },
+            "RevisionNumber": {
+              "title": "Revision Number",
+              "type": "TEXT",
+              "visible": true
+            },
+            "PublishedDate": {
+              "title": "Published Date",
+              "type": "DATE",
+              "visible": true
+            },
+            "RevisedDate": {
+              "title": "Last Updated",
+              "type": "TEXT",
+              "visible": true
+            },
+            "item_type": {
+              "title": "Equipment Type",
+              "type": "TEXT",
+              "key": true,
+              "visible": true
+            },
+            "product_id": {
+              "title": "Product ID",
+              "type": "TEXT",
+              "key": true,
+              "visible": true
+            },
+            "sw_os_type": {
+              "title": "SW OS Type",
+              "type": "TEXT",
+              "key": true,
+              "visible": true
+            },
+            "sw_version": {
+              "title": "SW Version",
+              "type": "TEXT",
+              "key": true,
+              "visible": true
+            }
+          },
+          "widget_id": "79c76f48"
         }
       ]
     }
