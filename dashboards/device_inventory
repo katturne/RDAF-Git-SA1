@@ -1,278 +1,435 @@
 {
-  "name": "device_inventory",
-  "label": "Inventory",
-  "description": "Device Inventory",
-  "dashboard_folder": "MOW",
-  "version": "24.1.18.2",
+  "name": "user_activity_trends",
+  "label": "Health: User Activity Trend",
+  "description": "User Activity: Insights",
+  "dashboard_folder": "RDAF_Health_Trends",
+  "version": "1.0.0",
   "enabled": false,
-  "live_edit": true,
-  "stream": "cnc_device_inventory",
   "dashboard_type": "template",
-  "template_variables": {
-    "DEVICE_IP": {
-      "contextId": "device_ip"
-    },
-    "DEVICE_HOSTNAME": {
-      "contextId": "device_hostname"
-    }
-  },
+  "stream": "rda_system_audit_logs",
+  "live_edit": true,
   "dashboard_filters": {
     "time_filter": true,
     "default_time_filter_labels": [
       "Last 1 month"
     ],
-    "extra_filter": "device_ip is '{{DEVICE_IP}}' and device_hostname is '{{DEVICE_HOSTNAME}}'",
+    "extra_filter": "user_id != 'SERVICE' ",
     "columns_filter": [
       {
-        "id": "device_ip",
-        "label": "IP Address",
-        "type": "TEXT"
-      },
-      {
-        "id": "timestamp",
-        "label": "Timestamp",
-        "type": "DATETIME"
-      },
-      {
-        "id": "device_ip",
-        "label": "IP Address",
-        "type": "TEXT"
-      },
-      {
-        "id": "device_hostname",
-        "label": "Device Hostname",
-        "type": "TEXT"
-      },
-      {
-        "id": "device_model",
-        "label": "Device Model",
-        "type": "TEXT"
-      },
-      {
-        "id": "serial_number",
-        "label": "Device Serial Number",
-        "type": "TEXT"
-      },
-      {
-        "id": "clli_code",
-        "label": "CLLI Code",
+        "id": "operation",
+        "label": "Operation",
         "type": "TEXT"
       }
     ],
-    "group_filters": []
+    "group_filters": [
+      {
+        "stream": "rda_system_audit_logs",
+        "title": "Activity",
+        "extra_filter": null,
+        "limit": 50,
+        "group_by": [
+          "artifact_type"
+        ],
+        "ts_column": "timestamp",
+        "agg": "cardinality",
+        "column": "operation",
+        "type": "int",
+        "show_counts": false
+      },
+      {
+        "stream": "rda_system_audit_logs",
+        "title": "Operation",
+        "extra_filter": null,
+        "limit": 50,
+        "group_by": [
+          "operation"
+        ],
+        "ts_column": "timestamp",
+        "agg": "cardinality",
+        "column": "operation",
+        "type": "int",
+        "show_counts": false
+      }
+    ]
   },
   "dashboard_sections": [
     {
-      "title": "Device View",
+      "title": "User Activity",
       "show_filter": true,
       "widgets": [
         {
           "widget_type": "label",
+          "context_filter": "show_traces is 'yes'",
           "max_width": 12,
           "height": 0.5,
           "min_width": 12,
-          "label": "<div style='text-align:center;width:100%;'><h1><a style='text-decoration:none;color:#0066ff;' target='_blank'> Device Inventory</a></h1></div>",
+          "label": "<div style='text-align:center;width:100%;'><h1><a style='text-decoration:none;color:#0066ff;' target='_blank'>User Login Trend </a></h1></div>",
           "widget_id": "33317e49"
         },
         {
-          "title": "Asset Summary",
-          "widget_type": "summary",
-          "max_width": 6,
-          "height": 5,
-          "min_width": 6,
-          "stream": "cnc_device_inventory",
-          "duration_hours": 1080,
+          "title": "Total Logins",
+          "widget_type": "custom_counter",
+          "label": "",
+          "min_width": 3,
+          "max_width": 3,
+          "height": 3,
+          "unit": "",
+          "stream": "rda_system_audit_logs",
+          "extra_filter": "artifact_type = 'UserActivity' and operation = 'LOGIN' ",
           "ts_column": "timestamp",
-          "extra_filter": "`item_type` is  \"CHASSIS\"",
-          "columns": {
-            "device_model": "Model",
-            "device_type": "Equipment Type",
-            "manufacturer": "Manufacturer",
-            "device_ip": "IP Address",
-            "device_hostname": "Hostname",
-            "serial_number": "Serial Number",
-            "device_family": "Device Family"
+          "duration_hours": 10000000,
+          "column": "user_id",
+          "agg": "value_count",
+          "type": "str",
+          "style": {
+            "color-list": [
+              "#90CAF9"
+            ]
           },
-          "widget_id": "7gsoG2q9"
+          "widget_id": "d73e52ec"
         },
         {
-          "title": "Asset Details",
-          "widget_type": "tabular",
-          "stream": "cnc_device_inventory",
+          "title": "Total Login - Unique Users",
+          "widget_type": "custom_counter",
+          "label": "",
+          "min_width": 3,
+          "max_width": 3,
+          "height": 3,
+          "unit": "",
+          "stream": "rda_system_audit_logs",
+          "extra_filter": "artifact_type = 'UserActivity' and operation = 'LOGIN' ",
+          "ts_column": "timestamp",
+          "duration_hours": 10000000,
+          "column": "user_id",
+          "agg": "cardinality",
+          "type": "str",
+          "style": {
+            "color-list": [
+              "#90CAF9"
+            ]
+          },
+          "widget_id": "cdc38ae1"
+        },
+        {
+          "title": "Total Users Login Trend (Daily)",
+          "widget_type": "timeseries",
+          "stream": "rda_system_audit_logs",
+          "ts_column": "timestamp",
+          "extra_filter": "artifact_type = 'UserActivity' and operation = 'LOGIN'",
           "duration_hours": 1080,
-          "showRowSummary": true,
-          "include_context_in_query": true,
-          "include_context_keys": [
-            "device_ip"
+          "max_width": 8,
+          "height": 4,
+          "min_width": 6,
+          "gap_interval": "keep",
+          "chartProperties": {
+            "yAxisLabel": "Total Users",
+            "xAxisLabel": "Local Time",
+            "legendLocation": "bottom",
+            "isDownsamplingDisabled": true,
+            "mode": "selection",
+            "column-id": "timestamp",
+            "options": {
+              "axes": {
+                "display": false
+              }
+            }
+          },
+          "interval": "1d",
+          "series_spec": [
+            {
+              "column": "count_",
+              "agg": "sum",
+              "type": "int",
+              "label": "Total"
+            },
+            {
+              "column": "user_id",
+              "agg": "cardinality",
+              "type": "cardinality",
+              "label": "Unique"
+            }
           ],
-          "extra_filter": "`item_type` is  \"CHASSIS\"",
-          "min_width": 12,
-          "height": 8,
-          "max_width": 12,
-          "paginated": true,
-          "remote_searchable": true,
-          "remote_searchable_cols": [
-            "device_hostname",
-            "device_ip",
-            "device_model",
-            "clli_code",
-            "device_location",
-            "serial_number",
-            "device_type",
-            "manufacturer",
-            "device_fw_version",
-            "device_fw_type",
-            "admin_state"
+          "widget_id": "ed5ca8c1"
+        },
+        {
+          "title": "User Activity Operations",
+          "widget_type": "counter",
+          "label": "",
+          "min_width": 6,
+          "max_width": 6,
+          "height": 4,
+          "unit": "",
+          "group_by": [
+            "operation"
           ],
-          "max_rows": 50,
+          "stream": "rda_system_audit_logs",
+          "extra_filter": "artifact_type = 'UserActivity'",
+          "ts_column": "timestamp",
+          "duration_hours": 1080,
+          "column": "count_",
+          "agg": "sum",
+          "type": "int",
+          "widget_id": "ddfbf320"
+        },
+        {
+          "title": "Top Users Login",
+          "widget_type": "tabular",
+          "duration_hours": 1080,
+          "max_width": 6,
+          "max_rows": 10,
+          "height": 4,
+          "min_width": 4,
+          "stream": "rda_system_audit_logs",
+          "ts_column": "timestamp",
+          "extra_filter": "artifact_type = 'UserActivity' and operation = 'LOGIN'",
+          "paginated": false,
           "columns": {
-            "total_count": "Total Quantity",
-            "device_hostname": {
-              "title": "Device Hostname",
-              "type": "TEXT",
+            "user_id": {
+              "title": "User ID",
               "key": true
-            },
-            "device_family": {
-              "title": "Device Family",
-              "type": "TEXT",
-              "visible": false
-            },
-            "Product_Family": {
-              "title": "Product Family",
-              "type": "TEXT",
-              "key": true,
-              "visible": false
-            },
-            "device_ip": {
-              "title": "IP Address",
-              "type": "TEXT",
-              "key": true
-            },
-            "device_model": "Device Model",
-            "serial_number": {
-              "title": "Serial Number",
+            }
+          },
+          "pivot": {
+            "pivot_type": "advanced",
+            "group_by": [
+              "user_id"
+            ],
+            "series": [
+              {
+                "column": "count_",
+                "agg": "sum",
+                "type": "int",
+                "label": "Login Count"
+              }
+            ]
+          },
+          "widget_id": "954ed85a"
+        },
+        {
+          "title": "User Activity",
+          "widget_type": "tabular",
+          "duration_hours": 1080,
+          "max_width": 12,
+          "height": 8,
+          "min_width": 12,
+          "stream": "rda_system_audit_logs",
+          "ts_column": "timestamp",
+          "extra_filter": "user_id != 'SERVICE' ",
+          "columns": {
+            "artifact_type": {
+              "title": "Artifact Type",
               "type": "TEXT"
             },
-            "manufacturer": "Vendor",
-            "device_fw_version": "SW Version",
-            "device_type": "Equipment Type",
-            "device_location": "Location",
-            "device_fw_type": "Type",
-            "admin_state": "Admin State",
-            "product_type": "Product Type",
-            "operational_state": "Operational State",
-            "clli_code": "CLLI_CODE",
-            "device_system_description": "Device Descriptions"
+            "artifact_name": {
+              "title": "Artifact Name",
+              "type": "TEXT"
+            },
+            "operation": {
+              "title": "Operation",
+              "type": "TEXT"
+            },
+            "user_id": {
+              "title": "User",
+              "type": "TEXT"
+            },
+            "timestamp": {
+              "title": "Timestamp",
+              "type": "DATETIME",
+              "visible": true
+            }
           },
-          "widget_id": "4c2cfdd7"
+          "widget_id": "0877d31e"
         }
       ]
     }
   ],
   "pstream_dashboards": [
     {
-      "title": "Device View",
+      "title": "User Activity",
       "show_filter": true,
       "widgets": [
         {
           "widget_type": "label",
+          "context_filter": "show_traces is 'yes'",
           "max_width": 12,
           "height": 0.5,
           "min_width": 12,
-          "label": "<div style='text-align:center;width:100%;'><h1><a style='text-decoration:none;color:#0066ff;' target='_blank'> Device Inventory</a></h1></div>",
+          "label": "<div style='text-align:center;width:100%;'><h1><a style='text-decoration:none;color:#0066ff;' target='_blank'>User Login Trend </a></h1></div>",
           "widget_id": "33317e49"
         },
         {
-          "title": "Asset Summary",
-          "widget_type": "summary",
-          "max_width": 6,
-          "height": 5,
-          "min_width": 6,
-          "stream": "cnc_device_inventory",
-          "duration_hours": 1080,
+          "title": "Total Logins",
+          "widget_type": "custom_counter",
+          "label": "",
+          "min_width": 3,
+          "max_width": 3,
+          "height": 3,
+          "unit": "",
+          "stream": "rda_system_audit_logs",
+          "extra_filter": "artifact_type = 'UserActivity' and operation = 'LOGIN' ",
           "ts_column": "timestamp",
-          "extra_filter": "`item_type` is  \"CHASSIS\"",
-          "columns": {
-            "device_model": "Model",
-            "device_type": "Equipment Type",
-            "manufacturer": "Manufacturer",
-            "device_ip": "IP Address",
-            "device_hostname": "Hostname",
-            "serial_number": "Serial Number",
-            "device_family": "Device Family"
+          "duration_hours": 10000000,
+          "column": "user_id",
+          "agg": "value_count",
+          "type": "str",
+          "style": {
+            "color-list": [
+              "#90CAF9"
+            ]
           },
-          "widget_id": "7gsoG2q9"
+          "widget_id": "d73e52ec"
         },
         {
-          "title": "Asset Details",
-          "widget_type": "tabular",
-          "stream": "cnc_device_inventory",
+          "title": "Total Login - Unique Users",
+          "widget_type": "custom_counter",
+          "label": "",
+          "min_width": 3,
+          "max_width": 3,
+          "height": 3,
+          "unit": "",
+          "stream": "rda_system_audit_logs",
+          "extra_filter": "artifact_type = 'UserActivity' and operation = 'LOGIN' ",
+          "ts_column": "timestamp",
+          "duration_hours": 10000000,
+          "column": "user_id",
+          "agg": "cardinality",
+          "type": "str",
+          "style": {
+            "color-list": [
+              "#90CAF9"
+            ]
+          },
+          "widget_id": "cdc38ae1"
+        },
+        {
+          "title": "Total Users Login Trend (Daily)",
+          "widget_type": "timeseries",
+          "stream": "rda_system_audit_logs",
+          "ts_column": "timestamp",
+          "extra_filter": "artifact_type = 'UserActivity' and operation = 'LOGIN'",
           "duration_hours": 1080,
-          "showRowSummary": true,
-          "include_context_in_query": true,
-          "include_context_keys": [
-            "device_ip"
+          "max_width": 8,
+          "height": 4,
+          "min_width": 6,
+          "gap_interval": "keep",
+          "chartProperties": {
+            "yAxisLabel": "Total Users",
+            "xAxisLabel": "Local Time",
+            "legendLocation": "bottom",
+            "isDownsamplingDisabled": true,
+            "mode": "selection",
+            "column-id": "timestamp",
+            "options": {
+              "axes": {
+                "display": false
+              }
+            }
+          },
+          "interval": "1d",
+          "series_spec": [
+            {
+              "column": "count_",
+              "agg": "sum",
+              "type": "int",
+              "label": "Total"
+            },
+            {
+              "column": "user_id",
+              "agg": "cardinality",
+              "type": "cardinality",
+              "label": "Unique"
+            }
           ],
-          "extra_filter": "`item_type` is  \"CHASSIS\"",
-          "min_width": 12,
-          "height": 8,
-          "max_width": 12,
-          "paginated": true,
-          "remote_searchable": true,
-          "remote_searchable_cols": [
-            "device_hostname",
-            "device_ip",
-            "device_model",
-            "clli_code",
-            "device_location",
-            "serial_number",
-            "device_type",
-            "manufacturer",
-            "device_fw_version",
-            "device_fw_type",
-            "admin_state"
+          "widget_id": "ed5ca8c1"
+        },
+        {
+          "title": "User Activity Operations",
+          "widget_type": "counter",
+          "label": "",
+          "min_width": 6,
+          "max_width": 6,
+          "height": 4,
+          "unit": "",
+          "group_by": [
+            "operation"
           ],
-          "max_rows": 50,
+          "stream": "rda_system_audit_logs",
+          "extra_filter": "artifact_type = 'UserActivity'",
+          "ts_column": "timestamp",
+          "duration_hours": 1080,
+          "column": "count_",
+          "agg": "sum",
+          "type": "int",
+          "widget_id": "ddfbf320"
+        },
+        {
+          "title": "Top Users Login",
+          "widget_type": "tabular",
+          "duration_hours": 1080,
+          "max_width": 6,
+          "max_rows": 10,
+          "height": 4,
+          "min_width": 4,
+          "stream": "rda_system_audit_logs",
+          "ts_column": "timestamp",
+          "extra_filter": "artifact_type = 'UserActivity' and operation = 'LOGIN'",
+          "paginated": false,
           "columns": {
-            "total_count": "Total Quantity",
-            "device_hostname": {
-              "title": "Device Hostname",
-              "type": "TEXT",
+            "user_id": {
+              "title": "User ID",
               "key": true
-            },
-            "device_family": {
-              "title": "Device Family",
-              "type": "TEXT",
-              "visible": false
-            },
-            "Product_Family": {
-              "title": "Product Family",
-              "type": "TEXT",
-              "key": true,
-              "visible": false
-            },
-            "device_ip": {
-              "title": "IP Address",
-              "type": "TEXT",
-              "key": true
-            },
-            "device_model": "Device Model",
-            "serial_number": {
-              "title": "Serial Number",
+            }
+          },
+          "pivot": {
+            "pivot_type": "advanced",
+            "group_by": [
+              "user_id"
+            ],
+            "series": [
+              {
+                "column": "count_",
+                "agg": "sum",
+                "type": "int",
+                "label": "Login Count"
+              }
+            ]
+          },
+          "widget_id": "954ed85a"
+        },
+        {
+          "title": "User Activity",
+          "widget_type": "tabular",
+          "duration_hours": 1080,
+          "max_width": 12,
+          "height": 8,
+          "min_width": 12,
+          "stream": "rda_system_audit_logs",
+          "ts_column": "timestamp",
+          "extra_filter": "user_id != 'SERVICE' ",
+          "columns": {
+            "artifact_type": {
+              "title": "Artifact Type",
               "type": "TEXT"
             },
-            "manufacturer": "Vendor",
-            "device_fw_version": "SW Version",
-            "device_type": "Equipment Type",
-            "device_location": "Location",
-            "device_fw_type": "Type",
-            "admin_state": "Admin State",
-            "product_type": "Product Type",
-            "operational_state": "Operational State",
-            "clli_code": "CLLI_CODE",
-            "device_system_description": "Device Descriptions"
+            "artifact_name": {
+              "title": "Artifact Name",
+              "type": "TEXT"
+            },
+            "operation": {
+              "title": "Operation",
+              "type": "TEXT"
+            },
+            "user_id": {
+              "title": "User",
+              "type": "TEXT"
+            },
+            "timestamp": {
+              "title": "Timestamp",
+              "type": "DATETIME",
+              "visible": true
+            }
           },
-          "widget_id": "4c2cfdd7"
+          "widget_id": "0877d31e"
         }
       ]
     }
