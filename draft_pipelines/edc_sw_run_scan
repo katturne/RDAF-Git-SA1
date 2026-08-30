@@ -1,52 +1,32 @@
+
+ ## snmp_trap_genaric_raise_alerts
 @c:new-block
- --> @exec:get-input
- --> @dm:add-missing-columns columns="key" and value='key'
- --> @dm:save name='temp-sw-data'
- --> @dm:save name='added-sw-data-1'
+ --> @dm:recall name="alert_endpoint_details" & cache_refresh_seconds = 120
+ --> @dm:manipulate-string from = "alertEndpointName" and func = "strip" and to = "alertEndpointName"
+ --> *dm:filter alertEndpointName is 'SNMP_Traps' and webhookURL is not Empty
+ --> @dm:save name = "temp-webhook-url-details"
  --> @c:new-block
- --> @dm:empty
- --> @exec:define-function name="generate_access_token"
- --> @dm:recall name='generate_token_creds'
- ## --> @dm:empty
+ ## -->  @rn:read-stream     name = 'snmp_trap_event_stream' & group = 'snmp_trap_event_stream_group_alerts'
 
- --> @exec:run-pipeline name ="edc_generate_token" & ignore_failures = "no"
- --> @dm:addrow key='key'
- --> @dm:eval current_time_ms="int(time_now_as_ms())"
- --> @dm:eval token_expiry_time='current_time_ms+3000000'
- --> @dm:save name='temp-expiry-time'
- --> @exec:end-function
- --> @c:new-block
- --> @dm:recall name='temp-sw-data'
- --> @dm:add-missing-columns columns="key" and value='key'
- --> @dm:manipulate-string from="sw_version,sw_os_type" and func="concat_columns" and to="unique_payload_inputs"
- --> @dm:dedup columns ='unique_payload_inputs'
- --> @dm:eval id1='uuid()'
- --> @dm:eval id2='uuid()'
- --> @dm:eval id2="id2.strip().split('-')[0]"
- --> @dm:eval id1="id1.replace('-', '')"
- --> @dm:eval transaction_id ='id1+id2'
- --> @dm:save name='temp-unique-sw-data'
- --> @dm:save name='added-sw-data'
- --> @c:new-block
- --> @dm:empty
- --> @exec:call-function name='generate_access_token'
- --> @c:data-loop columns='sw_version,sw_os_type,transaction_id' and dataset='temp-unique-sw-data'
- ## --> @dm:recall name='temp-unique-sw-data'
+ --> @dm:query-persistent-stream-from-bookmark name = "snmp_trap_event_stream" & bookmark = "snmp_trap_event_stream_bkmrk"
+ --> @dm:enrich dict = "temp-webhook-url-details" & src_key_cols = "customerTag,projectId" & dict_key_cols="customerTag,projectId" & enrich_cols = "webhookURL" & cache_refresh_seconds = 120
+ --> @dm:enrich dict = "device_mapping" & src_key_cols="rda_gw_client_ip" & dict_key_cols = "ip_address" & enrich_cols = "zone,network_type,CLLI_code,city,region,network_code,image,device" & replace_values = "yes" & cache_refresh_seconds = "60"
+ --> @dm:rename-columns device_NEW='device'
+ --> @rn:write-stream name = 'snmp_trap_enriched_events_stream'
+ --> *exec:if-condition webhookURL is not Empty
+ ## --> *dm:filter device_status is "MANAGED"
 
- --> @dm:empty
- --> @dm:addrow key='key'
- --> @dm:eval current_time_ms_loop="int(time_now_as_ms())"
- --> @dm:save name='temp-loop-time'
- --> @dm:enrich dict='temp-expiry-time' and src_key_cols='key' and dict_key_cols='key' and enrich_cols='token_expiry_time,access_token,expires_in,token_type'
- --> *exec:if-condition token_expiry_time is null or current_time_ms_loop  is greater than or equal to token_expiry_time
- --> @exec:call-function name='generate_access_token'
+ --> @dm:add-missing-columns columns = 'mappingStatus' & value = 'found'
+ --> @dm:eval-multi-proc execution_step = "'source_event'"
+ --> *dm:filter mappingStatus is 'found'
+ --> @dm:eval execution_step = "'mapping_filter'"
+ --> @dm:rename-columns snmp_trap_mib = 'snmpTrapMIB' & snmp_trap_name = 'snmpTrapName' & snmp_trap_description = 'snmpTrapDescription' & snmp_trap_oid = 'snmpTrapOID' & device_NEW = 'device_name'
+ --> @dm:enrich-using-rule-dict dict = "snmp_trap_alert_rules_dict" & enrich_columns = "action,reason,state,severity"
+ --> @dm:eval-multi-proc execution_step = "'alert_rule_enrichment'" and   timestamp="utcnow().isoformat()"
+ --> *dm:filter action is 'KEEP'
+ --> @dm:map to = 'snmp_trap_timestamp' and from = 'rda_gw_timestamp'
+ --> @dm:to-json output_column is payload
+ --> @exec:for-loop num_rows = 1
+ --> @restclient:write url  = '{{row.webhookURL}}' & envelope is "{{'{{payload}}'}}" & batch_size = 1
+ --> @exec:end-loop
  --> @exec:end-if
- --> @dm:add-missing-columns columns='sw_version' and value='$sw_version'
- --> @dm:add-missing-columns columns='sw_os_type' and value='$sw_os_type'
- --> @dm:eval sw_os_type="('IOS XR' if sw_os_type=='IOS-XR' else sw_os_type)"
- --> @dm:add-missing-columns columns='transaction_id' and value='$transaction_id'
- --> @exec:run-pipeline name ="edc_sw_get_data" & ignore_failures = "no"
- --> @dm:save name='sweol-data-run-scan'
- --> @dm:save name='test-sweol' and append='yes'
- --> @dm:save name='temp-sweol'
- --> @dm:save name='temp-expiry-time'
