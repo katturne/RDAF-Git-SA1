@@ -1,7 +1,5 @@
 
- ## oia-to-snow-cfx
-
- ## All debugging is captured on oia-to-snow-debug-stream
+ ## external-to-oia-main
 
  ## 
 
@@ -9,39 +7,23 @@
 @c:new-block
  --> @dm:empty
  --> @dm:skip-block-if-shape row_count = 0 & column_count = 0
- --> @exec:run-pipeline name="oia-to-snow-cfx-processor" & ignore_failures="no"
  --> @exec:run-pipeline name="oia-incident-status-tracker-stream" & ignore_failures="no"
- ## Read from Stream
-
- --> @c:bookmark-loop bookmark = 'oia-to-snow-cfx-bkmrk' & initial_value = '-1 minute'
+ --> @exec:run-pipeline name="snow-to-oia" & ignore_failures="no"
+ --> @c:bookmark-loop bookmark = 'external-to-oia-bkmrk' & initial_value = '-1 minute'
  --> @dm:empty
- --> @dm:addrow name="oia-incidents-delta-stream" & max_rows="1000"
- --> @dm:sleep seconds=5
+ --> @dm:addrow name="snow_ticket_notifications" & max_rows="1000"
  ## Query records from Stream
 
- ## Change-Here: Pulse to what ever you want
-
- --> #dm:query-persistent-stream timestamp is after '${bookmark}' & (i_source contains 'SNMP_TRAP_Notifications' or i_source contains 'Syslog_udp_Notifications' or i_source contains 'Alert Group') & i_state != 'Closed' & i_state != 'Cancelled'
- --> @dm:skip-block-if-shape row_count = 0
- ## Change-Here: Temp workaround. Flow is NOT gracefully coming back from post exec:run-pipeline
-
- --> @dm:save_bookmark name = 'oia-to-snow-cfx-bkmrk' & value_column = 'timestamp' & value_type = 'timestamp' & value_func = 'max'
- --> @dm:save name="temp-qresults"
- ## Debug
-
- --> @dm:map to="step" & func="fixed" & value="temp-query-stream-results-${bookmark}"
- --> @rn:write-stream compression="auto" & name="oia-to-snow-debug-stream"
+ --> #dm:query-persistent-stream timestamp is after '${bookmark}'
+ --> @dm:skip-block-if-shape row_count = 0 & column_count = 0
+ --> @rn:write-stream compression="auto" & name="debug-external-to-oia-main-1"
+ --> @dm:save_bookmark name = 'external-to-oia-bkmrk' & value_column = 'timestamp' & value_type = 'timestamp' & value_func = 'max'
  ## Record The Step
 
- --> @dm:eval pipeline="'oia-to-snow-cfx'" & step="'query-persistent-stream'" & stage="'bookmark ${bookmark}'" & status_comments="'Incident:' + incident_id + ',State:' + i_state + ',Delta:' + str(delta)" & status="'INFO'"
+ --> @dm:eval pipeline="'external-to-oia-main'" & step="'query-persistent-stream'" & stage="'bookmark ${bookmark}'" & status_comments="''" & status="'SUCCESS'"
  --> @exec:run-pipeline name="oia-incident-status-tracker-stream" & ignore_failures="yes"
- ## Set the Tracing Context
+ ## Load the corresponding Handler
 
- --> @dm:set-tracing-context-from-input columns = "project_id,incident_id"
- --> @dm:save name="temp-query-result-cfx"
- --> @exec:run-pipeline name="oia-to-snow-cfx-processor" & ignore_failures="no"
- ## Save bookmark - only after finishing up processing all the records
-
- --> @dm:recall name="temp-qresults"
- --> @dm:save_bookmark name = 'oia-to-snow-cfx-bkmrk' & value_column = 'timestamp' & value_type = 'timestamp' & value_func = 'max'
- --> @dm:empty
+ --> @dm:enrich-using-rule-dict dict='external-to-oia-dict' & enrich_columns='exec_pipeline,runName'
+ --> @dm:check-columns must_contain="exec_pipeline" & action="skip-block"
+ --> @exec:run-pipeline-by-row pipeline_col="exec_pipeline" & pipeline_type="Published"
