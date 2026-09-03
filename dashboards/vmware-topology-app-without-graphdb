@@ -1,236 +1,112 @@
 {
-  "name": "incident-details-topology",
-  "label": "Dynamic Incident Topology",
-  "description": "Dynamic Incident Topology",
-  "dashboard_style": "auto",
+  "name": "vmware-topology-app-without-graphdb",
+  "label": "VMWare Asset Navigator",
+  "description": "VMWare Asset Navigato",
+  "dashboard_folder": "VMWare",
+  "version": "23.4.14.1",
+  "enabled": true,
+  "short_label": "Stack",
+  "context_label_id": "stack_name",
   "dashboard_type": "template",
-  "version": "22.10.7.1",
-  "enabled": false,
-  "exportable": false,
+  "dashboard_style": "tabbed",
+  "dashboard_filters": {},
   "template_variables": {
-    "ROOM_ID": {
-      "default": "",
-      "contextId": "project_id"
-    },
-    "INCIDENT_ID": {
-      "default": "",
-      "contextId": "incident_id"
-    },
-    "A_INCIDENT_ID": {
-      "default": "",
-      "contextId": "a_incident_id"
-    },
-    "STACK_NAME": {
-      "default": "",
-      "contextId": "attrs_stack_name"
-    },
-    "MY_TEMPLATE": {
-      "default": "<details><summary><b>{{row.a_alert_type}}</b></summary><div class='v-data-table v-data-table--dense theme--light'><div class='v-data-table__wrapper'><table style='width: 300px;'><tbody><tr><td>Source</td><td>{{row.a_source_systemname}}</td></tr><tr><td>Message</td><td>{{row.a_message}}</td></tr><tr><td>Assett IP</td><td>{{row.a_asset_ip_address}}</td></tr><tr><td>Alert Status</td><td>{{row.a_status}}</td></tr></tbody></table></div></div></details>",
-      "contextId": "MY_TEMPLATE"
+    "NODE_ID": {
+      "contextId": [
+        "navigatorSelectionContexts",
+        "secondaryListSelection",
+        "node_id"
+      ]
     }
   },
-  "dashboard_filters": {
-    "time_filter": false,
-    "columns_filter": []
+  "navigation_dashboards": {
+    "tree_data": {
+      "column_name": "node_type",
+      "pstream_name": "cfx_rdaf_topology_nodes",
+      "cfxql_query": "timestamp is after -12 months"
+    },
+    "tree_detail": {
+      "display_column": "node_label",
+      "selected_columns": {
+        "node_id": "Node Id",
+        "node_label": "Node Name"
+      },
+      "pstream_name": "cfx_rdaf_topology_nodes",
+      "cfxql_query": "timestamp is after -12 months"
+    },
+    "showNodeIcon": true,
+    "showSearchBox": false
   },
   "dashboard_sections": [
     {
-      "title": "Topology",
-      "show_filter": false,
+      "title": "Node Details",
       "widgets": [
         {
-          "widget_type": "topology",
-          "title": "Topology",
-          "register_search_endpoints": true,
-          "impact_action_details": {
-            "impact_distance": 5,
-            "impact_conditional_field": "alert_count"
-          },
-          "chartProperties": {
-            "hasToolbar": true,
-            "shortToolbar": true,
-            "userZoomingEnabled": false
-          },
-          "stack_type": "OIA",
-          "auto_group": false,
-          "oia_details": {
-            "oia_stream": "oia-incidents-stream",
-            "query": "timestamp later than -12 months",
-            "oia_id_attribute": "incident_id",
-            "node_id_attribute": "attrs_node_id",
-            "stack_name_attribute": "attrs_stack_name",
-            "stack_type": "OIA",
-            "stack": "{{STACK_NAME}}",
-            "alert_source": {
-              "stream": "oia-alerts-stream",
-              "group_by": [
-                "a_en_node_id",
-                "a_severity",
-                "a_status"
-              ],
-              "incident_id_attr": "a_incident_id",
-              "context_incident_id_attr": "incidentid",
-              "extra_filter": "a_source_systemname is not 'Alert Group' ",
-              "ts_column": "timestamp",
-              "duration_hours": 9000,
-              "agg": "value_count",
-              "column": "count_",
-              "type": "int"
-            }
-          },
-          "max_width": 12,
-          "min_width": 7,
-          "height": 12,
-          "widget_id": "0ff73e14"
+          "title": "Summary",
+          "widget_type": "portal_summary",
+          "reportId": "rda.saas.topology.node_details.report",
+          "max_width": 4,
+          "height": 5,
+          "min_width": 4,
+          "widget_id": "182229d8"
         },
         {
-          "title": "Alerts",
+          "title": "Edges Summary",
           "widget_type": "tabular",
-          "max_width": 12,
-          "height": 12,
-          "min_width": 5,
-          "sorting": [
-            {
-              "a_raised_ts": "desc"
-            }
-          ],
-          "stream": "oia-alerts-stream",
-          "extra_filter": "((a_incident_id is '{{INCIDENT_ID}}') or (a_incident_id is '{{A_INCIDENT_ID}}')) and a_source_systemname is not 'Alert Group' ",
-          "query": "*",
-          "duration_hours": 2160,
-          "columns": {
-            "a_alert_type": {
-              "title": "Alert Type",
-              "type": "GROUPED",
-              "group": {
-                "a_source_systemname": "Source",
-                "a_message": "Message",
-                "a_asset_ip_address": "Asset IP Address",
-                "a_status": "Status",
-                "a_asset_name": "Asset Name"
-              },
-              "color-column": "state_color"
-            },
-            "state_color": {
-              "type": "COLOR-MAP",
-              "source-column": "a_status",
-              "color-map": {
-                "ACTIVE": "#dd0000",
-                "CLEAR": "#00dd00",
-                "CLEARED": "#00dd00"
-              }
-            },
-            "a_raised_ts": {
-              "title": "Raised At",
-              "type": "DATETIME"
-            },
-            "a_severity": "Severity"
-          },
-          "severity_columns": [
-            "a_severity"
-          ],
-          "widget_id": "dc7103e1"
+          "stream": "cfx_rdaf_topology_edges",
+          "query": "timestamp is after -12 months and left_id is '{{NODE_ID}}' or right_id is '{{NODE_ID}}'",
+          "max_width": 8,
+          "height": 5,
+          "min_width": 8,
+          "widget_id": "4bc96241"
+        },
+        {
+          "title": "Topology",
+          "widget_type": "topology",
+          "register_search_endpoints": true,
+          "auto_group": false,
+          "reportId": "rda.saas.stack.view.topo",
+          "stack": "vmware_vcenter_topology",
+          "height": 10,
+          "min_wdith": 12,
+          "widget_id": "182287d8"
         }
       ]
     }
   ],
   "pstream_dashboards": [
     {
-      "title": "Topology",
-      "show_filter": false,
+      "title": "Node Details",
       "widgets": [
         {
-          "widget_type": "topology",
-          "title": "Topology",
-          "register_search_endpoints": true,
-          "impact_action_details": {
-            "impact_distance": 5,
-            "impact_conditional_field": "alert_count"
-          },
-          "chartProperties": {
-            "hasToolbar": true,
-            "shortToolbar": true,
-            "userZoomingEnabled": false
-          },
-          "stack_type": "OIA",
-          "auto_group": false,
-          "oia_details": {
-            "oia_stream": "oia-incidents-stream",
-            "query": "timestamp later than -12 months",
-            "oia_id_attribute": "incident_id",
-            "node_id_attribute": "attrs_node_id",
-            "stack_name_attribute": "attrs_stack_name",
-            "stack_type": "OIA",
-            "stack": "{{STACK_NAME}}",
-            "alert_source": {
-              "stream": "oia-alerts-stream",
-              "group_by": [
-                "a_en_node_id",
-                "a_severity",
-                "a_status"
-              ],
-              "incident_id_attr": "a_incident_id",
-              "context_incident_id_attr": "incidentid",
-              "extra_filter": "a_source_systemname is not 'Alert Group' ",
-              "ts_column": "timestamp",
-              "duration_hours": 9000,
-              "agg": "value_count",
-              "column": "count_",
-              "type": "int"
-            }
-          },
-          "max_width": 12,
-          "min_width": 7,
-          "height": 12,
-          "widget_id": "0ff73e14"
+          "title": "Summary",
+          "widget_type": "portal_summary",
+          "reportId": "rda.saas.topology.node_details.report",
+          "max_width": 4,
+          "height": 5,
+          "min_width": 4,
+          "widget_id": "182229d8"
         },
         {
-          "title": "Alerts",
+          "title": "Edges Summary",
           "widget_type": "tabular",
-          "max_width": 12,
-          "height": 12,
-          "min_width": 5,
-          "sorting": [
-            {
-              "a_raised_ts": "desc"
-            }
-          ],
-          "stream": "oia-alerts-stream",
-          "extra_filter": "((a_incident_id is '{{INCIDENT_ID}}') or (a_incident_id is '{{A_INCIDENT_ID}}')) and a_source_systemname is not 'Alert Group' ",
-          "query": "*",
-          "duration_hours": 2160,
-          "columns": {
-            "a_alert_type": {
-              "title": "Alert Type",
-              "type": "GROUPED",
-              "group": {
-                "a_source_systemname": "Source",
-                "a_message": "Message",
-                "a_asset_ip_address": "Asset IP Address",
-                "a_status": "Status",
-                "a_asset_name": "Asset Name"
-              },
-              "color-column": "state_color"
-            },
-            "state_color": {
-              "type": "COLOR-MAP",
-              "source-column": "a_status",
-              "color-map": {
-                "ACTIVE": "#dd0000",
-                "CLEAR": "#00dd00",
-                "CLEARED": "#00dd00"
-              }
-            },
-            "a_raised_ts": {
-              "title": "Raised At",
-              "type": "DATETIME"
-            },
-            "a_severity": "Severity"
-          },
-          "severity_columns": [
-            "a_severity"
-          ],
-          "widget_id": "dc7103e1"
+          "stream": "cfx_rdaf_topology_edges",
+          "query": "timestamp is after -12 months and left_id is '{{NODE_ID}}' or right_id is '{{NODE_ID}}'",
+          "max_width": 8,
+          "height": 5,
+          "min_width": 8,
+          "widget_id": "4bc96241"
+        },
+        {
+          "title": "Topology",
+          "widget_type": "topology",
+          "register_search_endpoints": true,
+          "auto_group": false,
+          "reportId": "rda.saas.stack.view.topo",
+          "stack": "vmware_vcenter_topology",
+          "height": 10,
+          "min_wdith": 12,
+          "widget_id": "182287d8"
         }
       ]
     }
