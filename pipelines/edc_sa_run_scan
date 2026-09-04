@@ -1,81 +1,225 @@
-@c:new-block
- --> @dm:empty
- --> @dm:addrow name='edc_sec_adv_data_raw' and limit=0
- --> #dm:query-persistent-stream
- --> @dm:save name='temp-sa-exploded-data'
- --> @dm:save name='test-sa-exploded-data'
+%% stream = no and limit = 0
+%% template_type="jinja"
+##%% import_src_type = "diagnostictools"
+
+@dm:empty
+    --> @dm:save name = "temp-customer-context"
+    
+
+## {% set row = "" %}
+{% if customer_tag %} 
+   {% set customer_id = customer_id %}
+   {% set customer_tag = customer_tag %}
+   {% set customerTag = customer_tag %}
+{% elif customerTag %} 
+   {% set customer_id = customer_id %}
+   {% set customer_tag = customerTag %}
+{% else %}
+   {% set customer_id = '' %}
+   {% set customer_tag = '' %}
+{% endif %}   
+
+## access
+--> @dm:empty
+    --> @dm:save name="temp-access-verify"
+    --> @dm:save name="temp-snmp"
+    --> @dm:save name = 'temp-ip-list-snmp'
+    --> @dm:save name = 'temp-ip-list-ssh'
+    --> @dm:save name="temp-success-snmp"
+    --> @dm:save name="temp-failed-unique-snmp"
+    --> @dm:save name="temp-failed"
+    --> @dm:save name = "temp-access-ssh" 
+    --> @dm:save name = "temp-access-snmp"
+
+--> @c:new-block
+    --> @exec:get-input 
+    --> @dm:save name="temp-access-verify"
+
+
+-->  @c:new-block     
+
+           -->  @dm:empty 
+           {% if customer_tag %}   
+           -->  #dm:query-persistent-stream     type in ['snmp-cred','ssh-cred','device-snmp-v3','device-host-ssh','device-snmp-v1v2'] and (customerTag contains '{{customer_tag}}') with-input name = 'rda_secrets_meta' and limit= 0
+            {% else %}
+           -->  #dm:query-persistent-stream     type in ['snmp-cred','ssh-cred','device-snmp-v3','device-host-ssh','device-snmp-v1v2'] and (customerTag is empty) with-input name = 'rda_secrets_meta' and limit= 0
+            {% endif %}
+           --> @dm:eval key ="'key'"  
+            --> @dm:eval snmp_cred_name = "name if type in ['snmp-cred','device-snmp-v3','device-snmp-v1v2'] else None" 
+           --> @dm:eval ssh_cred_name = "name if type in ['ssh-cred','device-host-ssh'] else None"  
+                    
+-->  @dm:save     name = 'temp-creds'
+##-->  @dm:save     name = 'test2-creds'
+
+--> @c:new-block
+  -->  @dm:recall     name = 'temp-creds'
+  -->*dm:filter snmp_cred_name is not empty
+  -->  @dm:eval     key ="'key'"
+  ##-->  @dm:save     name = 'test-creds-snmp'
+  -->  @dm:save     name = 'temp-creds-snmp'
+
+--> @c:new-block
+  -->  @dm:recall     name = 'temp-creds'
+  -->*dm:filter ssh_cred_name is not empty
+  -->  @dm:eval     key ="'key'"
+  ##-->  @dm:save     name = 'test-creds-ssh'
+  -->  @dm:save     name = 'temp-creds-ssh'
+   
+  
+--> @c:new-block
+    --> @dm:recall name="temp-access-verify"
+    --> @dm:skip-block-if-shape row_count = 0
+    --> @dm:selectcolumns include = "Others|customer_tag|customer_id"
+    ## --> @dm:eval Others = 'Others.replace("\'", "\"")'
+    --> @dm:explode-json column="Others"
+    --> @dm:eval key ="'key'"
+    --> @dm:save name="temp-network-access-verification-pipeline"
+    ##--> @dm:save name="network-access-verification-pipeline"
+
+ 
+--> @c:new-block
+    --> @dm:recall name="temp-access-verify"
+    --> @dm:skip-block-if-shape row_count > 0     
+ {% if customer_tag %} 
+           -->  #dm:query-persistent-stream     device_ip is not empty and (customer_tag is '{{customer_tag}}') with-input name = "discovery" & limit = "0"
+{% else %}
+           -->  #dm:query-persistent-stream     device_ip is not empty and (customer_tag is empty or customer_tag is 'None') with-input name = "discovery" & limit = "0"
+    {% endif %}
+-->  *dm:filter     device_ip not in ['nan', 'not available']
+-->@dm:selectcolumns include = "^device_ip$|^discovery_scope$"
+-->  @dm:dedup     columns= "device_ip"
+-->  @dm:eval     key ="'key'"
+ --> @dm:save name = 'temp-network-access-verification-pipeline'
+
+     
+
+--> @c:new-block
+    --> @dm:recall name="temp-network-access-verification-pipeline"
+    --> @dm:add-missing-columns columns = "customer_tag,customer_id" 
+--> @dm:save name="temp-ip-list"
+##--> @dm:save name="test-ip-list"
+
+--> @c:data-loop columns="snmp_cred_name" and dataset ="temp-creds-snmp"
+--> @dm:recall name = 'temp-ip-list'
+--> @dm:eval snmp_cred_name ="'$snmp_cred_name'"
+--> @dm:save name="temp-ip-list-snmp" & append = "yes"
+ 
+  
+    
+--> @c:data-loop columns="ssh_cred_name" and dataset ="temp-creds-ssh"
+--> @dm:recall name = 'temp-ip-list'
+--> @dm:eval ssh_cred_name ="'$ssh_cred_name'"
+--> @dm:save name="temp-ip-list-ssh" & append = "yes"
+
+
+## SNMP/SSH Credentials Access Verification
+
+--> @c:data-loop columns="device_ip,discovery_scope,snmp_cred_name" and dataset ="temp-ip-list-snmp"   
+   --> @dm:recall name = 'temp-ip-list-snmp'
+   --> @dm:skip-block-if-shape row_count = 0  
+   --> *exec:if-condition device_ip = "${device_ip}"
+    --> @asset-discovery:access-check ip_column = 'device_ip' & protocol = 'snmp' and snmp_creds_regex = "$snmp_cred_name"
+    --> @dm:eval discovery_scope ="'$discovery_scope'"
+    --> @dm:eval key ="'key'"
+    --> @dm:enrich dict="temp-ip-list" and src_key_cols="key" and dict_key_cols="key" and enrich_cols="customer_tag,customer_id"
+    --> @dm:save name = "temp-access-snmp" & append = "yes"
+    ##--> @rn:write-stream name="network_access_verification"
+    --> @exec:end-if
+     
+
+--> @c:new-block
+--> @dm:recall    name = 'temp-access-snmp'
+--> @dm:save name="test-access-snmp"
+--> @dm:dedup columns="ip_address,auth_state"
+--> @dm:save name="temp-snmp"
+-->*dm:filter auth_state = "Success"
+--> @dm:eval success_row="'yes'"
+--> @dm:save name="temp-snmp-success"
+ --> @dm:recall name="temp-snmp"
+ -->@dm:add-missing-columns columns = "auth_state"
+ -->*dm:filter auth_state = "Failed"
+--> @dm:save name="temp-failed"
+--> @dm:save name="test-failed"
+ ##--> *exec:if-condition row_count > 0
+   --> @dm:skip-block-if-shape row_count = 0  
+ --> @dm:enrich-conditional dict is 'temp-snmp-success' and condition is 'ip_address == "$ip_address"' and enrich_cols = "success_row"
+
+ ##--> @dm:enrich dict='temp-success' and src_key_cols="ip_address" and dict_key_cols="ip_address" and enrich_cols="success_row"
+    -->@dm:add-missing-columns columns = "success_row"
+    --> *dm:filter success_row notin ["yes"]
+     --> @dm:save name="temp-failed-unique-snmp"
+ ##-->@exec:end-if
  --> @c:new-block
- --> @dm:recall name="temp-sa-exploded-data"
- --> @dm:selectcolumns exclude='^unique_key$'
- ## --> @dm:enrich dict="temp-sa-data" and src_key_cols='product_id,sw_version,sw_os_type' and dict_key_cols='product_id,sw_version,sw_os_type' and enrich_cols="contract_number,customer"
+ --> @dm:recall name="temp-failed"
+   --> @dm:skip-block-if-shape row_count > 0  
+ ##--> *exec:if-shape row_count = 0  
+    --> @dm:recall name="temp-snmp-success"
+ --> @rn:write-stream name="network_access_verification"
+##--> @exec:end-if
 
- --> @dm:add-missing-columns columns="PsirtID,MatchConfidence,MatchReason,MatchDefinition,HeadlineName,AdvisoryId,BulletinURL,Summary,Details,RevisedDate,RevisionNumber,PublishedDate,SeverityLevelName,CvssScore,CveId,_id,advisoryId,created,customerVisible,external_text,external_title,firstIcAlertId,groups,icIssueId,icProblemId,ignored,lastIcAlertId,matchDefinition,matchInfo,matchConfidence,missingInfo,moreInfo,name,openedOn,resultType,resultSubType,severity,severityText,state,updated,deviceSN,source,runType,filename,icType,atticaStatus,cdetsList,retry,associatedGroups,key,current_time_ms_loop,token_expiry_time,access_token,expires_in,token_type,sw_version,sw_os_type,product_id,transaction_id,eoXAlert,eoXAlertType,DocumentId"
- --> @dm:eval matchConfidence = "'Potentially Vulnerable' if matchConfidence == 'POTVUL' else 'Vulnerable' if matchConfidence == 'VUL' else matchConfidence"
- --> @dm:eval secAdv_confidence_score = "100 if matchConfidence == 'Vulnerable' else 99 if matchConfidence == 'Potentially Vulnerable' else 98 if matchConfidence == 'Not Vulnerable' else 0"
- --> @dm:fixnull columns="PsirtID,MatchConfidence,MatchReason,MatchDefinition,HeadlineName,AdvisoryId,BulletinURL,Summary,Details,RevisedDate,RevisionNumber,PublishedDate,SeverityLevelName,CvssScore,CveId,_id,advisoryId,created,customerVisible,external_text,external_title,firstIcAlertId,groups,icIssueId,icProblemId,ignored,lastIcAlertId,matchDefinition,matchInfo,matchConfidence,missingInfo,moreInfo,name,openedOn,resultType,resultSubType,severity,severityText,state,updated,deviceSN,source,runType,filename,icType,atticaStatus,cdetsList,retry,associatedGroups,key,current_time_ms_loop,token_expiry_time,expires_in,token_type,sw_version,sw_os_type,product_id,transaction_id,eoXAlert,eoXAlertType,DocumentId,secAdv_confidence_score" and value="Not Available" and apply_for_empty="yes"
- --> @dm:fixnull-regex columns="Timestamp$|timestamp$"
- --> @dm:rename-columns secAdv_matchConfidence ='matchConfidence' and secAdv_securityImpactRating='SeverityLevelName' and bulletinTitle='external_title' and securityAdvisoryId='advisoryId' and ID = '_id'
- ## --> *dm:filter product_id=='CRS-FP140-E' and contract_number=='3610020'
+--> @c:new-block
+ ##--> @dm:recall name="temp-failed"
+ ##  --> @dm:skip-block-if-shape row_count = 0  
+ ## --> *exec:if-condition row_count > 0 
+    --> @dm:concat names="temp-snmp-success|temp-failed-unique-snmp"
+    --> @dm:save name="temp-successfull-data"
+     --> @dm:save name="test-successfull-data"
+    --> @rn:write-stream name="network_access_verification"
+   ## -->@exec:end-if
+    
 
- --> @dm:save name="temp-sec-adv-details"
- --> @dm:save name="test-sec-adv-details"
- --> @c:new-block
- --> @dm:empty
- --> @dm:addrow name='edc_cust_pid_sw' and limit=0
- --> #dm:query-persistent-stream
- --> @dm:groupby columns='customer'
- ## --> @dm:to_type columns = 'contract_number' and type  = 'int'
 
- --> @dm:save name='temp-unique-cust-name'
- ## Queries data for the customer from edc_oi_enriched_stream
+--> @c:data-loop columns="device_ip,discovery_scope,ssh_cred_name" and dataset ="temp-ip-list-ssh"
+    --> @dm:recall name = 'temp-ip-list-ssh'
+    --> @dm:skip-block-if-shape row_count = 0  
+    --> *exec:if-condition device_ip = "${device_ip}"
+    --> @asset-discovery:access-check ip_column = 'device_ip' & protocol = 'ssh' & ssh_creds_regex = "$ssh_cred_name"
+    --> @dm:eval key ="'key'"
+    --> @dm:eval discovery_scope ="'$discovery_scope'"
+    --> @dm:enrich dict="temp-ip-list" and src_key_cols="key" and dict_key_cols="key" and enrich_cols="customer_tag,customer_id"
+    --> @dm:save name = "temp-access-ssh" & append = 'yes'
+    ##--> @rn:write-stream name="network_access_verification"
+    --> @exec:end-if
 
- ## --> @c:data-loop dataset='temp-unique-cust-name' and columns='customer'
+    --> @c:new-block
+    --> @dm:recall    name = 'temp-access-ssh'
+    --> @dm:save name="test-access-ssh"
+    --> @dm:dedup columns="ip_address,auth_state"
+    --> @dm:save name="temp-ssh"
+    --> *dm:filter auth_state = "Success"
+    --> @dm:eval success_row="'yes'"
+    --> @dm:save name="temp-ssh-success"
+    --> @dm:recall name="temp-ssh"
+    --> @dm:add-missing-columns columns = "auth_state"
+    --> *dm:filter auth_state = "Failed"
+    --> @dm:save name="temp-failed-ssh"
+    --> @dm:save name="test-failed"
+    ## --> *exec:if-condition row_count > 0
+    --> @dm:skip-block-if-shape row_count = 0
+    --> @dm:enrich-conditional dict is 'temp-ssh-success' and condition is 'ip_address == "$ip_address"' and enrich_cols = "success_row"
+    ## --> @dm:enrich dict='temp-success' and src_key_cols="ip_address" and dict_key_cols="ip_address" and enrich_cols="success_row"
+    --> @dm:add-missing-columns columns = "success_row"
+    --> *dm:filter success_row notin ["yes"]
+    --> @dm:save name="temp-failed-unique-ssh"
 
- ## --> @dm:empty
+## -->@exec:end-if
+--> @c:new-block
+    --> @dm:recall name="temp-failed-ssh"
+    --> @dm:skip-block-if-shape row_count > 0
+    ## --> *exec:if-shape row_count = 0
+    --> @dm:recall name="temp-ssh-success"
+    --> @rn:write-stream name="network_access_verification"
 
- ## --> @dm:addrow name='edc_oi_inventory_enriched' and limit=0
+## --> @exec:end-if
+--> @c:new-block
+    ## --> @dm:recall name="temp-failed"
+    ## --> @dm:skip-block-if-shape row_count = 0
+    ## --> *exec:if-condition row_count > 0
+    --> @dm:concat names="temp-ssh-success|temp-failed-unique-ssh"
+    --> @dm:save name="temp-successfull-data"
+    --> @dm:save name="test-successfull-data"
+    --> @rn:write-stream name="network_access_verification"
 
- ## --> #dm:query-persistent-stream customer_name=='$customer'
 
- ## --> @dm:save name='temp-hw-eol-details' and append='yes'
 
- --> @c:new-block
- --> @dm:recall name='hweol-att'
- --> @dm:to_type columns = 'contract_number' and type  = 'int'
- --> @dm:save name='temp-hw-eol-details'
- --> @c:new-block
- --> @dm:recall name="temp-sec-adv-details"
- --> @dm:to-type columns='contract_number' and type='int'
- ## ## --> *dm:filter product_id=='CRS-FP140-E' and contract_number=='3610020'
-
- --> @dm:enrich dict='temp-hw-eol-details' and dict_key_cols='product_id,contract_number,customer_name' and  src_key_cols='product_id,contract_number,customer' and enrich_cols='business_sub_entity,swEOL_bulletinTitle,bk_eol_bulletin_product_typ_cd,product_family_description,hw_expiring_year,product_description,portfolio_desc,sw_status_score,swEOL_softwareEOXId,_RDA_Id,hwEOL_endOfSoftwareMaintenanceReleasesDate,hw_expiring_qtr,PostDate,coverage,covered_line_status,swEOL_lastDayOfSupportDate,execution_reason,sw_expiring_qtr,hwEOL_lastDayOfSupportDate,swEOL_endOfLifeAnnouncementDate,hw_status,bk_end_of_life_request_num,usage_code,sw_version,transaction_id,item_type,swEOL_endOfSoftwareMaintenanceReleasesDate,savm_sales_level_4_name,product_list_price,swEOL_endOfSaleDate,hwEOL_endOfServiceContractRenewalDate,swEOL_endOfVulnerabilitySecuritySupportDate,unique_key,hwEOL_endOfRoutineFailureAnalysisDate,sw_expiring_year,eol_product_name,product_name,hwEOL_endOfLifeAnnouncementDate,swEOL_bulletinUrl,hwEOL_endOfSaleDate,sw_status,attempt_count,sw_os_type,key,gu_name,combination_count,swEOL_bulletinNumber,contract_number_str,execution_status,count_,source,hwEOL_endOfNewServiceAttachmentDate,product_family,last_updated_time,product_type,business_entity,timestamp,total_product_list_price'  and how_type='inner' and  replace_values='yes'
- --> @dm:rename-columns unique_key_inventory='unique_key'
- --> @dm:eval unique_key="str(unique_key_inventory) + str(securityAdvisoryId) +str(PsirtID)+ str(sw_version)+str(sw_os_type)"
- --> @dm:to-type columns='combination_count' and type='int'
- --> @dm:save name='final-sa-hw-enrich-left'
- --> @dm:selectcolumns exclude='^(Unique_id|ingestion_id|_RDA_Id|count_|timestamp|contract_number_str|__uuid)$'
- --> @dm:to-type columns='combination_count' and type='int'
- --> @dm:save name='final-enrich'
- --> @rn:write-stream name='edc_sec_adv_data_enriched'
- --> @c:new-block
- --> @dm:recall name='temp-sec-adv-details'
- ## --> @dm:groupby columns='firstIcAlertId'
-
- --> @dm:skip-block-if-shape row_count="0"
- --> @dm:sort columns='secAdv_confidence_score' and order='descending'
- --> @dm:dedup columns='sw_version,sw_os_type,product_id'
- --> @dm:to_type columns = 'contract_number' and type  = 'int'
- --> @dm:save name="temp-pa-sec-adv-dedups"
- --> @dm:save name="test-pa-sec-adv-dedups"
- --> @c:new-block
- --> @dm:recall name='temp-pa-sec-adv-dedups'
- --> @dm:enrich dict='temp-hw-eol-details' and dict_key_cols='product_id,contract_number,customer_name' and  src_key_cols='product_id,contract_number,customer' and  enrich_cols='business_sub_entity,swEOL_bulletinTitle,bk_eol_bulletin_product_typ_cd,product_family_description,hw_expiring_year,product_description,portfolio_desc,sw_status_score,swEOL_softwareEOXId,_RDA_Id,hwEOL_endOfSoftwareMaintenanceReleasesDate,hw_expiring_qtr,PostDate,coverage,covered_line_status,swEOL_lastDayOfSupportDate,execution_reason,sw_expiring_qtr,hwEOL_lastDayOfSupportDate,swEOL_endOfLifeAnnouncementDate,hw_status,bk_end_of_life_request_num,usage_code,sw_version,transaction_id,item_type,swEOL_endOfSoftwareMaintenanceReleasesDate,savm_sales_level_4_name,product_list_price,swEOL_endOfSaleDate,hwEOL_endOfServiceContractRenewalDate,swEOL_endOfVulnerabilitySecuritySupportDate,unique_key,hwEOL_endOfRoutineFailureAnalysisDate,sw_expiring_year,eol_product_name,product_name,hwEOL_endOfLifeAnnouncementDate,swEOL_bulletinUrl,hwEOL_endOfSaleDate,sw_status,attempt_count,sw_os_type,key,gu_name,combination_count,swEOL_bulletinNumber,contract_number_str,execution_status,count_,source,hwEOL_endOfNewServiceAttachmentDate,product_family,last_updated_time,product_type,business_entity,timestamp,total_product_list_price' and replace_values='yes' and how_type='inner'
- --> @dm:save name='enriched-sa-hw-enrich-left'
- ## --> @dm:selectcolumns include='^(gu_name|savm_sales_level_4_name|coverage|covered_line_status|business_entity|business_sub_entity|bk_end_of_life_request_num|bk_eol_bulletin_product_typ_cd|hwEOL_endOfNewServiceAttachmentDate|hwEOL_endOfRoutineFailureAnalysisDate|hwEOL_endOfSoftwareMaintenanceReleasesDate|hwEOL_endOfServiceContractRenewalDate|hwEOL_endOfLifeAnnouncementDate|eol_product_name|item_type|hwEOL_endOfSaleDate|hwEOL_lastDayOfSupportDate|product_description|product_family|product_family_description|product_type|product_list_price|portfolio_desc|usage_code|combination_count|execution_status|total_product_list_price|unique_key|hw_status|hw_expiring_qtr|hw_expiring_year|last_updated_time|product_name|execution_reason|attempt_count|customer_name|sw_status|sw_expiring_qtr|sw_expiring_year|secAdv_confidence_score|ID|securityAdvisoryId|bulletinTitle|secAdv_securityImpactRating|secAdv_matchConfidence|swEOL_endOfLifeAnnouncementDate|swEOL_endOfVulnerabilitySecuritySupportDate|swEOL_lastDayOfSupportDate|swEOL_endOfSoftwareMaintenanceReleasesDate|swEOL_endOfSaleDate|swEOL_bulletinUrl|swEOL_bulletinNumber|swEOL_bulletinTitle|swEOL_softwareEOXId|PostDate|groups_0|source|icType_source|icType_bug|icType_fieldNotice|icType_psirt|icType_ciscoBestPractice|icType_compliance|icType_engineeringFailureAnalysis|icType_eoXAlert|icType_susceptibility|icType_thirdPartyBestPractice|icType_detectionType|icType_remediation_additionalTroubleshootingNeeded|icType_remediation_informOnly|icType_remediation_problemFix|icType_remediation_returnMaterialAuthorization|icType_remediation_workaround|icType_cliCommand|atticaStatus_result|atticaStatus_message|atticaStatus_timestamp|atticaStatus_environment|atticaStatus_alertId|retry_0|associatedGroups_0__id|associatedGroups_0_name|key|sw_version|sw_os_type|transaction_id|sw_status_score|timestamp|count_|_RDA_Id|icType_rmaAvoidance)$'
-
- ## --> @rn:write-stream name='edc_oi_inventory_enriched' and direct_to_opensearch='yes'
-
- --> @dm:selectcolumns exclude='^(PsirtID|MatchConfidence|MatchReason|MatchDefinition|HeadlineName|AdvisoryId|BulletinURL|Summary|Details|RevisedDate|RevisionNumber|PublishedDate|CvssScore|CveId|created|customerVisible|external_text|firstIcAlertId|groups|icIssueId|icProblemId|ignored|lastIcAlertId|matchDefinition|matchInfo|missingInfo|moreInfo|name|openedOn|resultType|resultSubType|severity|severityText|state|updated|runType|filename|icType|atticaStatus|cdetsList|retry|associatedGroups|key|current_time_ms_loop|token_expiry_time|expires_in|token_type|eoXAlert|eoXAlertType|DocumentId|source|deviceSN)$'
- --> @dm:save name='temp-enriched-sa'
- --> @dm:save name='test-enriched-sa'
- --> @rn:write-stream name='edc_oi_inventory_enriched' and direct_to_opensearch='yes'
+  
