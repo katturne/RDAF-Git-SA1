@@ -1,68 +1,75 @@
 {
-  "name": "rda-packs-all",
-  "label": "RDA Packs",
-  "description": "RDA Packs: MSP",
+  "name": "rda_system_single_snapshot_details",
+  "label": "Snapshot Details",
+  "description": "Snapshot Details",
   "dashboard_folder": "System",
+  "version": "1.0.2",
+  "live_edit": true,
   "enabled": false,
-  "stream": "rda_packs_meta",
-  "dashboard_type": "dashboard",
-  "extra_filter1": "scope = 'system'",
+  "stream": "rda_system_snapshots_details",
+  "dashboard_type": "template",
+  "template_variables": {
+    "SNAPSHOT_NAME": {
+      "contextId": "snapshot_name"
+    }
+  },
   "dashboard_filters": {
     "time_filter": true,
     "default_time_filter_labels": [
-      "Last 12 months"
+      "All Time"
     ],
+    "extra_filter": "snapshot_name is '{{SNAPSHOT_NAME}}'",
     "columns_filter": [
       {
-        "id": "timestamp",
-        "label": "Timestamp",
-        "type": "DATETIME"
-      },
-      {
-        "id": "name",
-        "label": "Name",
+        "id": "artifact_name",
+        "label": "Artifact Name",
         "type": "TEXT"
       },
       {
-        "id": "label",
-        "label": "Label",
+        "id": "artifact_type",
+        "label": "Artifact Type",
         "type": "TEXT"
       },
       {
-        "id": "id",
-        "label": "ID",
+        "id": "artifact_version_visibility",
+        "label": "Artifact Checksum In Snapshot Repo",
         "type": "TEXT"
       },
       {
-        "id": "type",
-        "label": "Type",
+        "id": "checksum",
+        "label": "Checksum",
         "type": "TEXT"
       },
       {
-        "id": "publisher",
-        "label": "Publisher",
+        "id": "object_name",
+        "label": "Object Name",
         "type": "TEXT"
       },
       {
-        "id": "status",
-        "label": "Status",
+        "id": "snapshot_name",
+        "label": "Snapshot Name",
         "type": "TEXT"
       },
       {
-        "id": "version",
-        "label": "Version",
+        "id": "snapshot_type",
+        "label": "Snapshot Type",
         "type": "TEXT"
+      },
+      {
+        "id": "size",
+        "label": "Size",
+        "type": "DOUBLE"
       }
     ],
     "group_filters": [
       {
-        "stream": "rda_packs_meta",
-        "title": "Pack Type",
-        "duration_hours": 1080,
+        "stream": "rda_system_snapshots_details",
+        "title": "Artifact Type",
+        "duration_hours": 87600,
         "limit": 200,
-        "extra_filter": null,
+        "extra_filter": "snapshot_name is '{{SNAPSHOT_NAME}}'",
         "group_by": [
-          "type"
+          "artifact_type"
         ],
         "ts_column": "timestamp",
         "agg": "sum",
@@ -70,41 +77,13 @@
         "type": "int"
       },
       {
-        "stream": "rda_packs_meta",
-        "title": "Publisher",
-        "duration_hours": 1080,
+        "stream": "rda_system_snapshots_details",
+        "title": "Artifact Checksum In Snapshot Repo",
+        "duration_hours": 87600,
         "limit": 200,
-        "extra_filter": null,
+        "extra_filter": "snapshot_name is '{{SNAPSHOT_NAME}}'",
         "group_by": [
-          "publisher"
-        ],
-        "ts_column": "timestamp",
-        "agg": "sum",
-        "column": "count_",
-        "type": "int"
-      },
-      {
-        "stream": "rda_packs_meta",
-        "title": "Status",
-        "duration_hours": 1080,
-        "limit": 200,
-        "extra_filter": null,
-        "group_by": [
-          "status"
-        ],
-        "ts_column": "timestamp",
-        "agg": "sum",
-        "column": "count_",
-        "type": "int"
-      },
-      {
-        "stream": "rda_packs_meta",
-        "title": "Version",
-        "duration_hours": 1080,
-        "limit": 200,
-        "extra_filter": null,
-        "group_by": [
-          "version"
+          "artifact_version_visibility"
         ],
         "ts_column": "timestamp",
         "agg": "sum",
@@ -115,1060 +94,356 @@
   },
   "dashboard_sections": [
     {
-      "title": "RDA Packs Details",
+      "title": "rda_system_snapshots_details",
       "show_filter": true,
       "widgets": [
         {
-          "duration_hours": 1080,
-          "title": "Packs",
-          "widget_type": "tabular",
-          "remote_searchable": true,
-          "remote_searchable_cols": [
-            "type",
-            "name",
-            "version",
-            "publisher",
-            "single_tenant_status"
-          ],
-          "sorting": [
+          "widget_type": "label",
+          "min_width": 3,
+          "height": 3,
+          "max_width": 6,
+          "label": "{% raw %}<div><div style='color: #00aa00; font-size: 20px;'>Changes Since Last Snapshot: {{new_count|int}}</div><div style='color: #888888; font-size: 20px;'>Unchanged: {{unchanged_count|int}}</div></div>{% endraw %}",
+          "segments": [
             {
-              "timestamp": "desc"
+              "stream": "rda_system_snapshots_details",
+              "variable": "new_count",
+              "ts_column": "timestamp",
+              "extra_filter": "artifact_version_visibility == 'new' AND snapshot_name is '{{SNAPSHOT_NAME}}'",
+              "agg": "sum",
+              "group_by0": "artifact_version_visibility",
+              "column": "count_"
+            },
+            {
+              "stream": "rda_system_snapshots_details",
+              "variable": "unchanged_count",
+              "ts_column": "timestamp",
+              "extra_filter": "artifact_version_visibility == 'unchanged' AND snapshot_name is '{{SNAPSHOT_NAME}}'",
+              "agg": "sum",
+              "group_by0": "artifact_version_visibility",
+              "column": "count_"
             }
           ],
+          "widget_id": "23af24fa"
+        },
+        {
+          "widget_type": "pie_chart",
+          "title": "Artifact Type",
+          "stream": "rda_system_snapshots_details",
           "ts_column": "timestamp",
-          "paginated": true,
-          "height": 10,
+          "extra_filter": "snapshot_name is '{{SNAPSHOT_NAME}}'",
+          "column": "count_",
+          "agg": "sum",
+          "group_by": [
+            "artifact_type"
+          ],
+          "type": "int",
+          "min_width": 3,
+          "height": 3,
+          "max_width": 6,
+          "widget_id": "cc2794c5"
+        },
+        {
+          "title": "Snapshot Manifest",
+          "widget_type": "tabular",
+          "duration_hours": 87600,
           "max_width": 12,
+          "height": 8,
           "min_width": 12,
-          "stream": "rda_packs_meta",
-          "extra_filter1": "scope = 'system'",
-          "refreshOptions": {
-            "refreshType": "Periodic",
-            "refreshInterval": 30000
-          },
+          "paginated": true,
+          "stream": "rda_system_snapshots_details",
+          "ts_column": "timestamp",
+          "extra_filter": "snapshot_name is '{{SNAPSHOT_NAME}}'",
           "columns": {
-            "type": {
-              "title": "Pack Type",
+            "snapshot_type": {
+              "title": "Snapshot Type",
               "type": "TEXT",
               "hidden": false
             },
-            "name": {
-              "title": "Name",
-              "type": "TEXT",
-              "hidden": false,
-              "key": true
-            },
-            "label": {
-              "title": "Label",
-              "type": "TEXT",
-              "hidden": false,
-              "key": true
-            },
-            "version": {
-              "title": "Version",
-              "type": "TEXT",
-              "hidden": false,
-              "key": true
-            },
-            "scope": {
-              "title": "Pack Scope",
-              "type": "TEXT",
-              "hidden": true
-            },
-            "publisher": {
-              "title": "Publisher",
+            "snapshot_name": {
+              "title": "Snapshot Name",
               "type": "TEXT",
               "hidden": false
             },
-            "html": {
-              "hidden": true,
-              "key": false
-            },
-            "activation_id": {
-              "hidden": true,
+            "artifact_type": {
+              "title": "Artifact Type",
+              "type": "TEXT",
+              "hidden": false,
               "key": true
             },
-            "state_color": {
-              "type": "COLOR-MAP",
-              "source-column": "status",
-              "color-map": {
-                "ACTIVATED": "#4CAF50",
-                "INACTIVE": "#333333",
-                "NOT ACTIVATED": "#333333"
+            "artifact_name": {
+              "title": "Artifact Name",
+              "type": "TEXT",
+              "hidden": false,
+              "key": true
+            },
+            "artifact_version_visibility": {
+              "title": "Artifact Checksum In Snapshot Repo",
+              "type": "TEXT",
+              "hidden": false
+            },
+            "size": {
+              "title": "Size",
+              "type": "DOUBLE",
+              "hidden": false
+            },
+            "checksum": {
+              "title": "Checksum",
+              "type": "TEXT",
+              "hidden": false
+            },
+            "object_name": {
+              "title": "Object Name",
+              "type": "TEXT",
+              "visible": false,
+              "key": true
+            },
+            "timestamp": {
+              "title": "Timestamp",
+              "type": "DATETIME"
+            }
+          },
+          "actions": [
+            {
+              "title": "View",
+              "type": "POPUP_FORM",
+              "selectionType": "SINGLE",
+              "permission": "rda:dataset:view",
+              "identifier": "rda.saas.snapshot.obj.view",
+              "api-endpoint": {
+                "service-name": "saas-reports",
+                "methodName": "getForm",
+                "stringified-params": true,
+                "parse-output": false,
+                "params": [
+                  {
+                    "formId": "rda.saas.snapshot.obj.view"
+                  }
+                ]
               }
+            }
+          ],
+          "widget_id": "7089a9ae"
+        },
+        {
+          "title": "Snapshot Errors",
+          "widget_type": "tabular",
+          "max_width": 12,
+          "height": 8,
+          "min_width": 12,
+          "paginated": true,
+          "stream": "rda_system_snapshots_errors",
+          "ts_column": "timestamp",
+          "extra_filter0": "snapshot_name is '{{SNAPSHOT_NAME}}'",
+          "columns": {
+            "snapshot_type": {
+              "title": "Snapshot Type",
+              "type": "TEXT",
+              "hidden": false
             },
-            "status": {
-              "title": "Status",
-              "htmlTemplateForRow": "<span class='badge' style='background-color: {{ row.state_color }}' > {{ row.status }} </span>"
+            "snapshot_name": {
+              "title": "Snapshot Name",
+              "type": "TEXT",
+              "hidden": false
+            },
+            "artifact_type": {
+              "title": "Artifact Type",
+              "type": "TEXT",
+              "hidden": false
+            },
+            "artifact_name": {
+              "title": "Artifact Name",
+              "type": "TEXT",
+              "hidden": false
             },
             "message": {
               "title": "Message",
               "type": "TEXT",
               "hidden": false
             },
-            "upload_time": {
-              "title": "Upload Time",
-              "type": "DATETIME",
-              "hidden": false
-            },
-            "activation_time": {
-              "title": "Activation Time",
-              "type": "DATETIME",
-              "hidden": false
-            },
-            "deactivation_time": {
-              "title": "Deactivation Time",
-              "type": "DATETIME",
-              "hidden": false
-            },
-            "single_tenant_state_color": {
-              "type": "COLOR-MAP",
-              "source-column": "single_tenant_status",
-              "color-map": {
-                "ACTIVATED": "#4CAF50",
-                "INACTIVE": "#333333",
-                "NOT ACTIVATED": "#333333"
-              }
-            },
-            "single_tenant_status": {
-              "title": "Single Tenant Status",
-              "htmlTemplateForRow": "<span class='badge' style='background-color: {{ row.single_tenant_state_color }}' >  {{ row.single_tenant_status }} </span>",
-              "hidden": true,
-              "key": true
-            },
-            "single_tenant_activation_id": {
-              "title": "Single Tenant Activation ID",
-              "type": "TEXT",
-              "hidden": true,
-              "key": true
-            },
-            "single_tenant_message": {
-              "title": "Single Tenant message",
-              "type": "TEXT",
-              "hidden": true,
-              "key": true
-            },
-            "launch_dashboard": {
-              "title": "Dashboard",
-              "type": "TEXT",
-              "hidden": true
-            },
-            "single_tenant": {
-              "title": "Single Tenant Section",
-              "type": "TEXT",
-              "hidden": true,
-              "key": true
+            "timestamp": {
+              "title": "Timestamp",
+              "type": "DATETIME"
             }
           },
-          "custom_columns": [
-            {
-              "id": "id",
-              "label": "ID",
-              "expr": "'user-dashboard-' + launch_dashboard",
-              "visible": false,
-              "key": true,
-              "sortable": false
-            },
-            {
-              "id": "view_detail_page_label",
-              "label": "View Details Page Label",
-              "expr": "name + ' Details'",
-              "visible": false,
-              "key": true,
-              "sortable": false
-            },
-            {
-              "id": "activation_status_page_label",
-              "label": "Activation Status Page Label",
-              "expr": "name + ' Activation Status'",
-              "visible": false,
-              "key": true,
-              "sortable": false
-            },
-            {
-              "id": "st_activation_status_page_label",
-              "label": "Single Tenant Activation Status Page Label",
-              "expr": "name + ' Single Tenant Activation Status'",
-              "visible": false,
-              "key": true,
-              "sortable": false
-            }
-          ],
-          "actions": [
-            {
-              "permission": "rda:rdapacks:upload",
-              "selectionType": "NONE",
-              "title": "Upload Pack",
-              "type": "POPUP_FORM",
-              "identifier": "saas-service-action:rda-packs-upload",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.rdapacks.upload"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:rdapacks:upload",
-              "selectionType": "NONE",
-              "title": "Upload Packs from Catalog",
-              "type": "POPUP_FORM",
-              "identifier": "saas-service-action:rda-packs-uploadfromcatalog",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.rdapacks.uploadfromcatalog"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:rdapacks:upload",
-              "selectionType": "SINGLE",
-              "title": "Compare with Another Pack",
-              "type": "POPUP_FORM",
-              "identifier": "saas-service-action:rda-packs-comparewithpack",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.rdapacks.comparewithpack"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:rdapacks:upload",
-              "selectionType": "SINGLE",
-              "title": "Compare with Deployed Artifacts",
-              "type": "POPUP_FORM",
-              "identifier": "saas-service-action:rda-packs-comparewithdeployed",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.rdapacks.comparewithdeployed"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:rdapacks:activate",
-              "selectionType": "SINGLE",
-              "title": "Activate Package",
-              "type": "POPUP_FORM",
-              "identifier": "saas-service-action:rda-packs-activate",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.rdapacks.activate"
-                  }
-                ]
-              },
-              "actionCondition": {
-                "actionControl": "SHOW_IF",
-                "conditionalField": [
-                  {
-                    "conditionType": "NOT_EQUAL",
-                    "conditionValue": "ACTIVATED",
-                    "fieldId": "status"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:rdapacks:activate",
-              "selectionType": "SINGLE",
-              "title": "Enable Single Tenant",
-              "type": "POPUP_FORM",
-              "identifier": "saas-service-action:rda-packs-activate",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.rdapacks.activatesystemlevel"
-                  }
-                ]
-              },
-              "actionCondition": {
-                "actionControl": "SHOW_IF",
-                "operator": "AND",
-                "conditionalField": [
-                  {
-                    "conditionType": "NOT_EQUAL",
-                    "conditionValue": "ACTIVATED",
-                    "fieldId": "single_tenant_status"
-                  },
-                  {
-                    "conditionType": "EQUAL",
-                    "conditionValue": "true",
-                    "fieldId": "single_tenant"
-                  },
-                  {
-                    "conditionType": "EQUAL",
-                    "conditionValue": "ACTIVATED",
-                    "fieldId": "status"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:rdapacks:view",
-              "appName": "user-dashboard",
-              "drillDownLinkField": "name",
-              "identifier": "id",
-              "selectionType": "SINGLE",
-              "title": "Launch Dashboard",
-              "type": "GO_TO_APP_STATE",
-              "actionCondition": {
-                "actionControl": "SHOW_IF",
-                "operator": "AND",
-                "conditionalField": [
-                  {
-                    "conditionType": "EQUAL",
-                    "conditionValue": "ACTIVATED",
-                    "fieldId": "status"
-                  },
-                  {
-                    "conditionType": "NOT_EQUAL",
-                    "conditionValue": "",
-                    "fieldId": "launch_dashboard"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:rdapacks:deactivate",
-              "selectionType": "SINGLE",
-              "title": "Deactivate package",
-              "type": "POPUP_FORM",
-              "identifier": "saas-service-action:rda-packs-deactivate",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.rdapacks.deactivate"
-                  }
-                ]
-              },
-              "actionCondition": {
-                "actionControl": "SHOW_IF",
-                "conditionalField": [
-                  {
-                    "conditionType": "EQUAL",
-                    "conditionValue": "ACTIVATED",
-                    "fieldId": "status"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:rdapacks:deactivate",
-              "selectionType": "SINGLE",
-              "title": "Disable Single Tenant",
-              "type": "POPUP_FORM",
-              "identifier": "saas-service-action:rda-packs-deactivate",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.rdapacks.deactivatesystemlevel"
-                  }
-                ]
-              },
-              "actionCondition": {
-                "actionControl": "SHOW_IF",
-                "operator": "AND",
-                "conditionalField": [
-                  {
-                    "conditionType": "EQUAL",
-                    "conditionValue": "ACTIVATED",
-                    "fieldId": "single_tenant_status"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:rdapacks:view",
-              "appName": "user-dashboard/rda-packs-view-deployed-artifacts",
-              "drillDownLinkField": "name",
-              "identifier": "launch.dashboard.rda-packs-view-deployed-artifacts",
-              "selectionType": "SINGLE",
-              "title": "View Activation Status",
-              "type": "GO_TO_APP_STATE",
-              "contextParamList": {
-                "contextParams": [
-                  {
-                    "paramKey": "activation_status_page_label",
-                    "paramId": "activation_status_page_label"
-                  }
-                ]
-              },
-              "actionCondition": {
-                "actionControl": "SHOW_IF",
-                "conditionalField": [
-                  {
-                    "conditionType": "NOT_EQUAL",
-                    "conditionValue": "NOT ACTIVATED",
-                    "fieldId": "status"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:rdapacks:view",
-              "appName": "user-dashboard/rda-packs-view-deployed-artifacts",
-              "identifier": "launch.dashboard.rda-packs-view-deployed-artifacts",
-              "selectionType": "SINGLE",
-              "title": "View Single Tenant Activation Status",
-              "type": "GO_TO_APP_STATE",
-              "contextParamList": {
-                "contextParams": [
-                  {
-                    "paramKey": "st_activation_status_page_label",
-                    "paramId": "activation_status_page_label"
-                  },
-                  {
-                    "paramKey": "single_tenant_activation_id",
-                    "paramId": "activation_id"
-                  }
-                ]
-              },
-              "actionCondition": {
-                "actionControl": "SHOW_IF",
-                "operator": "AND",
-                "conditionalField": [
-                  {
-                    "conditionType": "NOT_EQUAL",
-                    "conditionValue": "NOT ACTIVATED",
-                    "fieldId": "single_tenant_status"
-                  },
-                  {
-                    "conditionType": "EQUAL",
-                    "conditionValue": "true",
-                    "fieldId": "single_tenant"
-                  },
-                  {
-                    "conditionType": "NOT_EQUAL",
-                    "conditionValue": "NOT APPLICABLE",
-                    "fieldId": "single_tenant_status"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:rdapacks:view",
-              "appName": "user-dashboard/rda-packs-view-detail",
-              "drillDownLinkField": "name",
-              "identifier": "launch.dashboard.rda-packs-view-detail",
-              "selectionType": "SINGLE",
-              "title": "View Details",
-              "type": "GO_TO_APP_STATE",
-              "contextParamList": {
-                "contextParams": [
-                  {
-                    "paramKey": "name",
-                    "paramId": "pack_name"
-                  },
-                  {
-                    "paramKey": "version",
-                    "paramId": "pack_version"
-                  },
-                  {
-                    "paramKey": "view_detail_page_label",
-                    "paramId": "view_detail_page_label"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:rdapacks:delete",
-              "selectionType": "SINGLE",
-              "title": "Delete Package",
-              "type": "POPUP_FORM",
-              "identifier": "saas-service-action:rda-packs-delete",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.rdapacks.delete"
-                  }
-                ]
-              },
-              "actionCondition": {
-                "actionControl": "SHOW_IF",
-                "conditionalField": [
-                  {
-                    "conditionType": "EQUAL",
-                    "conditionValue": "NOT ACTIVATED",
-                    "fieldId": "status"
-                  }
-                ]
-              }
-            }
-          ],
-          "widget_id": "45694d2f"
+          "widget_id": "53447b4f"
         }
       ]
     }
   ],
   "pstream_dashboards": [
     {
-      "title": "RDA Packs Details",
+      "title": "rda_system_snapshots_details",
       "show_filter": true,
       "widgets": [
         {
-          "duration_hours": 1080,
-          "title": "Packs",
-          "widget_type": "tabular",
-          "remote_searchable": true,
-          "remote_searchable_cols": [
-            "type",
-            "name",
-            "version",
-            "publisher",
-            "single_tenant_status"
-          ],
-          "sorting": [
+          "widget_type": "label",
+          "min_width": 3,
+          "height": 3,
+          "max_width": 6,
+          "label": "{% raw %}<div><div style='color: #00aa00; font-size: 20px;'>Changes Since Last Snapshot: {{new_count|int}}</div><div style='color: #888888; font-size: 20px;'>Unchanged: {{unchanged_count|int}}</div></div>{% endraw %}",
+          "segments": [
             {
-              "timestamp": "desc"
+              "stream": "rda_system_snapshots_details",
+              "variable": "new_count",
+              "ts_column": "timestamp",
+              "extra_filter": "artifact_version_visibility == 'new' AND snapshot_name is '{{SNAPSHOT_NAME}}'",
+              "agg": "sum",
+              "group_by0": "artifact_version_visibility",
+              "column": "count_"
+            },
+            {
+              "stream": "rda_system_snapshots_details",
+              "variable": "unchanged_count",
+              "ts_column": "timestamp",
+              "extra_filter": "artifact_version_visibility == 'unchanged' AND snapshot_name is '{{SNAPSHOT_NAME}}'",
+              "agg": "sum",
+              "group_by0": "artifact_version_visibility",
+              "column": "count_"
             }
           ],
+          "widget_id": "23af24fa"
+        },
+        {
+          "widget_type": "pie_chart",
+          "title": "Artifact Type",
+          "stream": "rda_system_snapshots_details",
           "ts_column": "timestamp",
-          "paginated": true,
-          "height": 10,
+          "extra_filter": "snapshot_name is '{{SNAPSHOT_NAME}}'",
+          "column": "count_",
+          "agg": "sum",
+          "group_by": [
+            "artifact_type"
+          ],
+          "type": "int",
+          "min_width": 3,
+          "height": 3,
+          "max_width": 6,
+          "widget_id": "cc2794c5"
+        },
+        {
+          "title": "Snapshot Manifest",
+          "widget_type": "tabular",
+          "duration_hours": 87600,
           "max_width": 12,
+          "height": 8,
           "min_width": 12,
-          "stream": "rda_packs_meta",
-          "extra_filter1": "scope = 'system'",
-          "refreshOptions": {
-            "refreshType": "Periodic",
-            "refreshInterval": 30000
-          },
+          "paginated": true,
+          "stream": "rda_system_snapshots_details",
+          "ts_column": "timestamp",
+          "extra_filter": "snapshot_name is '{{SNAPSHOT_NAME}}'",
           "columns": {
-            "type": {
-              "title": "Pack Type",
+            "snapshot_type": {
+              "title": "Snapshot Type",
               "type": "TEXT",
               "hidden": false
             },
-            "name": {
-              "title": "Name",
-              "type": "TEXT",
-              "hidden": false,
-              "key": true
-            },
-            "label": {
-              "title": "Label",
-              "type": "TEXT",
-              "hidden": false,
-              "key": true
-            },
-            "version": {
-              "title": "Version",
-              "type": "TEXT",
-              "hidden": false,
-              "key": true
-            },
-            "scope": {
-              "title": "Pack Scope",
-              "type": "TEXT",
-              "hidden": true
-            },
-            "publisher": {
-              "title": "Publisher",
+            "snapshot_name": {
+              "title": "Snapshot Name",
               "type": "TEXT",
               "hidden": false
             },
-            "html": {
-              "hidden": true,
-              "key": false
-            },
-            "activation_id": {
-              "hidden": true,
+            "artifact_type": {
+              "title": "Artifact Type",
+              "type": "TEXT",
+              "hidden": false,
               "key": true
             },
-            "state_color": {
-              "type": "COLOR-MAP",
-              "source-column": "status",
-              "color-map": {
-                "ACTIVATED": "#4CAF50",
-                "INACTIVE": "#333333",
-                "NOT ACTIVATED": "#333333"
+            "artifact_name": {
+              "title": "Artifact Name",
+              "type": "TEXT",
+              "hidden": false,
+              "key": true
+            },
+            "artifact_version_visibility": {
+              "title": "Artifact Checksum In Snapshot Repo",
+              "type": "TEXT",
+              "hidden": false
+            },
+            "size": {
+              "title": "Size",
+              "type": "DOUBLE",
+              "hidden": false
+            },
+            "checksum": {
+              "title": "Checksum",
+              "type": "TEXT",
+              "hidden": false
+            },
+            "object_name": {
+              "title": "Object Name",
+              "type": "TEXT",
+              "visible": false,
+              "key": true
+            },
+            "timestamp": {
+              "title": "Timestamp",
+              "type": "DATETIME"
+            }
+          },
+          "actions": [
+            {
+              "title": "View",
+              "type": "POPUP_FORM",
+              "selectionType": "SINGLE",
+              "permission": "rda:dataset:view",
+              "identifier": "rda.saas.snapshot.obj.view",
+              "api-endpoint": {
+                "service-name": "saas-reports",
+                "methodName": "getForm",
+                "stringified-params": true,
+                "parse-output": false,
+                "params": [
+                  {
+                    "formId": "rda.saas.snapshot.obj.view"
+                  }
+                ]
               }
+            }
+          ],
+          "widget_id": "7089a9ae"
+        },
+        {
+          "title": "Snapshot Errors",
+          "widget_type": "tabular",
+          "max_width": 12,
+          "height": 8,
+          "min_width": 12,
+          "paginated": true,
+          "stream": "rda_system_snapshots_errors",
+          "ts_column": "timestamp",
+          "extra_filter0": "snapshot_name is '{{SNAPSHOT_NAME}}'",
+          "columns": {
+            "snapshot_type": {
+              "title": "Snapshot Type",
+              "type": "TEXT",
+              "hidden": false
             },
-            "status": {
-              "title": "Status",
-              "htmlTemplateForRow": "<span class='badge' style='background-color: {{ row.state_color }}' > {{ row.status }} </span>"
+            "snapshot_name": {
+              "title": "Snapshot Name",
+              "type": "TEXT",
+              "hidden": false
+            },
+            "artifact_type": {
+              "title": "Artifact Type",
+              "type": "TEXT",
+              "hidden": false
+            },
+            "artifact_name": {
+              "title": "Artifact Name",
+              "type": "TEXT",
+              "hidden": false
             },
             "message": {
               "title": "Message",
               "type": "TEXT",
               "hidden": false
             },
-            "upload_time": {
-              "title": "Upload Time",
-              "type": "DATETIME",
-              "hidden": false
-            },
-            "activation_time": {
-              "title": "Activation Time",
-              "type": "DATETIME",
-              "hidden": false
-            },
-            "deactivation_time": {
-              "title": "Deactivation Time",
-              "type": "DATETIME",
-              "hidden": false
-            },
-            "single_tenant_state_color": {
-              "type": "COLOR-MAP",
-              "source-column": "single_tenant_status",
-              "color-map": {
-                "ACTIVATED": "#4CAF50",
-                "INACTIVE": "#333333",
-                "NOT ACTIVATED": "#333333"
-              }
-            },
-            "single_tenant_status": {
-              "title": "Single Tenant Status",
-              "htmlTemplateForRow": "<span class='badge' style='background-color: {{ row.single_tenant_state_color }}' >  {{ row.single_tenant_status }} </span>",
-              "hidden": true,
-              "key": true
-            },
-            "single_tenant_activation_id": {
-              "title": "Single Tenant Activation ID",
-              "type": "TEXT",
-              "hidden": true,
-              "key": true
-            },
-            "single_tenant_message": {
-              "title": "Single Tenant message",
-              "type": "TEXT",
-              "hidden": true,
-              "key": true
-            },
-            "launch_dashboard": {
-              "title": "Dashboard",
-              "type": "TEXT",
-              "hidden": true
-            },
-            "single_tenant": {
-              "title": "Single Tenant Section",
-              "type": "TEXT",
-              "hidden": true,
-              "key": true
+            "timestamp": {
+              "title": "Timestamp",
+              "type": "DATETIME"
             }
           },
-          "custom_columns": [
-            {
-              "id": "id",
-              "label": "ID",
-              "expr": "'user-dashboard-' + launch_dashboard",
-              "visible": false,
-              "key": true,
-              "sortable": false
-            },
-            {
-              "id": "view_detail_page_label",
-              "label": "View Details Page Label",
-              "expr": "name + ' Details'",
-              "visible": false,
-              "key": true,
-              "sortable": false
-            },
-            {
-              "id": "activation_status_page_label",
-              "label": "Activation Status Page Label",
-              "expr": "name + ' Activation Status'",
-              "visible": false,
-              "key": true,
-              "sortable": false
-            },
-            {
-              "id": "st_activation_status_page_label",
-              "label": "Single Tenant Activation Status Page Label",
-              "expr": "name + ' Single Tenant Activation Status'",
-              "visible": false,
-              "key": true,
-              "sortable": false
-            }
-          ],
-          "actions": [
-            {
-              "permission": "rda:rdapacks:upload",
-              "selectionType": "NONE",
-              "title": "Upload Pack",
-              "type": "POPUP_FORM",
-              "identifier": "saas-service-action:rda-packs-upload",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.rdapacks.upload"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:rdapacks:upload",
-              "selectionType": "NONE",
-              "title": "Upload Packs from Catalog",
-              "type": "POPUP_FORM",
-              "identifier": "saas-service-action:rda-packs-uploadfromcatalog",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.rdapacks.uploadfromcatalog"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:rdapacks:upload",
-              "selectionType": "SINGLE",
-              "title": "Compare with Another Pack",
-              "type": "POPUP_FORM",
-              "identifier": "saas-service-action:rda-packs-comparewithpack",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.rdapacks.comparewithpack"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:rdapacks:upload",
-              "selectionType": "SINGLE",
-              "title": "Compare with Deployed Artifacts",
-              "type": "POPUP_FORM",
-              "identifier": "saas-service-action:rda-packs-comparewithdeployed",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.rdapacks.comparewithdeployed"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:rdapacks:activate",
-              "selectionType": "SINGLE",
-              "title": "Activate Package",
-              "type": "POPUP_FORM",
-              "identifier": "saas-service-action:rda-packs-activate",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.rdapacks.activate"
-                  }
-                ]
-              },
-              "actionCondition": {
-                "actionControl": "SHOW_IF",
-                "conditionalField": [
-                  {
-                    "conditionType": "NOT_EQUAL",
-                    "conditionValue": "ACTIVATED",
-                    "fieldId": "status"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:rdapacks:activate",
-              "selectionType": "SINGLE",
-              "title": "Enable Single Tenant",
-              "type": "POPUP_FORM",
-              "identifier": "saas-service-action:rda-packs-activate",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.rdapacks.activatesystemlevel"
-                  }
-                ]
-              },
-              "actionCondition": {
-                "actionControl": "SHOW_IF",
-                "operator": "AND",
-                "conditionalField": [
-                  {
-                    "conditionType": "NOT_EQUAL",
-                    "conditionValue": "ACTIVATED",
-                    "fieldId": "single_tenant_status"
-                  },
-                  {
-                    "conditionType": "EQUAL",
-                    "conditionValue": "true",
-                    "fieldId": "single_tenant"
-                  },
-                  {
-                    "conditionType": "EQUAL",
-                    "conditionValue": "ACTIVATED",
-                    "fieldId": "status"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:rdapacks:view",
-              "appName": "user-dashboard",
-              "drillDownLinkField": "name",
-              "identifier": "id",
-              "selectionType": "SINGLE",
-              "title": "Launch Dashboard",
-              "type": "GO_TO_APP_STATE",
-              "actionCondition": {
-                "actionControl": "SHOW_IF",
-                "operator": "AND",
-                "conditionalField": [
-                  {
-                    "conditionType": "EQUAL",
-                    "conditionValue": "ACTIVATED",
-                    "fieldId": "status"
-                  },
-                  {
-                    "conditionType": "NOT_EQUAL",
-                    "conditionValue": "",
-                    "fieldId": "launch_dashboard"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:rdapacks:deactivate",
-              "selectionType": "SINGLE",
-              "title": "Deactivate package",
-              "type": "POPUP_FORM",
-              "identifier": "saas-service-action:rda-packs-deactivate",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.rdapacks.deactivate"
-                  }
-                ]
-              },
-              "actionCondition": {
-                "actionControl": "SHOW_IF",
-                "conditionalField": [
-                  {
-                    "conditionType": "EQUAL",
-                    "conditionValue": "ACTIVATED",
-                    "fieldId": "status"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:rdapacks:deactivate",
-              "selectionType": "SINGLE",
-              "title": "Disable Single Tenant",
-              "type": "POPUP_FORM",
-              "identifier": "saas-service-action:rda-packs-deactivate",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.rdapacks.deactivatesystemlevel"
-                  }
-                ]
-              },
-              "actionCondition": {
-                "actionControl": "SHOW_IF",
-                "operator": "AND",
-                "conditionalField": [
-                  {
-                    "conditionType": "EQUAL",
-                    "conditionValue": "ACTIVATED",
-                    "fieldId": "single_tenant_status"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:rdapacks:view",
-              "appName": "user-dashboard/rda-packs-view-deployed-artifacts",
-              "drillDownLinkField": "name",
-              "identifier": "launch.dashboard.rda-packs-view-deployed-artifacts",
-              "selectionType": "SINGLE",
-              "title": "View Activation Status",
-              "type": "GO_TO_APP_STATE",
-              "contextParamList": {
-                "contextParams": [
-                  {
-                    "paramKey": "activation_status_page_label",
-                    "paramId": "activation_status_page_label"
-                  }
-                ]
-              },
-              "actionCondition": {
-                "actionControl": "SHOW_IF",
-                "conditionalField": [
-                  {
-                    "conditionType": "NOT_EQUAL",
-                    "conditionValue": "NOT ACTIVATED",
-                    "fieldId": "status"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:rdapacks:view",
-              "appName": "user-dashboard/rda-packs-view-deployed-artifacts",
-              "identifier": "launch.dashboard.rda-packs-view-deployed-artifacts",
-              "selectionType": "SINGLE",
-              "title": "View Single Tenant Activation Status",
-              "type": "GO_TO_APP_STATE",
-              "contextParamList": {
-                "contextParams": [
-                  {
-                    "paramKey": "st_activation_status_page_label",
-                    "paramId": "activation_status_page_label"
-                  },
-                  {
-                    "paramKey": "single_tenant_activation_id",
-                    "paramId": "activation_id"
-                  }
-                ]
-              },
-              "actionCondition": {
-                "actionControl": "SHOW_IF",
-                "operator": "AND",
-                "conditionalField": [
-                  {
-                    "conditionType": "NOT_EQUAL",
-                    "conditionValue": "NOT ACTIVATED",
-                    "fieldId": "single_tenant_status"
-                  },
-                  {
-                    "conditionType": "EQUAL",
-                    "conditionValue": "true",
-                    "fieldId": "single_tenant"
-                  },
-                  {
-                    "conditionType": "NOT_EQUAL",
-                    "conditionValue": "NOT APPLICABLE",
-                    "fieldId": "single_tenant_status"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:rdapacks:view",
-              "appName": "user-dashboard/rda-packs-view-detail",
-              "drillDownLinkField": "name",
-              "identifier": "launch.dashboard.rda-packs-view-detail",
-              "selectionType": "SINGLE",
-              "title": "View Details",
-              "type": "GO_TO_APP_STATE",
-              "contextParamList": {
-                "contextParams": [
-                  {
-                    "paramKey": "name",
-                    "paramId": "pack_name"
-                  },
-                  {
-                    "paramKey": "version",
-                    "paramId": "pack_version"
-                  },
-                  {
-                    "paramKey": "view_detail_page_label",
-                    "paramId": "view_detail_page_label"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:rdapacks:delete",
-              "selectionType": "SINGLE",
-              "title": "Delete Package",
-              "type": "POPUP_FORM",
-              "identifier": "saas-service-action:rda-packs-delete",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.rdapacks.delete"
-                  }
-                ]
-              },
-              "actionCondition": {
-                "actionControl": "SHOW_IF",
-                "conditionalField": [
-                  {
-                    "conditionType": "EQUAL",
-                    "conditionValue": "NOT ACTIVATED",
-                    "fieldId": "status"
-                  }
-                ]
-              }
-            }
-          ],
-          "widget_id": "45694d2f"
+          "widget_id": "53447b4f"
         }
       ]
     }
