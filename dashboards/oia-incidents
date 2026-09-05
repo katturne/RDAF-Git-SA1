@@ -1,9 +1,11 @@
 {
-  "name": "oia-incidents",
-  "label": "Incidents",
-  "description": "Incidents For User",
-  "dashboard_style": "auto",
+  "name": "incidents",
+  "label": "Incidents with  External Tickets",
+  "description": "Incidents with  External Tickets",
+  "version": "23.5.18.1",
   "enabled": true,
+  "debug": true,
+  "dashboard_style": "tabbed",
   "stream": "oia-incidents-stream",
   "dashboard_type": "template",
   "template_variables": {
@@ -11,7 +13,7 @@
       "default": [
         "d2b1d314-99f1-495c-8315-ff4ccacc02c3"
       ],
-      "contextId": "USER_PROJECTS"
+      "contextId": "projectId"
     }
   },
   "status_poller": {
@@ -33,7 +35,7 @@
   },
   "dashboard_filters": {
     "time_filter": true,
-    "extra_filter": "project_id in {{PROJECT_ID}}",
+    "extra_filter": "project_id in {{PROJECT_ID}} and i_itsm_ticket_number != 'Not Available'",
     "default_time_filter_non_removable": true,
     "show_default_time_filter": false,
     "additional_datetime_column_filters": [
@@ -158,10 +160,28 @@
         "type": "TEXT"
       },
       {
+        "id": "i_itsm_ticket_number",
+        "label": "ITSM Ticket",
+        "type": "TEXT"
+      },
+      {
         "id": "i_tags",
         "label": "Tags",
         "type": "TEXT"
+      },
+      {
+        "id": "attrs_stack_name",
+        "label": "Stack Name",
+        "type": "TEXT"
+      },
+      {
+        "id": "attrs_node_id",
+        "label": "Node ID",
+        "type": "TEXT"
       }
+    ],
+    "default_time_filter_labels": [
+      "Last 24 hours"
     ],
     "group_filters": [
       {
@@ -195,7 +215,7 @@
         "ts_column": "timestamp",
         "agg": "value_count",
         "column": "incident_id",
-        "htmlTemplateForRow": "<span class='badge' style='background-color: {{'{{ row.i_priority_color }}'}}' > {{'{{ row.i_priority }}'}} - {{'{{ row.i_priority_label }}'}} </span>",
+        "htmlTemplateForRow": "<span class='badge' style='background-color: {{'{{ row.i_priority_color }}'}}' > {{'{{ row.i_priority_label }}'}} </span>",
         "duration_hours": 24,
         "type": "str"
       },
@@ -234,95 +254,228 @@
         "column": "project_id",
         "type": "str"
       }
-    ],
-    "default_time_filter_labels": [
-      "Last 24 hours"
     ]
   },
   "import": [
     {
-      "from": "oia-incidents-os-template",
-      "as": "incidents"
-    },
-    {
       "from": "oia-my-incidents",
       "as": "myincidents"
+    },
+    {
+      "from": "oia-incidents-os-template",
+      "as": "incidents"
     }
   ],
   "dashboard_sections": [
     {
-      "title": "Incidents",
+      "title": "incidents",
       "show_filter": true,
       "projects": [
         "ACME"
       ],
       "widgets": [
         {
-          "extends": "myincidents:incident_by_priority_pie_chart",
-          "min_width": 4,
-          "height": 4,
-          "max_width": 4,
+          "extends": "incidents:incident_tabular",
+          "min_width": 12,
+          "height": 12,
+          "max_width": 12,
           "widget_id": "94a3fc11"
+        }
+      ]
+    },
+    {
+      "title": "Incident Analytics",
+      "show_filter": true,
+      "projects": [
+        "ACME"
+      ],
+      "widgets": [
+        {
+          "title": "Total Incidents",
+          "widget_type": "counter",
+          "stream": "oia-incidents-stream",
+          "ts_column": "timestamp",
+          "duration_hours": 24,
+          "column": "incident_id",
+          "agg": "value_count",
+          "min_width": 3,
+          "height": 3,
+          "max_width": 3,
+          "type": "str",
+          "widget_id": "02be1e20"
         },
         {
-          "extends": "myincidents:assigned_to_pie_chart",
-          "min_width": 4,
-          "height": 4,
-          "max_width": 4,
-          "widget_id": "3f0cd6e8"
+          "title": "Open",
+          "widget_type": "counter",
+          "stream": "oia-incidents-stream",
+          "extra_filter": "i_state in ['Open', 'Assigned']",
+          "ts_column": "timestamp",
+          "duration_hours": 24,
+          "column": "incident_id",
+          "agg": "value_count",
+          "min_width": 3,
+          "height": 3,
+          "max_width": 3,
+          "type": "str",
+          "widget_id": "47f583d7"
+        },
+        {
+          "title": "Resolved",
+          "widget_type": "counter",
+          "stream": "oia-incidents-stream",
+          "extra_filter": "i_state is 'Resolved'",
+          "ts_column": "timestamp",
+          "duration_hours": 24,
+          "column": "incident_id",
+          "agg": "value_count",
+          "min_width": 3,
+          "height": 3,
+          "max_width": 3,
+          "type": "str",
+          "widget_id": "07fc4721"
+        },
+        {
+          "title": "Critical",
+          "widget_type": "counter",
+          "stream": "oia-incidents-stream",
+          "extra_filter": "i_priority_label is 'Critical'",
+          "ts_column": "timestamp",
+          "duration_hours": 24,
+          "column": "incident_id",
+          "agg": "value_count",
+          "min_width": 3,
+          "height": 3,
+          "max_width": 3,
+          "type": "str",
+          "widget_id": "e6ee9ba4"
+        },
+        {
+          "extends": "myincidents:incident_by_priority_pie_chart",
+          "min_width": 6,
+          "height": 6,
+          "max_width": 6,
+          "widget_id": "9566ee5b"
         },
         {
           "extends": "myincidents:incident_by_status_pie_chart",
-          "min_width": 4,
-          "height": 4,
-          "max_width": 4,
-          "widget_id": "6f779df6"
+          "min_width": 6,
+          "height": 6,
+          "max_width": 6,
+          "widget_id": "0e7e2c8b"
         },
         {
-          "extends": "incidents:incident_tabular",
-          "min_width": 12,
-          "height": 10,
-          "max_width": 12,
-          "widget_id": "52ce709d"
+          "extends": "incidents:incident_by_alert_source_pie_chart",
+          "min_width": 6,
+          "height": 6,
+          "max_width": 6,
+          "widget_id": "afcaf9f0"
         }
       ]
     }
   ],
   "pstream_dashboards": [
     {
-      "title": "Incidents",
+      "title": "incidents",
       "show_filter": true,
       "projects": [
         "ACME"
       ],
       "widgets": [
         {
-          "extends": "myincidents:incident_by_priority_pie_chart",
-          "min_width": 4,
-          "height": 4,
-          "max_width": 4,
+          "extends": "incidents:incident_tabular",
+          "min_width": 12,
+          "height": 12,
+          "max_width": 12,
           "widget_id": "94a3fc11"
+        }
+      ]
+    },
+    {
+      "title": "Incident Analytics",
+      "show_filter": true,
+      "projects": [
+        "ACME"
+      ],
+      "widgets": [
+        {
+          "title": "Total Incidents",
+          "widget_type": "counter",
+          "stream": "oia-incidents-stream",
+          "ts_column": "timestamp",
+          "duration_hours": 24,
+          "column": "incident_id",
+          "agg": "value_count",
+          "min_width": 3,
+          "height": 3,
+          "max_width": 3,
+          "type": "str",
+          "widget_id": "02be1e20"
         },
         {
-          "extends": "myincidents:assigned_to_pie_chart",
-          "min_width": 4,
-          "height": 4,
-          "max_width": 4,
-          "widget_id": "3f0cd6e8"
+          "title": "Open",
+          "widget_type": "counter",
+          "stream": "oia-incidents-stream",
+          "extra_filter": "i_state in ['Open', 'Assigned']",
+          "ts_column": "timestamp",
+          "duration_hours": 24,
+          "column": "incident_id",
+          "agg": "value_count",
+          "min_width": 3,
+          "height": 3,
+          "max_width": 3,
+          "type": "str",
+          "widget_id": "47f583d7"
+        },
+        {
+          "title": "Resolved",
+          "widget_type": "counter",
+          "stream": "oia-incidents-stream",
+          "extra_filter": "i_state is 'Resolved'",
+          "ts_column": "timestamp",
+          "duration_hours": 24,
+          "column": "incident_id",
+          "agg": "value_count",
+          "min_width": 3,
+          "height": 3,
+          "max_width": 3,
+          "type": "str",
+          "widget_id": "07fc4721"
+        },
+        {
+          "title": "Critical",
+          "widget_type": "counter",
+          "stream": "oia-incidents-stream",
+          "extra_filter": "i_priority_label is 'Critical'",
+          "ts_column": "timestamp",
+          "duration_hours": 24,
+          "column": "incident_id",
+          "agg": "value_count",
+          "min_width": 3,
+          "height": 3,
+          "max_width": 3,
+          "type": "str",
+          "widget_id": "e6ee9ba4"
+        },
+        {
+          "extends": "myincidents:incident_by_priority_pie_chart",
+          "min_width": 6,
+          "height": 6,
+          "max_width": 6,
+          "widget_id": "9566ee5b"
         },
         {
           "extends": "myincidents:incident_by_status_pie_chart",
-          "min_width": 4,
-          "height": 4,
-          "max_width": 4,
-          "widget_id": "6f779df6"
+          "min_width": 6,
+          "height": 6,
+          "max_width": 6,
+          "widget_id": "0e7e2c8b"
         },
         {
-          "extends": "incidents:incident_tabular",
-          "min_width": 12,
-          "height": 10,
-          "max_width": 12,
-          "widget_id": "52ce709d"
+          "extends": "incidents:incident_by_alert_source_pie_chart",
+          "min_width": 6,
+          "height": 6,
+          "max_width": 6,
+          "widget_id": "afcaf9f0"
         }
       ]
     }
