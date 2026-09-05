@@ -1,76 +1,241 @@
 {
-  "name": "inventory_collection_main_app",
-  "label": "Inventory Collection Main App",
-  "description": "Inventory Collection Main App",
-  "version": "25.04.27",
-  "dashboard_folder": "InventoryCollection",
+  "name": "incident-details-insights",
+  "label": "Incident Insights",
+  "description": "OIA Insights for Incident",
+  "version": "23.12.4",
   "enabled": true,
-  "custom_context": {
-    "rda-dashboard-live-edit": true
+  "exportable": false,
+  "dashboard_style": "auto",
+  "status_poller": {},
+  "dashboard_type": "template",
+  "template_variables": {
+    "PROJECT_ID": {
+      "default": null,
+      "contextId": "projectid"
+    },
+    "INCIDENT_ID": {
+      "default": null,
+      "contextId": "incidentid"
+    }
   },
   "dashboard_filters": {
-    "time_filter": true,
+    "time_filter": false,
     "columns_filter": []
   },
-  "dashboard_generator": {
-    "attachment": "add_pages_for_activated_collection_packs"
-  },
-  "dashboard_sections": [],
-  "dashboard_type": "app",
-  "dashboard_groups": {
-    "groupAlerts": {
-      "icon": "alert.svg",
-      "label": "Alerts and Incidents"
-    },
-    "groupPolicies": {
-      "icon": "alert.svg",
-      "label": "Policies"
-    },
-    "groupMetrics": {
-      "icon": "topology.svg",
-      "label": "Metrics"
-    },
-    "groupData": {
-      "icon": "overall.svg",
-      "label": "Events"
-    },
-    "groupAssetNavigator": {
-      "icon": "activities.svg",
-      "label": "Asset Navigator"
-    },
-    "groupTopo": {
-      "icon": "topology.svg",
-      "label": "Topology"
-    },
-    "groupInventory": {
-      "icon": "hardware.svg",
-      "label": "Inventory"
-    },
-    "groupStatus": {
-      "icon": "history.svg",
-      "label": "Status"
-    },
-    "groupConfigure": {
-      "icon": "settings.svg",
-      "label": "Configure and Manage"
-    }
-  },
-  "dashboard_pages": [
+  "dashboard_sections": [
     {
-      "name": "rda-mgmt-page-credentials",
-      "label": "All Credentials",
-      "icon": "credentials.svg"
-    },
-    {
-      "name": "rda-mgmt-page-blueprints",
-      "label": "All Blueprints",
-      "icon": "blueprint.svg"
+      "title": "Insights",
+      "show_filter": false,
+      "projects": [],
+      "widgets": [
+        {
+          "title": "Similar Incidents",
+          "widget_type": "portal_list",
+          "min_width": 12,
+          "height": 4,
+          "max_width": 12,
+          "refreshRequired": false,
+          "timebased": false,
+          "exportSupported": false,
+          "api-endpoint": {
+            "service-name": "cfxdimensions-app-irm_service",
+            "namespace": "io.cfx.dimensions.app",
+            "version": "*",
+            "methodName": "invokeAppApi:getNextSteps",
+            "stringified-params": true,
+            "parse-output": false,
+            "params": [
+              {
+                "section_title": "Similar Incidents",
+                "grouping_field": "i_state",
+                "value_groups": {
+                  "Opened": [
+                    "Open",
+                    "ACTIVE",
+                    "New",
+                    "Assigned"
+                  ],
+                  "Resolved": [
+                    "Resolved"
+                  ]
+                }
+              }
+            ]
+          },
+          "widget_template": "cfx-oia/recommendation",
+          "widget_id": "similar_incidents"
+        },
+        {
+          "title": "How Similar Incidents are Resolved?",
+          "widget_type": "portal_list",
+          "min_width": 12,
+          "height": 4,
+          "max_width": 12,
+          "refreshRequired": false,
+          "timebased": false,
+          "exportSupported": false,
+          "api-endpoint": {
+            "service-name": "cfxdimensions-app-irm_service",
+            "namespace": "io.cfx.dimensions.app",
+            "version": "*",
+            "methodName": "invokeAppApi:getNextSteps",
+            "stringified-params": true,
+            "parse-output": false,
+            "params": [
+              {
+                "section_title": "How Similar Incidents are Resolved?",
+                "grouping_field": "i_resolution_code",
+                "value_type": "PERCENT",
+                "label_keys": [
+                  "user_name",
+                  "user"
+                ]
+              }
+            ]
+          },
+          "widget_template": "cfx-oia/recommendation",
+          "widget_id": "resolution_code"
+        },
+        {
+          "title": "Who Resolved?",
+          "widget_type": "portal_list",
+          "min_width": 12,
+          "height": 4,
+          "max_width": 12,
+          "refreshRequired": false,
+          "timebased": false,
+          "exportSupported": false,
+          "api-endpoint": {
+            "service-name": "cfxdimensions-app-irm_service",
+            "namespace": "io.cfx.dimensions.app",
+            "version": "*",
+            "methodName": "invokeAppApi:getNextSteps",
+            "stringified-params": true,
+            "parse-output": false,
+            "params": [
+              {
+                "section_title": "Who Resolved?",
+                "grouping_field": "i_resolved_by",
+                "value_type": "PERCENT",
+                "label_keys": [
+                  "user_name",
+                  "user"
+                ]
+              }
+            ]
+          },
+          "widget_template": "cfx-oia/recommendation",
+          "widget_id": "resolved_user"
+        }
+      ]
     }
   ],
-  "attachments": [
+  "pstream_dashboards": [
     {
-      "name": "add_pages_for_activated_collection_packs",
-      "value": "{%- set existing_groups = dashboard[\"dashboard_groups\"] -%}\n{%- set d_pages = [] -%}\n{%- set d_groups = [] -%}\n\n{%- set dlist = engine.query_stream_data(stream=\"rda_packs_dynamic_groups_and_pages\", cfxql_query=\"customer_tag is empty\") or [] -%}\n\n{%- if dlist -%}\n\n            {# Process the dlist to populate dashboard groups and pages #}\n            {%- for i in dlist -%}\n                {%- set page_name = i[\"dashboard_page_name\"] -%}\n                {%- if page_name != \"device_SNMP_Traps_from_alerts_fault\"\n                      and page_name != \"device_syslog_from_alert_fault\"\n                      and page_name != \"device_alerts_from_alert_fault\" -%}\n\n                    {%- set dgroup_ = {\n                        \"g_name\": i[\"dashboard_group_name\"],\n                        \"g_label\": i[\"dashboard_group_label\"],\n                        \"g_icon\": i[\"dashboard_group_icon\"]\n                    } -%}\n                    {{ d_groups.append(dgroup_) }}\n\n                    {%- set dpage_ = {\n                        \"name\": i[\"dashboard_page_name\"],\n                        \"label\": i[\"dashboard_page_label\"],\n                        \"icon\": i[\"dashboard_page_icon\"],\n                        \"group\": i[\"dashboard_page_group\"]\n                    } -%}\n                    {{ d_pages.append(dpage_) }}\n\n                {%- endif -%}\n            {%- endfor -%}\n\n            {# Update dashboard groups #}\n            {%- for group in d_groups -%}\n                {%- if group.g_name not in existing_groups | map(attribute='g_name') | list -%}\n                    {%- set _ = dashboard[\"dashboard_groups\"].update({\n                        group.g_name: {\n                            \"icon\": group.g_icon,\n                            \"label\": group.g_label\n                        }\n                    }) -%}\n                {%- endif -%}\n            {%- endfor -%}\n\n            {# Update dashboard pages #}\n            {%- for page in d_pages -%}\n                {%- set _ = dashboard[\"dashboard_pages\"].append({\n                    \"name\": page.name,\n                    \"label\": page.label,\n                    \"icon\": page.icon,\n                    \"group\": page.group\n                }) -%}\n            {%- endfor -%}\n\n{%- endif -%}"
+      "title": "Insights",
+      "show_filter": false,
+      "projects": [],
+      "widgets": [
+        {
+          "title": "Similar Incidents",
+          "widget_type": "portal_list",
+          "min_width": 12,
+          "height": 4,
+          "max_width": 12,
+          "refreshRequired": false,
+          "timebased": false,
+          "exportSupported": false,
+          "api-endpoint": {
+            "service-name": "cfxdimensions-app-irm_service",
+            "namespace": "io.cfx.dimensions.app",
+            "version": "*",
+            "methodName": "invokeAppApi:getNextSteps",
+            "stringified-params": true,
+            "parse-output": false,
+            "params": [
+              {
+                "section_title": "Similar Incidents",
+                "grouping_field": "i_state",
+                "value_groups": {
+                  "Opened": [
+                    "Open",
+                    "ACTIVE",
+                    "New",
+                    "Assigned"
+                  ],
+                  "Resolved": [
+                    "Resolved"
+                  ]
+                }
+              }
+            ]
+          },
+          "widget_template": "cfx-oia/recommendation",
+          "widget_id": "similar_incidents"
+        },
+        {
+          "title": "How Similar Incidents are Resolved?",
+          "widget_type": "portal_list",
+          "min_width": 12,
+          "height": 4,
+          "max_width": 12,
+          "refreshRequired": false,
+          "timebased": false,
+          "exportSupported": false,
+          "api-endpoint": {
+            "service-name": "cfxdimensions-app-irm_service",
+            "namespace": "io.cfx.dimensions.app",
+            "version": "*",
+            "methodName": "invokeAppApi:getNextSteps",
+            "stringified-params": true,
+            "parse-output": false,
+            "params": [
+              {
+                "section_title": "How Similar Incidents are Resolved?",
+                "grouping_field": "i_resolution_code",
+                "value_type": "PERCENT",
+                "label_keys": [
+                  "user_name",
+                  "user"
+                ]
+              }
+            ]
+          },
+          "widget_template": "cfx-oia/recommendation",
+          "widget_id": "resolution_code"
+        },
+        {
+          "title": "Who Resolved?",
+          "widget_type": "portal_list",
+          "min_width": 12,
+          "height": 4,
+          "max_width": 12,
+          "refreshRequired": false,
+          "timebased": false,
+          "exportSupported": false,
+          "api-endpoint": {
+            "service-name": "cfxdimensions-app-irm_service",
+            "namespace": "io.cfx.dimensions.app",
+            "version": "*",
+            "methodName": "invokeAppApi:getNextSteps",
+            "stringified-params": true,
+            "parse-output": false,
+            "params": [
+              {
+                "section_title": "Who Resolved?",
+                "grouping_field": "i_resolved_by",
+                "value_type": "PERCENT",
+                "label_keys": [
+                  "user_name",
+                  "user"
+                ]
+              }
+            ]
+          },
+          "widget_template": "cfx-oia/recommendation",
+          "widget_id": "resolved_user"
+        }
+      ]
     }
   ]
 }
