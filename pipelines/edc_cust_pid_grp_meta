@@ -1,58 +1,17 @@
-@c:new-block
- --> @dm:empty
- --> @dm:addrow name='edc_cust_pid_sw' and limit=5
- --> #dm:query-persistent-stream
- --> @dm:add-missing-columns columns="key" and value='key'
- --> @dm:add-missing-columns columns="source" and value='software'
- --> @dm:save name='temp-sw-data'
- --> @dm:save name='added-sw-data'
- --> @c:new-block
- --> @dm:empty
- --> @exec:define-function name="generate_access_token"
- --> @dm:recall name='generate_token_creds'
- ## --> @dm:empty
-
- --> @exec:run-pipeline name ="edc_generate_token" & ignore_failures = "no"
- ## --> @dm:addrow key='key'
-
- --> @dm:add-missing-columns columns="key" and value='key'
- --> @dm:eval current_time_ms="int(time_now_as_ms())"
- --> @dm:eval token_expiry_time='current_time_ms+30000'
- --> @dm:save name='temp-expiry-time'
- --> @exec:end-function
- --> @c:new-block
- --> @dm:recall name='temp-sw-data'
- --> @dm:add-missing-columns columns="key" and value='key'
- --> @dm:manipulate-string from="sw_version,sw_os_type,product_id" and func="concat_columns" and to="unique_payload_inputs"
- --> @dm:dedup columns ='unique_payload_inputs'
- --> @dm:counter
- --> @dm:save name='temp-unique-sw-data'
- --> @dm:save name='unique-added-sw-data'
- --> @c:new-block
- --> @dm:empty
- --> @exec:call-function name='generate_access_token'
- --> @c:data-loop columns='sw_version,sw_os_type,product_id,source,COUNTER' and dataset='temp-unique-sw-data'
- ## --> @dm:recall name='temp-unique-sw-data'
-
- --> @dm:empty
- --> @dm:addrow key='key'
- --> @dm:eval current_time_ms_loop="int(time_now_as_ms())"
- --> @dm:save name='temp-loop-time'
- --> @dm:save name='test-loop-time'
- --> @dm:enrich dict='temp-expiry-time' and src_key_cols='key' and dict_key_cols='key' and enrich_cols='token_expiry_time,access_token,expires_in,token_type' and replace_values='yes'
- --> *exec:if-condition token_expiry_time is null or current_time_ms_loop  is greater than or equal to token_expiry_time
- --> @exec:call-function name='generate_access_token'
- --> @exec:end-if
- --> @dm:recall name='temp-expiry-time'
- --> @dm:add-missing-columns columns='sw_version' and value='$sw_version'
- --> @dm:add-missing-columns columns='sw_os_type' and value='$sw_os_type'
- --> @dm:eval sw_os_type="('IOS XR' if sw_os_type=='IOS-XR' else sw_os_type)"
- --> @dm:add-missing-columns columns='product_id' and value='$product_id'
- --> @dm:add-missing-columns columns='source' and value='$source'
- --> @exec:run-pipeline name ="edc_sw_get_data" & ignore_failures = "no"
- --> @dm:save name='temp-token'
- --> @dm:selectcolumns exclude='^(access_token)$'
- --> @dm:save name='temp-sweol' and append ='yes'
- --> @c:new-block
- --> @dm:recall name='temp-sweol'
- --> @dm:save name='test-sweol'
+folder: Default
+name: edc_cust_pid_grp
+description: test pipeline
+data_path: pipelines/data/edc_cust_pid_grp/2025-05-7_1/data.json
+usecase: ''
+category: ''
+sources: {}
+artifacts:
+- artifact_type: dataset
+  artifact_name: edc-cusomer_pid_form
+  access: write
+- artifact_type: dataset
+  artifact_name: edc_cust_contract_pid
+  access: write
+version: 2025-05-7_1
+file_type: json
+checksum: 1c24a113
