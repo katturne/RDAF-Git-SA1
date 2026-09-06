@@ -1,444 +1,293 @@
 {
-  "name": "onboarded_customer_list",
-  "label": "Onboarded Customers",
-  "description": "Onboarded Customers List",
-  "version": "2024.03.16",
-  "enabled": false,
+  "name": "rca_regression_dashboard",
+  "label": "RCA Regression",
+  "description": "Template dashboard for RCA Regression",
+  "enabled": true,
+  "debug": true,
   "live_edit": true,
-  "dashboard_style": "auto",
   "dashboard_type": "template",
   "template_variables": {
-    "PROJ_ID": {
-      "contextId": "project_id"
+    "METRIC_ID": {
+      "contextId": [
+        "marker",
+        "metric_id"
+      ]
     },
-    "CUST_TAG": {
-      "contextId": "tag1"
+    "METRIC_NAME": {
+      "contextId": [
+        "marker",
+        "metric_label"
+      ]
+    },
+    "ASSET": {
+      "contextId": [
+        "marker",
+        "asset_id"
+      ]
+    },
+    "MODEL_NAME": {
+      "contextId": [
+        "marker",
+        "job_name"
+      ]
+    },
+    "METRIC_UNIT": {
+      "contextId": [
+        "marker",
+        "unit"
+      ]
+    },
+    "STREAM": {
+      "contextId": [
+        "marker",
+        "stream_name"
+      ],
+      "default": "oia-ml-metrics-regression-output"
+    },
+    "INCIDENT_OT": {
+      "contextId": "i_cfx_incident_occurred"
     }
   },
-  "stream": "rda_system_organizations",
   "dashboard_filters": {
     "time_filter": true,
-    "default_time_filter_labels": [
-      "Last 12 months"
-    ],
-    "default_time_filter_non_removable": true,
-    "columns_filter": [
-      {
-        "id": "customerId",
-        "label": "ID",
-        "type": "TEXT"
-      },
-      {
-        "id": "customer_tag",
-        "label": "Customer",
-        "type": "TEXT"
-      },
-      {
-        "id": "tag1",
-        "label": "Customer Label",
-        "type": "TEXT"
-      },
-      {
-        "id": "projectId",
-        "label": "Project ID",
-        "type": "TEXT"
-      },
-      {
-        "id": "inventory",
-        "label": "Total Devices",
-        "type": "DOUBLE"
-      },
-      {
-        "id": "id",
-        "label": "ID",
-        "type": "FIXED_VALUE"
-      }
-    ]
+    "default_time_range": {
+      "from_time": "{{INCIDENT_OT}}",
+      "from_time_delta_hours": -12,
+      "to_time": "{{INCIDENT_OT}}",
+      "to_time_delta_hours": 4,
+      "label": "Incident Time"
+    }
   },
   "dashboard_sections": [
     {
-      "title": "Customers",
+      "title": "Summary",
       "show_filter": true,
       "widgets": [
         {
-          "widget_type": "label",
-          "max_width": 12,
-          "height": 0.5,
-          "min_width": 12,
-          "label": "<div style='text-align:center;width:100%;'><h1><a style='text-decoration:none;color:#0066ff;' target='_blank'>List of Customers</a></h1></div>",
-          "widget_id": "33317e49"
+          "widget_type": "pie_chart",
+          "title": "Anomalies by Severity",
+          "stream": "{{STREAM}}",
+          "extra_filter": "anomalies is not None and job_name is '{{MODEL_NAME}}'",
+          "min_width": 6,
+          "height": 6,
+          "max_width": 6,
+          "ts_column": "timestamp",
+          "column": "_id",
+          "agg": "value_count",
+          "group_by": [
+            "anomalies_severity"
+          ],
+          "style": {
+            "color-map": {
+              "High": [
+                "#ef5350",
+                "#ffffff"
+              ],
+              "Medium": [
+                "#FFA726",
+                "#ffffff"
+              ],
+              "Low": [
+                "#388e3c",
+                "#ffffff"
+              ]
+            }
+          },
+          "type": "str",
+          "widget_id": "7eba4b7b"
         },
         {
-          "title": "Customers",
+          "title": "Anomalies",
           "widget_type": "tabular",
-          "ts_column": "createdAt",
-          "stream": "rda_system_organizations",
-          "extra_filter": "customerName is not 'cfx_rda_quarantine'",
-          "max_width": 12,
-          "height": 12,
-          "min_width": 12,
+          "stream": "{{STREAM}}",
+          "extra_filter": "anomalies is not None and job_name is '{{MODEL_NAME}}'",
+          "min_width": 6,
+          "height": 6,
+          "max_width": 6,
+          "paginated": true,
           "remote_searchable": true,
-          "remote_searchable_cols": [
-            "tag1"
+          "max_rows": 50,
+          "sorting": [
+            {
+              "timestamp": "desc"
+            }
           ],
           "columns": {
-            "customerId": {
-              "title": "ID",
-              "type": "TEXT",
-              "key": true,
-              "visible": false
+            "timestamp": "Timestamp",
+            "asset_id": "Asset ID",
+            "asset_name": "Asset Name",
+            "metric_name": "Metric Name",
+            "severity_color": {
+              "title": "Sev_2",
+              "type": "COLOR-MAP",
+              "source-column": "anomalies_severity",
+              "color-map": {
+                "High": "#ef5350",
+                "Medium": "#FFA726",
+                "Low": "#388e3c"
+              }
             },
-            "tag1": {
-              "title": "Customer",
-              "type": "TEXT",
-              "key": true,
-              "visible": true
-            },
-            "customer_tag": {
-              "title": "Customer Tag",
-              "type": "TEXT",
-              "key": true,
-              "visible": false
-            },
-            "projectId": {
-              "title": "Project ID",
-              "type": "TEXT",
-              "key": true,
-              "visible": false
-            },
-            "createdAt": {
-              "title": "Timestamp",
-              "type": "DATETIME",
-              "visible": false
+            "anomalies_severity": {
+              "title": "Severity",
+              "htmlTemplateForRow": "<span class='badge' style='background-color: {{'{{ row.severity_color }}'}}' > {{'{{ row.anomalies_severity }}'}} </span>",
+              "defaultWidth": 150
             }
           },
           "custom_columns": [
             {
-              "id": "adminApp",
-              "label": "Customer Admin App",
-              "expr": "'Admin App'",
-              "visible": true,
-              "key": true
-            },
-            {
-              "id": "opsApp",
-              "label": "Customer Ops App",
-              "expr": "'Ops App'",
-              "visible": true,
-              "key": true
+              "id": "value1",
+              "label": "Value",
+              "expr": "round(value,2)"
             }
           ],
-          "actions": [
+          "widget_id": "94a3fc11"
+        },
+        {
+          "widget_type": "shaded_chart_multisource",
+          "title": "Forecasting and Anomaly Detection ({{METRIC_NAME}} - {{ASSET}})",
+          "show-markers": true,
+          "max_width": 12,
+          "min_width": 12,
+          "height": 8,
+          "chartProperties": {
+            "yAxisLabel": "{{METRIC_NAME}} ({{METRIC_UNIT}})",
+            "xAxisLabel": "Time"
+          },
+          "sources": [
             {
-              "appName": "user-dashboard/customer_ops_application",
-              "permission": "aia:page:view",
-              "contextParamList": {
-                "contextParams": [
-                  {
-                    "paramKey": "projectId",
-                    "paramId": "project_id"
-                  },
-                  {
-                    "paramKey": "customerId",
-                    "paramId": "customer_id"
-                  },
-                  {
-                    "paramKey": "tag1",
-                    "paramId": "a_en_customer_tag"
-                  },
-                  {
-                    "paramKey": "tag1",
-                    "paramId": "attrs_customer_tag"
-                  },
-                  {
-                    "paramKey": "tag1",
-                    "paramId": "customerTag"
-                  },
-                  {
-                    "paramKey": "tag1",
-                    "paramId": "customer_tag"
-                  }
-                ]
-              },
-              "drillDownLinkField": "tag1",
-              "identifier": "tag1",
-              "selectionType": "SINGLE",
-              "stateName": "app.featureapp",
-              "title": "View Details",
-              "type": "GO_TO_APP_STATE"
-            },
-            {
-              "appName": "user-dashboard/customer_ops_application",
-              "permission": "rda:page:view",
-              "drillDownLinkField": "opsApp",
-              "identifier": "customerName",
-              "selectionType": "SINGLE",
-              "stateName": "app.featureapp",
-              "title": "Customer Ops App",
-              "type": "GO_TO_APP_STATE",
-              "contextParamList": {
-                "contextParams": [
-                  {
-                    "paramKey": "projectId",
-                    "paramId": "project_id"
-                  },
-                  {
-                    "paramKey": "customerId",
-                    "paramId": "customer_id"
-                  },
-                  {
-                    "paramKey": "tag1",
-                    "paramId": "a_en_customer_tag"
-                  },
-                  {
-                    "paramKey": "tag1",
-                    "paramId": "attrs_customer_tag"
-                  },
-                  {
-                    "paramKey": "tag1",
-                    "paramId": "customerTag"
-                  },
-                  {
-                    "paramKey": "tag1",
-                    "paramId": "customer_tag"
-                  }
-                ]
-              }
-            },
-            {
-              "appName": "user-dashboard/rda-packs-customer-all",
-              "permission": "rda:page:view",
-              "identifier": "tag1",
-              "selectionType": "SINGLE",
-              "stateName": "app.featureapp",
-              "drillDownLinkField": "adminApp",
-              "title": "Customer Admin",
-              "type": "GO_TO_APP_STATE",
-              "contextParamList": {
-                "contextParams": [
-                  {
-                    "paramKey": "projectId",
-                    "paramId": "project_id"
-                  },
-                  {
-                    "paramKey": "customerId",
-                    "paramId": "customer_id"
-                  },
-                  {
-                    "paramKey": "tag1",
-                    "paramId": "a_en_customer_tag"
-                  },
-                  {
-                    "paramKey": "tag1",
-                    "paramId": "attrs_customer_tag"
-                  },
-                  {
-                    "paramKey": "tag1",
-                    "paramId": "customerTag"
-                  },
-                  {
-                    "paramKey": "tag1",
-                    "paramId": "customer_tag"
-                  }
-                ]
-              }
+              "type": "train",
+              "downsample": false,
+              "stream": "{{STREAM}}",
+              "extra_filter": "job_name is '{{MODEL_NAME}}' and status is 'Success'",
+              "ts_column": "timestamp",
+              "baseline_column": "baseline",
+              "anomalies_column": "anomalies",
+              "predicted_column": "predicted",
+              "predicted_anomalies": "predicted_anomalies",
+              "upperBound_column": "upperBound",
+              "lowerBound_column": "lowerBound",
+              "duration_hours": 1000000,
+              "synchronized-group": 0
             }
           ],
-          "widget_id": "79ae514e"
+          "widget_id": "7a134625"
         }
       ]
     }
   ],
   "pstream_dashboards": [
     {
-      "title": "Customers",
+      "title": "Summary",
       "show_filter": true,
       "widgets": [
         {
-          "widget_type": "label",
-          "max_width": 12,
-          "height": 0.5,
-          "min_width": 12,
-          "label": "<div style='text-align:center;width:100%;'><h1><a style='text-decoration:none;color:#0066ff;' target='_blank'>List of Customers</a></h1></div>",
-          "widget_id": "33317e49"
+          "widget_type": "pie_chart",
+          "title": "Anomalies by Severity",
+          "stream": "{{STREAM}}",
+          "extra_filter": "anomalies is not None and job_name is '{{MODEL_NAME}}'",
+          "min_width": 6,
+          "height": 6,
+          "max_width": 6,
+          "ts_column": "timestamp",
+          "column": "_id",
+          "agg": "value_count",
+          "group_by": [
+            "anomalies_severity"
+          ],
+          "style": {
+            "color-map": {
+              "High": [
+                "#ef5350",
+                "#ffffff"
+              ],
+              "Medium": [
+                "#FFA726",
+                "#ffffff"
+              ],
+              "Low": [
+                "#388e3c",
+                "#ffffff"
+              ]
+            }
+          },
+          "type": "str",
+          "widget_id": "7eba4b7b"
         },
         {
-          "title": "Customers",
+          "title": "Anomalies",
           "widget_type": "tabular",
-          "ts_column": "createdAt",
-          "stream": "rda_system_organizations",
-          "extra_filter": "customerName is not 'cfx_rda_quarantine'",
-          "max_width": 12,
-          "height": 12,
-          "min_width": 12,
+          "stream": "{{STREAM}}",
+          "extra_filter": "anomalies is not None and job_name is '{{MODEL_NAME}}'",
+          "min_width": 6,
+          "height": 6,
+          "max_width": 6,
+          "paginated": true,
           "remote_searchable": true,
-          "remote_searchable_cols": [
-            "tag1"
+          "max_rows": 50,
+          "sorting": [
+            {
+              "timestamp": "desc"
+            }
           ],
           "columns": {
-            "customerId": {
-              "title": "ID",
-              "type": "TEXT",
-              "key": true,
-              "visible": false
+            "timestamp": "Timestamp",
+            "asset_id": "Asset ID",
+            "asset_name": "Asset Name",
+            "metric_name": "Metric Name",
+            "severity_color": {
+              "title": "Sev_2",
+              "type": "COLOR-MAP",
+              "source-column": "anomalies_severity",
+              "color-map": {
+                "High": "#ef5350",
+                "Medium": "#FFA726",
+                "Low": "#388e3c"
+              }
             },
-            "tag1": {
-              "title": "Customer",
-              "type": "TEXT",
-              "key": true,
-              "visible": true
-            },
-            "customer_tag": {
-              "title": "Customer Tag",
-              "type": "TEXT",
-              "key": true,
-              "visible": false
-            },
-            "projectId": {
-              "title": "Project ID",
-              "type": "TEXT",
-              "key": true,
-              "visible": false
-            },
-            "createdAt": {
-              "title": "Timestamp",
-              "type": "DATETIME",
-              "visible": false
+            "anomalies_severity": {
+              "title": "Severity",
+              "htmlTemplateForRow": "<span class='badge' style='background-color: {{'{{ row.severity_color }}'}}' > {{'{{ row.anomalies_severity }}'}} </span>",
+              "defaultWidth": 150
             }
           },
           "custom_columns": [
             {
-              "id": "adminApp",
-              "label": "Customer Admin App",
-              "expr": "'Admin App'",
-              "visible": true,
-              "key": true
-            },
-            {
-              "id": "opsApp",
-              "label": "Customer Ops App",
-              "expr": "'Ops App'",
-              "visible": true,
-              "key": true
+              "id": "value1",
+              "label": "Value",
+              "expr": "round(value,2)"
             }
           ],
-          "actions": [
+          "widget_id": "94a3fc11"
+        },
+        {
+          "widget_type": "shaded_chart_multisource",
+          "title": "Forecasting and Anomaly Detection ({{METRIC_NAME}} - {{ASSET}})",
+          "show-markers": true,
+          "max_width": 12,
+          "min_width": 12,
+          "height": 8,
+          "chartProperties": {
+            "yAxisLabel": "{{METRIC_NAME}} ({{METRIC_UNIT}})",
+            "xAxisLabel": "Time"
+          },
+          "sources": [
             {
-              "appName": "user-dashboard/customer_ops_application",
-              "permission": "aia:page:view",
-              "contextParamList": {
-                "contextParams": [
-                  {
-                    "paramKey": "projectId",
-                    "paramId": "project_id"
-                  },
-                  {
-                    "paramKey": "customerId",
-                    "paramId": "customer_id"
-                  },
-                  {
-                    "paramKey": "tag1",
-                    "paramId": "a_en_customer_tag"
-                  },
-                  {
-                    "paramKey": "tag1",
-                    "paramId": "attrs_customer_tag"
-                  },
-                  {
-                    "paramKey": "tag1",
-                    "paramId": "customerTag"
-                  },
-                  {
-                    "paramKey": "tag1",
-                    "paramId": "customer_tag"
-                  }
-                ]
-              },
-              "drillDownLinkField": "tag1",
-              "identifier": "tag1",
-              "selectionType": "SINGLE",
-              "stateName": "app.featureapp",
-              "title": "View Details",
-              "type": "GO_TO_APP_STATE"
-            },
-            {
-              "appName": "user-dashboard/customer_ops_application",
-              "permission": "rda:page:view",
-              "drillDownLinkField": "opsApp",
-              "identifier": "customerName",
-              "selectionType": "SINGLE",
-              "stateName": "app.featureapp",
-              "title": "Customer Ops App",
-              "type": "GO_TO_APP_STATE",
-              "contextParamList": {
-                "contextParams": [
-                  {
-                    "paramKey": "projectId",
-                    "paramId": "project_id"
-                  },
-                  {
-                    "paramKey": "customerId",
-                    "paramId": "customer_id"
-                  },
-                  {
-                    "paramKey": "tag1",
-                    "paramId": "a_en_customer_tag"
-                  },
-                  {
-                    "paramKey": "tag1",
-                    "paramId": "attrs_customer_tag"
-                  },
-                  {
-                    "paramKey": "tag1",
-                    "paramId": "customerTag"
-                  },
-                  {
-                    "paramKey": "tag1",
-                    "paramId": "customer_tag"
-                  }
-                ]
-              }
-            },
-            {
-              "appName": "user-dashboard/rda-packs-customer-all",
-              "permission": "rda:page:view",
-              "identifier": "tag1",
-              "selectionType": "SINGLE",
-              "stateName": "app.featureapp",
-              "drillDownLinkField": "adminApp",
-              "title": "Customer Admin",
-              "type": "GO_TO_APP_STATE",
-              "contextParamList": {
-                "contextParams": [
-                  {
-                    "paramKey": "projectId",
-                    "paramId": "project_id"
-                  },
-                  {
-                    "paramKey": "customerId",
-                    "paramId": "customer_id"
-                  },
-                  {
-                    "paramKey": "tag1",
-                    "paramId": "a_en_customer_tag"
-                  },
-                  {
-                    "paramKey": "tag1",
-                    "paramId": "attrs_customer_tag"
-                  },
-                  {
-                    "paramKey": "tag1",
-                    "paramId": "customerTag"
-                  },
-                  {
-                    "paramKey": "tag1",
-                    "paramId": "customer_tag"
-                  }
-                ]
-              }
+              "type": "train",
+              "downsample": false,
+              "stream": "{{STREAM}}",
+              "extra_filter": "job_name is '{{MODEL_NAME}}' and status is 'Success'",
+              "ts_column": "timestamp",
+              "baseline_column": "baseline",
+              "anomalies_column": "anomalies",
+              "predicted_column": "predicted",
+              "predicted_anomalies": "predicted_anomalies",
+              "upperBound_column": "upperBound",
+              "lowerBound_column": "lowerBound",
+              "duration_hours": 1000000,
+              "synchronized-group": 0
             }
           ],
-          "widget_id": "79ae514e"
+          "widget_id": "7a134625"
         }
       ]
     }
