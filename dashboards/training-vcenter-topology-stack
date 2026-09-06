@@ -1,117 +1,122 @@
 {
-  "name": "incident-details-app",
-  "label": "Incident Details",
-  "description": "Incident Details",
-  "version": "24.9.18.1",
+  "name": "training-vcenter-topology-stack",
+  "label": "vCenter Asset Navigator",
+  "description": "vCenter Asset Navigator",
   "enabled": true,
-  "exportable": false,
-  "status_poller": {},
-  "dashboard_type": "app",
-  "dashboard_folder": "Default",
-  "template_variables": {},
-  "context_enrichment": {
-    "stream": "oia-incidents-stream",
-    "enrich_columns": [
-      "i_created_ts",
-      "attrs_stack_name",
-      "attrs_node_id",
-      "attrs_metric_asset_id",
-      "i_cluster"
-    ],
-    "query_template": "incident_id = '$a_incident_id' or incident_id = '$incident_id'",
-    "defaultValues": {}
+  "dashboard_style": "tabbed",
+  "showTitle": true,
+  "dashboard_type": "template",
+  "dashboard_folder": "vCenter",
+  "version": "23.8.10.1",
+  "dashboard_filters": {},
+  "dashboard_generator": {
+    "attachment": "widget_code_generator"
   },
-  "dashboard_filters": {
-    "time_filter": false
+  "short_label": "Stack",
+  "context_label_id": "stack_name",
+  "template_variables": {
+    "NODE_ID": {
+      "contextId": [
+        "navigatorSelectionContexts",
+        "secondaryListSelection",
+        "node_id"
+      ]
+    }
+  },
+  "navigation_dashboards": {
+    "tree_data": {
+      "column_name": "node_type",
+      "pstream_name": "training_topology_nodes",
+      "cfxql_query": "timestamp is after -36 months"
+    },
+    "tree_detail": {
+      "display_column": "node_label",
+      "selected_columns": {
+        "node_id": "Node Id",
+        "node_label": "Node Name"
+      },
+      "pstream_name": "training_topology_nodes",
+      "cfxql_query1": "timestamp is after -36 months"
+    },
+    "showNodeIcon": true,
+    "showSearchBox": false
   },
   "dashboard_sections": [
     {
-      "title": "Dashboard",
+      "title": "Topology",
       "widgets": [
         {
-          "title": "Incident Summary",
-          "min_width": 12,
-          "height": 2,
-          "widget_type": "header_section",
-          "widget_template": "cfx-oia/incident-summary",
-          "widget_id": "6e64b2f1"
+          "title": "Summary",
+          "widget_type": "portal_summary",
+          "reportId": "rda.saas.topology.node_details.report",
+          "max_width": 4,
+          "height": 5,
+          "min_width": 4,
+          "widget_id": "182229d8"
+        },
+        {
+          "title": "Edges Summary",
+          "widget_type": "tabular",
+          "stream": "training_topology_edges",
+          "query": "timestamp is after -36 months and left_id is '{{NODE_ID}}' or right_id is '{{NODE_ID}}'",
+          "max_width": 8,
+          "height": 5,
+          "min_width": 8,
+          "widget_id": "faf88e47"
+        },
+        {
+          "title": "Topology",
+          "widget_type": "topology",
+          "register_search_endpoints": true,
+          "auto_group": false,
+          "reportId": "rda.saas.stack.view.topo",
+          "stack": "training_adm_topology",
+          "height": 10,
+          "min_wdith": 12,
+          "widget_id": "182287d8"
         }
       ]
     }
   ],
-  "dashboard_groups": {
-    "alerts": {
-      "icon": "alert.svg",
-      "label": "Alerts",
-      "pageName": "Alerts"
-    }
-  },
-  "dashboard_pages": [
+  "attachments": [
     {
-      "name": "incident-details-alerts",
-      "label": "Correlated Alerts",
-      "icon": "alert.svg",
-      "group": "alerts"
-    },
-    {
-      "name": "related-alerts",
-      "label": "Related Alerts",
-      "icon": "alert.svg",
-      "group": "alerts"
-    },
-    {
-      "name": "incident-details-topology",
-      "label": "Topology",
-      "icon": "topology.svg",
-      "context_filter": "attrs_stack_name is not None and attrs_node_id is not None"
-    },
-    {
-      "name": "incident-details-metrics",
-      "label": "Metrics",
-      "icon": "metrics.svg",
-      "context_filter": "attrs_stack_name is not None and attrs_metric_asset_id is not None"
-    },
-    {
-      "name": "incident-details-insights",
-      "label": "Insights",
-      "icon": "nextSteps.svg",
-      "context_filter": "i_cluster is not None"
-    },
-    {
-      "name": "incident-details-collaboration",
-      "label": "Collaboration",
-      "icon": "collaboration.svg"
-    },
-    {
-      "name": "incident-details-diagnostics",
-      "label": "Diagnostics",
-      "icon": "diagnostic.svg",
-      "context_filter": "attrs_stack_name is not None"
-    },
-    {
-      "name": "incident-details-remediation",
-      "label": "Remediation",
-      "icon": "remedial.svg",
-      "context_filter": "attrs_stack_name is not None"
-    },
-    {
-      "name": "incident-details-activities",
-      "label": "Activities",
-      "icon": "activities.svg",
-      "context_filter": "attrs_stack_name is not None"
+      "name": "widget_code_generator",
+      "value": "{%- set widgets =  dashboard[\"dashboard_sections\"][0][\"widgets\"] -%}\r\n{%- set new_widgets =  [] -%}\r\n{%- set ns =  namespace(count=0) -%}\r\n\r\n{%- for w in widgets -%}\r\n    {%- if w.get(\"widget_type\") -%}\r\n        {%-\r\n            set nw = {\r\n                \"title\": \"JSON\",\r\n                \"widget_group\": \"g\"+str(ns.count),\r\n                \"min_width\": w.get(\"min_width\", 6),\r\n                \"max_width\": w.get(\"max_width\", 6),\r\n                \"height\": w.get(\"height\", 4),\r\n                \"widget_type\": \"codeblock\",\r\n                \"content\": json_dumps_indent(w, 2),\r\n                \"lang\": \"json\",\r\n                \"widget_id\": w.get(\"widget_id\", str(ns.count)) + \"_code\"\r\n            }\r\n        -%}\r\n        {%- set _ = w.update({\"widget_group\":  \"g\"+str(ns.count) }) -%}\r\n        {%- set _ = new_widgets.append(nw) -%}\r\n        {%- set ns.count = ns.count + 1 -%}\r\n    {%- endif -%}\r\n{%- endfor -%}\r\n\r\n{%- set _ = widgets.extend(new_widgets) -%}"
     }
   ],
   "pstream_dashboards": [
     {
-      "title": "Dashboard",
+      "title": "Topology",
       "widgets": [
         {
-          "title": "Incident Summary",
-          "min_width": 12,
-          "height": 2,
-          "widget_type": "header_section",
-          "widget_template": "cfx-oia/incident-summary",
-          "widget_id": "6e64b2f1"
+          "title": "Summary",
+          "widget_type": "portal_summary",
+          "reportId": "rda.saas.topology.node_details.report",
+          "max_width": 4,
+          "height": 5,
+          "min_width": 4,
+          "widget_id": "182229d8"
+        },
+        {
+          "title": "Edges Summary",
+          "widget_type": "tabular",
+          "stream": "training_topology_edges",
+          "query": "timestamp is after -36 months and left_id is '{{NODE_ID}}' or right_id is '{{NODE_ID}}'",
+          "max_width": 8,
+          "height": 5,
+          "min_width": 8,
+          "widget_id": "faf88e47"
+        },
+        {
+          "title": "Topology",
+          "widget_type": "topology",
+          "register_search_endpoints": true,
+          "auto_group": false,
+          "reportId": "rda.saas.stack.view.topo",
+          "stack": "training_adm_topology",
+          "height": 10,
+          "min_wdith": 12,
+          "widget_id": "182287d8"
         }
       ]
     }
