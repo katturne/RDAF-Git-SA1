@@ -1,11 +1,13 @@
-@c:new-block
- --> @dm:recall name="edc_customer_names"
- ## --> @dm:selectcolumns include='device_hostname|device_identifier|device_controller_id'
+@dm:empty
+ --> @dm:recall name='generate_token_creds'
+ --> @dm:save name='temp-generate_token_creds'
+ ## Generate token
 
- --> @dm:save name='temp-form-data'
- --> @c:data-loop columns="customer" and dataset="temp-form-data"
- --> @dm:empty
- --> @dm:addrow name = "edc_oi_inventory_grouped" & conflicts = "proceed" & timeout = 1200
- ## --> @dm:addrow name = "edc_oi_inventory_enriched" & conflicts = "proceed" & timeout = 1200
-
- --> #dm:pstream-delete-data-by-query customer_name=="$customer"
+ --> @c:data-loop columns='content_type,client_secret,client_id,grant_type' and dataset='temp-generate_token_creds'
+ --> @restclient:read url="https://int-id.cisco.com/oauth2/aussduh26AoUqMpmQ1d6/v1/token?grant_type=$grant_type&client_id=$client_id&client_secret=$client_secret" and
+`method`="POST" and
+`Content-Type`='$content_type' and
+`Accept`='*/*'
+ --> @dm:eval key="'key'"
+ --> @dm:save name="temp-access-token"
+ --> @dm:save name='test-token'
