@@ -1,137 +1,134 @@
 {
-  "name": "ai-llm-page-credentials",
-  "label": "LLM Credentials Management Page",
-  "description": "LLM Credentials Management Page",
+  "name": "rda-mgmt-page-store-objects",
+  "label": "Object Store",
+  "description": "Objects Management Page",
   "enabled": true,
   "dashboard_type": "dashboard",
-  "dashboard_folder": "AI",
   "dashboard_style": "auto",
-  "stream": "rda_secret_meta",
+  "stream": "rda_objects_meta",
+  "dashboard_folder": "System",
   "dashboard_filters": {
     "time_filter": true,
+    "additional_datetime_column_filters": [
+      {
+        "id": "saved_time",
+        "label": "Saved Time"
+      }
+    ],
     "columns_filter": [
+      {
+        "id": "saved_time",
+        "label": "Dataset Saved",
+        "type": "DATETIME"
+      },
+      {
+        "id": "folder",
+        "label": "Folder",
+        "type": "TEXT"
+      },
       {
         "id": "name",
         "label": "Name",
         "type": "TEXT"
       },
       {
-        "id": "type",
-        "label": "Type",
+        "id": "file_type",
+        "label": "File Type",
         "type": "TEXT"
       },
       {
-        "id": "typeDescription",
-        "label": "Type Description",
+        "id": "file_size",
+        "label": "Raw Size",
+        "type": "DOUBLE"
+      },
+      {
+        "id": "humansized_file_size",
+        "label": "Size",
         "type": "TEXT"
       },
       {
-        "id": "checksum",
-        "label": "Checksum",
+        "id": "description",
+        "label": "Description",
         "type": "TEXT"
       },
       {
-        "id": "saved_time",
-        "label": "Saved Time",
-        "type": "DATETIME"
+        "id": "retention_days",
+        "label": "Retention Days",
+        "type": "DOUBLE"
       }
     ]
   },
   "dashboard_sections": [
     {
-      "title": "LLMs",
+      "title": "Object Store",
       "show_filter": true,
       "widgets": [
         {
-          "title": "LLMs",
+          "title": "Object store",
+          "extra_filter": "folder is not null",
           "widget_type": "tabular",
-          "stream": "rda_secrets_meta",
-          "duration_hours": 87600,
+          "stream": "rda_objects_meta",
+          "height": 10,
+          "min_wdith": 12,
+          "paginated": true,
           "remote_searchable": true,
           "remote_searchable_cols": [
             "name",
-            "type",
-            "typeDescription",
-            "checksum"
+            "folder",
+            "file_type",
+            "humansized_file_size",
+            "description"
           ],
-          "ts_column": "saved_time",
-          "paginated": true,
-          "extra_filter": "customerTag is empty and type is 'llm'",
-          "height": 10,
-          "min_wdith": 12,
+          "duration_hours": 87600,
           "columns": {
             "name": {
               "title": "Name",
               "key": true
             },
-            "type": {
-              "title": "Type",
+            "folder": {
+              "title": "Folder",
               "key": true
             },
-            "typeDescription": {
-              "title": "description"
-            },
-            "has_credential_check": {
-              "title": "Credential Check",
-              "visible": false
-            },
-            "checksum": {
-              "title": "Checksum"
-            },
-            "tags": {
-              "title": "Tags",
-              "type": "TEXT",
-              "key": true
-            },
-            "customerTag": {
-              "title": "Customer Tag",
-              "type": "TEXT",
-              "key": true,
-              "hidden": true
+            "description": {
+              "title": "Description"
             },
             "saved_time": {
               "title": "Saved Time",
               "type": "DATETIME"
             },
-            "timestamp": {
-              "title": "When",
-              "type": "HUMANIZE_TIME_DELTA",
-              "source-column": "saved_time",
-              "sortable": false
+            "file_type": {
+              "title": "File Type",
+              "key": true
+            },
+            "file_size": {
+              "title": "Raw Size"
+            },
+            "humansized_file_size": {
+              "title": "Size"
+            },
+            "data_path": {
+              "title": "File Path",
+              "key": true,
+              "visible": false
+            },
+            "retention_days": {
+              "title": "Retention Days",
+              "key": true
             }
           },
-          "custom_columns": [
+          "sorting": [
             {
-              "id": "rowStyleClass",
-              "hidden": true,
-              "visiblle": false,
-              "expr": "'bg-fading-blue' if time_now_as_ms() - isoformat_to_ms(saved_time) <= 120000 else None"
-            },
-            {
-              "id": "artifact_name",
-              "label": "Artifact Name",
-              "expr": "name",
-              "key": true,
-              "visible": false,
-              "sortable": false
-            },
-            {
-              "id": "artifact_type",
-              "label": "Artifact Type",
-              "expr": "'source'",
-              "key": true,
-              "visible": false,
-              "sortable": false
+              "saved_time": "desc"
             }
           ],
           "actions": [
             {
-              "permission": "rda:credential:add",
-              "title": "Add",
+              "permission": "rda:object:upload",
+              "title": "Upload",
               "icon": "mdi mdi-plus",
               "type": "POPUP_FORM",
               "selectionType": "NONE",
-              "identifier": "saas-service-action:vault-add",
+              "identifier": "saas-service-action:add-object",
               "api-endpoint": {
                 "service-name": "saas-reports",
                 "methodName": "getForm",
@@ -139,20 +136,17 @@
                 "parse-output": false,
                 "params": [
                   {
-                    "formId": "rda.saas.vault.add",
-                    "extension_types": [
-                      "llm"
-                    ]
+                    "formId": "rda.saas.object.add"
                   }
                 ]
               }
             },
             {
-              "permission": "rda:credential:edit",
-              "title": "Edit",
+              "permission": "rda:object:download",
+              "title": "Download",
               "type": "POPUP_FORM",
               "selectionType": "SINGLE",
-              "identifier": "saas-service-action:vault-edit",
+              "identifier": "saas-service-action:download-object",
               "api-endpoint": {
                 "service-name": "saas-reports",
                 "methodName": "getForm",
@@ -160,83 +154,17 @@
                 "parse-output": false,
                 "params": [
                   {
-                    "formId": "rda.saas.vault.edit"
+                    "formId": "rda.saas.object.download"
                   }
                 ]
               }
             },
             {
-              "permission": "rda:credential:view",
-              "title": "View",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "displayLabelColumnId": "name",
-              "drillDownLinkField": "name",
-              "identifier": "saas-service-action:vault-view",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.vault.view"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:credential:verify",
-              "title": "Verify Credentials",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:vault-edit",
-              "actionCondition": {
-                "actionControl": "HIDE_IF",
-                "conditionalField": [
-                  {
-                    "conditionType": "EQUAL",
-                    "conditionValue": "false",
-                    "fieldId": "has_credential_check"
-                  }
-                ]
-              },
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.vault.validateConenctivity"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:credential:assign_tag",
-              "title": "Manage Tags",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:assign-tag",
-              "api-endpoint": {
-                "methodName": "getForm",
-                "params": [
-                  {
-                    "formId": "rda.saas.tags.assign"
-                  }
-                ],
-                "parse-output": false,
-                "service-name": "saas-reports",
-                "stringified-params": true
-              }
-            },
-            {
-              "permission": "rda:credential:verify",
+              "permission": "rda:object:delete",
               "title": "Delete",
               "type": "POPUP_FORM",
               "selectionType": "SINGLE",
-              "identifier": "saas-service-action:vault-delete",
+              "identifier": "saas-service-action:delete-object",
               "api-endpoint": {
                 "service-name": "saas-reports",
                 "methodName": "getForm",
@@ -244,121 +172,106 @@
                 "parse-output": false,
                 "params": [
                   {
-                    "formId": "rda.saas.vault.delete"
+                    "formId": "rda.saas.object.delete"
                   }
                 ]
               }
             },
             {
-              "permission": "rda:credential:view",
-              "appName": "user-dashboard/rda-artifact-dependencies-app",
-              "identifier": "launch.url.dashboard",
+              "permission": "rda:object:update_retention",
+              "title": "Update",
+              "type": "POPUP_FORM",
               "selectionType": "SINGLE",
-              "stateName": "app.featureapp",
-              "title": "View Dependencies",
-              "type": "GO_TO_APP_STATE"
+              "identifier": "saas-service-action:update-retention-days",
+              "api-endpoint": {
+                "service-name": "saas-reports",
+                "methodName": "getForm",
+                "stringified-params": true,
+                "parse-output": false,
+                "params": [
+                  {
+                    "formId": "rda.saas.object.update_retention"
+                  }
+                ]
+              }
             }
           ],
-          "widget_id": "9a21b5c6"
+          "widget_id": "01dc3a55"
         }
       ]
     }
   ],
   "pstream_dashboards": [
     {
-      "title": "LLMs",
+      "title": "Object Store",
       "show_filter": true,
       "widgets": [
         {
-          "title": "LLMs",
+          "title": "Object store",
+          "extra_filter": "folder is not null",
           "widget_type": "tabular",
-          "stream": "rda_secrets_meta",
-          "duration_hours": 87600,
+          "stream": "rda_objects_meta",
+          "height": 10,
+          "min_wdith": 12,
+          "paginated": true,
           "remote_searchable": true,
           "remote_searchable_cols": [
             "name",
-            "type",
-            "typeDescription",
-            "checksum"
+            "folder",
+            "file_type",
+            "humansized_file_size",
+            "description"
           ],
-          "ts_column": "saved_time",
-          "paginated": true,
-          "extra_filter": "customerTag is empty and type is 'llm'",
-          "height": 10,
-          "min_wdith": 12,
+          "duration_hours": 87600,
           "columns": {
             "name": {
               "title": "Name",
               "key": true
             },
-            "type": {
-              "title": "Type",
+            "folder": {
+              "title": "Folder",
               "key": true
             },
-            "typeDescription": {
-              "title": "description"
-            },
-            "has_credential_check": {
-              "title": "Credential Check",
-              "visible": false
-            },
-            "checksum": {
-              "title": "Checksum"
-            },
-            "tags": {
-              "title": "Tags",
-              "type": "TEXT",
-              "key": true
-            },
-            "customerTag": {
-              "title": "Customer Tag",
-              "type": "TEXT",
-              "key": true,
-              "hidden": true
+            "description": {
+              "title": "Description"
             },
             "saved_time": {
               "title": "Saved Time",
               "type": "DATETIME"
             },
-            "timestamp": {
-              "title": "When",
-              "type": "HUMANIZE_TIME_DELTA",
-              "source-column": "saved_time",
-              "sortable": false
+            "file_type": {
+              "title": "File Type",
+              "key": true
+            },
+            "file_size": {
+              "title": "Raw Size"
+            },
+            "humansized_file_size": {
+              "title": "Size"
+            },
+            "data_path": {
+              "title": "File Path",
+              "key": true,
+              "visible": false
+            },
+            "retention_days": {
+              "title": "Retention Days",
+              "key": true
             }
           },
-          "custom_columns": [
+          "sorting": [
             {
-              "id": "rowStyleClass",
-              "hidden": true,
-              "visiblle": false,
-              "expr": "'bg-fading-blue' if time_now_as_ms() - isoformat_to_ms(saved_time) <= 120000 else None"
-            },
-            {
-              "id": "artifact_name",
-              "label": "Artifact Name",
-              "expr": "name",
-              "key": true,
-              "visible": false,
-              "sortable": false
-            },
-            {
-              "id": "artifact_type",
-              "label": "Artifact Type",
-              "expr": "'source'",
-              "key": true,
-              "visible": false,
-              "sortable": false
+              "saved_time": "desc"
             }
           ],
           "actions": [
             {
-              "permission": "rda:credential:add",
-              "title": "Add",
+              "permission": "rda:object:upload",
+              "title": "Upload",
               "icon": "mdi mdi-plus",
               "type": "POPUP_FORM",
               "selectionType": "NONE",
-              "identifier": "saas-service-action:vault-add",
+              "identifier": "saas-service-action:add-object",
               "api-endpoint": {
                 "service-name": "saas-reports",
                 "methodName": "getForm",
@@ -366,20 +279,17 @@
                 "parse-output": false,
                 "params": [
                   {
-                    "formId": "rda.saas.vault.add",
-                    "extension_types": [
-                      "llm"
-                    ]
+                    "formId": "rda.saas.object.add"
                   }
                 ]
               }
             },
             {
-              "permission": "rda:credential:edit",
-              "title": "Edit",
+              "permission": "rda:object:download",
+              "title": "Download",
               "type": "POPUP_FORM",
               "selectionType": "SINGLE",
-              "identifier": "saas-service-action:vault-edit",
+              "identifier": "saas-service-action:download-object",
               "api-endpoint": {
                 "service-name": "saas-reports",
                 "methodName": "getForm",
@@ -387,83 +297,17 @@
                 "parse-output": false,
                 "params": [
                   {
-                    "formId": "rda.saas.vault.edit"
+                    "formId": "rda.saas.object.download"
                   }
                 ]
               }
             },
             {
-              "permission": "rda:credential:view",
-              "title": "View",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "displayLabelColumnId": "name",
-              "drillDownLinkField": "name",
-              "identifier": "saas-service-action:vault-view",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.vault.view"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:credential:verify",
-              "title": "Verify Credentials",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:vault-edit",
-              "actionCondition": {
-                "actionControl": "HIDE_IF",
-                "conditionalField": [
-                  {
-                    "conditionType": "EQUAL",
-                    "conditionValue": "false",
-                    "fieldId": "has_credential_check"
-                  }
-                ]
-              },
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.vault.validateConenctivity"
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:credential:assign_tag",
-              "title": "Manage Tags",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:assign-tag",
-              "api-endpoint": {
-                "methodName": "getForm",
-                "params": [
-                  {
-                    "formId": "rda.saas.tags.assign"
-                  }
-                ],
-                "parse-output": false,
-                "service-name": "saas-reports",
-                "stringified-params": true
-              }
-            },
-            {
-              "permission": "rda:credential:verify",
+              "permission": "rda:object:delete",
               "title": "Delete",
               "type": "POPUP_FORM",
               "selectionType": "SINGLE",
-              "identifier": "saas-service-action:vault-delete",
+              "identifier": "saas-service-action:delete-object",
               "api-endpoint": {
                 "service-name": "saas-reports",
                 "methodName": "getForm",
@@ -471,22 +315,31 @@
                 "parse-output": false,
                 "params": [
                   {
-                    "formId": "rda.saas.vault.delete"
+                    "formId": "rda.saas.object.delete"
                   }
                 ]
               }
             },
             {
-              "permission": "rda:credential:view",
-              "appName": "user-dashboard/rda-artifact-dependencies-app",
-              "identifier": "launch.url.dashboard",
+              "permission": "rda:object:update_retention",
+              "title": "Update",
+              "type": "POPUP_FORM",
               "selectionType": "SINGLE",
-              "stateName": "app.featureapp",
-              "title": "View Dependencies",
-              "type": "GO_TO_APP_STATE"
+              "identifier": "saas-service-action:update-retention-days",
+              "api-endpoint": {
+                "service-name": "saas-reports",
+                "methodName": "getForm",
+                "stringified-params": true,
+                "parse-output": false,
+                "params": [
+                  {
+                    "formId": "rda.saas.object.update_retention"
+                  }
+                ]
+              }
             }
           ],
-          "widget_id": "9a21b5c6"
+          "widget_id": "01dc3a55"
         }
       ]
     }
