@@ -1,60 +1,45 @@
 
- ## .
+ ## Bernie Wynia, Cisco Systems, 2025
 
- ## collab-db-to-pstream-processor
+ ## It doesn't seem to have trouble with the following error cases:
 
- ## .
+ ## -- no email addresses are found for template (valid template id)
+
+ ## -- invalid template ID (passed in inpute stream)
+
+ ## -- malforemd email addressneed
+
+ ## Because there is always at least 1 row (potentially with empty columns), this didn't seem to have any impact --> *exec:if-shape num_rows > 0
+
+ ## It doesn't seem to be needed because the apply-template and sendmail seem to complete regardless (so we resume on the read-stream)
+
+ ## The one case it doesn't handle is if the GenericEmailTemplates references a Template Name that doesn't exist in "Formatting Templates"
 @c:new-block
- --> @exec:get-input
- --> @dm:save name="temp-irm-incident-ids-concat"
- --> @c:data-loop dataset="temp-irm-incident-ids-concat" & columns="incident_id,project_id"
- ## .
+ ## Wait for a request to send an email
 
- --> @dm:empty
- --> @dm:addrow current_loop="${loop_index}" & incidents="$incident_id" & projectids="$project_id"
- --> @mysqlv2:native-query dbname="0bde1fc06a7542c3a6a4c47d85f64d9d_cfxdimensions_app_collaboratio" & query="select * from message where incidentid in ($incident_id) and projectid in ($project_id)"
- --> @dm:skip-block-if-shape row_count=0
- --> @dm:check-columns must_contain="incidentid" & action="skip-block"
- --> @dm:selectcolumns exclude="execution_status|execution_reason|attempt_count"
- --> @dm:save name="temp-collab-msgs-db-${loop_index}"
- --> @c:data-loop dataset="temp-irm-incident-ids-concat" & columns="incident_id,project_id"
- ## .
+ --> @rn:read-stream name = "genericEmailSender" & group = "group_genericEmailSender"
+ ## When we get one, fetch the template details
 
- --> @dm:empty
- --> @dm:addrow current_loop="${loop_index}" & incidents="$incident_id" & projectids="$project_id"
- --> @mysqlv2:native-query dbname="0bde1fc06a7542c3a6a4c47d85f64d9d_cfxdimensions_app_collaboratio" & query="select ms.*, m.customerid, m.projectid, m.incidentid from irmessagesharing ms inner join message m on m.messageid=ms.message_id where m.incidentid in ($incident_id) and m.projectid in ($project_id)"
- --> @dm:skip-block-if-shape row_count=0
- --> @dm:check-columns must_contain="incidentid" & action="skip-block"
- --> @dm:selectcolumns exclude="execution_status|execution_reason|attempt_count"
- --> @dm:save name="temp-collab-irmsharing-db-${loop_index}"
- --> @c:data-loop dataset="temp-irm-incident-ids-concat" & columns="incident_id,project_id"
- ## .
+ --> @dm:enrich dict = 'GenericEmailTemplates' & src_key_cols = 'Template_Id' & dict_key_cols = 'Template_Id' & enrich_cols = "Subject,Template_Name"
+ ## Formulate the Subject line by appending the Suffix, if provided
 
- --> @dm:empty
- --> @dm:addrow current_loop="${loop_index}" & incidents="$incident_id" & projectids="$project_id"
- --> @mysqlv2:native-query dbname="0bde1fc06a7542c3a6a4c47d85f64d9d_cfxdimensions_app_collaboratio" & query="select * from teamincident where incident_id in ($incident_id) and project_id in ($project_id)"
- --> @dm:skip-block-if-shape row_count=0
- --> @dm:check-columns must_contain="incident_id" & action="skip-block"
- --> @dm:selectcolumns exclude="execution_status|execution_reason|attempt_count"
- --> @dm:save name="temp-collab-teamincidents-db-${loop_index}"
- --> @c:new-block
- --> @dm:concat names="temp-collab-msgs-db-*"
- --> @dm:skip-block-if-shape row_count=0
- --> @dm:change-time-format columns="createdat,updatedat" & from_format="datetimestr" & to_format="datetimestr"
- --> @dm:copy-columns to="timestamp" & from="updatedat"
- --> @dm:fixnull-regex
- --> @rn:write-stream name="oia-incidents-collaboration-stream"
- --> @c:new-block
- --> @dm:concat names="temp-collab-irmsharing-db-*"
- --> @dm:skip-block-if-shape row_count=0
- --> @dm:change-time-format columns="shared_time" & from_format="datetimestr" & to_format="datetimestr"
- --> @dm:copy-columns to="timestamp" & from="shared_time"
- --> @dm:fixnull-regex
- --> @rn:write-stream name="oia-collab-messagesharing-stream"
- --> @c:new-block
- --> @dm:concat names="temp-collab-teamincidents-db-*"
- --> @dm:skip-block-if-shape row_count=0
- --> @dm:change-time-format columns="shared_time" & from_format="datetimestr" & to_format="datetimestr"
- --> @dm:copy-columns to="timestamp" & from="shared_time"
- --> @dm:fixnull-regex
- --> @rn:write-stream name="oia-incidents-external-tickets-stream"
+ --> @dm:add-missing-columns columns = 'Subject_Suffix' & value = ''
+ --> @dm:eval Merged_Subject = "Subject + Subject_Suffix"
+ ## Figure out who to send it to
+
+ --> @dm:enrich dict = 'GenericEmailRecipients' & src_key_cols = 'Template_Id' & dict_key_cols = 'Template_Id' & enrich_cols = "Recipient,User_Enabled" & dedup_dict = "no"
+ --> *dm:filter User_Enabled != 'no'
+ ## Format the email content
+
+ --> @dm:add-missing-columns columns = 'lType' & value = "html"
+ --> @dm:apply-template-by-row template_name = "{{row.Template_Name}}" & output_col = "fMessage" & status_col = "Template_Result"
+ ## Note that if we fetch an invald template name, the pipeline will abort in the above line (contrary to documentation)
+
+ ## It may be helful to uncomment this line when debugging
+
+ ## --> @dm:save name = "delete-me-email-working-data"
+
+ --> *dm:filter Template_Result = 'ok'
+ --> *exec:if-shape num_rows > 0
+ --> @email:sendmail-bulk recipient_col = 'Recipient' & message_mime_type_col = 'lType' & subject_col = 'Merged_Subject' & message_col = 'fMessage'
+ --> @exec:end-if
