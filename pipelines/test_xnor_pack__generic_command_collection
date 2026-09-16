@@ -1,9 +1,26 @@
 @dm:empty
  --> @exec:get-input
- --> @dm:explode-json column="Inventory"
- --> @dm:add-missing-columns columns = 'order_id' & value = "'process_id'"
- --> @dm:eval order_id="f'RunID_{uuid()[:8]}'"
- --> @dm:selectcolumns include="^IP_Address$|^name$|^order_id$"
- --> @dm:rename-columns collection_name = "name"
- --> @exec:run-pipeline name = "test_xnor_pack_generic_main"
- --> @dm:save name = "test-pack-input-data"
+ --> @dm:save name="file_upload0"
+ --> @dm:selectcolumns include="fileUpload|Option"
+ --> @dm:explode-json column="fileUpload"
+ --> @dm:save name="temp-input-dataset"
+ --> @dm:save name="file_upload"
+ --> @c:new-block
+ --> @c:data-loop dataset="temp-input-dataset" and columns="bucketName,objectName,Option"
+ --> @dm:recall name="temp-input-dataset"
+ --> @dm:skip-block-if-shape row_count=0
+ --> @dm:get-from-location path="$bucketName/$objectName"
+ --> @dm:save name="temp-uploaded-file-data"
+ --> @c:new-block
+ --> @c:data-loop dataset="file_upload0" and columns="customer_name,proj_name,Option"
+ --> *exec:if-condition '$Option' == 'option_2'
+ --> @dm:recall name="temp-uploaded-file-data"
+ --> @dm:add-missing-columns columns = 'Customer' &
+value = '$customer_name'
+ --> @dm:add-missing-columns columns = 'Project Name' &
+value = '$proj_name'
+ --> @dm:save name="file_upload2"
+ --> @rn:write-stream name = "input_data"
+ --> @c:new-block
+ --> @dm:recall name="temp-uploaded-file-data"
+ --> @rn:write-stream name = "input_data"
