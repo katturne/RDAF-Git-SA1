@@ -1,47 +1,37 @@
 
- ## oia-to-snow-cfx
+ ## ### Dataset Enrichment #####
+@exec:get-input
+ ## Explode input payload elements that are translated into a JSON dictionary
 
- ## All debugging is captured on oia-to-snow-debug-stream
+ --> @dm:explode-json column="payloadDictionary"
+ --> @dm:save name="temp-events"
+ ## Clear the previous enrichment definitions dataset
 
- ## 
+ --> @dm:empty columns="datasetname,condition,enrichcolumns,enrichcolumnsas,filter"
+ --> @dm:save name="temp-enrichments"
+ ## Get unique enrichment datasets to process from the events
 
- ## A work around is to mention all child and dependent pipelines here.
-@c:new-block
- --> @dm:empty
- --> @dm:skip-block-if-shape row_count = 0 & column_count = 0
- --> @exec:run-pipeline name="oia-to-snow-cfx-processor" & ignore_failures="no"
- --> @exec:run-pipeline name="oia-incident-status-tracker-stream" & ignore_failures="no"
- ## Read from Stream
+ --> @c:new-block
+ --> @dm:recall name="temp-events"
+ --> @dm:explode-json column="enrichment_datasets"
+ --> @dm:check-columns must_contain="datasetname,condition,enrichcolumns" and action="skip-block"
+ --> @dm:selectcolumns include="datasetname|condition|enrichcolumns|enrichcolumnsas|filter"
+ --> @dm:add-missing-columns columns="enrichcolumnsas,filter"
+ --> @dm:save name="temp-enrichments"
+ ## Perform enrichment from each dataset
 
- --> @c:bookmark-loop bookmark = 'oia-to-snow-cfx-bkmrk' & initial_value = '-1 minute'
- --> @dm:empty
- --> @dm:addrow name="oia-incidents-delta-stream" & max_rows="1000"
- --> @dm:sleep seconds=5
- ## Query records from Stream
+ --> @c:data-loop dataset="temp-enrichments" and columns="datasetname,condition,enrichcolumns,enrichcolumnsas,filter"
+ --> @dm:recall name="temp-events"
+ --> *exec:if-condition ${filter}
+ --> @dm:enrich-conditional dict is "${datasetname}" and condition is "${condition}" and enrich_cols is "${enrichcolumns}" and cache is yes and cache_refresh_seconds is 120 and return_status is yes
+ --> @dm:map from is 'meta_enrich_status' and to is "Dataset: ${datasetname}"
+ --> @dm:selectcolumns exclude="meta_enrich_status"
+ --> @dm:save name="temp-events"
+ --> @exec:end-if
+ ## Publish the processed alerts to the stream
 
- ## Change-Here: Pulse to what ever you want
+ --> @c:new-block
+ --> @dm:recall name="temp-events"
+ ## Write output data to stream specified in the input event
 
- --> #dm:query-persistent-stream timestamp is after '${bookmark}' & (i_source contains 'SNMP_TRAP_Notifications' or i_source contains 'Syslog_udp_Notifications' or i_source contains 'Alert Group') & i_state != 'Closed' & i_state != 'Cancelled'
- --> @dm:skip-block-if-shape row_count = 0
- ## Change-Here: Temp workaround. Flow is NOT gracefully coming back from post exec:run-pipeline
-
- --> @dm:save_bookmark name = 'oia-to-snow-cfx-bkmrk' & value_column = 'timestamp' & value_type = 'timestamp' & value_func = 'max'
- --> @dm:save name="temp-qresults"
- ## Debug
-
- --> @dm:map to="step" & func="fixed" & value="temp-query-stream-results-${bookmark}"
- --> @rn:write-stream compression="auto" & name="oia-to-snow-debug-stream"
- ## Record The Step
-
- --> @dm:eval pipeline="'oia-to-snow-cfx'" & step="'query-persistent-stream'" & stage="'bookmark ${bookmark}'" & status_comments="'Incident:' + incident_id + ',State:' + i_state + ',Delta:' + str(delta)" & status="'INFO'"
- --> @exec:run-pipeline name="oia-incident-status-tracker-stream" & ignore_failures="yes"
- ## Set the Tracing Context
-
- --> @dm:set-tracing-context-from-input columns = "project_id,incident_id"
- --> @dm:save name="temp-query-result-cfx"
- --> @exec:run-pipeline name="oia-to-snow-cfx-processor" & ignore_failures="no"
- ## Save bookmark - only after finishing up processing all the records
-
- --> @dm:recall name="temp-qresults"
- --> @dm:save_bookmark name = 'oia-to-snow-cfx-bkmrk' & value_column = 'timestamp' & value_type = 'timestamp' & value_func = 'max'
- --> @dm:empty
+ --> @rn:write-stream-by-row stream_column="stream_name"
