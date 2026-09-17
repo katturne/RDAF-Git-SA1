@@ -1,62 +1,68 @@
-@c:new-block
+@dm:empty
  --> @exec:get-input
- --> @dm:add-missing-columns columns="key" and value='key'
- --> @dm:save name='temp-sw-data'
- --> @dm:save name='added-sw-data'
+ --> @dm:save name="temp-file_upload0"
+ --> @dm:selectcolumns include="fileUpload"
+ --> @dm:explode-json column="fileUpload"
+ --> @dm:save name="temp-input-dataset"
+ ## declaring child pipelines
+
  --> @c:new-block
  --> @dm:empty
- --> @exec:define-function name="generate_access_token"
- --> @dm:recall name='generate_token_creds'
- ## --> @dm:empty
-
- --> @exec:run-pipeline name ="edc_generate_token" & ignore_failures = "no"
- --> @dm:addrow key='key'
- --> @dm:eval current_time_ms="int(time_now_as_ms())"
- --> @dm:eval token_expiry_time='current_time_ms+3000000'
- --> @dm:save name='temp-expiry-time'
+ --> @exec:define-function name="define_child_pipelines"
+ --> @exec:run-pipeline name ="edc_customer_inventory" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_oi_get_product_alerts" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_oi_product_alerts_raw" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_oi_product_alerts_run_scan" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_oi_generate_token" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_oi_process_sw_data" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_oi_get_sweol_data" & ignore_failures = "no"
+ --> @exec:run-pipeline name ="edc_oi_get_security_advisories_data" & ignore_failures = "no"
  --> @exec:end-function
+ --> @c:data-loop dataset="temp-input-dataset" and columns="bucketName,objectName"
+ --> @dm:recall name="temp-input-dataset"
+ --> @dm:skip-block-if-shape row_count=0
+ --> @dm:get-from-location path="$bucketName/$objectName"
+ --> @dm:save name="temp-uploaded-file-data"
+ --> @dm:save name="uploaded-file-data"
  --> @c:new-block
- --> @dm:recall name='temp-sw-data'
- --> @dm:add-missing-columns columns="key" and value='key'
- --> @dm:manipulate-string from="sw_version,sw_os_type" and func="concat_columns" and to="unique_payload_inputs"
- --> @dm:dedup columns ='unique_payload_inputs'
- --> @dm:map to = 'transaction_id' & func = 'sha256'
- --> @dm:eval transaction_id= 'transaction_id[17:-9]'
- --> @dm:save name='temp-unique-sw-data'
- --> @dm:save name='added-sw-data'
- --> @c:new-block
- --> @dm:empty
- --> @exec:call-function name='generate_access_token'
- --> @c:data-loop columns='sw_version,sw_os_type,transaction_id' and dataset='temp-unique-sw-data'
- ## --> @dm:recall name='temp-unique-sw-data'
-
- --> @dm:empty
- --> @dm:addrow key='key'
- --> @dm:eval current_time_ms_loop="int(time_now_as_ms())"
- --> @dm:save name='temp-loop-time'
- --> @dm:enrich dict='temp-expiry-time' and src_key_cols='key' and dict_key_cols='key' and enrich_cols='token_expiry_time,access_token,expires_in,token_type'
- --> *exec:if-condition token_expiry_time is null or current_time_ms_loop  is greater than or equal to token_expiry_time
- --> @exec:call-function name='generate_access_token'
+ --> @dm:recall name="temp-file_upload0"
+ --> *exec:if-condition portfolio_or_contract=='portfolio_desc'
+ --> @dm:rename-columns input_type = 'portfolio_or_contract'
+ --> @dm:rename-columns project_name = 'proj_name'
+ --> @dm:explode-json column = "portfolio1"
+ --> @dm:grok column = "portfolio1" &
+pattern = "portfolio_desc': '%{DATA:portfolio_desc}'"
+ --> @dm:rename-columns input_values = 'portfolio_desc'
+ --> @dm:selectcolumns include="input_values|input_type|project_name|customer_name|need_os_type|need_sw_compliance"
+ --> @dm:save name="temp-portfolio"
  --> @exec:end-if
- --> @dm:add-missing-columns columns='sw_version' and value='$sw_version'
- --> @dm:add-missing-columns columns='sw_os_type' and value='$sw_os_type'
- --> @dm:add-missing-columns columns='transaction_id' and value='$transaction_id'
- --> @exec:run-pipeline name ="test_get_sw_xor" & ignore_failures = "no"
- --> @dm:save name='sweol-data-run-scan'
- --> @dm:save name='temp-sweol'
- --> @dm:save name='temp-expiry-time'
+ --> *exec:if-condition portfolio_or_contract=='contract_number'
+ --> @dm:rename-columns input_type = 'portfolio_or_contract'
+ --> @dm:rename-columns project_name = 'proj_name'
+ --> @dm:explode-json column = "contract1"
+ --> @dm:grok column = "contract1" &
+pattern = "contract_number': '%{DATA:contract_number}'"
+ --> @dm:rename-columns input_values = 'contract_number'
+ --> @dm:selectcolumns include="input_values|input_type|project_name|customer_name|need_os_type|need_sw_compliance"
+ --> @dm:save name="temp-portfolio"
+ --> @exec:end-if
  --> @c:new-block
- --> @dm:recall name='temp-sweol'
- --> @dm:eval issues='json_dumps(issues)'
- --> @dm:explode-json column="issues"
- --> @dm:eval eoXAlert='json_dumps(eoXAlert)'
- --> @dm:explode-json column="eoXAlert"
- --> @dm:save name='temp-sweol'
- --> @dm:save name='test-sweol'
+ --> @dm:recall name="temp-portfolio"
+ --> @dm:enrich-using-pstream dict="edc_customer_names" &
+src_key_cols="customer_name" &
+dict_key_cols="customer" &
+enrich_cols="savm_name,savm_level"
+ --> @dm:implode key_columns="input_type,project_name,customer_name,need_os_type,need_sw_compliance,savm_name,savm_level" and         merge_columns="input_values"
+ --> @dm:rename-columns customer = 'savm_name' &
+savm_sales_level = 'savm_level'
+ --> @dm:add-missing-columns columns = 'sw_dataset' &
+value = 'uploaded-file-data'
+ --> @dm:map from = "input_values" & to = "input_values" & func = "concat" & prefix = "'" & suffix = "'"
+ --> @dm:replace-data columns = 'input_values' &
+expr = ',' &
+replace = "','"
+ --> @dm:save name="temp_input_dataset"
+ --> @dm:save name="final_input_dataset"
  --> @c:new-block
- --> @dm:recall name='temp-stream-data'
- --> @dm:enrich dict='temp-sweol' and src_key_cols='key' and dict_key_cols='key' and enrich_cols='SoftwareEOXId,BulletinNumber,BulletinHeadline,BulletinURL,EndOfSaleDate,EndOfEngineeringDate,EndOfLifeDate,PostDate,EndOfLifeInternalAnnouncementDate,EndOfLifeExternalAnnouncementDate,EndOfLastHardwareShipDate,EndOfHardwareNewServiceAttachmentDate,EndOfHardwareRoutineFailureAnalysisDate,EndOfBUEngineeringSupportTACDate,EndOfHardwareServiceContractRenewalDate,EndOfSignatureReleasesDate,EndOfSoftwareAvailabilityDate,EndOfSoftwareLicenseAvailabilityDate,EndOfSoftwareVulnerabilityOrSecuritySupportDate,created,customerVisible,external_text,external_title,firstIcAlertId,groups,icIssueId,icProblemId,ignored,lastIcAlertId,eoXAlertType,name,openedOn,resultType,severity,severityText,state,updated,deviceSN,source,runType,filename,icType,atticaStatus,cdetsList,retry,associatedGroups'
-and how_type='outer'
- --> @dm:manipulate-string from="customer,contract_number,product_id" and func="concat_columns" and to="enrich_ingestion_id"
- --> @dm:save name='test-enriched-sweol-values'
- --> @rn:write-stream name='edc_sweol_data'
+ --> @dm:recall name='temp_input_dataset'
+ --> @exec:run-pipeline name='edc_customer_inventory' and ignore_failures = "no"
