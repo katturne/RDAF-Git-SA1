@@ -1,45 +1,117 @@
-@c:new-block
- --> @dm:recall name="test-inv-network"
- --> @dm:selectcolumns exclude="^unique_key|swEOL|secAdv"
- --> @dm:save name='temp-contract_data_network_only'
- --> @c:new-block
- --> @dm:recall name="temp-contract_data_network_only"
- ## Separate what could not be matched yet
+%% stream = no and limit = 0
+%%template_type="jinja"
 
- ## --> *dm:filter item_type is NULL
+%%start_inline_object name="context_dynamic_form" and type="data" and format="json"
+{
+    "formFieldList": [
+        {
+            "fieldId": "customer_tag",
+            "label": "Tag of the customer",
+            "required": false,
+            "dataType": "string"
+        }
+    ]
+}
+%%end_inline_object
 
- ## --> @dm:skip-block-if-shape row_count = 0
+@dm:empty
+    --> @dm:save name = "temp-customer-context"
 
- --> @dm:selectcolumns include="product_name|product_id"
- --> @dm:dedup columns = "product_id"
- --> @dm:map from = "product_id" & to = "product_id_new" & func = "concat" & prefix = "'" & suffix = "'"
- --> @dm:selectcolumns include="product_id_new"
- --> @dm:save name = "temp-contract_data_network_only_pids"
- --> @c:data-loop columns='product_id_new' and dataset="temp-contract_data_network_only_pids"
- --> @snowflake:native-query dbname is "CX_DB" and warehouse is "CX_DMP_RPT_WH" and query is "SELECT PRODUCT_NAME, COVERAGE, BUSINESS_ENTITY, BUSINESS_SUB_ENTITY, BK_END_OF_LIFE_REQUEST_NUM, BK_EOL_BULLETIN_PRODUCT_TYP_CD, END_OF_NEW_SVC_ATTACHMENT_DT, END_OF_ROUTINE_FAIL_ANLYSYS_DT, END_OF_SOFTWARE_MAINTENANCE_DT, END_OF_SVC_CONTRACT_RNWL_DT, EOL_EXTERNAL_ANNOUNCE_DT, END_OF_SECURITY_VULN_SUPPORT_DT, EOL_PRODUCT_NAME, ITEM_TYPE, LAST_DATE_OF_SALE, LAST_DATE_OF_SUPPORT, PRODUCT_DESCRIPTION, PRODUCT_FAMILY, PRODUCT_FAMILY_DESCRIPTION, PRODUCT_TYPE, PRODUCT_LIST_PRICE FROM CX_DB.CX_DMP_EBV.BV_ASSET WHERE PRODUCT_NAME IN ($product_id_new) LIMIT 1;"
- --> @dm:add-missing-columns columns="execution_status"
- --> *dm:filter execution_status =="Success"
- --> @dm:skip-block-if-shape column_count = 3
- --> @dm:selectcolumns exclude = "execution_reason|execution_status"
- ## new column product_id to simplify product is during sw scan
 
- --> @dm:copy-columns from="product_name" and to="product_id"
- --> @dm:eval product_id = "product_id.replace('=', '')"
- --> @dm:eval tokens = "product_id.rsplit('-', 1)"
- --> @dm:eval product_id = "tokens[0] if len(tokens) > 1 and tokens[1] in ['RF'] else product_id"
- --> @dm:selectcolumns exclude = "tokens"
- --> @dm:save name="temp-inv_only_hw_data" and append='yes'
- ## Enrich the devices were missing HW eol data
+## {% set row = "" %}
 
- --> @c:new-block
- --> @dm:recall name="temp-contract_data_network_only"
- ## Separate what could not be matched yet
+      {% if customer_tag %} 
+      {% set customer_id = customer_id %}
+      {% set customer_tag = customer_tag %}
+      {% set customerTag = customer_tag %}
+      {% set customerId = customer_id %}
+   {% elif customerTag %} 
+      {% set customer_id = customerId %}
+      {% set customer_tag = customerTag %}
+   {% else %}
+      {% set customer_id = '' %}
+      {% set customer_tag = '' %}
+   {% endif %}   
 
- ## --> *dm:filter item_type is NULL
 
- --> @dm:enrich dict="temp-inv_only_hw_data" and src_key_cols="product_id" and dict_key_cols="product_id" and enrich_cols="product_name,business_entity,business_sub_entity,bk_end_of_life_request_num,bk_eol_bulletin_product_typ_cd,end_of_new_svc_attachment_dt,end_of_routine_fail_anlysys_dt,end_of_software_maintenance_dt,end_of_svc_contract_rnwl_dt,eol_external_announce_dt,eol_product_name,last_date_of_sale,last_date_of_support,end_of_security_vuln_support_dt,product_description,product_family,product_family_description,product_type,item_type,product_list_price" and replace_values='yes'
- --> @dm:save name = "temp-contract_data_network_only_1"
- --> @c:new-block
- --> @dm:recall name="temp-contract_data_network_only_1"
- --> *dm:filter item_type is not NULL
- --> @dm:save name = "test-contract_data"
+--> @c:new-block
+    --> @dm:empty
+    --> @exec:get-input
+   ## --> @dm:save name="temp-input-devices"
+   --> @dm:eval key ="'key'" 
+   --> @dm:save name ="temp-input-data"
+    --> @dm:save name ="temp-input-dataset"
+     {% if customer_tag %} 
+         --> @dm:save name="{{customer_tag}}-network-import-devices"
+    {% else %}
+        --> @dm:save name="network-import-devices"
+    {% endif %}
+
+
+--> @c:new-block
+    {% if customer_tag %} 
+         --> @dm:recall name="{{customer_tag}}-network-import-devices"
+    {% else %}
+        --> @dm:recall name="network-import-devices"
+    {% endif %} 
+    --> @dm:replace-data columns="fileUpload" and expr="'" and replace='"'
+    --> @dm:to-type columns="replace" and type="str"
+    --> @dm:explode-json column="fileUpload"
+    --> @dm:save name ="temp-input-dataset"
+
+
+    --> @c:new-block
+    --> @dm:empty
+    {% if customer_tag %} 
+         --> #dm:query-persistent-stream customer_tag is '{{customer_tag}}' with-input name = "discovery" & limit = "0"
+    {% else %} 
+        --> #dm:query-persistent-stream customer_tag is empty with-input name = "discovery" & limit = "0"
+    {% endif %} 
+    
+    --> @dm:save name ="temp-customer-old-data"
+
+--> @c:new-block
+
+--> @c:data-loop dataset="temp-input-dataset" and columns="bucketName,objectName"
+    --> @dm:recall name="temp-input-dataset"
+    --> *dm:filter replace=="True"
+    --> @dm:skip-block-if-shape row_count="0"
+    --> @dm:get-from-location path="$bucketName/$objectName"
+    ## --> @dm:tail n = 1
+    --> @dm:check-columns must_contain="device_ip" and action="fail"
+    --> @dm:dedup columns="device_ip"
+    --> @dm:save name="temp-uploaded-file-data"
+    ##--> @dm:save name="$dataset_name"
+    ##--> @dm:save  name="test-discovery2"
+    --> @dm:eval key ="'key'" 
+  ## --> @dm:eval customer_tag ="'{{customer_tag}}'"
+  ##     --> @dm:eval customer_id ="'{{customer_id}}'"
+                --> @dm:enrich dict = "temp-input-data" & src_key_cols = "key" & dict_key_cols="key" & enrich_cols = "customer_tag,customer_id"
+
+      ##--> @dm:save  name="test-discovery"
+
+    --> @rn:write-stream name="discovery"
+    --> @dm:skip-pipeline-if-shape row_count > 0
+
+--> @c:new-block
+
+--> @c:data-loop dataset="temp-input-dataset" and columns="bucketName,objectName"
+    --> @dm:recall name="temp-input-dataset"
+    --> *dm:filter replace=="False"
+    --> @dm:skip-block-if-shape row_count="0"
+    --> @dm:get-from-location path="$bucketName/$objectName"
+    --> @dm:check-columns must_contain="device_ip" and action="fail"
+    ## --> @dm:head n = 1
+    --> @dm:save name="temp-uploaded-file-data"
+    --> @dm:recall name ="temp-customer-old-data"
+    --> @dm:save name="temp-uploaded-file-data" and append= "yes"
+    --> @dm:recall name="temp-uploaded-file-data"
+    --> @dm:dedup columns="device_ip"
+   ## --> @dm:save name="$dataset_name"
+    --> @dm:eval key ="'key'" 
+   ## --> @dm:eval customer_tag ="'{{customer_tag}}'"
+   ##    --> @dm:eval customer_id ="'{{customer_id}}'"
+          --> @dm:enrich dict = "temp-input-data" & src_key_cols = "key" & dict_key_cols="key" & enrich_cols = "customer_tag,customer_id"
+
+    --> @rn:write-stream name="discovery"
+
