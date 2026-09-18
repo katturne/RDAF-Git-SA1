@@ -1,52 +1,47 @@
+
+ ## oia-to-snow-cfx
+
+ ## All debugging is captured on oia-to-snow-debug-stream
+
+ ## 
+
+ ## A work around is to mention all child and dependent pipelines here.
 @c:new-block
- --> @exec:get-input
- --> @dm:add-missing-columns columns="key" and value='key'
- --> @dm:save name='temp-sw-data'
- --> @dm:save name='added-sw-data-1'
- --> @c:new-block
  --> @dm:empty
- --> @exec:define-function name="generate_access_token"
- --> @dm:recall name='generate_token_creds'
- ## --> @dm:empty
+ --> @dm:skip-block-if-shape row_count = 0 & column_count = 0
+ --> @exec:run-pipeline name="oia-to-snow-cfx-processor" & ignore_failures="no"
+ --> @exec:run-pipeline name="oia-incident-status-tracker-stream" & ignore_failures="no"
+ ## Read from Stream
 
- --> @exec:run-pipeline name ="edc_generate_token" & ignore_failures = "no"
- --> @dm:addrow key='key'
- --> @dm:eval current_time_ms="int(time_now_as_ms())"
- --> @dm:eval token_expiry_time='current_time_ms+3000000'
- --> @dm:save name='temp-expiry-time'
- --> @exec:end-function
- --> @c:new-block
- --> @dm:recall name='temp-sw-data'
- --> @dm:add-missing-columns columns="key" and value='key'
- --> @dm:manipulate-string from="sw_version,sw_os_type" and func="concat_columns" and to="unique_payload_inputs"
- --> @dm:dedup columns ='unique_payload_inputs'
- --> @dm:eval id1='uuid()'
- --> @dm:eval id2='uuid()'
- --> @dm:eval id2="id2.strip().split('-')[0]"
- --> @dm:eval id1="id1.replace('-', '')"
- --> @dm:eval transaction_id ='id1+id2'
- --> @dm:save name='temp-unique-sw-data'
- --> @dm:save name='added-sw-data'
- --> @c:new-block
+ --> @c:bookmark-loop bookmark = 'oia-to-snow-cfx-bkmrk' & initial_value = '-1 minute'
  --> @dm:empty
- --> @exec:call-function name='generate_access_token'
- --> @c:data-loop columns='sw_version,sw_os_type,transaction_id' and dataset='temp-unique-sw-data'
- ## --> @dm:recall name='temp-unique-sw-data'
+ --> @dm:addrow name="oia-incidents-delta-stream" & max_rows="1000"
+ --> @dm:sleep seconds=5
+ ## Query records from Stream
 
+ ## Change-Here: Pulse to what ever you want
+
+ --> #dm:query-persistent-stream timestamp is after '${bookmark}' & (i_source contains 'SNMP_TRAP_Notifications' or i_source contains 'Syslog_udp_Notifications' or i_source contains 'Alert Group') & i_state != 'Closed' & i_state != 'Cancelled'
+ --> @dm:skip-block-if-shape row_count = 0
+ ## Change-Here: Temp workaround. Flow is NOT gracefully coming back from post exec:run-pipeline
+
+ --> @dm:save_bookmark name = 'oia-to-snow-cfx-bkmrk' & value_column = 'timestamp' & value_type = 'timestamp' & value_func = 'max'
+ --> @dm:save name="temp-qresults"
+ ## Debug
+
+ --> @dm:map to="step" & func="fixed" & value="temp-query-stream-results-${bookmark}"
+ --> @rn:write-stream compression="auto" & name="oia-to-snow-debug-stream"
+ ## Record The Step
+
+ --> @dm:eval pipeline="'oia-to-snow-cfx'" & step="'query-persistent-stream'" & stage="'bookmark ${bookmark}'" & status_comments="'Incident:' + incident_id + ',State:' + i_state + ',Delta:' + str(delta)" & status="'INFO'"
+ --> @exec:run-pipeline name="oia-incident-status-tracker-stream" & ignore_failures="yes"
+ ## Set the Tracing Context
+
+ --> @dm:set-tracing-context-from-input columns = "project_id,incident_id"
+ --> @dm:save name="temp-query-result-cfx"
+ --> @exec:run-pipeline name="oia-to-snow-cfx-processor" & ignore_failures="no"
+ ## Save bookmark - only after finishing up processing all the records
+
+ --> @dm:recall name="temp-qresults"
+ --> @dm:save_bookmark name = 'oia-to-snow-cfx-bkmrk' & value_column = 'timestamp' & value_type = 'timestamp' & value_func = 'max'
  --> @dm:empty
- --> @dm:addrow key='key'
- --> @dm:eval current_time_ms_loop="int(time_now_as_ms())"
- --> @dm:save name='temp-loop-time'
- --> @dm:enrich dict='temp-expiry-time' and src_key_cols='key' and dict_key_cols='key' and enrich_cols='token_expiry_time,access_token,expires_in,token_type'
- --> *exec:if-condition token_expiry_time is null or current_time_ms_loop  is greater than or equal to token_expiry_time
- --> @exec:call-function name='generate_access_token'
- --> @exec:end-if
- --> @dm:add-missing-columns columns='sw_version' and value='$sw_version'
- --> @dm:add-missing-columns columns='sw_os_type' and value='$sw_os_type'
- --> @dm:eval sw_os_type="('IOS XR' if sw_os_type=='IOS-XR' else sw_os_type)"
- --> @dm:add-missing-columns columns='transaction_id' and value='$transaction_id'
- --> @exec:run-pipeline name ="edc_sw_get_data" & ignore_failures = "no"
- --> @dm:save name='sweol-data-run-scan'
- --> @dm:save name='test-sweol' and append='yes'
- --> @dm:save name='temp-sweol'
- --> @dm:save name='temp-expiry-time'
