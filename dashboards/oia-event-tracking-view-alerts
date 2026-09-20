@@ -1,506 +1,449 @@
 {
-  "name": "oia-event-tracking-view-alerts",
-  "label": "Events-View-Alerts",
-  "description": "OIA Event Tracking View Alerts",
-  "version": "23.1.2",
-  "enabled": true,
-  "stream": "oia-events-stream",
-  "dashboard_style": "auto",
-  "status_poller": {},
+  "name": "rda_system_single_snapshot_details",
+  "label": "Snapshot Details",
+  "description": "Snapshot Details",
+  "dashboard_folder": "System",
+  "version": "1.0.2",
+  "live_edit": true,
+  "enabled": false,
+  "stream": "rda_system_snapshots_details",
   "dashboard_type": "template",
   "template_variables": {
-    "SOURCE_EVENT_ID": {
-      "default": null,
-      "contextId": "se_id",
-      "type": "stack"
+    "SNAPSHOT_NAME": {
+      "contextId": "snapshot_name"
     }
   },
   "dashboard_filters": {
-    "show_default_time_filter": false,
-    "additional_datetime_column_filters": [
-      {
-        "id": "e_createdat",
-        "label": "Created At"
-      },
-      {
-        "id": "e_updatedat",
-        "label": "Updated At"
-      }
+    "time_filter": true,
+    "default_time_filter_labels": [
+      "All Time"
     ],
+    "extra_filter": "snapshot_name is '{{SNAPSHOT_NAME}}'",
     "columns_filter": [
       {
-        "id": "e_createdat",
-        "label": "Created At",
-        "type": "DATETIME"
+        "id": "artifact_name",
+        "label": "Artifact Name",
+        "type": "TEXT"
+      },
+      {
+        "id": "artifact_type",
+        "label": "Artifact Type",
+        "type": "TEXT"
+      },
+      {
+        "id": "artifact_version_visibility",
+        "label": "Artifact Checksum In Snapshot Repo",
+        "type": "TEXT"
+      },
+      {
+        "id": "checksum",
+        "label": "Checksum",
+        "type": "TEXT"
+      },
+      {
+        "id": "object_name",
+        "label": "Object Name",
+        "type": "TEXT"
+      },
+      {
+        "id": "snapshot_name",
+        "label": "Snapshot Name",
+        "type": "TEXT"
+      },
+      {
+        "id": "snapshot_type",
+        "label": "Snapshot Type",
+        "type": "TEXT"
+      },
+      {
+        "id": "size",
+        "label": "Size",
+        "type": "DOUBLE"
       }
     ],
-    "time_filter": false,
-    "default_time_filter_non_removable": true
+    "group_filters": [
+      {
+        "stream": "rda_system_snapshots_details",
+        "title": "Artifact Type",
+        "duration_hours": 87600,
+        "limit": 200,
+        "extra_filter": "snapshot_name is '{{SNAPSHOT_NAME}}'",
+        "group_by": [
+          "artifact_type"
+        ],
+        "ts_column": "timestamp",
+        "agg": "sum",
+        "column": "count_",
+        "type": "int"
+      },
+      {
+        "stream": "rda_system_snapshots_details",
+        "title": "Artifact Checksum In Snapshot Repo",
+        "duration_hours": 87600,
+        "limit": 200,
+        "extra_filter": "snapshot_name is '{{SNAPSHOT_NAME}}'",
+        "group_by": [
+          "artifact_version_visibility"
+        ],
+        "ts_column": "timestamp",
+        "agg": "sum",
+        "column": "count_",
+        "type": "int"
+      }
+    ]
   },
   "dashboard_sections": [
     {
-      "title": "Events",
+      "title": "rda_system_snapshots_details",
       "show_filter": true,
-      "projects": [
-        "ACME"
-      ],
       "widgets": [
         {
-          "title": "Event",
-          "widget_type": "summary",
-          "stream": "oia-source-events-stream",
-          "extra_filter": "se_id is '{{SOURCE_EVENT_ID}}'",
-          "ts_column": "se_updatedat",
-          "timebased": false,
-          "min_width": 6,
-          "height": 4,
+          "widget_type": "label",
+          "min_width": 3,
+          "height": 3,
           "max_width": 6,
-          "paginated": true,
-          "resizableColumns": false,
-          "refreshRequired": true,
-          "remote_searchable": true,
-          "remote_searchable_cols": [
-            "se_sourcesystemname",
-            "se_status",
-            "se_message",
-            "se_projectid",
-            "se_id"
-          ],
-          "max_rows": 50,
-          "columns": {
-            "se_id": {
-              "title": "Source Event ID",
-              "visible": false,
-              "key": true,
-              "defaultWidth": 150
+          "label": "{% raw %}<div><div style='color: #00aa00; font-size: 20px;'>Changes Since Last Snapshot: {{new_count|int}}</div><div style='color: #888888; font-size: 20px;'>Unchanged: {{unchanged_count|int}}</div></div>{% endraw %}",
+          "segments": [
+            {
+              "stream": "rda_system_snapshots_details",
+              "variable": "new_count",
+              "ts_column": "timestamp",
+              "extra_filter": "artifact_version_visibility == 'new' AND snapshot_name is '{{SNAPSHOT_NAME}}'",
+              "agg": "sum",
+              "group_by0": "artifact_version_visibility",
+              "column": "count_"
             },
-            "se_projectid": {
-              "title": "project Id",
-              "visible": false,
-              "key": true,
-              "defaultWidth": 150
-            },
-            "se_sourcereceivedat": {
-              "title": "Received At",
-              "type": "DATETIME",
-              "defaultWidth": 150
-            },
-            "se_sourcesystemname": {
-              "title": "Source",
-              "defaultWidth": 150
-            },
-            "se_status": {
-              "title": "Status",
-              "defaultWidth": 150
-            },
-            "se_numberofevents": {
-              "title": "No of Events",
-              "defaultWidth": 150
-            },
-            "se_message": {
-              "title": "Message",
-              "defaultWidth": 270
-            },
-            "se_createdat": {
-              "title": "Created At",
-              "type": "DATETIME",
-              "defaultWidth": 180
-            },
-            "se_updatedat": {
-              "title": "Updated At",
-              "type": "DATETIME",
-              "defaultWidth": 180
+            {
+              "stream": "rda_system_snapshots_details",
+              "variable": "unchanged_count",
+              "ts_column": "timestamp",
+              "extra_filter": "artifact_version_visibility == 'unchanged' AND snapshot_name is '{{SNAPSHOT_NAME}}'",
+              "agg": "sum",
+              "group_by0": "artifact_version_visibility",
+              "column": "count_"
             }
-          },
-          "actions": [],
-          "widget_id": "94a3fc11"
+          ],
+          "widget_id": "23af24fa"
         },
         {
           "widget_type": "pie_chart",
-          "title": "Alerts by Status",
-          "stream": "oia-events-stream",
-          "extra_filter": "e_sourceeventid is '{{SOURCE_EVENT_ID}}'",
-          "ts_column": "e_updatedat",
-          "min_width": 6,
-          "height": 4,
-          "max_width": 6,
-          "column": "e_id",
-          "agg": "value_count",
+          "title": "Artifact Type",
+          "stream": "rda_system_snapshots_details",
+          "ts_column": "timestamp",
+          "extra_filter": "snapshot_name is '{{SNAPSHOT_NAME}}'",
+          "column": "count_",
+          "agg": "sum",
           "group_by": [
-            "e_status"
+            "artifact_type"
           ],
-          "type": "str",
-          "widget_id": "cb0706e6"
+          "type": "int",
+          "min_width": 3,
+          "height": 3,
+          "max_width": 6,
+          "widget_id": "cc2794c5"
         },
         {
-          "title": "Alerts",
+          "title": "Snapshot Manifest",
           "widget_type": "tabular",
-          "stream": "oia-events-stream",
-          "ts_column": "e_updatedat",
-          "timebased": false,
-          "min_width": 12,
-          "height": 8,
+          "duration_hours": 87600,
           "max_width": 12,
+          "height": 8,
+          "min_width": 12,
           "paginated": true,
-          "resizableColumns": false,
-          "refreshRequired": true,
-          "remote_searchable": true,
-          "extra_filter": "e_sourceeventid is '{{SOURCE_EVENT_ID}}'",
-          "remote_searchable_cols": [
-            "e_label",
-            "e_severity",
-            "e_status",
-            "e_eventstate",
-            "e_message"
-          ],
-          "max_rows": 50,
+          "stream": "rda_system_snapshots_details",
+          "ts_column": "timestamp",
+          "extra_filter": "snapshot_name is '{{SNAPSHOT_NAME}}'",
           "columns": {
-            "e_label": {
-              "title": "Label",
-              "formatter": "truncate",
-              "defaultWidth": 270
+            "snapshot_type": {
+              "title": "Snapshot Type",
+              "type": "TEXT",
+              "hidden": false
             },
-            "e_severity_color": {
-              "title": "Sev_2",
-              "type": "COLOR-MAP",
-              "source-column": "e_severity",
-              "color-map": {
-                "SEVERE": "#B71C1C",
-                "CRITICAL": "#E53935",
-                "MAJOR": "#F57C00",
-                "MINOR": "#FFA726",
-                "WARNING": "#FFD54F",
-                "NOTIFICATION": "#4DD0E1",
-                "INFORMATION": "#03A9F4"
-              }
+            "snapshot_name": {
+              "title": "Snapshot Name",
+              "type": "TEXT",
+              "hidden": false
             },
-            "e_severity": {
-              "title": "Severity",
-              "htmlTemplateForRow": "<span class='badge' style='background-color: {{'{{ row.e_severity_color }}'}}' > {{'{{ row.e_severity }}'}} </span>",
-              "defaultWidth": 150
+            "artifact_type": {
+              "title": "Artifact Type",
+              "type": "TEXT",
+              "hidden": false,
+              "key": true
             },
-            "e_status": {
-              "title": "Status",
-              "defaultWidth": 150
+            "artifact_name": {
+              "title": "Artifact Name",
+              "type": "TEXT",
+              "hidden": false,
+              "key": true
             },
-            "e_eventstate": {
-              "title": "Processing State",
-              "defaultWidth": 150
+            "artifact_version_visibility": {
+              "title": "Artifact Checksum In Snapshot Repo",
+              "type": "TEXT",
+              "hidden": false
             },
-            "e_message": {
-              "title": "Comments",
-              "defaultWidth": 270
+            "size": {
+              "title": "Size",
+              "type": "DOUBLE",
+              "hidden": false
             },
-            "e_createdat": {
-              "title": "Created At",
-              "type": "DATETIME",
-              "defaultWidth": 180
+            "checksum": {
+              "title": "Checksum",
+              "type": "TEXT",
+              "hidden": false
             },
-            "e_updatedat": {
-              "title": "Updated At",
-              "type": "DATETIME",
-              "defaultWidth": 180
-            },
-            "e_id": {
-              "title": "Event Id",
+            "object_name": {
+              "title": "Object Name",
+              "type": "TEXT",
               "visible": false,
-              "key": true,
-              "defaultWidth": 150
+              "key": true
             },
-            "e_projectid": {
-              "title": "project Id",
-              "visible": false,
-              "key": true,
-              "defaultWidth": 150
-            },
-            "e_sourceeventid": {
-              "title": "Source Event ID",
-              "visible": false,
-              "key": true,
-              "defaultWidth": 150
-            },
-            "e_eventkey": {
-              "title": "Alert Key",
-              "visible": false,
-              "key": true,
-              "defaultWidth": 150
-            },
-            "e_processedeventid": {
-              "title": "Alert ID",
-              "visible": false,
-              "key": true,
-              "defaultWidth": 150
+            "timestamp": {
+              "title": "Timestamp",
+              "type": "DATETIME"
             }
           },
           "actions": [
             {
-              "title": "View Alert Trail",
+              "title": "View",
               "type": "POPUP_FORM",
               "selectionType": "SINGLE",
-              "permission": "oia:event-tracking:view",
-              "identifier": "ingestion-tracker:cfx.view.alert.trail",
-              "drillDownLinkField": "label",
-              "drillDownContext": "id",
-              "displayLabelColumnId": "label",
-              "contextParamList": {
-                "contextParams": [
-                  {
-                    "paramKey": "e_processedeventid",
-                    "paramId": "processedeventid"
-                  }
-                ]
-              },
+              "permission": "rda:dataset:view",
+              "identifier": "rda.saas.snapshot.obj.view",
               "api-endpoint": {
-                "service-name": "ingestion-tracker",
-                "namespace": "io.cfx.dimensions.app",
-                "methodName": "invokeAppApi:getFormById",
+                "service-name": "saas-reports",
+                "methodName": "getForm",
                 "stringified-params": true,
-                "useReportContext": true,
                 "parse-output": false,
                 "params": [
                   {
-                    "form_id": "com.cfx.form.view.alert.trail",
-                    "context": {}
+                    "formId": "rda.saas.snapshot.obj.view"
                   }
                 ]
               }
             }
           ],
-          "widget_id": "2d17f8a1"
+          "widget_id": "7089a9ae"
+        },
+        {
+          "title": "Snapshot Errors",
+          "widget_type": "tabular",
+          "max_width": 12,
+          "height": 8,
+          "min_width": 12,
+          "paginated": true,
+          "stream": "rda_system_snapshots_errors",
+          "ts_column": "timestamp",
+          "extra_filter0": "snapshot_name is '{{SNAPSHOT_NAME}}'",
+          "columns": {
+            "snapshot_type": {
+              "title": "Snapshot Type",
+              "type": "TEXT",
+              "hidden": false
+            },
+            "snapshot_name": {
+              "title": "Snapshot Name",
+              "type": "TEXT",
+              "hidden": false
+            },
+            "artifact_type": {
+              "title": "Artifact Type",
+              "type": "TEXT",
+              "hidden": false
+            },
+            "artifact_name": {
+              "title": "Artifact Name",
+              "type": "TEXT",
+              "hidden": false
+            },
+            "message": {
+              "title": "Message",
+              "type": "TEXT",
+              "hidden": false
+            },
+            "timestamp": {
+              "title": "Timestamp",
+              "type": "DATETIME"
+            }
+          },
+          "widget_id": "53447b4f"
         }
       ]
     }
   ],
   "pstream_dashboards": [
     {
-      "title": "Events",
+      "title": "rda_system_snapshots_details",
       "show_filter": true,
-      "projects": [
-        "ACME"
-      ],
       "widgets": [
         {
-          "title": "Event",
-          "widget_type": "summary",
-          "stream": "oia-source-events-stream",
-          "extra_filter": "se_id is '{{SOURCE_EVENT_ID}}'",
-          "ts_column": "se_updatedat",
-          "timebased": false,
-          "min_width": 6,
-          "height": 4,
+          "widget_type": "label",
+          "min_width": 3,
+          "height": 3,
           "max_width": 6,
-          "paginated": true,
-          "resizableColumns": false,
-          "refreshRequired": true,
-          "remote_searchable": true,
-          "remote_searchable_cols": [
-            "se_sourcesystemname",
-            "se_status",
-            "se_message",
-            "se_projectid",
-            "se_id"
-          ],
-          "max_rows": 50,
-          "columns": {
-            "se_id": {
-              "title": "Source Event ID",
-              "visible": false,
-              "key": true,
-              "defaultWidth": 150
+          "label": "{% raw %}<div><div style='color: #00aa00; font-size: 20px;'>Changes Since Last Snapshot: {{new_count|int}}</div><div style='color: #888888; font-size: 20px;'>Unchanged: {{unchanged_count|int}}</div></div>{% endraw %}",
+          "segments": [
+            {
+              "stream": "rda_system_snapshots_details",
+              "variable": "new_count",
+              "ts_column": "timestamp",
+              "extra_filter": "artifact_version_visibility == 'new' AND snapshot_name is '{{SNAPSHOT_NAME}}'",
+              "agg": "sum",
+              "group_by0": "artifact_version_visibility",
+              "column": "count_"
             },
-            "se_projectid": {
-              "title": "project Id",
-              "visible": false,
-              "key": true,
-              "defaultWidth": 150
-            },
-            "se_sourcereceivedat": {
-              "title": "Received At",
-              "type": "DATETIME",
-              "defaultWidth": 150
-            },
-            "se_sourcesystemname": {
-              "title": "Source",
-              "defaultWidth": 150
-            },
-            "se_status": {
-              "title": "Status",
-              "defaultWidth": 150
-            },
-            "se_numberofevents": {
-              "title": "No of Events",
-              "defaultWidth": 150
-            },
-            "se_message": {
-              "title": "Message",
-              "defaultWidth": 270
-            },
-            "se_createdat": {
-              "title": "Created At",
-              "type": "DATETIME",
-              "defaultWidth": 180
-            },
-            "se_updatedat": {
-              "title": "Updated At",
-              "type": "DATETIME",
-              "defaultWidth": 180
+            {
+              "stream": "rda_system_snapshots_details",
+              "variable": "unchanged_count",
+              "ts_column": "timestamp",
+              "extra_filter": "artifact_version_visibility == 'unchanged' AND snapshot_name is '{{SNAPSHOT_NAME}}'",
+              "agg": "sum",
+              "group_by0": "artifact_version_visibility",
+              "column": "count_"
             }
-          },
-          "actions": [],
-          "widget_id": "94a3fc11"
+          ],
+          "widget_id": "23af24fa"
         },
         {
           "widget_type": "pie_chart",
-          "title": "Alerts by Status",
-          "stream": "oia-events-stream",
-          "extra_filter": "e_sourceeventid is '{{SOURCE_EVENT_ID}}'",
-          "ts_column": "e_updatedat",
-          "min_width": 6,
-          "height": 4,
-          "max_width": 6,
-          "column": "e_id",
-          "agg": "value_count",
+          "title": "Artifact Type",
+          "stream": "rda_system_snapshots_details",
+          "ts_column": "timestamp",
+          "extra_filter": "snapshot_name is '{{SNAPSHOT_NAME}}'",
+          "column": "count_",
+          "agg": "sum",
           "group_by": [
-            "e_status"
+            "artifact_type"
           ],
-          "type": "str",
-          "widget_id": "cb0706e6"
+          "type": "int",
+          "min_width": 3,
+          "height": 3,
+          "max_width": 6,
+          "widget_id": "cc2794c5"
         },
         {
-          "title": "Alerts",
+          "title": "Snapshot Manifest",
           "widget_type": "tabular",
-          "stream": "oia-events-stream",
-          "ts_column": "e_updatedat",
-          "timebased": false,
-          "min_width": 12,
-          "height": 8,
+          "duration_hours": 87600,
           "max_width": 12,
+          "height": 8,
+          "min_width": 12,
           "paginated": true,
-          "resizableColumns": false,
-          "refreshRequired": true,
-          "remote_searchable": true,
-          "extra_filter": "e_sourceeventid is '{{SOURCE_EVENT_ID}}'",
-          "remote_searchable_cols": [
-            "e_label",
-            "e_severity",
-            "e_status",
-            "e_eventstate",
-            "e_message"
-          ],
-          "max_rows": 50,
+          "stream": "rda_system_snapshots_details",
+          "ts_column": "timestamp",
+          "extra_filter": "snapshot_name is '{{SNAPSHOT_NAME}}'",
           "columns": {
-            "e_label": {
-              "title": "Label",
-              "formatter": "truncate",
-              "defaultWidth": 270
+            "snapshot_type": {
+              "title": "Snapshot Type",
+              "type": "TEXT",
+              "hidden": false
             },
-            "e_severity_color": {
-              "title": "Sev_2",
-              "type": "COLOR-MAP",
-              "source-column": "e_severity",
-              "color-map": {
-                "SEVERE": "#B71C1C",
-                "CRITICAL": "#E53935",
-                "MAJOR": "#F57C00",
-                "MINOR": "#FFA726",
-                "WARNING": "#FFD54F",
-                "NOTIFICATION": "#4DD0E1",
-                "INFORMATION": "#03A9F4"
-              }
+            "snapshot_name": {
+              "title": "Snapshot Name",
+              "type": "TEXT",
+              "hidden": false
             },
-            "e_severity": {
-              "title": "Severity",
-              "htmlTemplateForRow": "<span class='badge' style='background-color: {{'{{ row.e_severity_color }}'}}' > {{'{{ row.e_severity }}'}} </span>",
-              "defaultWidth": 150
+            "artifact_type": {
+              "title": "Artifact Type",
+              "type": "TEXT",
+              "hidden": false,
+              "key": true
             },
-            "e_status": {
-              "title": "Status",
-              "defaultWidth": 150
+            "artifact_name": {
+              "title": "Artifact Name",
+              "type": "TEXT",
+              "hidden": false,
+              "key": true
             },
-            "e_eventstate": {
-              "title": "Processing State",
-              "defaultWidth": 150
+            "artifact_version_visibility": {
+              "title": "Artifact Checksum In Snapshot Repo",
+              "type": "TEXT",
+              "hidden": false
             },
-            "e_message": {
-              "title": "Comments",
-              "defaultWidth": 270
+            "size": {
+              "title": "Size",
+              "type": "DOUBLE",
+              "hidden": false
             },
-            "e_createdat": {
-              "title": "Created At",
-              "type": "DATETIME",
-              "defaultWidth": 180
+            "checksum": {
+              "title": "Checksum",
+              "type": "TEXT",
+              "hidden": false
             },
-            "e_updatedat": {
-              "title": "Updated At",
-              "type": "DATETIME",
-              "defaultWidth": 180
-            },
-            "e_id": {
-              "title": "Event Id",
+            "object_name": {
+              "title": "Object Name",
+              "type": "TEXT",
               "visible": false,
-              "key": true,
-              "defaultWidth": 150
+              "key": true
             },
-            "e_projectid": {
-              "title": "project Id",
-              "visible": false,
-              "key": true,
-              "defaultWidth": 150
-            },
-            "e_sourceeventid": {
-              "title": "Source Event ID",
-              "visible": false,
-              "key": true,
-              "defaultWidth": 150
-            },
-            "e_eventkey": {
-              "title": "Alert Key",
-              "visible": false,
-              "key": true,
-              "defaultWidth": 150
-            },
-            "e_processedeventid": {
-              "title": "Alert ID",
-              "visible": false,
-              "key": true,
-              "defaultWidth": 150
+            "timestamp": {
+              "title": "Timestamp",
+              "type": "DATETIME"
             }
           },
           "actions": [
             {
-              "title": "View Alert Trail",
+              "title": "View",
               "type": "POPUP_FORM",
               "selectionType": "SINGLE",
-              "permission": "oia:event-tracking:view",
-              "identifier": "ingestion-tracker:cfx.view.alert.trail",
-              "drillDownLinkField": "label",
-              "drillDownContext": "id",
-              "displayLabelColumnId": "label",
-              "contextParamList": {
-                "contextParams": [
-                  {
-                    "paramKey": "e_processedeventid",
-                    "paramId": "processedeventid"
-                  }
-                ]
-              },
+              "permission": "rda:dataset:view",
+              "identifier": "rda.saas.snapshot.obj.view",
               "api-endpoint": {
-                "service-name": "ingestion-tracker",
-                "namespace": "io.cfx.dimensions.app",
-                "methodName": "invokeAppApi:getFormById",
+                "service-name": "saas-reports",
+                "methodName": "getForm",
                 "stringified-params": true,
-                "useReportContext": true,
                 "parse-output": false,
                 "params": [
                   {
-                    "form_id": "com.cfx.form.view.alert.trail",
-                    "context": {}
+                    "formId": "rda.saas.snapshot.obj.view"
                   }
                 ]
               }
             }
           ],
-          "widget_id": "2d17f8a1"
+          "widget_id": "7089a9ae"
+        },
+        {
+          "title": "Snapshot Errors",
+          "widget_type": "tabular",
+          "max_width": 12,
+          "height": 8,
+          "min_width": 12,
+          "paginated": true,
+          "stream": "rda_system_snapshots_errors",
+          "ts_column": "timestamp",
+          "extra_filter0": "snapshot_name is '{{SNAPSHOT_NAME}}'",
+          "columns": {
+            "snapshot_type": {
+              "title": "Snapshot Type",
+              "type": "TEXT",
+              "hidden": false
+            },
+            "snapshot_name": {
+              "title": "Snapshot Name",
+              "type": "TEXT",
+              "hidden": false
+            },
+            "artifact_type": {
+              "title": "Artifact Type",
+              "type": "TEXT",
+              "hidden": false
+            },
+            "artifact_name": {
+              "title": "Artifact Name",
+              "type": "TEXT",
+              "hidden": false
+            },
+            "message": {
+              "title": "Message",
+              "type": "TEXT",
+              "hidden": false
+            },
+            "timestamp": {
+              "title": "Timestamp",
+              "type": "DATETIME"
+            }
+          },
+          "widget_id": "53447b4f"
         }
       ]
     }
