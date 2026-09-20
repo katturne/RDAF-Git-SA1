@@ -1,38 +1,58 @@
-folder: Default
-name: edc_sw_reinvoke_scan
-description: test pipeline
-data_path: pipelines/data/edc_sw_reinvoke_scan/2025_07_07_01/data.json
-usecase: ''
-category: ''
-sources:
-  rn:
-    name: rn
-    type: rn
-artifacts:
-- artifact_type: pipeline
-  artifact_name: edc_generate_token
-  access: read
-- artifact_type: pipeline
-  artifact_name: edc_sw_get_data
-  access: read
-- artifact_type: pipeline
-  artifact_name: edc_sweol_enrich
-  access: read
-- artifact_type: pipeline
-  artifact_name: edc_processing_sw_data
-  access: read
-- artifact_type: dataset
-  artifact_name: added-minio-file
-  access: write
-- artifact_type: pipeline
-  artifact_name: edc_sw_run_scan
-  access: read
-- artifact_type: rda-network-stream
-  artifact_name: edc_sw_raw_data
-  access: write
-- artifact_type: pipeline
-  artifact_name: edc_sweol_enrich
-  access: read
-version: '2025_07_07_01'
-file_type: json
-checksum: 0ba93405
+@dm:empty
+ --> @exec:get-input
+ --> @dm:save name="temp-dataset"
+ --> @c:new-block
+ --> @dm:recall name="temp-dataset"
+ --> @dm:check_columns must_contain = 'customer' &action ='skip-block'
+ ## --> @dm:save name="test-del-dataset"
+
+ --> @dm:save name="temp-del-dataset"
+ --> @c:new-block
+ --> @dm:empty
+ --> @dm:save name='edc_status'
+ ## delete enriched stream
+
+ --> @c:data-loop columns='customer' and dataset='temp-del-dataset' and return_empty='yes'
+ ## --> @dm:recall name="temp-row-del-dataset"
+
+ ## --> @dm:check_columns must_contain = 'customer' &action ='skip-block'
+
+ ## --> *dm:filter customer_name = '$customer_name'
+
+ --> @dm:recall name='edc_status' and return_empty = 'yes'
+ --> @dm:addrow dummy='key'
+ --> @dm:add-missing-columns columns='customer_name' and  value="$customer"
+ --> @dm:manipulate-string to="status" and func="eval" and value="'Starting to delete the data'"
+ --> @rn:write-stream name ='edc_update_status'
+ --> @dm:empty
+ --> @dm:addrow name = "edc_oi_inventory_grouped" & conflicts = "proceed" & timeout = 1200
+ --> #dm:pstream-delete-data-by-query customer_name=="$customer"
+ --> @dm:empty
+ --> @dm:addrow name = "edc_oi_inventory_enriched" & conflicts = "proceed" & timeout = 1200
+ --> #dm:pstream-delete-data-by-query customer_name=="$customer"
+ --> @dm:sleep seconds = 5
+ --> @dm:recall name='edc_status' and return_empty = 'yes'
+ --> @dm:addrow dummy='key'
+ --> @dm:add-missing-columns columns='customer_name' and  value="$customer"
+ --> @dm:manipulate-string to="status" and func="eval" and value="'Completed data deletion'"
+ --> @rn:write-stream name ='edc_update_status'
+ --> @c:new-block
+ --> @dm:recall name="temp-del-dataset"  and return_empty='yes'
+ --> @dm:check_columns must_not_contain = 'customer' &action ='skip-block'
+ --> @dm:recall name='edc_status' and return_empty = 'yes'
+ --> @dm:addrow dummy='key'
+ --> @dm:add-missing-columns columns='customer_name' and  value="$customer"
+ --> @dm:manipulate-string to="status" and func="eval" and value="'Starting to delete data for all customers'"
+ --> @rn:write-stream name ='edc_update_status'
+ --> @dm:empty
+ --> @dm:addrow name = "edc_oi_inventory_grouped" & conflicts = "proceed" & timeout = 1200
+ --> #dm:pstream-delete-data-by-query count_ is 1
+ --> @dm:empty
+ --> @dm:addrow name = "edc_oi_inventory_enriched" & conflicts = "proceed" & timeout = 1200
+ --> #dm:pstream-delete-data-by-query count_ is 1
+ --> @dm:sleep seconds = 5
+ --> @dm:recall name='edc_status' and return_empty = 'yes'
+ --> @dm:addrow dummy='key'
+ --> @dm:add-missing-columns columns='customer_name' and  value="$customer"
+ --> @dm:manipulate-string to="status" and func="eval" and value="'Data deleted for all customers'"
+ --> @rn:write-stream name ='edc_update_status'
