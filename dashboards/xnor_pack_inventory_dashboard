@@ -1,1837 +1,1191 @@
 {
-  "name": "xnor_pack_inventory_dashboard",
-  "label": "XNOR_PACK Inventory",
-  "description": "Dashboard for inventory_report",
-  "version": "1.0.0",
+  "name": "oia-alerts-war-room-customer-view",
+  "label": "War Room - Customer View",
+  "description": "War Room - Customer View",
   "enabled": true,
-  "live_edit": true,
-  "include_context_in_query": true,
-  "include_context_keys": [
-    "ROUTER"
-  ],
+  "dashboard_type": "template",
+  "template_variables": {
+    "ALERT_CT": {
+      "contextId": "a_created_ts",
+      "default": "2024-04-10T09:39:36.265000"
+    },
+    "CUSTOMER_ID": {
+      "contextId": "customer_id"
+    },
+    "ASSET_ID": {
+      "contextId": "a_asset_ip_address"
+    }
+  },
   "dashboard_filters": {
     "time_filter": true,
-    "default_time_filter_non_removable": true,
-    "show_default_time_filter": false,
-    "default_time_filter_labels": [
-      "Last 20 days"
-    ],
-    "columns_filter": [
-      {
-        "id": "timestamp",
-        "label": "timestamp",
-        "type": "DATETIME"
-      }
-    ]
+    "default_time_range": {
+      "from_time": "{{ALERT_CT}}",
+      "from_time_delta_hours": -24,
+      "to_time": "{{ALERT_CT}}",
+      "to_time_delta_hours": 24,
+      "label": "{{INCIDENT_ID}} Time Range"
+    }
+  },
+  "stream_query_mapping": {
+    "syslog_udp_event_stream_all": {
+      "a_created_ts": "rda_gw_timestamp"
+    },
+    "oia-incidents-stream": {
+      "a_created_ts": "i_created_ts"
+    },
+    "oia-ml-metrics-regression-output": {
+      "a_created_ts": "timestamp"
+    },
+    "change_requests_stream": {
+      "a_created_ts": "timestamp"
+    }
   },
   "dashboard_sections": [
     {
-      "title": "inventory report",
+      "title": "Customer View",
       "show_filter": true,
       "widgets": [
         {
-          "widget_type": "pie_chart",
-          "title": "SW Version",
-          "stream": "xnor_pack_inventory_data_stream",
-          "duration_hours": 1080,
-          "ts_column": "timestamp",
-          "column": "IP_Address",
-          "agg": "value_count",
-          "group_by": [
-            "SW_Version"
-          ],
-          "type": "str",
-          "min_width": 3,
-          "height": 4,
-          "max_width": 4,
-          "widget_id": "69e7f422"
-        },
-        {
-          "widget_type": "pie_chart",
-          "title": "Node Type",
-          "stream": "xnor_pack_inventory_data_stream",
-          "duration_hours": 1080,
-          "ts_column": "timestamp",
-          "column": "IP_Address",
-          "agg": "value_count",
-          "group_by": [
-            "Node_Type"
-          ],
-          "type": "str",
-          "min_width": 3,
-          "height": 4,
-          "max_width": 4,
-          "widget_id": "e27a6f2f"
-        },
-        {
-          "widget_type": "pie_chart",
-          "title": "CIDR Group",
-          "stream": "xnor_cidr_group_details",
-          "duration_hours": 1080,
-          "ts_column": "timestamp",
-          "column": "Group_Name",
-          "agg": "value_count",
-          "group_by": [
-            "Group_Name"
-          ],
-          "type": "str",
-          "min_width": 3,
-          "height": 4,
-          "max_width": 4,
-          "widget_id": "d35153cf"
-        },
-        {
-          "title": "INVENTORY REPORT",
-          "widget_type": "tabular",
-          "stream": "xnor_pack_inventory_data_stream",
-          "duration_hours": 1080,
+          "widget_type": "label",
+          "label": "<h3 style='text-align: center;'>Alert Created: {%raw%} {{' {{ '}} {%endraw%} toDateTimeString({{ ALERT_CT }}) {%raw%} {{ '}}' }} {%endraw%} </h3>",
+          "advanced": true,
           "min_width": 12,
           "max_width": 12,
-          "height": 5,
-          "remote_searchable": true,
-          "showRowSummary": true,
-          "max_rows": 20,
-          "paginated": true,
-          "sorting": [],
-          "columns": {
-            "Node_Name": {
-              "title": "ROUTER",
-              "type": "TEXT",
-              "hidden": false,
-              "key": true
-            },
-            "Description": {
-              "title": "Description",
-              "type": "TEXT",
-              "hidden": false,
-              "key": true
-            },
-            "IP_Address": {
-              "title": "IP Address",
-              "type": "integer",
-              "hidden": false,
-              "key": true
-            },
-            "Software": {
-              "title": "Software",
-              "type": "TEXT",
-              "hidden": false,
-              "key": true
-            },
-            "SW_Version": {
-              "title": "SW Version",
-              "type": "integer",
-              "hidden": false,
-              "key": true
-            },
-            "Node_Type": {
-              "title": "Node Type",
-              "type": "TEXT",
-              "hidden": false,
-              "key": true
-            },
-            "Rack_Location": {
-              "title": "Rack Location",
-              "type": "TEXT",
-              "hidden": false,
-              "key": true
-            },
-            "_RDA_Id": {
-              "title": "RDA ID",
-              "key": true,
-              "hidden": true
-            }
-          },
-          "actions": [
-            {
-              "title": "Add Inventory",
-              "type": "POPUP_FORM",
-              "permission": "rda:dataset:view",
-              "selectionType": "NONE",
-              "identifier": "saas-service-action:userdashboard-add-yaml",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.dynamic.form",
-                    "formDefinition": {
-                      "id": "rda.saas.dynamic.form",
-                      "refreshRequired": true,
-                      "formFieldList": [
-                        {
-                          "fieldId": "Node_Name",
-                          "label": "Router",
-                          "help": "Node_Name",
-                          "dataType": "string",
-                          "controlType": "TEXT_FIELD",
-                          "hidden": false,
-                          "editable": true,
-                          "required": true,
-                          "key": true
-                        },
-                        {
-                          "fieldId": "Description",
-                          "label": "Description",
-                          "help": "Description",
-                          "dataType": "string",
-                          "controlType": "TEXT_FIELD",
-                          "hidden": false,
-                          "editable": true,
-                          "required": true,
-                          "key": true
-                        },
-                        {
-                          "fieldId": "IP_Address",
-                          "label": "IP Address",
-                          "help": "IP_Address",
-                          "dataType": "string",
-                          "controlType": "TEXT_FIELD",
-                          "hidden": false,
-                          "editable": true,
-                          "required": true,
-                          "key": true
-                        },
-                        {
-                          "fieldId": "Software",
-                          "label": "Software",
-                          "help": "Software",
-                          "dataType": "string",
-                          "controlType": "TEXT_FIELD",
-                          "hidden": false,
-                          "editable": true,
-                          "required": true,
-                          "key": true
-                        },
-                        {
-                          "fieldId": "SW_Version",
-                          "label": "SW Version",
-                          "help": "SW_Version",
-                          "dataType": "string",
-                          "controlType": "TEXT_FIELD",
-                          "hidden": false,
-                          "editable": true,
-                          "required": true,
-                          "key": true
-                        },
-                        {
-                          "fieldId": "Node_Type",
-                          "label": "Node Type",
-                          "help": "Node_Type",
-                          "dataType": "string",
-                          "controlType": "TEXT_FIELD",
-                          "hidden": false,
-                          "editable": true,
-                          "required": true,
-                          "key": true
-                        },
-                        {
-                          "help": "Rack_Location",
-                          "dataType": "string",
-                          "controlType": "TEXT_FIELD",
-                          "required": true,
-                          "editable": true,
-                          "label": "Rack Location",
-                          "hidden": false,
-                          "fieldId": "Rack_Location",
-                          "key": true
-                        }
-                      ]
-                    },
-                    "actions": [
-                      {
-                        "type": "UPDATE_PSTREAM",
-                        "pstreamName": "xnor_pack_inventory_data_stream"
-                      }
-                    ]
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:user_dashboard:view",
-              "appName": "user-dashboard/xnor_view_router",
-              "identifier": "launch.dashboard.xnor_view_router",
-              "drillDownLinkField": "Node Name",
-              "selectionType": "SINGLE",
-              "title": "Router info",
-              "type": "GO_TO_APP_STATE"
-            },
-            {
-              "permission": "rda:user_dashboard:view",
-              "appName": "user-dashboard/xnor_view_order",
-              "identifier": "launch.dashboard.xnor_view_order",
-              "selectionType": "SINGLE",
-              "title": "View Orders",
-              "type": "GO_TO_APP_STATE"
-            },
-            {
-              "permission": "rda:github:view",
-              "title": "Edit Inventory",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:userdashboard-add-yaml",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.dynamic.form",
-                    "formDefinition": {
-                      "id": "rda.saas.dynamic.form",
-                      "refreshRequired": true,
-                      "formFieldList": [
-                        {
-                          "fieldId": "Node_Name",
-                          "label": "Router",
-                          "help": "Node_Name",
-                          "dataType": "string",
-                          "controlType": "TEXT_FIELD",
-                          "hidden": false,
-                          "editable": true,
-                          "required": true,
-                          "key": true
-                        },
-                        {
-                          "fieldId": "Description",
-                          "label": "Description",
-                          "help": "Description",
-                          "dataType": "string",
-                          "controlType": "TEXT_FIELD",
-                          "hidden": false,
-                          "editable": true,
-                          "required": true,
-                          "key": true
-                        },
-                        {
-                          "fieldId": "IP_Address",
-                          "label": "IP Address",
-                          "help": "IP_Address",
-                          "dataType": "string",
-                          "controlType": "TEXT_FIELD",
-                          "hidden": false,
-                          "editable": true,
-                          "required": true,
-                          "key": true
-                        },
-                        {
-                          "fieldId": "Software",
-                          "label": "Software",
-                          "help": "Software",
-                          "dataType": "string",
-                          "controlType": "TEXT_FIELD",
-                          "hidden": false,
-                          "editable": true,
-                          "required": true,
-                          "key": true
-                        },
-                        {
-                          "fieldId": "SW_Version",
-                          "label": "SW Version",
-                          "help": "SW_Version",
-                          "dataType": "string",
-                          "controlType": "TEXT_FIELD",
-                          "hidden": false,
-                          "editable": false,
-                          "required": true,
-                          "key": true
-                        },
-                        {
-                          "fieldId": "Node_Type",
-                          "label": "Node Type",
-                          "help": "Node_Type",
-                          "dataType": "string",
-                          "controlType": "TEXT_FIELD",
-                          "hidden": false,
-                          "editable": true,
-                          "required": true,
-                          "key": true
-                        },
-                        {
-                          "help": "Rack_Location",
-                          "dataType": "string",
-                          "controlType": "TEXT_FIELD",
-                          "required": true,
-                          "editable": true,
-                          "label": "Rack Location",
-                          "hidden": false,
-                          "fieldId": "Rack_Location",
-                          "key": true
-                        }
-                      ]
-                    },
-                    "actions": [
-                      {
-                        "type": "UPDATE_PSTREAM",
-                        "pstreamName": "xnor_pack_inventory_data_stream",
-                        "operation": "UPDATE",
-                        "cfxql_query": "_RDA_Id is '{{_RDA_Id}}'"
-                      }
-                    ]
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:github:view",
-              "title": "Delete Inventory",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:userdashboard-add-yaml",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.dynamic.form",
-                    "formActionList": {
-                      "formActions": [
-                        {
-                          "identifier": "Submit",
-                          "actionLabel": "Delete"
-                        }
-                      ]
-                    },
-                    "formDefinition": {
-                      "id": "rda.saas.dynamic.form",
-                      "refreshRequired": true,
-                      "formFieldList": [
-                        {
-                          "help": "Do you want to delete the Inventory",
-                          "dataType": "string",
-                          "controlType": "LABEL",
-                          "required": false,
-                          "editable": false,
-                          "label": "Do you want to delete the Inventory",
-                          "hidden": false,
-                          "fieldId": "name"
-                        }
-                      ]
-                    },
-                    "actions": [
-                      {
-                        "type": "UPDATE_PSTREAM",
-                        "pstreamName": "xnor_pack_inventory_data_stream",
-                        "operation": "DELETE",
-                        "cfxql_query": "_RDA_Id is '{{_RDA_Id}}'"
-                      }
-                    ]
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:github:view",
-              "title": "Upgrade",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:userdashboard-add-yaml",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.dynamic.form",
-                    "formDefinition": {
-                      "id": "rda.saas.dynamic.form",
-                      "refreshRequired": true,
-                      "formFieldList": [
-                        {
-                          "fieldId": "Node_Name",
-                          "label": "Router",
-                          "help": "Router",
-                          "dataType": "string",
-                          "controlType": "TEXT_FIELD",
-                          "hidden": false,
-                          "editable": false,
-                          "required": true,
-                          "key": true
-                        },
-                        {
-                          "fieldId": "Node_Type",
-                          "label": "Node Type",
-                          "help": "Node_Type",
-                          "dataType": "string",
-                          "controlType": "TEXT_FIELD",
-                          "hidden": false,
-                          "editable": false,
-                          "required": true,
-                          "key": true
-                        },
-                        {
-                          "fieldId": "IP_Address",
-                          "label": "IP Address",
-                          "help": "IP_Address",
-                          "dataType": "string",
-                          "controlType": "TEXT_FIELD",
-                          "hidden": false,
-                          "editable": false,
-                          "required": true,
-                          "key": true
-                        },
-                        {
-                          "help": "SW_version",
-                          "dataType": "string",
-                          "controlType": "TEXT_FIELD",
-                          "required": true,
-                          "editable": false,
-                          "label": "Source Version",
-                          "hidden": false,
-                          "fieldId": "SW_Version",
-                          "key": true
-                        },
-                        {
-                          "help": "Target_Version",
-                          "dataType": "string",
-                          "controlType": "COMBO_BOX",
-                          "required": true,
-                          "editable": true,
-                          "label": "Target Version",
-                          "hidden": false,
-                          "fieldId": "target",
-                          "key": true,
-                          "lovSourceType": "dataset",
-                          "lovSourceParams": {
-                            "name": "xnor_upgrade_downgrade_version_compatability",
-                            "valueColumn": "target",
-                            "labelColumn": "target",
-                            "query": "plan_type contains 'Upgrade'"
-                          }
-                        }
-                      ]
-                    },
-                    "formActionList": {
-                      "formActions": [
-                        {
-                          "actionLabel": "Submit Order",
-                          "type": "SUBMIT",
-                          "identifier": "Submit"
-                        }
-                      ]
-                    },
-                    "actions": [
-                      {
-                        "type": "UPDATE_PSTREAM",
-                        "pstreamName": "audit_pack_xnor_orders_stream"
-                      },
-                      {
-                        "type": "RUN_PIPELINE",
-                        "pipelineName": "xnor_pack_run_collection_pipeline",
-                        "isSync": false
-                      }
-                    ]
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:github:view",
-              "title": "Downgrade",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:userdashboard-add-yaml",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.dynamic.form",
-                    "formDefinition": {
-                      "id": "rda.saas.dynamic.form",
-                      "refreshRequired": true,
-                      "formFieldList": [
-                        {
-                          "fieldId": "Node Name",
-                          "label": "Router",
-                          "help": "Router",
-                          "dataType": "string",
-                          "controlType": "TEXT_FIELD",
-                          "hidden": false,
-                          "editable": false,
-                          "required": true
-                        },
-                        {
-                          "fieldId": "Node Type",
-                          "label": "Node Type",
-                          "help": "Node Type",
-                          "dataType": "string",
-                          "controlType": "TEXT_FIELD",
-                          "hidden": false,
-                          "editable": false,
-                          "required": true
-                        },
-                        {
-                          "fieldId": "IP Address",
-                          "label": "IP Address",
-                          "help": "IP Address",
-                          "dataType": "string",
-                          "controlType": "TEXT_FIELD",
-                          "hidden": false,
-                          "editable": false,
-                          "required": true
-                        },
-                        {
-                          "help": "SW version",
-                          "dataType": "string",
-                          "controlType": "TEXT_FIELD",
-                          "required": true,
-                          "editable": false,
-                          "label": "Source Version",
-                          "hidden": false,
-                          "fieldId": "SW Version"
-                        },
-                        {
-                          "help": "Target Version",
-                          "dataType": "string",
-                          "controlType": "COMBO_BOX",
-                          "required": true,
-                          "editable": true,
-                          "label": "Target Version",
-                          "hidden": false,
-                          "fieldId": "target",
-                          "lovSourceType": "dataset",
-                          "lovSourceParams": {
-                            "name": "xnor_upgrade_downgrade_version_compatability",
-                            "valueColumn": "target",
-                            "labelColumn": "target",
-                            "query": "plan_type contains 'Downgrade' and stage equals 1"
-                          }
-                        }
-                      ]
-                    },
-                    "formActionList": {
-                      "formActions": [
-                        {
-                          "actionLabel": "Submit Order",
-                          "type": "SUBMIT",
-                          "identifier": "Submit"
-                        }
-                      ]
-                    }
-                  }
-                ]
-              }
-            },
-            {
-              "title": "Configure",
-              "type": "POPUP_FORM",
-              "permission": "rda:dataset:view",
-              "selectionType": "SINGLE",
-              "identifier": "ml-config:cfx.workflow.run",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": false,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.dynamic.form",
-                    "formDefinition": {
-                      "id": "rda.saas.dynamic.form",
-                      "refreshRequired": true,
-                      "formFieldList": [
-                        {
-                          "fieldId": "Node Name",
-                          "label": "Router",
-                          "help": "Router",
-                          "dataType": "string",
-                          "controlType": "TEXT_FIELD",
-                          "hidden": false,
-                          "editable": false,
-                          "required": true
-                        },
-                        {
-                          "fieldId": "Node Type",
-                          "label": "Node Type",
-                          "help": "Node Type",
-                          "dataType": "string",
-                          "controlType": "TEXT_FIELD",
-                          "hidden": false,
-                          "editable": false,
-                          "required": true
-                        },
-                        {
-                          "fieldId": "IP Address",
-                          "label": "IP Address",
-                          "help": "IP Address",
-                          "dataType": "string",
-                          "controlType": "TEXT_FIELD",
-                          "hidden": false,
-                          "editable": false,
-                          "required": true
-                        },
-                        {
-                          "fieldId": "configure",
-                          "label": "Configuration",
-                          "help": "Configure",
-                          "dataType": "string",
-                          "controlType": "PYTHON_EDITOR",
-                          "required": true,
-                          "editable": true,
-                          "hidden": false
-                        }
-                      ]
-                    },
-                    "formActionList": {
-                      "formActions": [
-                        {
-                          "actionLabel": "Submit Order",
-                          "type": "SUBMIT",
-                          "identifier": "Submit"
-                        }
-                      ]
-                    },
-                    "actions": [
-                      {
-                        "type": "UPDATE_PSTREAM",
-                        "pstreamName": "audit_xnor_configure_stream"
-                      }
-                    ]
-                  }
-                ]
-              }
-            }
-          ],
-          "default_storyboard": "Main Storyboard",
-          "use_storyboard": false,
-          "widget_id": "0f0d587b"
+          "height": 1,
+          "widget_id": "5ae002f1"
         },
         {
-          "title": "CIDR GROUPS",
-          "widget_type": "tabular",
-          "stream": "xnor_cidr_group_details",
-          "duration_hours": 1080,
-          "min_width": 12,
-          "max_width": 12,
-          "height": 5,
-          "remote_searchable": true,
-          "showRowSummary": true,
-          "max_rows": 20,
-          "paginated": true,
-          "sorting": [],
-          "columns": {
-            "Group_Name": {
-              "title": "Group Name",
-              "type": "TEXT",
-              "hidden": false,
-              "key": true
-            },
-            "Description": {
-              "title": "Description",
-              "type": "TEXT",
-              "hidden": false,
-              "key": true
-            },
-            "CIDR": {
-              "title": "CIDR",
-              "type": "int",
-              "hidden": false,
-              "key": true
-            },
-            "_RDA_Id": {
-              "title": "RDA ID",
-              "key": true,
-              "visible": false
-            }
+          "title": "Link Up/Down Alerts",
+          "widget_type": "counter",
+          "min_width": 2.4,
+          "max_width": 2.4,
+          "height": 4,
+          "stream": "oia-alerts-stream",
+          "ts_column": "a_created_ts",
+          "extra_filter": "a_message contains 'link'",
+          "sparkline": {
+            "interval": "1h"
           },
-          "actions": [
+          "column": "count_",
+          "agg": "sum",
+          "type": "int",
+          "widget_id": "42b0d069"
+        },
+        {
+          "title": "BGP Alerts",
+          "widget_type": "counter",
+          "min_width": 2.4,
+          "max_width": 2.4,
+          "height": 4,
+          "stream": "oia-alerts-stream",
+          "ts_column": "a_created_ts",
+          "extra_filter": "a_message contains 'BGP'",
+          "sparkline": {
+            "interval": "1h"
+          },
+          "column": "count_",
+          "agg": "sum",
+          "type": "int",
+          "widget_id": "5f6517c3"
+        },
+        {
+          "title": "OSPF Alerts",
+          "widget_type": "counter",
+          "min_width": 2.4,
+          "max_width": 2.4,
+          "height": 4,
+          "stream": "oia-alerts-stream",
+          "ts_column": "a_created_ts",
+          "extra_filter": "a_message contains 'OSPF'",
+          "sparkline": {
+            "interval": "1h"
+          },
+          "column": "count_",
+          "agg": "sum",
+          "type": "int",
+          "widget_id": "2fee8031"
+        },
+        {
+          "title": "Patch Changes",
+          "widget_type": "counter",
+          "min_width": 2.4,
+          "max_width": 2.4,
+          "height": 4,
+          "stream": "change_requests_stream",
+          "ts_column": "timestamp",
+          "extra_filter": "message contains 'patch'",
+          "sparkline": {
+            "interval": "1h"
+          },
+          "column": "count_",
+          "agg": "sum",
+          "type": "int",
+          "widget_id": "0c90f99a"
+        },
+        {
+          "title": "Change Requests",
+          "widget_type": "counter",
+          "min_width": 2.4,
+          "max_width": 2.4,
+          "height": 4,
+          "stream": "change_requests_stream",
+          "ts_column": "timestamp",
+          "sparkline": {
+            "interval": "1h"
+          },
+          "column": "count_",
+          "agg": "sum",
+          "type": "int",
+          "widget_id": "0b7d3407"
+        },
+        {
+          "title": "Events Timeline",
+          "widget_type": "timeseries",
+          "stream": "oia-alerts-stream",
+          "ts_column": "a_created_ts",
+          "max_width": 12,
+          "height": 8,
+          "min_width": 12,
+          "fixTimeWindow": true,
+          "chartProperties": {
+            "yAxisLabel": "Alert Count",
+            "xAxisLabel": "Time",
+            "legendLocation": "none"
+          },
+          "static_markers": [
             {
-              "title": "Add CIDR Group",
-              "type": "POPUP_FORM",
-              "permission": "rda:dataset:view",
-              "selectionType": "NONE",
-              "identifier": "saas-service-action:userdashboard-add-yaml",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.dynamic.form",
-                    "formDefinition": {
-                      "id": "rda.saas.dynamic.form",
-                      "refreshRequired": true,
-                      "formFieldList": [
-                        {
-                          "fieldId": "Group_Name",
-                          "label": "Group Name",
-                          "help": "Group Name",
-                          "dataType": "string",
-                          "controlType": "TEXT_FIELD",
-                          "hidden": false,
-                          "editable": true,
-                          "required": true,
-                          "key": true
-                        },
-                        {
-                          "fieldId": "Description",
-                          "label": "Description",
-                          "help": "Description",
-                          "dataType": "string",
-                          "controlType": "TEXT_FIELD",
-                          "hidden": false,
-                          "editable": true,
-                          "required": true,
-                          "key": true
-                        },
-                        {
-                          "fieldId": "CIDR",
-                          "label": "add quama (,) after each IP ",
-                          "help": "CIDR",
-                          "dataType": "int",
-                          "controlType": "TEXT_FIELD",
-                          "hidden": false,
-                          "editable": true,
-                          "required": true,
-                          "key": true
-                        }
-                      ]
-                    },
-                    "actions": [
-                      {
-                        "type": "UPDATE_PSTREAM",
-                        "pstreamName": "xnor_pack_cidr_group_details"
-                      }
-                    ]
-                  }
-                ]
+              "timestamp": "{{ALERT_CT}}",
+              "message": "Alert Created",
+              "color": "#B71C1C"
+            }
+          ],
+          "alert_markers": [
+            {
+              "stream": "change_requests_stream",
+              "ts_column": "timestamp",
+              "type": "circle",
+              "message_column": "message",
+              "severity_column": "severity"
+            },
+            {
+              "stream": "oia-alerts-stream",
+              "ts_column": "a_created_ts",
+              "type": "triangle",
+              "message_column": "a_message",
+              "severity_column": "a_severity"
+            },
+            {
+              "stream": "oia-ml-metrics-regression-output",
+              "ts_column": "timestamp",
+              "type": "square",
+              "message_column": "marker_message",
+              "extra_filter": "anomalies_severity is 'High' and anomalies_type is 'Upper'",
+              "severity_column": "anomalies_severity",
+              "columns": [
+                "asset_id",
+                "metric_id",
+                "metric_label",
+                "asset_name",
+                "metric_source",
+                "timestamp",
+                "job_name",
+                "unit",
+                "stream_name"
+              ],
+              "action": {
+                "appName": "user-dashboard/rca_regression_dashboard",
+                "permission": "ml:ml-jobs:viewSampledata",
+                "identifier": "ViewRegressionDashboard",
+                "selectionType": "SINGLE",
+                "stateName": "app.featureapp",
+                "title": "View Regression Dashboard",
+                "type": "GO_TO_APP_STATE"
               }
             },
             {
-              "permission": "rda:github:view",
-              "title": "Edit Group",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:userdashboard-add-yaml",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.dynamic.form",
-                    "formDefinition": {
-                      "id": "rda.saas.dynamic.form",
-                      "refreshRequired": true,
-                      "formFieldList": [
-                        {
-                          "fieldId": "Group_Name",
-                          "label": "Group Name",
-                          "help": "Group Name",
-                          "dataType": "string",
-                          "controlType": "TEXT_FIELD",
-                          "hidden": false,
-                          "editable": true,
-                          "required": true,
-                          "key": true
-                        },
-                        {
-                          "fieldId": "Description",
-                          "label": "Description",
-                          "help": "Description",
-                          "dataType": "string",
-                          "controlType": "TEXT_FIELD",
-                          "hidden": false,
-                          "editable": true,
-                          "required": true,
-                          "key": true
-                        },
-                        {
-                          "fieldId": "CIDR",
-                          "label": "add quama (,) after each IP ",
-                          "help": "CIDR",
-                          "dataType": "int",
-                          "controlType": "TEXT_FIELD",
-                          "hidden": false,
-                          "editable": true,
-                          "required": true,
-                          "key": true
-                        }
-                      ]
-                    },
-                    "actions": [
-                      {
-                        "type": "UPDATE_PSTREAM",
-                        "pstreamName": "xnor_pack_cidr_group_details",
-                        "operation": "UPDATE",
-                        "cfxql_query": "_RDA_Id is '{{_RDA_Id}}'"
-                      }
-                    ]
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:github:view",
-              "title": "Delete Group",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:userdashboard-add-yaml",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.dynamic.form",
-                    "formActionList": {
-                      "formActions": [
-                        {
-                          "identifier": "Submit",
-                          "actionLabel": "Delete"
-                        }
-                      ]
-                    },
-                    "formDefinition": {
-                      "id": "rda.saas.dynamic.form",
-                      "refreshRequired": true,
-                      "formFieldList": [
-                        {
-                          "help": "Do you want to delete the Group",
-                          "dataType": "string",
-                          "controlType": "LABEL",
-                          "required": false,
-                          "editable": false,
-                          "label": "Do you want to delete the Group",
-                          "hidden": false,
-                          "fieldId": "CIDR",
-                          "key": true
-                        }
-                      ]
-                    },
-                    "actions": [
-                      {
-                        "type": "UPDATE_PSTREAM",
-                        "pstreamName": "xnor_pack_cidr_group_details",
-                        "operation": "DELETE",
-                        "cfxql_query": "_RDA_Id is '{{_RDA_Id}}'"
-                      }
-                    ]
-                  }
-                ]
+              "stream": "oia-logs-regression-output",
+              "ts_column": "timestamp",
+              "type": "circle",
+              "message_column": "asset_id",
+              "extra_filter": "anomalies_severity is 'High' and anomalies_type is 'Upper'",
+              "severity_column": "anomalies_severity",
+              "columns": [
+                "asset_id",
+                "asset_name",
+                "timestamp",
+                "job_name",
+                "stream_name"
+              ],
+              "action": {
+                "appName": "user-dashboard/rca_regression_dashboard",
+                "permission": "ml:ml-jobs:viewSampledata",
+                "identifier": "ViewRegressionDashboard",
+                "selectionType": "SINGLE",
+                "stateName": "app.featureapp",
+                "title": "View Regression Dashboard",
+                "type": "GO_TO_APP_STATE"
               }
             }
           ],
-          "widget_id": "fc241642"
+          "interval": "1min",
+          "series_spec": [
+            {
+              "label": "Alerts",
+              "column": "a_id",
+              "agg": "value_count",
+              "type": "int"
+            }
+          ],
+          "widget_id": "121762cf"
+        },
+        {
+          "title": "Metric Anomalies",
+          "widget_type": "multi_bar_chart",
+          "stream": "oia-ml-metrics-regression-output",
+          "ts_column": "timestamp",
+          "chartProperties": {
+            "yAxisLabel": "Anomalies (%)",
+            "xAxisLabel": "Metric Name",
+            "stacked": false,
+            "legendLocation": "none",
+            "orientation": "vertical"
+          },
+          "group_by": [
+            "asset_id",
+            "metric_label"
+          ],
+          "descending_order": true,
+          "others_spec": {
+            "limit": 4,
+            "show_others": false
+          },
+          "column": "anomalies_percent",
+          "agg": "max",
+          "type": "float",
+          "widget_id": "f4786acb"
+        },
+        {
+          "title": "Change Requests",
+          "widget_type": "tabular",
+          "min_width": 6,
+          "max_width": 6,
+          "height": 5,
+          "timebased": false,
+          "stream": "change_requests_stream",
+          "ts_column": "timestamp",
+          "columns": {
+            "timestamp": {
+              "title": "Time",
+              "type": "DATETIME"
+            },
+            "message": {
+              "title": "Change Description",
+              "type": "TEXT"
+            }
+          },
+          "widget_id": "31e2f2ed"
+        },
+        {
+          "widget_type": "pie_chart",
+          "title": "Alerts by Severity",
+          "stream": "oia-alerts-stream",
+          "extra_filter": "customer_id is '{{CUSTOMER_ID}}'",
+          "ts_column": "timestamp",
+          "min_width": 3,
+          "height": 4,
+          "max_width": 3,
+          "column": "a_id",
+          "agg": "value_count",
+          "group_by": [
+            "a_severity"
+          ],
+          "type": "str",
+          "style": {
+            "color-map": {
+              "SEVERE": [
+                "#B71C1C",
+                "#ffffff"
+              ],
+              "CRITICAL": [
+                "#E53935",
+                "#ffffff"
+              ],
+              "MAJOR": [
+                "#F57C00",
+                "#ffffff"
+              ],
+              "MINOR": [
+                "#FFA726",
+                "#ffffff"
+              ],
+              "WARNING": [
+                "#FFD54F",
+                "#ffffff"
+              ],
+              "NOTIFICATION": [
+                "#4DD0E1",
+                "#ffffff"
+              ],
+              "INFORMATION": [
+                "#03A9F4",
+                "#ffffff"
+              ]
+            }
+          },
+          "widget_id": "cb0706e6"
+        },
+        {
+          "title": "Alert Trend",
+          "widget_type": "timeseries",
+          "stream": "oia-alerts-stream",
+          "ts_column": "a_created_ts",
+          "max_width": 9,
+          "height": 4,
+          "min_width": 9,
+          "fixTimeWindow": true,
+          "extra_filter": "customer_id is '{{CUSTOMER_ID}}'",
+          "chartProperties": {
+            "yAxisLabel": "Count",
+            "xAxisLabel": "Time",
+            "legendLocation": "top"
+          },
+          "interval": "1H",
+          "group_by": [
+            "a_severity"
+          ],
+          "static_markers": [
+            {
+              "timestamp": "{{ALERT_CT}}",
+              "message": "Alert Created",
+              "color": "#B71C1C"
+            }
+          ],
+          "series_spec": [
+            {
+              "column": "a_id",
+              "agg": "value_count",
+              "type": "int"
+            }
+          ],
+          "style": {
+            "color-map": {
+              "SEVERE": [
+                "#B71C1C",
+                "#ffffff"
+              ],
+              "CRITICAL": [
+                "#E53935",
+                "#ffffff"
+              ],
+              "MAJOR": [
+                "#F57C00",
+                "#ffffff"
+              ],
+              "MINOR": [
+                "#FFA726",
+                "#ffffff"
+              ],
+              "WARNING": [
+                "#FFD54F",
+                "#ffffff"
+              ],
+              "NOTIFICATION": [
+                "#4DD0E1",
+                "#ffffff"
+              ],
+              "INFORMATION": [
+                "#03A9F4",
+                "#ffffff"
+              ]
+            }
+          },
+          "widget_id": "c29bb686"
+        },
+        {
+          "widget_type": "pie_chart",
+          "title": "Incidents By Priority",
+          "stream": "oia-incidents-stream",
+          "extra_filter": "customer_id is '{{CUSTOMER_ID}}'",
+          "ts_column": "timestamp",
+          "min_width": 3,
+          "height": 4,
+          "max_width": 3,
+          "column": "incident_id",
+          "agg": "value_count",
+          "group_by": [
+            "i_priority_label"
+          ],
+          "style": {
+            "color-map": {
+              "Critical": [
+                "#B71C1C",
+                "#ffffff"
+              ],
+              "High": [
+                "#FFA726",
+                "#ffffff"
+              ],
+              "Moderate": [
+                "#90CAF9",
+                "#ffffff"
+              ],
+              "Low": [
+                "#4DD0E1",
+                "#ffffff"
+              ],
+              "Planning": [
+                "#4FC3F7",
+                "#ffffff"
+              ]
+            }
+          },
+          "type": "str",
+          "widget_id": "7dce82c8"
+        },
+        {
+          "title": "Incident Trend",
+          "widget_type": "timeseries",
+          "stream": "oia-incidents-stream",
+          "ts_column": "i_created_ts",
+          "max_width": 9,
+          "height": 4,
+          "min_width": 9,
+          "fixTimeWindow": true,
+          "extra_filter": "customer_id is '{{CUSTOMER_ID}}'",
+          "chartProperties": {
+            "yAxisLabel": "Count",
+            "xAxisLabel": "Time",
+            "legendLocation": "top"
+          },
+          "interval": "1H",
+          "group_by": [
+            "i_priority_label"
+          ],
+          "static_markers": [
+            {
+              "timestamp": "{{ALERT_CT}}",
+              "message": "Alert Created",
+              "color": "#B71C1C"
+            }
+          ],
+          "series_spec": [
+            {
+              "column": "incident_id",
+              "agg": "value_count",
+              "type": "int"
+            }
+          ],
+          "style": {
+            "color-map": {
+              "Critical": [
+                "#B71C1C",
+                "#ffffff"
+              ],
+              "High": [
+                "#FFA726",
+                "#ffffff"
+              ],
+              "Moderate": [
+                "#FFD54F",
+                "#ffffff"
+              ],
+              "Low": [
+                "#90CAF9",
+                "#ffffff"
+              ],
+              "Planning": [
+                "#4FC3F7",
+                "#ffffff"
+              ]
+            }
+          },
+          "widget_id": "a3d7ef3c"
+        },
+        {
+          "widget_type": "pie_chart",
+          "title": "Syslogs By Severity",
+          "ts_column": "rda_gw_timestamp",
+          "stream": "syslog_udp_event_stream_all",
+          "min_width": 3,
+          "height": 4,
+          "max_width": 3,
+          "duration_hours0": 10000,
+          "column": "count_",
+          "agg": "sum",
+          "group_by": [
+            "syslog_severity"
+          ],
+          "type": "int",
+          "style": {
+            "color-map": {
+              "SEVERE": [
+                "#B71C1C",
+                "#ffffff"
+              ],
+              "CRITICAL": [
+                "#E53935",
+                "#ffffff"
+              ],
+              "MAJOR": [
+                "#F57C00",
+                "#ffffff"
+              ],
+              "MINOR": [
+                "#FFA726",
+                "#ffffff"
+              ],
+              "WARNING": [
+                "#FFD54F",
+                "#ffffff"
+              ]
+            }
+          },
+          "widget_id": "ed85e796"
+        },
+        {
+          "title": "Syslogs",
+          "widget_type": "timeseries",
+          "max_width": 9,
+          "height": 4,
+          "min_width": 9,
+          "ts_column": "rda_gw_timestamp",
+          "show-markers": true,
+          "fixTimeWindow": true,
+          "stream": "syslog_udp_event_stream_all",
+          "extra_filter0": "log_category is 'syslog'",
+          "chartProperties": {
+            "xAxisLabel": "Timestamp",
+            "yAxisLabel": "Count",
+            "legendLocation": "none",
+            "xAxisTickOrientation": "STAGGERED",
+            "options": {
+              "elements": {
+                "line": {
+                  "borderWidth": 1
+                },
+                "point": {
+                  "radius": 2,
+                  "hitRadius": 3,
+                  "hoverRadius": 3
+                }
+              }
+            }
+          },
+          "static_markers": [
+            {
+              "timestamp": "{{ALERT_CT}}",
+              "message": "Alert Created",
+              "color": "#B71C1C"
+            }
+          ],
+          "series_spec": [
+            {
+              "column": "count_",
+              "agg": "sum",
+              "type": "int"
+            }
+          ],
+          "widget_id": "7ee88e42"
+        },
+        {
+          "title": "Syslogs",
+          "widget_type": "tabular",
+          "stream": "syslog_udp_event_stream_all",
+          "min_width": 12,
+          "height": 6,
+          "max_width": 12,
+          "extra_filter0": "log_category is 'syslog'",
+          "ts_column": "rda_gw_timestamp",
+          "resizableColumns": true,
+          "remote_searchable": true,
+          "remote_searchable_cols": [
+            "message"
+          ],
+          "columns": {
+            "rda_gw_timestamp": {
+              "title": "Event Time",
+              "type": "DATETIME"
+            },
+            "rda_gw_client_ip": "Host",
+            "raw": "Message",
+            "syslog_severity": "Severity"
+          },
+          "widget_id": "3d7466a3"
         }
       ]
     }
   ],
   "pstream_dashboards": [
     {
-      "title": "inventory report",
+      "title": "Customer View",
       "show_filter": true,
       "widgets": [
         {
-          "widget_type": "pie_chart",
-          "title": "SW Version",
-          "stream": "xnor_pack_inventory_data_stream",
-          "duration_hours": 1080,
-          "ts_column": "timestamp",
-          "column": "IP_Address",
-          "agg": "value_count",
-          "group_by": [
-            "SW_Version"
-          ],
-          "type": "str",
-          "min_width": 3,
-          "height": 4,
-          "max_width": 4,
-          "widget_id": "69e7f422"
-        },
-        {
-          "widget_type": "pie_chart",
-          "title": "Node Type",
-          "stream": "xnor_pack_inventory_data_stream",
-          "duration_hours": 1080,
-          "ts_column": "timestamp",
-          "column": "IP_Address",
-          "agg": "value_count",
-          "group_by": [
-            "Node_Type"
-          ],
-          "type": "str",
-          "min_width": 3,
-          "height": 4,
-          "max_width": 4,
-          "widget_id": "e27a6f2f"
-        },
-        {
-          "widget_type": "pie_chart",
-          "title": "CIDR Group",
-          "stream": "xnor_cidr_group_details",
-          "duration_hours": 1080,
-          "ts_column": "timestamp",
-          "column": "Group_Name",
-          "agg": "value_count",
-          "group_by": [
-            "Group_Name"
-          ],
-          "type": "str",
-          "min_width": 3,
-          "height": 4,
-          "max_width": 4,
-          "widget_id": "d35153cf"
-        },
-        {
-          "title": "INVENTORY REPORT",
-          "widget_type": "tabular",
-          "stream": "xnor_pack_inventory_data_stream",
-          "duration_hours": 1080,
+          "widget_type": "label",
+          "label": "<h3 style='text-align: center;'>Alert Created: {%raw%} {{' {{ '}} {%endraw%} toDateTimeString({{ ALERT_CT }}) {%raw%} {{ '}}' }} {%endraw%} </h3>",
+          "advanced": true,
           "min_width": 12,
           "max_width": 12,
-          "height": 5,
-          "remote_searchable": true,
-          "showRowSummary": true,
-          "max_rows": 20,
-          "paginated": true,
-          "sorting": [],
-          "columns": {
-            "Node_Name": {
-              "title": "ROUTER",
-              "type": "TEXT",
-              "hidden": false,
-              "key": true
-            },
-            "Description": {
-              "title": "Description",
-              "type": "TEXT",
-              "hidden": false,
-              "key": true
-            },
-            "IP_Address": {
-              "title": "IP Address",
-              "type": "integer",
-              "hidden": false,
-              "key": true
-            },
-            "Software": {
-              "title": "Software",
-              "type": "TEXT",
-              "hidden": false,
-              "key": true
-            },
-            "SW_Version": {
-              "title": "SW Version",
-              "type": "integer",
-              "hidden": false,
-              "key": true
-            },
-            "Node_Type": {
-              "title": "Node Type",
-              "type": "TEXT",
-              "hidden": false,
-              "key": true
-            },
-            "Rack_Location": {
-              "title": "Rack Location",
-              "type": "TEXT",
-              "hidden": false,
-              "key": true
-            },
-            "_RDA_Id": {
-              "title": "RDA ID",
-              "key": true,
-              "hidden": true
-            }
-          },
-          "actions": [
-            {
-              "title": "Add Inventory",
-              "type": "POPUP_FORM",
-              "permission": "rda:dataset:view",
-              "selectionType": "NONE",
-              "identifier": "saas-service-action:userdashboard-add-yaml",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.dynamic.form",
-                    "formDefinition": {
-                      "id": "rda.saas.dynamic.form",
-                      "refreshRequired": true,
-                      "formFieldList": [
-                        {
-                          "fieldId": "Node_Name",
-                          "label": "Router",
-                          "help": "Node_Name",
-                          "dataType": "string",
-                          "controlType": "TEXT_FIELD",
-                          "hidden": false,
-                          "editable": true,
-                          "required": true,
-                          "key": true
-                        },
-                        {
-                          "fieldId": "Description",
-                          "label": "Description",
-                          "help": "Description",
-                          "dataType": "string",
-                          "controlType": "TEXT_FIELD",
-                          "hidden": false,
-                          "editable": true,
-                          "required": true,
-                          "key": true
-                        },
-                        {
-                          "fieldId": "IP_Address",
-                          "label": "IP Address",
-                          "help": "IP_Address",
-                          "dataType": "string",
-                          "controlType": "TEXT_FIELD",
-                          "hidden": false,
-                          "editable": true,
-                          "required": true,
-                          "key": true
-                        },
-                        {
-                          "fieldId": "Software",
-                          "label": "Software",
-                          "help": "Software",
-                          "dataType": "string",
-                          "controlType": "TEXT_FIELD",
-                          "hidden": false,
-                          "editable": true,
-                          "required": true,
-                          "key": true
-                        },
-                        {
-                          "fieldId": "SW_Version",
-                          "label": "SW Version",
-                          "help": "SW_Version",
-                          "dataType": "string",
-                          "controlType": "TEXT_FIELD",
-                          "hidden": false,
-                          "editable": true,
-                          "required": true,
-                          "key": true
-                        },
-                        {
-                          "fieldId": "Node_Type",
-                          "label": "Node Type",
-                          "help": "Node_Type",
-                          "dataType": "string",
-                          "controlType": "TEXT_FIELD",
-                          "hidden": false,
-                          "editable": true,
-                          "required": true,
-                          "key": true
-                        },
-                        {
-                          "help": "Rack_Location",
-                          "dataType": "string",
-                          "controlType": "TEXT_FIELD",
-                          "required": true,
-                          "editable": true,
-                          "label": "Rack Location",
-                          "hidden": false,
-                          "fieldId": "Rack_Location",
-                          "key": true
-                        }
-                      ]
-                    },
-                    "actions": [
-                      {
-                        "type": "UPDATE_PSTREAM",
-                        "pstreamName": "xnor_pack_inventory_data_stream"
-                      }
-                    ]
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:user_dashboard:view",
-              "appName": "user-dashboard/xnor_view_router",
-              "identifier": "launch.dashboard.xnor_view_router",
-              "drillDownLinkField": "Node Name",
-              "selectionType": "SINGLE",
-              "title": "Router info",
-              "type": "GO_TO_APP_STATE"
-            },
-            {
-              "permission": "rda:user_dashboard:view",
-              "appName": "user-dashboard/xnor_view_order",
-              "identifier": "launch.dashboard.xnor_view_order",
-              "selectionType": "SINGLE",
-              "title": "View Orders",
-              "type": "GO_TO_APP_STATE"
-            },
-            {
-              "permission": "rda:github:view",
-              "title": "Edit Inventory",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:userdashboard-add-yaml",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.dynamic.form",
-                    "formDefinition": {
-                      "id": "rda.saas.dynamic.form",
-                      "refreshRequired": true,
-                      "formFieldList": [
-                        {
-                          "fieldId": "Node_Name",
-                          "label": "Router",
-                          "help": "Node_Name",
-                          "dataType": "string",
-                          "controlType": "TEXT_FIELD",
-                          "hidden": false,
-                          "editable": true,
-                          "required": true,
-                          "key": true
-                        },
-                        {
-                          "fieldId": "Description",
-                          "label": "Description",
-                          "help": "Description",
-                          "dataType": "string",
-                          "controlType": "TEXT_FIELD",
-                          "hidden": false,
-                          "editable": true,
-                          "required": true,
-                          "key": true
-                        },
-                        {
-                          "fieldId": "IP_Address",
-                          "label": "IP Address",
-                          "help": "IP_Address",
-                          "dataType": "string",
-                          "controlType": "TEXT_FIELD",
-                          "hidden": false,
-                          "editable": true,
-                          "required": true,
-                          "key": true
-                        },
-                        {
-                          "fieldId": "Software",
-                          "label": "Software",
-                          "help": "Software",
-                          "dataType": "string",
-                          "controlType": "TEXT_FIELD",
-                          "hidden": false,
-                          "editable": true,
-                          "required": true,
-                          "key": true
-                        },
-                        {
-                          "fieldId": "SW_Version",
-                          "label": "SW Version",
-                          "help": "SW_Version",
-                          "dataType": "string",
-                          "controlType": "TEXT_FIELD",
-                          "hidden": false,
-                          "editable": false,
-                          "required": true,
-                          "key": true
-                        },
-                        {
-                          "fieldId": "Node_Type",
-                          "label": "Node Type",
-                          "help": "Node_Type",
-                          "dataType": "string",
-                          "controlType": "TEXT_FIELD",
-                          "hidden": false,
-                          "editable": true,
-                          "required": true,
-                          "key": true
-                        },
-                        {
-                          "help": "Rack_Location",
-                          "dataType": "string",
-                          "controlType": "TEXT_FIELD",
-                          "required": true,
-                          "editable": true,
-                          "label": "Rack Location",
-                          "hidden": false,
-                          "fieldId": "Rack_Location",
-                          "key": true
-                        }
-                      ]
-                    },
-                    "actions": [
-                      {
-                        "type": "UPDATE_PSTREAM",
-                        "pstreamName": "xnor_pack_inventory_data_stream",
-                        "operation": "UPDATE",
-                        "cfxql_query": "_RDA_Id is '{{_RDA_Id}}'"
-                      }
-                    ]
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:github:view",
-              "title": "Delete Inventory",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:userdashboard-add-yaml",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.dynamic.form",
-                    "formActionList": {
-                      "formActions": [
-                        {
-                          "identifier": "Submit",
-                          "actionLabel": "Delete"
-                        }
-                      ]
-                    },
-                    "formDefinition": {
-                      "id": "rda.saas.dynamic.form",
-                      "refreshRequired": true,
-                      "formFieldList": [
-                        {
-                          "help": "Do you want to delete the Inventory",
-                          "dataType": "string",
-                          "controlType": "LABEL",
-                          "required": false,
-                          "editable": false,
-                          "label": "Do you want to delete the Inventory",
-                          "hidden": false,
-                          "fieldId": "name"
-                        }
-                      ]
-                    },
-                    "actions": [
-                      {
-                        "type": "UPDATE_PSTREAM",
-                        "pstreamName": "xnor_pack_inventory_data_stream",
-                        "operation": "DELETE",
-                        "cfxql_query": "_RDA_Id is '{{_RDA_Id}}'"
-                      }
-                    ]
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:github:view",
-              "title": "Upgrade",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:userdashboard-add-yaml",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.dynamic.form",
-                    "formDefinition": {
-                      "id": "rda.saas.dynamic.form",
-                      "refreshRequired": true,
-                      "formFieldList": [
-                        {
-                          "fieldId": "Node_Name",
-                          "label": "Router",
-                          "help": "Router",
-                          "dataType": "string",
-                          "controlType": "TEXT_FIELD",
-                          "hidden": false,
-                          "editable": false,
-                          "required": true,
-                          "key": true
-                        },
-                        {
-                          "fieldId": "Node_Type",
-                          "label": "Node Type",
-                          "help": "Node_Type",
-                          "dataType": "string",
-                          "controlType": "TEXT_FIELD",
-                          "hidden": false,
-                          "editable": false,
-                          "required": true,
-                          "key": true
-                        },
-                        {
-                          "fieldId": "IP_Address",
-                          "label": "IP Address",
-                          "help": "IP_Address",
-                          "dataType": "string",
-                          "controlType": "TEXT_FIELD",
-                          "hidden": false,
-                          "editable": false,
-                          "required": true,
-                          "key": true
-                        },
-                        {
-                          "help": "SW_version",
-                          "dataType": "string",
-                          "controlType": "TEXT_FIELD",
-                          "required": true,
-                          "editable": false,
-                          "label": "Source Version",
-                          "hidden": false,
-                          "fieldId": "SW_Version",
-                          "key": true
-                        },
-                        {
-                          "help": "Target_Version",
-                          "dataType": "string",
-                          "controlType": "COMBO_BOX",
-                          "required": true,
-                          "editable": true,
-                          "label": "Target Version",
-                          "hidden": false,
-                          "fieldId": "target",
-                          "key": true,
-                          "lovSourceType": "dataset",
-                          "lovSourceParams": {
-                            "name": "xnor_upgrade_downgrade_version_compatability",
-                            "valueColumn": "target",
-                            "labelColumn": "target",
-                            "query": "plan_type contains 'Upgrade'"
-                          }
-                        }
-                      ]
-                    },
-                    "formActionList": {
-                      "formActions": [
-                        {
-                          "actionLabel": "Submit Order",
-                          "type": "SUBMIT",
-                          "identifier": "Submit"
-                        }
-                      ]
-                    },
-                    "actions": [
-                      {
-                        "type": "UPDATE_PSTREAM",
-                        "pstreamName": "audit_pack_xnor_orders_stream"
-                      },
-                      {
-                        "type": "RUN_PIPELINE",
-                        "pipelineName": "xnor_pack_run_collection_pipeline",
-                        "isSync": false
-                      }
-                    ]
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:github:view",
-              "title": "Downgrade",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:userdashboard-add-yaml",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.dynamic.form",
-                    "formDefinition": {
-                      "id": "rda.saas.dynamic.form",
-                      "refreshRequired": true,
-                      "formFieldList": [
-                        {
-                          "fieldId": "Node Name",
-                          "label": "Router",
-                          "help": "Router",
-                          "dataType": "string",
-                          "controlType": "TEXT_FIELD",
-                          "hidden": false,
-                          "editable": false,
-                          "required": true
-                        },
-                        {
-                          "fieldId": "Node Type",
-                          "label": "Node Type",
-                          "help": "Node Type",
-                          "dataType": "string",
-                          "controlType": "TEXT_FIELD",
-                          "hidden": false,
-                          "editable": false,
-                          "required": true
-                        },
-                        {
-                          "fieldId": "IP Address",
-                          "label": "IP Address",
-                          "help": "IP Address",
-                          "dataType": "string",
-                          "controlType": "TEXT_FIELD",
-                          "hidden": false,
-                          "editable": false,
-                          "required": true
-                        },
-                        {
-                          "help": "SW version",
-                          "dataType": "string",
-                          "controlType": "TEXT_FIELD",
-                          "required": true,
-                          "editable": false,
-                          "label": "Source Version",
-                          "hidden": false,
-                          "fieldId": "SW Version"
-                        },
-                        {
-                          "help": "Target Version",
-                          "dataType": "string",
-                          "controlType": "COMBO_BOX",
-                          "required": true,
-                          "editable": true,
-                          "label": "Target Version",
-                          "hidden": false,
-                          "fieldId": "target",
-                          "lovSourceType": "dataset",
-                          "lovSourceParams": {
-                            "name": "xnor_upgrade_downgrade_version_compatability",
-                            "valueColumn": "target",
-                            "labelColumn": "target",
-                            "query": "plan_type contains 'Downgrade' and stage equals 1"
-                          }
-                        }
-                      ]
-                    },
-                    "formActionList": {
-                      "formActions": [
-                        {
-                          "actionLabel": "Submit Order",
-                          "type": "SUBMIT",
-                          "identifier": "Submit"
-                        }
-                      ]
-                    }
-                  }
-                ]
-              }
-            },
-            {
-              "title": "Configure",
-              "type": "POPUP_FORM",
-              "permission": "rda:dataset:view",
-              "selectionType": "SINGLE",
-              "identifier": "ml-config:cfx.workflow.run",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": false,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.dynamic.form",
-                    "formDefinition": {
-                      "id": "rda.saas.dynamic.form",
-                      "refreshRequired": true,
-                      "formFieldList": [
-                        {
-                          "fieldId": "Node Name",
-                          "label": "Router",
-                          "help": "Router",
-                          "dataType": "string",
-                          "controlType": "TEXT_FIELD",
-                          "hidden": false,
-                          "editable": false,
-                          "required": true
-                        },
-                        {
-                          "fieldId": "Node Type",
-                          "label": "Node Type",
-                          "help": "Node Type",
-                          "dataType": "string",
-                          "controlType": "TEXT_FIELD",
-                          "hidden": false,
-                          "editable": false,
-                          "required": true
-                        },
-                        {
-                          "fieldId": "IP Address",
-                          "label": "IP Address",
-                          "help": "IP Address",
-                          "dataType": "string",
-                          "controlType": "TEXT_FIELD",
-                          "hidden": false,
-                          "editable": false,
-                          "required": true
-                        },
-                        {
-                          "fieldId": "configure",
-                          "label": "Configuration",
-                          "help": "Configure",
-                          "dataType": "string",
-                          "controlType": "PYTHON_EDITOR",
-                          "required": true,
-                          "editable": true,
-                          "hidden": false
-                        }
-                      ]
-                    },
-                    "formActionList": {
-                      "formActions": [
-                        {
-                          "actionLabel": "Submit Order",
-                          "type": "SUBMIT",
-                          "identifier": "Submit"
-                        }
-                      ]
-                    },
-                    "actions": [
-                      {
-                        "type": "UPDATE_PSTREAM",
-                        "pstreamName": "audit_xnor_configure_stream"
-                      }
-                    ]
-                  }
-                ]
-              }
-            }
-          ],
-          "default_storyboard": "Main Storyboard",
-          "use_storyboard": false,
-          "widget_id": "0f0d587b"
+          "height": 1,
+          "widget_id": "5ae002f1"
         },
         {
-          "title": "CIDR GROUPS",
-          "widget_type": "tabular",
-          "stream": "xnor_cidr_group_details",
-          "duration_hours": 1080,
-          "min_width": 12,
-          "max_width": 12,
-          "height": 5,
-          "remote_searchable": true,
-          "showRowSummary": true,
-          "max_rows": 20,
-          "paginated": true,
-          "sorting": [],
-          "columns": {
-            "Group_Name": {
-              "title": "Group Name",
-              "type": "TEXT",
-              "hidden": false,
-              "key": true
-            },
-            "Description": {
-              "title": "Description",
-              "type": "TEXT",
-              "hidden": false,
-              "key": true
-            },
-            "CIDR": {
-              "title": "CIDR",
-              "type": "int",
-              "hidden": false,
-              "key": true
-            },
-            "_RDA_Id": {
-              "title": "RDA ID",
-              "key": true,
-              "visible": false
-            }
+          "title": "Link Up/Down Alerts",
+          "widget_type": "counter",
+          "min_width": 2.4,
+          "max_width": 2.4,
+          "height": 4,
+          "stream": "oia-alerts-stream",
+          "ts_column": "a_created_ts",
+          "extra_filter": "a_message contains 'link'",
+          "sparkline": {
+            "interval": "1h"
           },
-          "actions": [
+          "column": "count_",
+          "agg": "sum",
+          "type": "int",
+          "widget_id": "42b0d069"
+        },
+        {
+          "title": "BGP Alerts",
+          "widget_type": "counter",
+          "min_width": 2.4,
+          "max_width": 2.4,
+          "height": 4,
+          "stream": "oia-alerts-stream",
+          "ts_column": "a_created_ts",
+          "extra_filter": "a_message contains 'BGP'",
+          "sparkline": {
+            "interval": "1h"
+          },
+          "column": "count_",
+          "agg": "sum",
+          "type": "int",
+          "widget_id": "5f6517c3"
+        },
+        {
+          "title": "OSPF Alerts",
+          "widget_type": "counter",
+          "min_width": 2.4,
+          "max_width": 2.4,
+          "height": 4,
+          "stream": "oia-alerts-stream",
+          "ts_column": "a_created_ts",
+          "extra_filter": "a_message contains 'OSPF'",
+          "sparkline": {
+            "interval": "1h"
+          },
+          "column": "count_",
+          "agg": "sum",
+          "type": "int",
+          "widget_id": "2fee8031"
+        },
+        {
+          "title": "Patch Changes",
+          "widget_type": "counter",
+          "min_width": 2.4,
+          "max_width": 2.4,
+          "height": 4,
+          "stream": "change_requests_stream",
+          "ts_column": "timestamp",
+          "extra_filter": "message contains 'patch'",
+          "sparkline": {
+            "interval": "1h"
+          },
+          "column": "count_",
+          "agg": "sum",
+          "type": "int",
+          "widget_id": "0c90f99a"
+        },
+        {
+          "title": "Change Requests",
+          "widget_type": "counter",
+          "min_width": 2.4,
+          "max_width": 2.4,
+          "height": 4,
+          "stream": "change_requests_stream",
+          "ts_column": "timestamp",
+          "sparkline": {
+            "interval": "1h"
+          },
+          "column": "count_",
+          "agg": "sum",
+          "type": "int",
+          "widget_id": "0b7d3407"
+        },
+        {
+          "title": "Events Timeline",
+          "widget_type": "timeseries",
+          "stream": "oia-alerts-stream",
+          "ts_column": "a_created_ts",
+          "max_width": 12,
+          "height": 8,
+          "min_width": 12,
+          "fixTimeWindow": true,
+          "chartProperties": {
+            "yAxisLabel": "Alert Count",
+            "xAxisLabel": "Time",
+            "legendLocation": "none"
+          },
+          "static_markers": [
             {
-              "title": "Add CIDR Group",
-              "type": "POPUP_FORM",
-              "permission": "rda:dataset:view",
-              "selectionType": "NONE",
-              "identifier": "saas-service-action:userdashboard-add-yaml",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.dynamic.form",
-                    "formDefinition": {
-                      "id": "rda.saas.dynamic.form",
-                      "refreshRequired": true,
-                      "formFieldList": [
-                        {
-                          "fieldId": "Group_Name",
-                          "label": "Group Name",
-                          "help": "Group Name",
-                          "dataType": "string",
-                          "controlType": "TEXT_FIELD",
-                          "hidden": false,
-                          "editable": true,
-                          "required": true,
-                          "key": true
-                        },
-                        {
-                          "fieldId": "Description",
-                          "label": "Description",
-                          "help": "Description",
-                          "dataType": "string",
-                          "controlType": "TEXT_FIELD",
-                          "hidden": false,
-                          "editable": true,
-                          "required": true,
-                          "key": true
-                        },
-                        {
-                          "fieldId": "CIDR",
-                          "label": "add quama (,) after each IP ",
-                          "help": "CIDR",
-                          "dataType": "int",
-                          "controlType": "TEXT_FIELD",
-                          "hidden": false,
-                          "editable": true,
-                          "required": true,
-                          "key": true
-                        }
-                      ]
-                    },
-                    "actions": [
-                      {
-                        "type": "UPDATE_PSTREAM",
-                        "pstreamName": "xnor_pack_cidr_group_details"
-                      }
-                    ]
-                  }
-                ]
+              "timestamp": "{{ALERT_CT}}",
+              "message": "Alert Created",
+              "color": "#B71C1C"
+            }
+          ],
+          "alert_markers": [
+            {
+              "stream": "change_requests_stream",
+              "ts_column": "timestamp",
+              "type": "circle",
+              "message_column": "message",
+              "severity_column": "severity"
+            },
+            {
+              "stream": "oia-alerts-stream",
+              "ts_column": "a_created_ts",
+              "type": "triangle",
+              "message_column": "a_message",
+              "severity_column": "a_severity"
+            },
+            {
+              "stream": "oia-ml-metrics-regression-output",
+              "ts_column": "timestamp",
+              "type": "square",
+              "message_column": "marker_message",
+              "extra_filter": "anomalies_severity is 'High' and anomalies_type is 'Upper'",
+              "severity_column": "anomalies_severity",
+              "columns": [
+                "asset_id",
+                "metric_id",
+                "metric_label",
+                "asset_name",
+                "metric_source",
+                "timestamp",
+                "job_name",
+                "unit",
+                "stream_name"
+              ],
+              "action": {
+                "appName": "user-dashboard/rca_regression_dashboard",
+                "permission": "ml:ml-jobs:viewSampledata",
+                "identifier": "ViewRegressionDashboard",
+                "selectionType": "SINGLE",
+                "stateName": "app.featureapp",
+                "title": "View Regression Dashboard",
+                "type": "GO_TO_APP_STATE"
               }
             },
             {
-              "permission": "rda:github:view",
-              "title": "Edit Group",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:userdashboard-add-yaml",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.dynamic.form",
-                    "formDefinition": {
-                      "id": "rda.saas.dynamic.form",
-                      "refreshRequired": true,
-                      "formFieldList": [
-                        {
-                          "fieldId": "Group_Name",
-                          "label": "Group Name",
-                          "help": "Group Name",
-                          "dataType": "string",
-                          "controlType": "TEXT_FIELD",
-                          "hidden": false,
-                          "editable": true,
-                          "required": true,
-                          "key": true
-                        },
-                        {
-                          "fieldId": "Description",
-                          "label": "Description",
-                          "help": "Description",
-                          "dataType": "string",
-                          "controlType": "TEXT_FIELD",
-                          "hidden": false,
-                          "editable": true,
-                          "required": true,
-                          "key": true
-                        },
-                        {
-                          "fieldId": "CIDR",
-                          "label": "add quama (,) after each IP ",
-                          "help": "CIDR",
-                          "dataType": "int",
-                          "controlType": "TEXT_FIELD",
-                          "hidden": false,
-                          "editable": true,
-                          "required": true,
-                          "key": true
-                        }
-                      ]
-                    },
-                    "actions": [
-                      {
-                        "type": "UPDATE_PSTREAM",
-                        "pstreamName": "xnor_pack_cidr_group_details",
-                        "operation": "UPDATE",
-                        "cfxql_query": "_RDA_Id is '{{_RDA_Id}}'"
-                      }
-                    ]
-                  }
-                ]
-              }
-            },
-            {
-              "permission": "rda:github:view",
-              "title": "Delete Group",
-              "type": "POPUP_FORM",
-              "selectionType": "SINGLE",
-              "identifier": "saas-service-action:userdashboard-add-yaml",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.dynamic.form",
-                    "formActionList": {
-                      "formActions": [
-                        {
-                          "identifier": "Submit",
-                          "actionLabel": "Delete"
-                        }
-                      ]
-                    },
-                    "formDefinition": {
-                      "id": "rda.saas.dynamic.form",
-                      "refreshRequired": true,
-                      "formFieldList": [
-                        {
-                          "help": "Do you want to delete the Group",
-                          "dataType": "string",
-                          "controlType": "LABEL",
-                          "required": false,
-                          "editable": false,
-                          "label": "Do you want to delete the Group",
-                          "hidden": false,
-                          "fieldId": "CIDR",
-                          "key": true
-                        }
-                      ]
-                    },
-                    "actions": [
-                      {
-                        "type": "UPDATE_PSTREAM",
-                        "pstreamName": "xnor_pack_cidr_group_details",
-                        "operation": "DELETE",
-                        "cfxql_query": "_RDA_Id is '{{_RDA_Id}}'"
-                      }
-                    ]
-                  }
-                ]
+              "stream": "oia-logs-regression-output",
+              "ts_column": "timestamp",
+              "type": "circle",
+              "message_column": "asset_id",
+              "extra_filter": "anomalies_severity is 'High' and anomalies_type is 'Upper'",
+              "severity_column": "anomalies_severity",
+              "columns": [
+                "asset_id",
+                "asset_name",
+                "timestamp",
+                "job_name",
+                "stream_name"
+              ],
+              "action": {
+                "appName": "user-dashboard/rca_regression_dashboard",
+                "permission": "ml:ml-jobs:viewSampledata",
+                "identifier": "ViewRegressionDashboard",
+                "selectionType": "SINGLE",
+                "stateName": "app.featureapp",
+                "title": "View Regression Dashboard",
+                "type": "GO_TO_APP_STATE"
               }
             }
           ],
-          "widget_id": "fc241642"
+          "interval": "1min",
+          "series_spec": [
+            {
+              "label": "Alerts",
+              "column": "a_id",
+              "agg": "value_count",
+              "type": "int"
+            }
+          ],
+          "widget_id": "121762cf"
+        },
+        {
+          "title": "Metric Anomalies",
+          "widget_type": "multi_bar_chart",
+          "stream": "oia-ml-metrics-regression-output",
+          "ts_column": "timestamp",
+          "chartProperties": {
+            "yAxisLabel": "Anomalies (%)",
+            "xAxisLabel": "Metric Name",
+            "stacked": false,
+            "legendLocation": "none",
+            "orientation": "vertical"
+          },
+          "group_by": [
+            "asset_id",
+            "metric_label"
+          ],
+          "descending_order": true,
+          "others_spec": {
+            "limit": 4,
+            "show_others": false
+          },
+          "column": "anomalies_percent",
+          "agg": "max",
+          "type": "float",
+          "widget_id": "f4786acb"
+        },
+        {
+          "title": "Change Requests",
+          "widget_type": "tabular",
+          "min_width": 6,
+          "max_width": 6,
+          "height": 5,
+          "timebased": false,
+          "stream": "change_requests_stream",
+          "ts_column": "timestamp",
+          "columns": {
+            "timestamp": {
+              "title": "Time",
+              "type": "DATETIME"
+            },
+            "message": {
+              "title": "Change Description",
+              "type": "TEXT"
+            }
+          },
+          "widget_id": "31e2f2ed"
+        },
+        {
+          "widget_type": "pie_chart",
+          "title": "Alerts by Severity",
+          "stream": "oia-alerts-stream",
+          "extra_filter": "customer_id is '{{CUSTOMER_ID}}'",
+          "ts_column": "timestamp",
+          "min_width": 3,
+          "height": 4,
+          "max_width": 3,
+          "column": "a_id",
+          "agg": "value_count",
+          "group_by": [
+            "a_severity"
+          ],
+          "type": "str",
+          "style": {
+            "color-map": {
+              "SEVERE": [
+                "#B71C1C",
+                "#ffffff"
+              ],
+              "CRITICAL": [
+                "#E53935",
+                "#ffffff"
+              ],
+              "MAJOR": [
+                "#F57C00",
+                "#ffffff"
+              ],
+              "MINOR": [
+                "#FFA726",
+                "#ffffff"
+              ],
+              "WARNING": [
+                "#FFD54F",
+                "#ffffff"
+              ],
+              "NOTIFICATION": [
+                "#4DD0E1",
+                "#ffffff"
+              ],
+              "INFORMATION": [
+                "#03A9F4",
+                "#ffffff"
+              ]
+            }
+          },
+          "widget_id": "cb0706e6"
+        },
+        {
+          "title": "Alert Trend",
+          "widget_type": "timeseries",
+          "stream": "oia-alerts-stream",
+          "ts_column": "a_created_ts",
+          "max_width": 9,
+          "height": 4,
+          "min_width": 9,
+          "fixTimeWindow": true,
+          "extra_filter": "customer_id is '{{CUSTOMER_ID}}'",
+          "chartProperties": {
+            "yAxisLabel": "Count",
+            "xAxisLabel": "Time",
+            "legendLocation": "top"
+          },
+          "interval": "1H",
+          "group_by": [
+            "a_severity"
+          ],
+          "static_markers": [
+            {
+              "timestamp": "{{ALERT_CT}}",
+              "message": "Alert Created",
+              "color": "#B71C1C"
+            }
+          ],
+          "series_spec": [
+            {
+              "column": "a_id",
+              "agg": "value_count",
+              "type": "int"
+            }
+          ],
+          "style": {
+            "color-map": {
+              "SEVERE": [
+                "#B71C1C",
+                "#ffffff"
+              ],
+              "CRITICAL": [
+                "#E53935",
+                "#ffffff"
+              ],
+              "MAJOR": [
+                "#F57C00",
+                "#ffffff"
+              ],
+              "MINOR": [
+                "#FFA726",
+                "#ffffff"
+              ],
+              "WARNING": [
+                "#FFD54F",
+                "#ffffff"
+              ],
+              "NOTIFICATION": [
+                "#4DD0E1",
+                "#ffffff"
+              ],
+              "INFORMATION": [
+                "#03A9F4",
+                "#ffffff"
+              ]
+            }
+          },
+          "widget_id": "c29bb686"
+        },
+        {
+          "widget_type": "pie_chart",
+          "title": "Incidents By Priority",
+          "stream": "oia-incidents-stream",
+          "extra_filter": "customer_id is '{{CUSTOMER_ID}}'",
+          "ts_column": "timestamp",
+          "min_width": 3,
+          "height": 4,
+          "max_width": 3,
+          "column": "incident_id",
+          "agg": "value_count",
+          "group_by": [
+            "i_priority_label"
+          ],
+          "style": {
+            "color-map": {
+              "Critical": [
+                "#B71C1C",
+                "#ffffff"
+              ],
+              "High": [
+                "#FFA726",
+                "#ffffff"
+              ],
+              "Moderate": [
+                "#90CAF9",
+                "#ffffff"
+              ],
+              "Low": [
+                "#4DD0E1",
+                "#ffffff"
+              ],
+              "Planning": [
+                "#4FC3F7",
+                "#ffffff"
+              ]
+            }
+          },
+          "type": "str",
+          "widget_id": "7dce82c8"
+        },
+        {
+          "title": "Incident Trend",
+          "widget_type": "timeseries",
+          "stream": "oia-incidents-stream",
+          "ts_column": "i_created_ts",
+          "max_width": 9,
+          "height": 4,
+          "min_width": 9,
+          "fixTimeWindow": true,
+          "extra_filter": "customer_id is '{{CUSTOMER_ID}}'",
+          "chartProperties": {
+            "yAxisLabel": "Count",
+            "xAxisLabel": "Time",
+            "legendLocation": "top"
+          },
+          "interval": "1H",
+          "group_by": [
+            "i_priority_label"
+          ],
+          "static_markers": [
+            {
+              "timestamp": "{{ALERT_CT}}",
+              "message": "Alert Created",
+              "color": "#B71C1C"
+            }
+          ],
+          "series_spec": [
+            {
+              "column": "incident_id",
+              "agg": "value_count",
+              "type": "int"
+            }
+          ],
+          "style": {
+            "color-map": {
+              "Critical": [
+                "#B71C1C",
+                "#ffffff"
+              ],
+              "High": [
+                "#FFA726",
+                "#ffffff"
+              ],
+              "Moderate": [
+                "#FFD54F",
+                "#ffffff"
+              ],
+              "Low": [
+                "#90CAF9",
+                "#ffffff"
+              ],
+              "Planning": [
+                "#4FC3F7",
+                "#ffffff"
+              ]
+            }
+          },
+          "widget_id": "a3d7ef3c"
+        },
+        {
+          "widget_type": "pie_chart",
+          "title": "Syslogs By Severity",
+          "ts_column": "rda_gw_timestamp",
+          "stream": "syslog_udp_event_stream_all",
+          "min_width": 3,
+          "height": 4,
+          "max_width": 3,
+          "duration_hours0": 10000,
+          "column": "count_",
+          "agg": "sum",
+          "group_by": [
+            "syslog_severity"
+          ],
+          "type": "int",
+          "style": {
+            "color-map": {
+              "SEVERE": [
+                "#B71C1C",
+                "#ffffff"
+              ],
+              "CRITICAL": [
+                "#E53935",
+                "#ffffff"
+              ],
+              "MAJOR": [
+                "#F57C00",
+                "#ffffff"
+              ],
+              "MINOR": [
+                "#FFA726",
+                "#ffffff"
+              ],
+              "WARNING": [
+                "#FFD54F",
+                "#ffffff"
+              ]
+            }
+          },
+          "widget_id": "ed85e796"
+        },
+        {
+          "title": "Syslogs",
+          "widget_type": "timeseries",
+          "max_width": 9,
+          "height": 4,
+          "min_width": 9,
+          "ts_column": "rda_gw_timestamp",
+          "show-markers": true,
+          "fixTimeWindow": true,
+          "stream": "syslog_udp_event_stream_all",
+          "extra_filter0": "log_category is 'syslog'",
+          "chartProperties": {
+            "xAxisLabel": "Timestamp",
+            "yAxisLabel": "Count",
+            "legendLocation": "none",
+            "xAxisTickOrientation": "STAGGERED",
+            "options": {
+              "elements": {
+                "line": {
+                  "borderWidth": 1
+                },
+                "point": {
+                  "radius": 2,
+                  "hitRadius": 3,
+                  "hoverRadius": 3
+                }
+              }
+            }
+          },
+          "static_markers": [
+            {
+              "timestamp": "{{ALERT_CT}}",
+              "message": "Alert Created",
+              "color": "#B71C1C"
+            }
+          ],
+          "series_spec": [
+            {
+              "column": "count_",
+              "agg": "sum",
+              "type": "int"
+            }
+          ],
+          "widget_id": "7ee88e42"
+        },
+        {
+          "title": "Syslogs",
+          "widget_type": "tabular",
+          "stream": "syslog_udp_event_stream_all",
+          "min_width": 12,
+          "height": 6,
+          "max_width": 12,
+          "extra_filter0": "log_category is 'syslog'",
+          "ts_column": "rda_gw_timestamp",
+          "resizableColumns": true,
+          "remote_searchable": true,
+          "remote_searchable_cols": [
+            "message"
+          ],
+          "columns": {
+            "rda_gw_timestamp": {
+              "title": "Event Time",
+              "type": "DATETIME"
+            },
+            "rda_gw_client_ip": "Host",
+            "raw": "Message",
+            "syslog_severity": "Severity"
+          },
+          "widget_id": "3d7466a3"
         }
       ]
     }
