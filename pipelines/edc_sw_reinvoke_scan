@@ -1,26 +1,5 @@
-
- ## declaring thrid level child pipelines
-@c:new-block
- --> @dm:empty
- --> @exec:define-function name="define_child_pipelines"
- --> @exec:run-pipeline name ="edc_generate_token" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_sw_get_data" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_sweol_enrich" & ignore_failures = "no"
- --> @exec:run-pipeline name ="edc_processing_sw_data" & ignore_failures = "no"
- --> @exec:end-function
- --> @dm:empty
- --> @dm:addrow name='edc_cust_pid_sw' and limit=0
- --> #dm:query-persistent-stream
- --> *dm:filter product_id is not null and sw_version is not null and sw_os_type is not null and contract_number is not null
- --> @dm:add-missing-columns columns="source" and value='software'
- --> @dm:save name='added-minio-file'
- --> @exec:run-pipeline name ="edc_sw_run_scan" & ignore_failures = "no"
- --> @dm:save name='temp-edc-sw-run-scan-op-exploded'
- --> @c:new-block
- --> @dm:recall name='temp-edc-sw-run-scan-op-exploded'
- --> @rn:write-stream name='edc_sw_raw_data'
- ## calling the enrich pipeline
-
- --> @c:new-block
- --> @dm:recall name='temp-edc-sw-run-scan-op-exploded'
- --> @exec:run-pipeline name='edc_sweol_enrich' and ignore_failures = "no"
+@dm:query-persistent-stream-from-bookmark name='oia-incidents-stream' and query="i_recommendation_ts is empty" and bookmark='incidents-genai' and offset='latest'
+ --> @dm:dedup columns='incident_id'
+ --> @dm:eval fromTime="i_cfx_incident_occurred-(12*60*60*1000)" and toTime="i_cfx_incident_occurred+(4*60*60*1000)"
+ --> @dm:change-time-format from_format='ms' and to_format='datetimestr' and columns='fromTime,toTime'
+ --> @exec:run-pipeline name='genai-incident-recommendation-child'
