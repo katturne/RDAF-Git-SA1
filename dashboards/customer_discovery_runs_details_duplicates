@@ -1,293 +1,134 @@
 {
-  "name": "rca_regression_dashboard",
-  "label": "RCA Regression",
-  "description": "Template dashboard for RCA Regression",
-  "enabled": true,
-  "debug": true,
-  "live_edit": true,
+  "name": "customer_discovery_runs_details_duplicates",
+  "label": "Duplicates",
+  "description": "onboarded_devices: Insights",
+  "dashboard_folder": "NetworkDevicePack",
+  "version": "1.0.4",
+  "enabled": false,
+  "live_edi0t": true,
   "dashboard_type": "template",
   "template_variables": {
-    "METRIC_ID": {
-      "contextId": [
-        "marker",
-        "metric_id"
-      ]
+    "CUST_ID": {
+      "contextId": "customerId"
     },
-    "METRIC_NAME": {
-      "contextId": [
-        "marker",
-        "metric_label"
-      ]
+    "PROJ_ID": {
+      "contextId": "project_id"
     },
-    "ASSET": {
-      "contextId": [
-        "marker",
-        "asset_id"
-      ]
+    "PROJ_ID_SINGLE": {
+      "contextId": "project_id"
     },
-    "MODEL_NAME": {
-      "contextId": [
-        "marker",
-        "job_name"
-      ]
+    "CUST_TAG": {
+      "contextId": "customerTag"
     },
-    "METRIC_UNIT": {
-      "contextId": [
-        "marker",
-        "unit"
-      ]
-    },
-    "STREAM": {
-      "contextId": [
-        "marker",
-        "stream_name"
-      ],
-      "default": "oia-ml-metrics-regression-output"
-    },
-    "INCIDENT_OT": {
-      "contextId": "i_cfx_incident_occurred"
+    "JOB_ID": {
+      "contextId": "jobid"
     }
   },
   "dashboard_filters": {
     "time_filter": true,
-    "default_time_range": {
-      "from_time": "{{INCIDENT_OT}}",
-      "from_time_delta_hours": -12,
-      "to_time": "{{INCIDENT_OT}}",
-      "to_time_delta_hours": 4,
-      "label": "Incident Time"
-    }
+    "extra_filter0": "source contains 'Run Details' and ingestion_id is '{{FILENAME}}' and (customer_tag is '{{CUST_TAG}}' or customer_tag is empty)",
+    "default_time_filter_labels0": [
+      "Last 1 month"
+    ],
+    "columns_filter": [
+      {
+        "id": "timestamp",
+        "label": "Timestamp",
+        "type": "DATETIME"
+      }
+    ],
+    "group_filters": []
   },
   "dashboard_sections": [
     {
-      "title": "Summary",
+      "title": "Onboarded Devices",
       "show_filter": true,
       "widgets": [
         {
-          "widget_type": "pie_chart",
-          "title": "Anomalies by Severity",
-          "stream": "{{STREAM}}",
-          "extra_filter": "anomalies is not None and job_name is '{{MODEL_NAME}}'",
-          "min_width": 6,
-          "height": 6,
-          "max_width": 6,
-          "ts_column": "timestamp",
-          "column": "_id",
-          "agg": "value_count",
-          "group_by": [
-            "anomalies_severity"
-          ],
-          "style": {
-            "color-map": {
-              "High": [
-                "#ef5350",
-                "#ffffff"
-              ],
-              "Medium": [
-                "#FFA726",
-                "#ffffff"
-              ],
-              "Low": [
-                "#388e3c",
-                "#ffffff"
-              ]
-            }
-          },
-          "type": "str",
-          "widget_id": "7eba4b7b"
-        },
-        {
-          "title": "Anomalies",
+          "title": "Discovery Details",
           "widget_type": "tabular",
-          "stream": "{{STREAM}}",
-          "extra_filter": "anomalies is not None and job_name is '{{MODEL_NAME}}'",
-          "min_width": 6,
-          "height": 6,
-          "max_width": 6,
-          "paginated": true,
-          "remote_searchable": true,
-          "max_rows": 50,
-          "sorting": [
-            {
-              "timestamp": "desc"
-            }
-          ],
-          "columns": {
-            "timestamp": "Timestamp",
-            "asset_id": "Asset ID",
-            "asset_name": "Asset Name",
-            "metric_name": "Metric Name",
-            "severity_color": {
-              "title": "Sev_2",
-              "type": "COLOR-MAP",
-              "source-column": "anomalies_severity",
-              "color-map": {
-                "High": "#ef5350",
-                "Medium": "#FFA726",
-                "Low": "#388e3c"
-              }
-            },
-            "anomalies_severity": {
-              "title": "Severity",
-              "htmlTemplateForRow": "<span class='badge' style='background-color: {{'{{ row.severity_color }}'}}' > {{'{{ row.anomalies_severity }}'}} </span>",
-              "defaultWidth": 150
-            }
-          },
-          "custom_columns": [
-            {
-              "id": "value1",
-              "label": "Value",
-              "expr": "round(value,2)"
-            }
-          ],
-          "widget_id": "94a3fc11"
-        },
-        {
-          "widget_type": "shaded_chart_multisource",
-          "title": "Forecasting and Anomaly Detection ({{METRIC_NAME}} - {{ASSET}})",
-          "show-markers": true,
+          "stream": "asset_inventory_collection_status_stream",
+          "extra_filter": "(jobname contains '{{CUST_TAG}}' or jobname does not contains '{{CUST_TAG}}') and collection_status is 'Success' and target_type is 'DEVICE' and type_ is 'device_status' and jobid is '{{JOB_ID}}' and is_duplicate is 'true'",
+          "duration_hours": 1080,
+          "height": 4,
           "max_width": 12,
           "min_width": 12,
-          "height": 8,
-          "chartProperties": {
-            "yAxisLabel": "{{METRIC_NAME}} ({{METRIC_UNIT}})",
-            "xAxisLabel": "Time"
-          },
-          "sources": [
-            {
-              "type": "train",
-              "downsample": false,
-              "stream": "{{STREAM}}",
-              "extra_filter": "job_name is '{{MODEL_NAME}}' and status is 'Success'",
-              "ts_column": "timestamp",
-              "baseline_column": "baseline",
-              "anomalies_column": "anomalies",
-              "predicted_column": "predicted",
-              "predicted_anomalies": "predicted_anomalies",
-              "upperBound_column": "upperBound",
-              "lowerBound_column": "lowerBound",
-              "duration_hours": 1000000,
-              "synchronized-group": 0
+          "columns": {
+            "asset_ip": "IP Address",
+            "collection_status": {
+              "title": "Collection Status",
+              "type": "DATETIME",
+              "visible": true
+            },
+            "collection_timestamp": {
+              "title": "Collection Timestamp",
+              "type": "DATETIME",
+              "visible": true
+            },
+            "jobname": {
+              "title": "Jobname",
+              "type": "TEXT",
+              "hidden": true
+            },
+            "jobid": {
+              "title": "Job Id",
+              "type": "TEXT",
+              "hidden": true
+            },
+            "is_duplicate": {
+              "title": "Duplicates",
+              "type": "TEXT",
+              "hidden": true
             }
-          ],
-          "widget_id": "7a134625"
+          },
+          "widget_id": "b2c8d81c"
         }
       ]
     }
   ],
   "pstream_dashboards": [
     {
-      "title": "Summary",
+      "title": "Onboarded Devices",
       "show_filter": true,
       "widgets": [
         {
-          "widget_type": "pie_chart",
-          "title": "Anomalies by Severity",
-          "stream": "{{STREAM}}",
-          "extra_filter": "anomalies is not None and job_name is '{{MODEL_NAME}}'",
-          "min_width": 6,
-          "height": 6,
-          "max_width": 6,
-          "ts_column": "timestamp",
-          "column": "_id",
-          "agg": "value_count",
-          "group_by": [
-            "anomalies_severity"
-          ],
-          "style": {
-            "color-map": {
-              "High": [
-                "#ef5350",
-                "#ffffff"
-              ],
-              "Medium": [
-                "#FFA726",
-                "#ffffff"
-              ],
-              "Low": [
-                "#388e3c",
-                "#ffffff"
-              ]
-            }
-          },
-          "type": "str",
-          "widget_id": "7eba4b7b"
-        },
-        {
-          "title": "Anomalies",
+          "title": "Discovery Details",
           "widget_type": "tabular",
-          "stream": "{{STREAM}}",
-          "extra_filter": "anomalies is not None and job_name is '{{MODEL_NAME}}'",
-          "min_width": 6,
-          "height": 6,
-          "max_width": 6,
-          "paginated": true,
-          "remote_searchable": true,
-          "max_rows": 50,
-          "sorting": [
-            {
-              "timestamp": "desc"
-            }
-          ],
-          "columns": {
-            "timestamp": "Timestamp",
-            "asset_id": "Asset ID",
-            "asset_name": "Asset Name",
-            "metric_name": "Metric Name",
-            "severity_color": {
-              "title": "Sev_2",
-              "type": "COLOR-MAP",
-              "source-column": "anomalies_severity",
-              "color-map": {
-                "High": "#ef5350",
-                "Medium": "#FFA726",
-                "Low": "#388e3c"
-              }
-            },
-            "anomalies_severity": {
-              "title": "Severity",
-              "htmlTemplateForRow": "<span class='badge' style='background-color: {{'{{ row.severity_color }}'}}' > {{'{{ row.anomalies_severity }}'}} </span>",
-              "defaultWidth": 150
-            }
-          },
-          "custom_columns": [
-            {
-              "id": "value1",
-              "label": "Value",
-              "expr": "round(value,2)"
-            }
-          ],
-          "widget_id": "94a3fc11"
-        },
-        {
-          "widget_type": "shaded_chart_multisource",
-          "title": "Forecasting and Anomaly Detection ({{METRIC_NAME}} - {{ASSET}})",
-          "show-markers": true,
+          "stream": "asset_inventory_collection_status_stream",
+          "extra_filter": "(jobname contains '{{CUST_TAG}}' or jobname does not contains '{{CUST_TAG}}') and collection_status is 'Success' and target_type is 'DEVICE' and type_ is 'device_status' and jobid is '{{JOB_ID}}' and is_duplicate is 'true'",
+          "duration_hours": 1080,
+          "height": 4,
           "max_width": 12,
           "min_width": 12,
-          "height": 8,
-          "chartProperties": {
-            "yAxisLabel": "{{METRIC_NAME}} ({{METRIC_UNIT}})",
-            "xAxisLabel": "Time"
-          },
-          "sources": [
-            {
-              "type": "train",
-              "downsample": false,
-              "stream": "{{STREAM}}",
-              "extra_filter": "job_name is '{{MODEL_NAME}}' and status is 'Success'",
-              "ts_column": "timestamp",
-              "baseline_column": "baseline",
-              "anomalies_column": "anomalies",
-              "predicted_column": "predicted",
-              "predicted_anomalies": "predicted_anomalies",
-              "upperBound_column": "upperBound",
-              "lowerBound_column": "lowerBound",
-              "duration_hours": 1000000,
-              "synchronized-group": 0
+          "columns": {
+            "asset_ip": "IP Address",
+            "collection_status": {
+              "title": "Collection Status",
+              "type": "DATETIME",
+              "visible": true
+            },
+            "collection_timestamp": {
+              "title": "Collection Timestamp",
+              "type": "DATETIME",
+              "visible": true
+            },
+            "jobname": {
+              "title": "Jobname",
+              "type": "TEXT",
+              "hidden": true
+            },
+            "jobid": {
+              "title": "Job Id",
+              "type": "TEXT",
+              "hidden": true
+            },
+            "is_duplicate": {
+              "title": "Duplicates",
+              "type": "TEXT",
+              "hidden": true
             }
-          ],
-          "widget_id": "7a134625"
+          },
+          "widget_id": "b2c8d81c"
         }
       ]
     }
