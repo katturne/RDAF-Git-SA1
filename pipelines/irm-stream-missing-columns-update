@@ -1,5 +1,7 @@
-@dm:query-persistent-stream-from-bookmark name='oia-incidents-stream' and query="i_recommendation_ts is empty" and bookmark='incidents-genai' and offset='latest'
- --> @dm:dedup columns='incident_id'
- --> @dm:eval fromTime="i_cfx_incident_occurred-(12*60*60*1000)" and toTime="i_cfx_incident_occurred+(4*60*60*1000)"
- --> @dm:change-time-format from_format='ms' and to_format='datetimestr' and columns='fromTime,toTime'
- --> @exec:run-pipeline name='genai-incident-recommendation-child'
+@dm:empty
+ --> @dm:addrow name='oia-incidents-stream'
+ --> #dm:query-persistent-stream
+ --> @dm:eval i_starred = "i_starred if (i_starred != '') else 'Not Starred'"
+ --> @dm:eval i_alert_sources = "i_alert_sources if (i_alert_sources != '') else 'Not Available'"
+ --> @dm:eval i_assigned_to = "i_assigned_to if (i_assigned_to != '') else 'Not Assigned'"
+ --> @dm:fixnull-regex columns = '.*' and value='Not Available' and apply_for_empty='yes'
