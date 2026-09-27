@@ -1,28 +1,16 @@
+
+ ## Get row input
 @c:new-block
+ --> @dm:empty
  --> @exec:get-input
- --> @dm:save name="temp-file_upload11"
- --> @dm:save name="101dataset"
- --> @dm:recall name="101dataset"
- --> @dm:selectcolumns include = 'USER_ID|proj_name|customer_name'
- --> @dm:add-missing-columns columns = 'pipeline_name' &
-value = 'swdata-status-test-hardcode'
- --> @dm:add-missing-columns columns = 'status_type' &
-value = 'Initiating'
- --> @dm:eval timestamp ='utcnow().isoformat()'
- --> @dm:save name="temp1-temp1"
- --> @rn:write-stream name = "status-stream-hardcode"
- --> @exec:run-pipeline name ="swdata-status-test-hardcode"
- --> @dm:sleep seconds = 20
- --> @dm:recall name="temp1-temp1"
- --> @dm:replace-data columns = 'status_type' &
-expr = 'Initiating' &
-replace = 'In-progress'
- --> @dm:save name="temp1-temp1"
- --> @rn:write-stream name = "status-stream-hardcode"
- --> @dm:sleep seconds = 20
- --> @dm:recall name="temp1-temp1"
- --> @dm:replace-data columns = 'status_type' &
-expr = 'In-progress' &
-replace = 'Completed'
- --> @dm:save name="temp1-temp1"
- --> @rn:write-stream name = "status-stream-hardcode"
+ ## --> @dm:selectcolumns include='device_hostname|device_identifier|device_controller_id'
+
+ --> @dm:save name='temp-form-data'
+ --> @c:data-loop columns="customer_name" and dataset="temp-form-data"
+ --> @dm:empty
+ --> @dm:addrow name = "edc_oi_inventory_grouped" & conflicts = "proceed" & timeout = 1200
+ --> #dm:pstream-delete-data-by-query customer_name=="$customer_name"
+ --> @c:data-loop columns="customer_name" and dataset="temp-form-data"
+ --> @dm:empty
+ --> @dm:addrow name = "edc_oi_inventory_enriched" & conflicts = "proceed" & timeout = 1200
+ --> #dm:pstream-delete-data-by-query customer_name=="$customer_name"
