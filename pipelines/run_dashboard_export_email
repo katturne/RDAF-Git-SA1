@@ -1,68 +1,71 @@
-@c:new-block
+@dm:create-persistent-stream name="dashboard_export_email_status" and unique_cols="job_id" and retention_days=1
  --> @dm:empty
- ## Get submitted form fields
+ --> @dm:save name="temp-df"
+ --> @c:new-block
+ --> @dm:empty
+ --> @exec:define-function name="handle_error"
+ --> @dm:empty
+ --> @dm:addrow status="Failed" and reason="Error: email sending process failed to the email ID '{{recipient}}'" and job_id="{{job_id}}" and ingestion_id="{{ingestion_id}}"
+ --> @rn:write-stream name="rda_dashboard_schedule_logs"
+ --> @exec:end-function
+ ## --> @c:new-block
 
- --> @exec:get-input
- ## Exclude label as it contains unneeded info that should not be written to stream later
+ ## --> @dm:empty
 
- --> @dm:selectcolumns exclude='.*_label'
- --> @dm:save name='temp-input_data'
- --> @dm:save name='check-input_data'
- --> @dm:recall name="temp-input_data"
- --> @dm:add-missing-columns columns = 'hweox_csv,sweox_csv,secadv_csv,swlicenses_details_csv1,swlicenses_details_csv2' &
-value = 'False'
- --> @dm:save name='false_data'
- --> *exec:if-condition hweox_csv !='False'
- --> @dm:selectcolumns include="hweox_csv"
- --> @dm:explode-json column="hweox_csv"
- --> @dm:save name="temp-input0-dataset"
- --> @dm:save name="input11-dataset"
- --> @dm:recall name="temp-input0-dataset"
- --> @dm:get-from-location path="{{row.bucketName}}/{{row.objectName}}"
- --> @dm:save name="temp-uploaded-file-data"
- --> @dm:save name="uploaded-data"
- --> @rn:write-stream name="test0-stream-input"
- --> @exec:end-if
- --> *exec:if-condition sweox_csv !='False'
- --> @dm:selectcolumns include="sweox_csv"
- --> @dm:explode-json column="sweox_csv"
- --> @dm:save name="temp-input0-dataset"
- --> @dm:save name="input12-dataset"
- --> @dm:recall name="temp-input0-dataset"
- --> @dm:get-from-location path="{{row.bucketName}}/{{row.objectName}}"
- --> @dm:save name="temp-uploaded-file-data"
- --> @dm:save name="uploaded-data"
- --> @rn:write-stream name="test1-stream-input"
- --> @exec:end-if
- --> *exec:if-condition secadv_csv !='False'
- --> @dm:selectcolumns include="secadv_csv"
- --> @dm:explode-json column="secadv_csv"
- --> @dm:save name="temp-input0-dataset"
- --> @dm:save name="input13-dataset"
- --> @dm:recall name="temp-input0-dataset"
- --> @dm:get-from-location path="{{row.bucketName}}/{{row.objectName}}"
- --> @dm:save name="temp-uploaded-file-data"
- --> @dm:save name="uploaded-data"
- --> @rn:write-stream name="test2-stream-input"
- --> @exec:end-if
- --> *exec:if-condition swlicenses_details_csv1 !='False' and swlicenses_details_csv2 !='False'
- --> @dm:selectcolumns include="swlicenses_details_csv1"
- --> @dm:explode-json column="swlicenses_details_csv1"
- --> @dm:save name="temp-input0-dataset"
- --> @dm:save name="input14-dataset"
- --> @dm:recall name="temp-input0-dataset"
- --> @dm:get-from-location path="{{row.bucketName}}/{{row.objectName}}"
- --> @dm:save name="temp-uploaded-file-data"
- --> @dm:save name="uploaded-data"
- --> @rn:write-stream name="test3-stream-input"
- --> @dm:recall name="temp-input_data"
- --> @dm:selectcolumns include="swlicenses_details_csv2"
- --> @dm:explode-json column="swlicenses_details_csv2"
- --> @dm:save name="temp-input0-dataset"
- --> @dm:save name="input15-dataset"
- --> @dm:recall name="temp-input0-dataset"
- --> @dm:get-from-location path="{{row.bucketName}}/{{row.objectName}}"
- --> @dm:save name="temp-uploaded-file-data"
- --> @dm:save name="uploaded-data"
- --> @rn:write-stream name="test4-stream-input"
- --> @exec:end-if
+ ## --> @exec:retry-loop retries=3 & retry_delay_millis=5000 & on_failure_callback="handle_error"
+
+ ## --> @dm:addrow name="dashboard_export_email_status" & limit = '0'
+
+ ## --> #dm:query-persistent-stream job_id=="{{job_id}}"
+
+ ## --> @dm:save name="temp-original"
+
+ ## --> @dm:skip-block-if-shape row_count="0"
+
+ ## --> @dm:eval collection_timestamp = "int(time_now_as_ms())"
+
+ ## --> @dm:eval diff="collection_timestamp-rda_timestamp"
+
+ ## --> *dm:filter diff > 300000
+
+ ## --> @dm:save name="temp-df"
+
+ ## --> @dm:skip-block-if-shape row_count="0"
+
+ ## --> @dm:empty
+
+ ## --> @dm:addrow job_id="{{job_id}}"
+
+ ## --> @email:sendmail-data recipient="{{recipient}}" and minio_file_location="{{minio_path}}" and subject="{{subject}}"
+
+ ## --> @rn:write-stream name="dashboard_export_email_status"
+
+ ## --> @dm:empty
+
+ ## --> @dm:addrow status="The exported file is successfully sent to the email ID '{{recipient}}'"
+
+ ## --> @dm:eval reason=None
+
+ ## --> @dm:eval job_id="'{{job_id}}'" and ingestion_id="'{{ingestion_id}}'"
+
+ ## --> @rn:write-stream name="rda_dashboard_schedule_logs"
+
+ ## --> @exec:end-loop
+
+ --> @c:new-block
+ --> @dm:empty
+ --> @exec:retry-loop retries=3 & retry_delay_millis=5000 & on_failure_callback="handle_error"
+ ## --> @dm:recall name="temp-original"
+
+ --> @dm:empty
+ --> @dm:skip-block-if-shape row_count>0
+ --> @dm:empty
+ --> @dm:addrow job_id="{{job_id}}"
+ --> @email:sendmail-data recipient="{{recipient}}" and minio_file_location="{{minio_path}}" and subject="{{subject}}"
+ --> @rn:write-stream name="dashboard_export_email_status"
+ --> @dm:empty
+ --> @dm:addrow status="The exported file is successfully sent to the email ID '{{recipient}}'"
+ --> @dm:eval reason=None
+ --> @dm:eval job_id="'{{job_id}}'" and ingestion_id="'{{ingestion_id}}'"
+ --> @rn:write-stream name="rda_dashboard_schedule_logs"
+ --> @exec:end-loop
