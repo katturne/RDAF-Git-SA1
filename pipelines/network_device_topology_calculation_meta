@@ -1,11 +1,68 @@
-folder: NetworkDevicePack
-name: network_device_topology_calculation
-description: test pipeline
-data_path: pipelines/data/network_device_topology_calculation/2024.03.19.2/data.json
-usecase: ''
-category: ''
-sources: {}
-artifacts: {}
-version: 2024.03.19.2
-file_type: json
-checksum: d9a5e992
+@c:new-block
+ --> @dm:empty
+ ## Get submitted form fields
+
+ --> @exec:get-input
+ ## Exclude label as it contains unneeded info that should not be written to stream later
+
+ --> @dm:selectcolumns exclude='.*_label'
+ --> @dm:save name='temp-input_data'
+ --> @dm:save name='check-input_data'
+ --> @dm:recall name="temp-input_data"
+ --> @dm:add-missing-columns columns = 'hweox_csv,sweox_csv,secadv_csv,swlicenses_details_csv1,swlicenses_details_csv2' &
+value = 'False'
+ --> @dm:save name='false_data'
+ --> *exec:if-condition hweox_csv !='False'
+ --> @dm:selectcolumns include="hweox_csv"
+ --> @dm:explode-json column="hweox_csv"
+ --> @dm:save name="temp-input0-dataset"
+ --> @dm:save name="input11-dataset"
+ --> @dm:recall name="temp-input0-dataset"
+ --> @dm:get-from-location path="{{row.bucketName}}/{{row.objectName}}"
+ --> @dm:save name="temp-uploaded-file-data"
+ --> @dm:save name="uploaded-data"
+ --> @rn:write-stream name="test0-stream-input"
+ --> @exec:end-if
+ --> *exec:if-condition sweox_csv !='False'
+ --> @dm:selectcolumns include="sweox_csv"
+ --> @dm:explode-json column="sweox_csv"
+ --> @dm:save name="temp-input0-dataset"
+ --> @dm:save name="input12-dataset"
+ --> @dm:recall name="temp-input0-dataset"
+ --> @dm:get-from-location path="{{row.bucketName}}/{{row.objectName}}"
+ --> @dm:save name="temp-uploaded-file-data"
+ --> @dm:save name="uploaded-data"
+ --> @rn:write-stream name="test1-stream-input"
+ --> @exec:end-if
+ --> *exec:if-condition secadv_csv !='False'
+ --> @dm:selectcolumns include="secadv_csv"
+ --> @dm:explode-json column="secadv_csv"
+ --> @dm:save name="temp-input0-dataset"
+ --> @dm:save name="input13-dataset"
+ --> @dm:recall name="temp-input0-dataset"
+ --> @dm:get-from-location path="{{row.bucketName}}/{{row.objectName}}"
+ --> @dm:save name="temp-uploaded-file-data"
+ --> @dm:save name="uploaded-data"
+ --> @rn:write-stream name="test2-stream-input"
+ --> @exec:end-if
+ --> *exec:if-condition swlicenses_details_csv1 !='False' and swlicenses_details_csv2 !='False'
+ --> @dm:selectcolumns include="swlicenses_details_csv1"
+ --> @dm:explode-json column="swlicenses_details_csv1"
+ --> @dm:save name="temp-input0-dataset"
+ --> @dm:save name="input14-dataset"
+ --> @dm:recall name="temp-input0-dataset"
+ --> @dm:get-from-location path="{{row.bucketName}}/{{row.objectName}}"
+ --> @dm:save name="temp-uploaded-file-data"
+ --> @dm:save name="uploaded-data"
+ --> @rn:write-stream name="test3-stream-input"
+ --> @dm:recall name="temp-input_data"
+ --> @dm:selectcolumns include="swlicenses_details_csv2"
+ --> @dm:explode-json column="swlicenses_details_csv2"
+ --> @dm:save name="temp-input0-dataset"
+ --> @dm:save name="input15-dataset"
+ --> @dm:recall name="temp-input0-dataset"
+ --> @dm:get-from-location path="{{row.bucketName}}/{{row.objectName}}"
+ --> @dm:save name="temp-uploaded-file-data"
+ --> @dm:save name="uploaded-data"
+ --> @rn:write-stream name="test4-stream-input"
+ --> @exec:end-if
