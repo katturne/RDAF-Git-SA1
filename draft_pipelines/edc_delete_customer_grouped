@@ -1,11 +1,7 @@
-@c:new-block
- --> @dm:recall name="edc_customer_names"
- ## --> @dm:selectcolumns include='device_hostname|device_identifier|device_controller_id'
-
- --> @dm:save name='temp-form-data'
- --> @c:data-loop columns="customer" and dataset="temp-form-data"
- --> @dm:empty
- --> @dm:addrow name = "edc_oi_inventory_grouped" & conflicts = "proceed" & timeout = 1200
- ## --> @dm:addrow name = "edc_oi_inventory_enriched" & conflicts = "proceed" & timeout = 1200
-
- --> #dm:pstream-delete-data-by-query customer_name=="$customer"
+@exec:get-input
+ --> @dm:explode-json column='node'
+ --> @dm:add-missing-columns columns='vm_ip_address,switch_ip_address,app_comp_ip_address,port'
+ --> @dm:to-type columns='port' and type='int'
+ --> @dm:selectcolumns include='^vm_ip_address$|^switch_ip_address$|^app_comp_ip_address$|^port$'
+ --> @dm:eval tool_ip_address = "vm_ip_address if vm_ip_address else (switch_ip_address if switch_ip_address else app_comp_ip_address)"
+ --> @diagnostictools:checkport column_name_host = 'tool_ip_address' and column_name_port = 'port' and json_output_flag = 'True'
