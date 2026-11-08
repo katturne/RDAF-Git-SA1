@@ -1,117 +1,138 @@
-%% stream = no and limit = 0
-%%template_type="jinja"
 
-%%start_inline_object name="context_dynamic_form" and type="data" and format="json"
-{
-    "formFieldList": [
-        {
-            "fieldId": "customer_tag",
-            "label": "Tag of the customer",
-            "required": false,
-            "dataType": "string"
-        }
-    ]
-}
-%%end_inline_object
+ ## BUILD OSPF EDGES
+@c:new-block
+ --> @dm:recall name = "cml-ospf-data"
+ --> @dm:rename-columns remote_ip="address"
+ --> @dm:rename-columns local_interface="interface"
+ --> @dm:rename-columns left_id="source_ip"
+ ## lookup remote device's interface and managemet ip address from the remote_ip
 
-@dm:empty
-    --> @dm:save name = "temp-customer-context"
+ --> @dm:enrich dict="cml-interface-data" and src_key_cols="remote_ip" and dict_key_cols="ipaddr" and enrich_cols="intf,source_ip" and enrich_cols_as="neighbor_interface,right_id"
+ ## Lookup local ip address configured on the local_interface
 
+ --> @dm:enrich dict="cml-interface-data" and src_key_cols="local_interface,left_id" and dict_key_cols="intf,source_ip" and enrich_cols="ipaddr"
+ --> @dm:rename-columns local_ip="ipaddr_y"
+ --> @dm:eval link_type="'OSPF'"
+ --> @dm:eval style_color="'#3333BB'"
+ --> @dm:eval style_width="'3'"
+ --> @dm:add-missing-columns columns="priority,state,dead_time,neighbor_id" and value=""
+ ## Cleanup unnecessary columns that are not required
 
-## {% set row = "" %}
+ --> @dm:selectcolumns exclude="collection_status"
+ --> @dm:selectcolumns exclude="collection_timestamp"
+ --> @dm:selectcolumns exclude="local_interface.1"
+ --> @dm:selectcolumns exclude="local_interface.2"
+ --> @dm:selectcolumns exclude="local_interface.3"
+ --> @dm:selectcolumns exclude="reason"
+ --> @dm:selectcolumns exclude="command"
+ --> @dm:selectcolumns exclude="condition"
+ --> @dm:selectcolumns exclude="condition_matched"
+ --> @dm:selectcolumns exclude="reachability"
+ --> @dm:selectcolumns exclude="ipaddr_x"
+ --> @dm:selectcolumns exclude="ipaddr_y"
+ --> @dm:selectcolumns exclude="intf"
+ --> @dm:selectcolumns exclude="source_ip"
+ ## Declare attributes to show in the topology when the link is clicked
 
-      {% if customer_tag %} 
-      {% set customer_id = customer_id %}
-      {% set customer_tag = customer_tag %}
-      {% set customerTag = customer_tag %}
-      {% set customerId = customer_id %}
-   {% elif customerTag %} 
-      {% set customer_id = customerId %}
-      {% set customer_tag = customerTag %}
-   {% else %}
-      {% set customer_id = '' %}
-      {% set customer_tag = '' %}
-   {% endif %}   
+ --> @dm:eval showAttrs="'^local_ip$|^local_interface$|^remote_ip$|^neighbor_interface$|^priority$|^state$|^dead_time$|^neighbor_id$'"
+ --> @dm:save name="temp-edges-ospf"
+ ## END OF OSPF TOPOLOGY CALCULATION
 
+ ## BUILD CDP EDGES
 
---> @c:new-block
-    --> @dm:empty
-    --> @exec:get-input
-   ## --> @dm:save name="temp-input-devices"
-   --> @dm:eval key ="'key'" 
-   --> @dm:save name ="temp-input-data"
-    --> @dm:save name ="temp-input-dataset"
-     {% if customer_tag %} 
-         --> @dm:save name="{{customer_tag}}-network-import-devices"
-    {% else %}
-        --> @dm:save name="network-import-devices"
-    {% endif %}
+ --> @c:new-block
+ --> @dm:empty
+ --> @dm:recall name = "cml-cdp-data"
+ --> @dm:rename-columns remote_ip="mgmt_ip"
+ --> @dm:rename-columns local_interface="local_port"
+ --> @dm:rename-columns neighbor_interface="remote_port"
+ --> @dm:rename-columns left_id="source_ip"
+ --> @dm:rename-columns remote_hostname="dest_host"
+ --> @dm:rename-columns remote_platform="platform"
+ --> @dm:rename-columns remote_version="version"
+ ## lookup remote device's managemet ip address from the remote_ip and set it as right_id
 
+ --> @dm:enrich dict="cml-interface-data" and src_key_cols="neighbor_interface,remote_ip" and dict_key_cols="intf,ipaddr" and enrich_cols="source_ip" and enrich_cols_as="right_id"
+ ## Lookup local ip address configured on the local_interface
 
---> @c:new-block
-    {% if customer_tag %} 
-         --> @dm:recall name="{{customer_tag}}-network-import-devices"
-    {% else %}
-        --> @dm:recall name="network-import-devices"
-    {% endif %} 
-    --> @dm:replace-data columns="fileUpload" and expr="'" and replace='"'
-    --> @dm:to-type columns="replace" and type="str"
-    --> @dm:explode-json column="fileUpload"
-    --> @dm:save name ="temp-input-dataset"
+ --> @dm:enrich dict="cml-interface-data" and src_key_cols="local_interface,left_id" and dict_key_cols="intf,source_ip" and enrich_cols="ipaddr"
+ --> @dm:rename-columns local_ip="ipaddr_y"
+ ## Cleanup unnecessary columns that are not required
 
+ --> @dm:selectcolumns exclude="collection_status"
+ --> @dm:selectcolumns exclude="collection_timestamp"
+ --> @dm:selectcolumns exclude="reason"
+ --> @dm:selectcolumns exclude="command"
+ --> @dm:selectcolumns exclude="condition"
+ --> @dm:selectcolumns exclude="condition_matched"
+ --> @dm:selectcolumns exclude="reachability"
+ --> @dm:selectcolumns exclude="sysname"
+ --> @dm:selectcolumns exclude="ipaddr_x"
+ --> @dm:selectcolumns exclude="ipaddr_y"
+ --> @dm:selectcolumns exclude="intf"
+ --> @dm:selectcolumns exclude="source_ip"
+ --> @dm:eval link_type="'CDP'"
+ --> @dm:eval style_color="'#4DD0E1'"
+ --> @dm:eval style_width="'2'"
+ ## Declare attributes to show in the topology when the link is clicked
 
-    --> @c:new-block
-    --> @dm:empty
-    {% if customer_tag %} 
-         --> #dm:query-persistent-stream customer_tag is '{{customer_tag}}' with-input name = "discovery" & limit = "0"
-    {% else %} 
-        --> #dm:query-persistent-stream customer_tag is empty with-input name = "discovery" & limit = "0"
-    {% endif %} 
-    
-    --> @dm:save name ="temp-customer-old-data"
+ --> @dm:eval showAttrs="'^local_ip$|^local_interface$|^remote_ip$|^neighbor_interface$|^remote_platform$|^remote_hostname$|^remote_version$'"
+ --> @dm:save name="temp-edges-cdp"
+ ## END OF CDP TOPOLOGY CALCULATION
 
---> @c:new-block
+ ## BUILD BGP EDGES
 
---> @c:data-loop dataset="temp-input-dataset" and columns="bucketName,objectName"
-    --> @dm:recall name="temp-input-dataset"
-    --> *dm:filter replace=="True"
-    --> @dm:skip-block-if-shape row_count="0"
-    --> @dm:get-from-location path="$bucketName/$objectName"
-    ## --> @dm:tail n = 1
-    --> @dm:check-columns must_contain="device_ip" and action="fail"
-    --> @dm:dedup columns="device_ip"
-    --> @dm:save name="temp-uploaded-file-data"
-    ##--> @dm:save name="$dataset_name"
-    ##--> @dm:save  name="test-discovery2"
-    --> @dm:eval key ="'key'" 
-  ## --> @dm:eval customer_tag ="'{{customer_tag}}'"
-  ##     --> @dm:eval customer_id ="'{{customer_id}}'"
-                --> @dm:enrich dict = "temp-input-data" & src_key_cols = "key" & dict_key_cols="key" & enrich_cols = "customer_tag,customer_id"
+ --> @c:new-block
+ --> @dm:empty
+ --> @dm:recall name = "cml-bgp-data"
+ --> @dm:rename-columns left_id="source_ip"
+ --> @dm:rename-columns local_ip="localhost_ip"
+ --> @dm:selectcolumns exclude="remote_ip"
+ --> @dm:rename-columns remote_ip="neighbor"
+ ## lookup remote device's managemet ip address from the remote_ip and set it as right_id
 
-      ##--> @dm:save  name="test-discovery"
+ --> @dm:enrich dict="cml-interface-data" and src_key_cols="remote_ip" and dict_key_cols="ipaddr" and enrich_cols="source_ip" and enrich_cols_as="right_id"
+ --> @dm:eval link_type="'BGP'"
+ --> @dm:eval style_color="'#837619'"
+ --> @dm:eval style_width="'4'"
+ --> @dm:add-missing-columns columns="local_ip,remote_ip,remote_router_id,vrf" and value=""
+ ## Cleanup unnecessary columns that are not required
 
-    --> @rn:write-stream name="discovery"
-    --> @dm:skip-pipeline-if-shape row_count > 0
+ --> @dm:selectcolumns exclude="collection_status"
+ --> @dm:selectcolumns exclude="collection_timestamp"
+ --> @dm:selectcolumns exclude="reason"
+ --> @dm:selectcolumns exclude="command"
+ --> @dm:selectcolumns exclude="condition"
+ --> @dm:selectcolumns exclude="condition_matched"
+ --> @dm:selectcolumns exclude="reachability"
+ --> @dm:selectcolumns exclude="ipaddr"
+ ## Declare attributes to show in the topology when the link is clicked
 
---> @c:new-block
+ --> @dm:eval showAttrs="'^bgp_state$|^remote_as$|^local_ip$|^remote_ip$|^remote_router_id$'"
+ --> @dm:save name="temp-edges-bgp"
+ ## END OF BGP TOPOLOGY CALCULATION
 
---> @c:data-loop dataset="temp-input-dataset" and columns="bucketName,objectName"
-    --> @dm:recall name="temp-input-dataset"
-    --> *dm:filter replace=="False"
-    --> @dm:skip-block-if-shape row_count="0"
-    --> @dm:get-from-location path="$bucketName/$objectName"
-    --> @dm:check-columns must_contain="device_ip" and action="fail"
-    ## --> @dm:head n = 1
-    --> @dm:save name="temp-uploaded-file-data"
-    --> @dm:recall name ="temp-customer-old-data"
-    --> @dm:save name="temp-uploaded-file-data" and append= "yes"
-    --> @dm:recall name="temp-uploaded-file-data"
-    --> @dm:dedup columns="device_ip"
-   ## --> @dm:save name="$dataset_name"
-    --> @dm:eval key ="'key'" 
-   ## --> @dm:eval customer_tag ="'{{customer_tag}}'"
-   ##    --> @dm:eval customer_id ="'{{customer_id}}'"
-          --> @dm:enrich dict = "temp-input-data" & src_key_cols = "key" & dict_key_cols="key" & enrich_cols = "customer_tag,customer_id"
+ ## Combine all the edges and publish it to stream
 
-    --> @rn:write-stream name="discovery"
+ --> @c:new-block
+ --> @dm:concat names="^temp-edges-.*$"
+ --> @dm:eval relation_type="'connects-to'"
+ --> @dm:eval direction="'NO_DIRECTION'"
+ --> @dm:fixnull columns="dead_time,local_interface,neighbor_id,neighbor_interface,priority,state,bgp_state,local_ip,localhost_port,neighbor_uptime,remote_as,remote_port,remote_router_id,remote_as,neighbor_uptime,capabilities,remote_platform,remote_version,remote_hostname" and value="''"
+ --> @dm:save name="temp-edges"
+ ## -->  @rn:write-stream name="cml_topo_edges"
 
+ ## Calculate nodes
+
+ --> @dm:selectcolumns include="left_id"
+ --> @dm:dedup columns="left_id"
+ --> @dm:rename-columns node_id="left_id"
+ --> @dm:enrich dict="cml_cisco_device_chassis_dict" and src_key_cols="node_id" and dict_key_cols="device_ip" and enrich_cols="device_hostname,device_model,device_serial_number,device_fw_type,device_fw_version"
+ --> @dm:rename-columns node_label="device_ip"
+ --> @dm:eval layer="'Network'"
+ --> @dm:eval node_type="'Router'"
+ --> @dm:eval iconURL="'Router'"
+ --> @rn:write-stream name="cml_topo_nodes"
+ --> @c:new-block
+ --> @dm:recall name="temp-edges"
+ --> @rn:write-stream name="cml_topo_edges"
