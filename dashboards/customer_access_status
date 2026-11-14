@@ -1,514 +1,1191 @@
 {
-  "name": "customer_access_status",
-  "description": "Customer Access Status",
-  "label": "Failed Devices",
-  "enabled": false,
+  "name": "oia-alerts-war-room-customer-view",
+  "label": "War Room - Customer View",
+  "description": "War Room - Customer View",
+  "enabled": true,
   "dashboard_type": "template",
-  "dashboard_folder": "NetworkDevicePack",
-  "version": "24.9.6.3",
   "template_variables": {
-    "CUST_ID": {
-      "contextId": "customerId"
+    "ALERT_CT": {
+      "contextId": "a_created_ts",
+      "default": "2024-04-10T09:39:36.265000"
     },
-    "PROJ_ID": {
-      "contextId": "projectId"
+    "CUSTOMER_ID": {
+      "contextId": "customer_id"
     },
-    "CUST_TAG": {
-      "contextId": "customerTag"
+    "ASSET_ID": {
+      "contextId": "a_asset_ip_address"
     }
   },
   "dashboard_filters": {
     "time_filter": true,
-    "default_time_filter_labels": [
-      "Last 1 month"
-    ],
-    "extra_filter0": "(source not in ['failed_devices']) ",
-    "group_filters": [
-      {
-        "stream": "network_access_verification",
-        "title": "Protocol",
-        "group_by": [
-          "protocol"
-        ],
-        "ts_column": "timestamp",
-        "agg": "value_count",
-        "column": "_id",
-        "type": "str"
-      },
-      {
-        "stream": "network_access_verification",
-        "title": "Credential Name",
-        "group_by": [
-          "used_cred"
-        ],
-        "ts_column": "timestamp",
-        "agg": "value_count",
-        "column": "_id",
-        "type": "str"
-      },
-      {
-        "stream": "network_access_verification",
-        "title": "Authentication State",
-        "group_by": [
-          "auth_state"
-        ],
-        "ts_column": "timestamp",
-        "agg": "value_count",
-        "column": "_id",
-        "type": "str"
-      }
-    ],
-    "columns_filter": [
-      {
-        "id": "protocol",
-        "label": "Protocol",
-        "type": "TEXT"
-      },
-      {
-        "id": "ip_address",
-        "label": "IP Address",
-        "type": "TEXT"
-      },
-      {
-        "id": "used_cred",
-        "label": "Credential Name",
-        "type": "TEXT"
-      },
-      {
-        "id": "comment",
-        "label": "Information",
-        "type": "TEXT"
-      },
-      {
-        "id": "timestamp",
-        "label": "Last Access Check Time",
-        "type": "DATETIME"
-      },
-      {
-        "id": "auth_state",
-        "label": "Authentication State",
-        "type": "TEXT"
-      }
-    ]
+    "default_time_range": {
+      "from_time": "{{ALERT_CT}}",
+      "from_time_delta_hours": -24,
+      "to_time": "{{ALERT_CT}}",
+      "to_time_delta_hours": 24,
+      "label": "{{INCIDENT_ID}} Time Range"
+    }
+  },
+  "stream_query_mapping": {
+    "syslog_udp_event_stream_all": {
+      "a_created_ts": "rda_gw_timestamp"
+    },
+    "oia-incidents-stream": {
+      "a_created_ts": "i_created_ts"
+    },
+    "oia-ml-metrics-regression-output": {
+      "a_created_ts": "timestamp"
+    },
+    "change_requests_stream": {
+      "a_created_ts": "timestamp"
+    }
   },
   "dashboard_sections": [
     {
-      "title": "Success",
+      "title": "Customer View",
       "show_filter": true,
       "widgets": [
         {
-          "widget_type": "pie_chart",
-          "title": "Access Check by Status",
-          "stream": "network_access_verification",
-          "extra_filter": "(customer_tag contains '{{CUST_TAG}}' or customer_tag is empty)",
-          "ts_column": "timestamp",
-          "column": "_id",
-          "min_width": 6,
+          "widget_type": "label",
+          "label": "<h3 style='text-align: center;'>Alert Created: {%raw%} {{' {{ '}} {%endraw%} toDateTimeString({{ ALERT_CT }}) {%raw%} {{ '}}' }} {%endraw%} </h3>",
+          "advanced": true,
+          "min_width": 12,
+          "max_width": 12,
+          "height": 1,
+          "widget_id": "5ae002f1"
+        },
+        {
+          "title": "Link Up/Down Alerts",
+          "widget_type": "counter",
+          "min_width": 2.4,
+          "max_width": 2.4,
           "height": 4,
+          "stream": "oia-alerts-stream",
+          "ts_column": "a_created_ts",
+          "extra_filter": "a_message contains 'link'",
+          "sparkline": {
+            "interval": "1h"
+          },
+          "column": "count_",
+          "agg": "sum",
+          "type": "int",
+          "widget_id": "42b0d069"
+        },
+        {
+          "title": "BGP Alerts",
+          "widget_type": "counter",
+          "min_width": 2.4,
+          "max_width": 2.4,
+          "height": 4,
+          "stream": "oia-alerts-stream",
+          "ts_column": "a_created_ts",
+          "extra_filter": "a_message contains 'BGP'",
+          "sparkline": {
+            "interval": "1h"
+          },
+          "column": "count_",
+          "agg": "sum",
+          "type": "int",
+          "widget_id": "5f6517c3"
+        },
+        {
+          "title": "OSPF Alerts",
+          "widget_type": "counter",
+          "min_width": 2.4,
+          "max_width": 2.4,
+          "height": 4,
+          "stream": "oia-alerts-stream",
+          "ts_column": "a_created_ts",
+          "extra_filter": "a_message contains 'OSPF'",
+          "sparkline": {
+            "interval": "1h"
+          },
+          "column": "count_",
+          "agg": "sum",
+          "type": "int",
+          "widget_id": "2fee8031"
+        },
+        {
+          "title": "Patch Changes",
+          "widget_type": "counter",
+          "min_width": 2.4,
+          "max_width": 2.4,
+          "height": 4,
+          "stream": "change_requests_stream",
+          "ts_column": "timestamp",
+          "extra_filter": "message contains 'patch'",
+          "sparkline": {
+            "interval": "1h"
+          },
+          "column": "count_",
+          "agg": "sum",
+          "type": "int",
+          "widget_id": "0c90f99a"
+        },
+        {
+          "title": "Change Requests",
+          "widget_type": "counter",
+          "min_width": 2.4,
+          "max_width": 2.4,
+          "height": 4,
+          "stream": "change_requests_stream",
+          "ts_column": "timestamp",
+          "sparkline": {
+            "interval": "1h"
+          },
+          "column": "count_",
+          "agg": "sum",
+          "type": "int",
+          "widget_id": "0b7d3407"
+        },
+        {
+          "title": "Events Timeline",
+          "widget_type": "timeseries",
+          "stream": "oia-alerts-stream",
+          "ts_column": "a_created_ts",
+          "max_width": 12,
+          "height": 8,
+          "min_width": 12,
+          "fixTimeWindow": true,
+          "chartProperties": {
+            "yAxisLabel": "Alert Count",
+            "xAxisLabel": "Time",
+            "legendLocation": "none"
+          },
+          "static_markers": [
+            {
+              "timestamp": "{{ALERT_CT}}",
+              "message": "Alert Created",
+              "color": "#B71C1C"
+            }
+          ],
+          "alert_markers": [
+            {
+              "stream": "change_requests_stream",
+              "ts_column": "timestamp",
+              "type": "circle",
+              "message_column": "message",
+              "severity_column": "severity"
+            },
+            {
+              "stream": "oia-alerts-stream",
+              "ts_column": "a_created_ts",
+              "type": "triangle",
+              "message_column": "a_message",
+              "severity_column": "a_severity"
+            },
+            {
+              "stream": "oia-ml-metrics-regression-output",
+              "ts_column": "timestamp",
+              "type": "square",
+              "message_column": "marker_message",
+              "extra_filter": "anomalies_severity is 'High' and anomalies_type is 'Upper'",
+              "severity_column": "anomalies_severity",
+              "columns": [
+                "asset_id",
+                "metric_id",
+                "metric_label",
+                "asset_name",
+                "metric_source",
+                "timestamp",
+                "job_name",
+                "unit",
+                "stream_name"
+              ],
+              "action": {
+                "appName": "user-dashboard/rca_regression_dashboard",
+                "permission": "ml:ml-jobs:viewSampledata",
+                "identifier": "ViewRegressionDashboard",
+                "selectionType": "SINGLE",
+                "stateName": "app.featureapp",
+                "title": "View Regression Dashboard",
+                "type": "GO_TO_APP_STATE"
+              }
+            },
+            {
+              "stream": "oia-logs-regression-output",
+              "ts_column": "timestamp",
+              "type": "circle",
+              "message_column": "asset_id",
+              "extra_filter": "anomalies_severity is 'High' and anomalies_type is 'Upper'",
+              "severity_column": "anomalies_severity",
+              "columns": [
+                "asset_id",
+                "asset_name",
+                "timestamp",
+                "job_name",
+                "stream_name"
+              ],
+              "action": {
+                "appName": "user-dashboard/rca_regression_dashboard",
+                "permission": "ml:ml-jobs:viewSampledata",
+                "identifier": "ViewRegressionDashboard",
+                "selectionType": "SINGLE",
+                "stateName": "app.featureapp",
+                "title": "View Regression Dashboard",
+                "type": "GO_TO_APP_STATE"
+              }
+            }
+          ],
+          "interval": "1min",
+          "series_spec": [
+            {
+              "label": "Alerts",
+              "column": "a_id",
+              "agg": "value_count",
+              "type": "int"
+            }
+          ],
+          "widget_id": "121762cf"
+        },
+        {
+          "title": "Metric Anomalies",
+          "widget_type": "multi_bar_chart",
+          "stream": "oia-ml-metrics-regression-output",
+          "ts_column": "timestamp",
+          "chartProperties": {
+            "yAxisLabel": "Anomalies (%)",
+            "xAxisLabel": "Metric Name",
+            "stacked": false,
+            "legendLocation": "none",
+            "orientation": "vertical"
+          },
+          "group_by": [
+            "asset_id",
+            "metric_label"
+          ],
+          "descending_order": true,
+          "others_spec": {
+            "limit": 4,
+            "show_others": false
+          },
+          "column": "anomalies_percent",
+          "agg": "max",
+          "type": "float",
+          "widget_id": "f4786acb"
+        },
+        {
+          "title": "Change Requests",
+          "widget_type": "tabular",
+          "min_width": 6,
+          "max_width": 6,
+          "height": 5,
+          "timebased": false,
+          "stream": "change_requests_stream",
+          "ts_column": "timestamp",
+          "columns": {
+            "timestamp": {
+              "title": "Time",
+              "type": "DATETIME"
+            },
+            "message": {
+              "title": "Change Description",
+              "type": "TEXT"
+            }
+          },
+          "widget_id": "31e2f2ed"
+        },
+        {
+          "widget_type": "pie_chart",
+          "title": "Alerts by Severity",
+          "stream": "oia-alerts-stream",
+          "extra_filter": "customer_id is '{{CUSTOMER_ID}}'",
+          "ts_column": "timestamp",
+          "min_width": 3,
+          "height": 4,
+          "max_width": 3,
+          "column": "a_id",
           "agg": "value_count",
           "group_by": [
-            "auth_state"
+            "a_severity"
+          ],
+          "type": "str",
+          "style": {
+            "color-map": {
+              "SEVERE": [
+                "#B71C1C",
+                "#ffffff"
+              ],
+              "CRITICAL": [
+                "#E53935",
+                "#ffffff"
+              ],
+              "MAJOR": [
+                "#F57C00",
+                "#ffffff"
+              ],
+              "MINOR": [
+                "#FFA726",
+                "#ffffff"
+              ],
+              "WARNING": [
+                "#FFD54F",
+                "#ffffff"
+              ],
+              "NOTIFICATION": [
+                "#4DD0E1",
+                "#ffffff"
+              ],
+              "INFORMATION": [
+                "#03A9F4",
+                "#ffffff"
+              ]
+            }
+          },
+          "widget_id": "cb0706e6"
+        },
+        {
+          "title": "Alert Trend",
+          "widget_type": "timeseries",
+          "stream": "oia-alerts-stream",
+          "ts_column": "a_created_ts",
+          "max_width": 9,
+          "height": 4,
+          "min_width": 9,
+          "fixTimeWindow": true,
+          "extra_filter": "customer_id is '{{CUSTOMER_ID}}'",
+          "chartProperties": {
+            "yAxisLabel": "Count",
+            "xAxisLabel": "Time",
+            "legendLocation": "top"
+          },
+          "interval": "1H",
+          "group_by": [
+            "a_severity"
+          ],
+          "static_markers": [
+            {
+              "timestamp": "{{ALERT_CT}}",
+              "message": "Alert Created",
+              "color": "#B71C1C"
+            }
+          ],
+          "series_spec": [
+            {
+              "column": "a_id",
+              "agg": "value_count",
+              "type": "int"
+            }
           ],
           "style": {
             "color-map": {
-              "Success": [
-                "#008000",
+              "SEVERE": [
+                "#B71C1C",
                 "#ffffff"
               ],
-              "Failed": [
-                "#FF0000",
+              "CRITICAL": [
+                "#E53935",
+                "#ffffff"
+              ],
+              "MAJOR": [
+                "#F57C00",
+                "#ffffff"
+              ],
+              "MINOR": [
+                "#FFA726",
+                "#ffffff"
+              ],
+              "WARNING": [
+                "#FFD54F",
+                "#ffffff"
+              ],
+              "NOTIFICATION": [
+                "#4DD0E1",
+                "#ffffff"
+              ],
+              "INFORMATION": [
+                "#03A9F4",
+                "#ffffff"
+              ]
+            }
+          },
+          "widget_id": "c29bb686"
+        },
+        {
+          "widget_type": "pie_chart",
+          "title": "Incidents By Priority",
+          "stream": "oia-incidents-stream",
+          "extra_filter": "customer_id is '{{CUSTOMER_ID}}'",
+          "ts_column": "timestamp",
+          "min_width": 3,
+          "height": 4,
+          "max_width": 3,
+          "column": "incident_id",
+          "agg": "value_count",
+          "group_by": [
+            "i_priority_label"
+          ],
+          "style": {
+            "color-map": {
+              "Critical": [
+                "#B71C1C",
+                "#ffffff"
+              ],
+              "High": [
+                "#FFA726",
+                "#ffffff"
+              ],
+              "Moderate": [
+                "#90CAF9",
+                "#ffffff"
+              ],
+              "Low": [
+                "#4DD0E1",
+                "#ffffff"
+              ],
+              "Planning": [
+                "#4FC3F7",
                 "#ffffff"
               ]
             }
           },
           "type": "str",
-          "widget_id": "66dc2d8e"
+          "widget_id": "7dce82c8"
+        },
+        {
+          "title": "Incident Trend",
+          "widget_type": "timeseries",
+          "stream": "oia-incidents-stream",
+          "ts_column": "i_created_ts",
+          "max_width": 9,
+          "height": 4,
+          "min_width": 9,
+          "fixTimeWindow": true,
+          "extra_filter": "customer_id is '{{CUSTOMER_ID}}'",
+          "chartProperties": {
+            "yAxisLabel": "Count",
+            "xAxisLabel": "Time",
+            "legendLocation": "top"
+          },
+          "interval": "1H",
+          "group_by": [
+            "i_priority_label"
+          ],
+          "static_markers": [
+            {
+              "timestamp": "{{ALERT_CT}}",
+              "message": "Alert Created",
+              "color": "#B71C1C"
+            }
+          ],
+          "series_spec": [
+            {
+              "column": "incident_id",
+              "agg": "value_count",
+              "type": "int"
+            }
+          ],
+          "style": {
+            "color-map": {
+              "Critical": [
+                "#B71C1C",
+                "#ffffff"
+              ],
+              "High": [
+                "#FFA726",
+                "#ffffff"
+              ],
+              "Moderate": [
+                "#FFD54F",
+                "#ffffff"
+              ],
+              "Low": [
+                "#90CAF9",
+                "#ffffff"
+              ],
+              "Planning": [
+                "#4FC3F7",
+                "#ffffff"
+              ]
+            }
+          },
+          "widget_id": "a3d7ef3c"
         },
         {
           "widget_type": "pie_chart",
-          "title": "Access Check by Protocol",
-          "stream": "network_access_verification",
-          "extra_filter": "customer_tag contains '{{CUST_TAG}}' or customer_tag is empty",
-          "ts_column": "timestamp",
-          "column": "_id",
-          "agg": "value_count",
-          "min_width": 6,
+          "title": "Syslogs By Severity",
+          "ts_column": "rda_gw_timestamp",
+          "stream": "syslog_udp_event_stream_all",
+          "min_width": 3,
           "height": 4,
+          "max_width": 3,
+          "duration_hours0": 10000,
+          "column": "count_",
+          "agg": "sum",
           "group_by": [
-            "protocol"
+            "syslog_severity"
           ],
-          "type": "str",
-          "widget_id": "a07b4356"
+          "type": "int",
+          "style": {
+            "color-map": {
+              "SEVERE": [
+                "#B71C1C",
+                "#ffffff"
+              ],
+              "CRITICAL": [
+                "#E53935",
+                "#ffffff"
+              ],
+              "MAJOR": [
+                "#F57C00",
+                "#ffffff"
+              ],
+              "MINOR": [
+                "#FFA726",
+                "#ffffff"
+              ],
+              "WARNING": [
+                "#FFD54F",
+                "#ffffff"
+              ]
+            }
+          },
+          "widget_id": "ed85e796"
         },
         {
-          "title": "Access Status",
+          "title": "Syslogs",
+          "widget_type": "timeseries",
+          "max_width": 9,
+          "height": 4,
+          "min_width": 9,
+          "ts_column": "rda_gw_timestamp",
+          "show-markers": true,
+          "fixTimeWindow": true,
+          "stream": "syslog_udp_event_stream_all",
+          "extra_filter0": "log_category is 'syslog'",
+          "chartProperties": {
+            "xAxisLabel": "Timestamp",
+            "yAxisLabel": "Count",
+            "legendLocation": "none",
+            "xAxisTickOrientation": "STAGGERED",
+            "options": {
+              "elements": {
+                "line": {
+                  "borderWidth": 1
+                },
+                "point": {
+                  "radius": 2,
+                  "hitRadius": 3,
+                  "hoverRadius": 3
+                }
+              }
+            }
+          },
+          "static_markers": [
+            {
+              "timestamp": "{{ALERT_CT}}",
+              "message": "Alert Created",
+              "color": "#B71C1C"
+            }
+          ],
+          "series_spec": [
+            {
+              "column": "count_",
+              "agg": "sum",
+              "type": "int"
+            }
+          ],
+          "widget_id": "7ee88e42"
+        },
+        {
+          "title": "Syslogs",
           "widget_type": "tabular",
-          "stream": "network_access_verification",
-          "extra_filter": "customer_tag contains '{{CUST_TAG}}' or customer_tag is empty",
-          "duration_hours": 1080,
-          "showRowSummary": false,
+          "stream": "syslog_udp_event_stream_all",
           "min_width": 12,
           "height": 6,
           "max_width": 12,
-          "sorting": [
-            {
-              "auth_state": "desc"
-            }
-          ],
-          "paginated": true,
+          "extra_filter0": "log_category is 'syslog'",
+          "ts_column": "rda_gw_timestamp",
+          "resizableColumns": true,
           "remote_searchable": true,
           "remote_searchable_cols": [
-            "ip_address",
-            "protocol",
-            "used_cred",
-            "auth_state"
+            "message"
           ],
-          "max_rows": 50,
           "columns": {
-            "ip_address": {
-              "title": "IP Address",
-              "defaultWidth": 150,
-              "key": true
+            "rda_gw_timestamp": {
+              "title": "Event Time",
+              "type": "DATETIME"
             },
-            "protocol": {
-              "title": "Protocol",
-              "defaultWidth": 150
-            },
-            "used_cred": {
-              "title": "Credential Name",
-              "defaultWidth": 200
-            },
-            "reason": {
-              "title": "Reason",
-              "defaultWidth": 200
-            },
-            "auth_state": {
-              "title": "Authentication State",
-              "defaultWidth": 150,
-              "htmlTemplateForRow": "{% raw %}<span class='badge' style='background-color: {{ row.auth_state_color}}' > {{ row.auth_state }} </span>{% endraw %}"
-            },
-            "auth_state_color": {
-              "type": "COLOR-MAP",
-              "source-column": "auth_state",
-              "color-map": {
-                "Success": "#008000",
-                "Failed": "#FF0000",
-                "success": "#008000",
-                "failed": "#FF0000"
-              }
-            },
-            "timestamp": {
-              "title": "Last Access Check Time",
-              "type": "DATETIME",
-              "visible": true
-            }
+            "rda_gw_client_ip": "Host",
+            "raw": "Message",
+            "syslog_severity": "Severity"
           },
-          "actions": [
-            {
-              "permission": "rda:github:view",
-              "title": "Access Verification",
-              "type": "POPUP_FORM",
-              "selectionType": "NONE",
-              "identifier": "saas-service-action:userdashboard-add-yaml",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.dynamic.form",
-                    "formActionList": {
-                      "formActions": [
-                        {
-                          "identifier": "Submit",
-                          "actionLabel": "Run"
-                        }
-                      ]
-                    },
-                    "formDefinition": {
-                      "id": "rda.saas.dynamic.form",
-                      "refreshRequired": true,
-                      "formFieldList": [
-                        {
-                          "help": "Do you want to Run the Access Check?",
-                          "dataType": "string",
-                          "controlType": "LABEL",
-                          "required": false,
-                          "editable": false,
-                          "label": "Do you want to Run the Access Check?",
-                          "hidden": false,
-                          "fieldId": "note"
-                        },
-                        {
-                          "help": "Select network devices for which you want to run discovery",
-                          "dataType": "string",
-                          "required": true,
-                          "editable": true,
-                          "label": "Network Devices",
-                          "hidden": false,
-                          "fieldId": "Others",
-                          "controlType": "SELECTOR_TABLE",
-                          "controlPropertyList": [
-                            {
-                              "attribute": "column-key",
-                              "value": "device_ip"
-                            },
-                            {
-                              "attribute": "selection",
-                              "value": "MULTIPLE"
-                            }
-                          ],
-                          "widget": {
-                            "title": "Device Details",
-                            "timebased": false,
-                            "max_width": 12,
-                            "height": 8,
-                            "min_width": 12,
-                            "extra_filter": "customer_tag contains '{{CUST_TAG}}' or customer_tag is empty",
-                            "stream": "discovery",
-                            "ts_column": "timestamp",
-                            "sorting": [],
-                            "columns": {
-                              "device_ip": {
-                                "title": "IP Address",
-                                "key": true
-                              },
-                              "discovery_scope": {
-                                "title": "discovery Scope",
-                                "key": true,
-                                "visible": false
-                              }
-                            }
-                          }
-                        }
-                      ]
-                    },
-                    "actions": [
-                      {
-                        "type": "RUN_PIPELINE",
-                        "pipelineName": "access_verification_main_pipeline",
-                        "isSync": false,
-                        "workerGroup": "{{CUST_TAG}}.*"
-                      }
-                    ]
-                  }
-                ]
-              }
-            }
-          ],
-          "widget_id": "4c2cfdd7"
+          "widget_id": "3d7466a3"
         }
       ]
     }
   ],
   "pstream_dashboards": [
     {
-      "title": "Success",
+      "title": "Customer View",
       "show_filter": true,
       "widgets": [
         {
-          "widget_type": "pie_chart",
-          "title": "Access Check by Status",
-          "stream": "network_access_verification",
-          "extra_filter": "(customer_tag contains '{{CUST_TAG}}' or customer_tag is empty)",
-          "ts_column": "timestamp",
-          "column": "_id",
-          "min_width": 6,
+          "widget_type": "label",
+          "label": "<h3 style='text-align: center;'>Alert Created: {%raw%} {{' {{ '}} {%endraw%} toDateTimeString({{ ALERT_CT }}) {%raw%} {{ '}}' }} {%endraw%} </h3>",
+          "advanced": true,
+          "min_width": 12,
+          "max_width": 12,
+          "height": 1,
+          "widget_id": "5ae002f1"
+        },
+        {
+          "title": "Link Up/Down Alerts",
+          "widget_type": "counter",
+          "min_width": 2.4,
+          "max_width": 2.4,
           "height": 4,
+          "stream": "oia-alerts-stream",
+          "ts_column": "a_created_ts",
+          "extra_filter": "a_message contains 'link'",
+          "sparkline": {
+            "interval": "1h"
+          },
+          "column": "count_",
+          "agg": "sum",
+          "type": "int",
+          "widget_id": "42b0d069"
+        },
+        {
+          "title": "BGP Alerts",
+          "widget_type": "counter",
+          "min_width": 2.4,
+          "max_width": 2.4,
+          "height": 4,
+          "stream": "oia-alerts-stream",
+          "ts_column": "a_created_ts",
+          "extra_filter": "a_message contains 'BGP'",
+          "sparkline": {
+            "interval": "1h"
+          },
+          "column": "count_",
+          "agg": "sum",
+          "type": "int",
+          "widget_id": "5f6517c3"
+        },
+        {
+          "title": "OSPF Alerts",
+          "widget_type": "counter",
+          "min_width": 2.4,
+          "max_width": 2.4,
+          "height": 4,
+          "stream": "oia-alerts-stream",
+          "ts_column": "a_created_ts",
+          "extra_filter": "a_message contains 'OSPF'",
+          "sparkline": {
+            "interval": "1h"
+          },
+          "column": "count_",
+          "agg": "sum",
+          "type": "int",
+          "widget_id": "2fee8031"
+        },
+        {
+          "title": "Patch Changes",
+          "widget_type": "counter",
+          "min_width": 2.4,
+          "max_width": 2.4,
+          "height": 4,
+          "stream": "change_requests_stream",
+          "ts_column": "timestamp",
+          "extra_filter": "message contains 'patch'",
+          "sparkline": {
+            "interval": "1h"
+          },
+          "column": "count_",
+          "agg": "sum",
+          "type": "int",
+          "widget_id": "0c90f99a"
+        },
+        {
+          "title": "Change Requests",
+          "widget_type": "counter",
+          "min_width": 2.4,
+          "max_width": 2.4,
+          "height": 4,
+          "stream": "change_requests_stream",
+          "ts_column": "timestamp",
+          "sparkline": {
+            "interval": "1h"
+          },
+          "column": "count_",
+          "agg": "sum",
+          "type": "int",
+          "widget_id": "0b7d3407"
+        },
+        {
+          "title": "Events Timeline",
+          "widget_type": "timeseries",
+          "stream": "oia-alerts-stream",
+          "ts_column": "a_created_ts",
+          "max_width": 12,
+          "height": 8,
+          "min_width": 12,
+          "fixTimeWindow": true,
+          "chartProperties": {
+            "yAxisLabel": "Alert Count",
+            "xAxisLabel": "Time",
+            "legendLocation": "none"
+          },
+          "static_markers": [
+            {
+              "timestamp": "{{ALERT_CT}}",
+              "message": "Alert Created",
+              "color": "#B71C1C"
+            }
+          ],
+          "alert_markers": [
+            {
+              "stream": "change_requests_stream",
+              "ts_column": "timestamp",
+              "type": "circle",
+              "message_column": "message",
+              "severity_column": "severity"
+            },
+            {
+              "stream": "oia-alerts-stream",
+              "ts_column": "a_created_ts",
+              "type": "triangle",
+              "message_column": "a_message",
+              "severity_column": "a_severity"
+            },
+            {
+              "stream": "oia-ml-metrics-regression-output",
+              "ts_column": "timestamp",
+              "type": "square",
+              "message_column": "marker_message",
+              "extra_filter": "anomalies_severity is 'High' and anomalies_type is 'Upper'",
+              "severity_column": "anomalies_severity",
+              "columns": [
+                "asset_id",
+                "metric_id",
+                "metric_label",
+                "asset_name",
+                "metric_source",
+                "timestamp",
+                "job_name",
+                "unit",
+                "stream_name"
+              ],
+              "action": {
+                "appName": "user-dashboard/rca_regression_dashboard",
+                "permission": "ml:ml-jobs:viewSampledata",
+                "identifier": "ViewRegressionDashboard",
+                "selectionType": "SINGLE",
+                "stateName": "app.featureapp",
+                "title": "View Regression Dashboard",
+                "type": "GO_TO_APP_STATE"
+              }
+            },
+            {
+              "stream": "oia-logs-regression-output",
+              "ts_column": "timestamp",
+              "type": "circle",
+              "message_column": "asset_id",
+              "extra_filter": "anomalies_severity is 'High' and anomalies_type is 'Upper'",
+              "severity_column": "anomalies_severity",
+              "columns": [
+                "asset_id",
+                "asset_name",
+                "timestamp",
+                "job_name",
+                "stream_name"
+              ],
+              "action": {
+                "appName": "user-dashboard/rca_regression_dashboard",
+                "permission": "ml:ml-jobs:viewSampledata",
+                "identifier": "ViewRegressionDashboard",
+                "selectionType": "SINGLE",
+                "stateName": "app.featureapp",
+                "title": "View Regression Dashboard",
+                "type": "GO_TO_APP_STATE"
+              }
+            }
+          ],
+          "interval": "1min",
+          "series_spec": [
+            {
+              "label": "Alerts",
+              "column": "a_id",
+              "agg": "value_count",
+              "type": "int"
+            }
+          ],
+          "widget_id": "121762cf"
+        },
+        {
+          "title": "Metric Anomalies",
+          "widget_type": "multi_bar_chart",
+          "stream": "oia-ml-metrics-regression-output",
+          "ts_column": "timestamp",
+          "chartProperties": {
+            "yAxisLabel": "Anomalies (%)",
+            "xAxisLabel": "Metric Name",
+            "stacked": false,
+            "legendLocation": "none",
+            "orientation": "vertical"
+          },
+          "group_by": [
+            "asset_id",
+            "metric_label"
+          ],
+          "descending_order": true,
+          "others_spec": {
+            "limit": 4,
+            "show_others": false
+          },
+          "column": "anomalies_percent",
+          "agg": "max",
+          "type": "float",
+          "widget_id": "f4786acb"
+        },
+        {
+          "title": "Change Requests",
+          "widget_type": "tabular",
+          "min_width": 6,
+          "max_width": 6,
+          "height": 5,
+          "timebased": false,
+          "stream": "change_requests_stream",
+          "ts_column": "timestamp",
+          "columns": {
+            "timestamp": {
+              "title": "Time",
+              "type": "DATETIME"
+            },
+            "message": {
+              "title": "Change Description",
+              "type": "TEXT"
+            }
+          },
+          "widget_id": "31e2f2ed"
+        },
+        {
+          "widget_type": "pie_chart",
+          "title": "Alerts by Severity",
+          "stream": "oia-alerts-stream",
+          "extra_filter": "customer_id is '{{CUSTOMER_ID}}'",
+          "ts_column": "timestamp",
+          "min_width": 3,
+          "height": 4,
+          "max_width": 3,
+          "column": "a_id",
           "agg": "value_count",
           "group_by": [
-            "auth_state"
+            "a_severity"
+          ],
+          "type": "str",
+          "style": {
+            "color-map": {
+              "SEVERE": [
+                "#B71C1C",
+                "#ffffff"
+              ],
+              "CRITICAL": [
+                "#E53935",
+                "#ffffff"
+              ],
+              "MAJOR": [
+                "#F57C00",
+                "#ffffff"
+              ],
+              "MINOR": [
+                "#FFA726",
+                "#ffffff"
+              ],
+              "WARNING": [
+                "#FFD54F",
+                "#ffffff"
+              ],
+              "NOTIFICATION": [
+                "#4DD0E1",
+                "#ffffff"
+              ],
+              "INFORMATION": [
+                "#03A9F4",
+                "#ffffff"
+              ]
+            }
+          },
+          "widget_id": "cb0706e6"
+        },
+        {
+          "title": "Alert Trend",
+          "widget_type": "timeseries",
+          "stream": "oia-alerts-stream",
+          "ts_column": "a_created_ts",
+          "max_width": 9,
+          "height": 4,
+          "min_width": 9,
+          "fixTimeWindow": true,
+          "extra_filter": "customer_id is '{{CUSTOMER_ID}}'",
+          "chartProperties": {
+            "yAxisLabel": "Count",
+            "xAxisLabel": "Time",
+            "legendLocation": "top"
+          },
+          "interval": "1H",
+          "group_by": [
+            "a_severity"
+          ],
+          "static_markers": [
+            {
+              "timestamp": "{{ALERT_CT}}",
+              "message": "Alert Created",
+              "color": "#B71C1C"
+            }
+          ],
+          "series_spec": [
+            {
+              "column": "a_id",
+              "agg": "value_count",
+              "type": "int"
+            }
           ],
           "style": {
             "color-map": {
-              "Success": [
-                "#008000",
+              "SEVERE": [
+                "#B71C1C",
                 "#ffffff"
               ],
-              "Failed": [
-                "#FF0000",
+              "CRITICAL": [
+                "#E53935",
+                "#ffffff"
+              ],
+              "MAJOR": [
+                "#F57C00",
+                "#ffffff"
+              ],
+              "MINOR": [
+                "#FFA726",
+                "#ffffff"
+              ],
+              "WARNING": [
+                "#FFD54F",
+                "#ffffff"
+              ],
+              "NOTIFICATION": [
+                "#4DD0E1",
+                "#ffffff"
+              ],
+              "INFORMATION": [
+                "#03A9F4",
+                "#ffffff"
+              ]
+            }
+          },
+          "widget_id": "c29bb686"
+        },
+        {
+          "widget_type": "pie_chart",
+          "title": "Incidents By Priority",
+          "stream": "oia-incidents-stream",
+          "extra_filter": "customer_id is '{{CUSTOMER_ID}}'",
+          "ts_column": "timestamp",
+          "min_width": 3,
+          "height": 4,
+          "max_width": 3,
+          "column": "incident_id",
+          "agg": "value_count",
+          "group_by": [
+            "i_priority_label"
+          ],
+          "style": {
+            "color-map": {
+              "Critical": [
+                "#B71C1C",
+                "#ffffff"
+              ],
+              "High": [
+                "#FFA726",
+                "#ffffff"
+              ],
+              "Moderate": [
+                "#90CAF9",
+                "#ffffff"
+              ],
+              "Low": [
+                "#4DD0E1",
+                "#ffffff"
+              ],
+              "Planning": [
+                "#4FC3F7",
                 "#ffffff"
               ]
             }
           },
           "type": "str",
-          "widget_id": "66dc2d8e"
+          "widget_id": "7dce82c8"
+        },
+        {
+          "title": "Incident Trend",
+          "widget_type": "timeseries",
+          "stream": "oia-incidents-stream",
+          "ts_column": "i_created_ts",
+          "max_width": 9,
+          "height": 4,
+          "min_width": 9,
+          "fixTimeWindow": true,
+          "extra_filter": "customer_id is '{{CUSTOMER_ID}}'",
+          "chartProperties": {
+            "yAxisLabel": "Count",
+            "xAxisLabel": "Time",
+            "legendLocation": "top"
+          },
+          "interval": "1H",
+          "group_by": [
+            "i_priority_label"
+          ],
+          "static_markers": [
+            {
+              "timestamp": "{{ALERT_CT}}",
+              "message": "Alert Created",
+              "color": "#B71C1C"
+            }
+          ],
+          "series_spec": [
+            {
+              "column": "incident_id",
+              "agg": "value_count",
+              "type": "int"
+            }
+          ],
+          "style": {
+            "color-map": {
+              "Critical": [
+                "#B71C1C",
+                "#ffffff"
+              ],
+              "High": [
+                "#FFA726",
+                "#ffffff"
+              ],
+              "Moderate": [
+                "#FFD54F",
+                "#ffffff"
+              ],
+              "Low": [
+                "#90CAF9",
+                "#ffffff"
+              ],
+              "Planning": [
+                "#4FC3F7",
+                "#ffffff"
+              ]
+            }
+          },
+          "widget_id": "a3d7ef3c"
         },
         {
           "widget_type": "pie_chart",
-          "title": "Access Check by Protocol",
-          "stream": "network_access_verification",
-          "extra_filter": "customer_tag contains '{{CUST_TAG}}' or customer_tag is empty",
-          "ts_column": "timestamp",
-          "column": "_id",
-          "agg": "value_count",
-          "min_width": 6,
+          "title": "Syslogs By Severity",
+          "ts_column": "rda_gw_timestamp",
+          "stream": "syslog_udp_event_stream_all",
+          "min_width": 3,
           "height": 4,
+          "max_width": 3,
+          "duration_hours0": 10000,
+          "column": "count_",
+          "agg": "sum",
           "group_by": [
-            "protocol"
+            "syslog_severity"
           ],
-          "type": "str",
-          "widget_id": "a07b4356"
+          "type": "int",
+          "style": {
+            "color-map": {
+              "SEVERE": [
+                "#B71C1C",
+                "#ffffff"
+              ],
+              "CRITICAL": [
+                "#E53935",
+                "#ffffff"
+              ],
+              "MAJOR": [
+                "#F57C00",
+                "#ffffff"
+              ],
+              "MINOR": [
+                "#FFA726",
+                "#ffffff"
+              ],
+              "WARNING": [
+                "#FFD54F",
+                "#ffffff"
+              ]
+            }
+          },
+          "widget_id": "ed85e796"
         },
         {
-          "title": "Access Status",
+          "title": "Syslogs",
+          "widget_type": "timeseries",
+          "max_width": 9,
+          "height": 4,
+          "min_width": 9,
+          "ts_column": "rda_gw_timestamp",
+          "show-markers": true,
+          "fixTimeWindow": true,
+          "stream": "syslog_udp_event_stream_all",
+          "extra_filter0": "log_category is 'syslog'",
+          "chartProperties": {
+            "xAxisLabel": "Timestamp",
+            "yAxisLabel": "Count",
+            "legendLocation": "none",
+            "xAxisTickOrientation": "STAGGERED",
+            "options": {
+              "elements": {
+                "line": {
+                  "borderWidth": 1
+                },
+                "point": {
+                  "radius": 2,
+                  "hitRadius": 3,
+                  "hoverRadius": 3
+                }
+              }
+            }
+          },
+          "static_markers": [
+            {
+              "timestamp": "{{ALERT_CT}}",
+              "message": "Alert Created",
+              "color": "#B71C1C"
+            }
+          ],
+          "series_spec": [
+            {
+              "column": "count_",
+              "agg": "sum",
+              "type": "int"
+            }
+          ],
+          "widget_id": "7ee88e42"
+        },
+        {
+          "title": "Syslogs",
           "widget_type": "tabular",
-          "stream": "network_access_verification",
-          "extra_filter": "customer_tag contains '{{CUST_TAG}}' or customer_tag is empty",
-          "duration_hours": 1080,
-          "showRowSummary": false,
+          "stream": "syslog_udp_event_stream_all",
           "min_width": 12,
           "height": 6,
           "max_width": 12,
-          "sorting": [
-            {
-              "auth_state": "desc"
-            }
-          ],
-          "paginated": true,
+          "extra_filter0": "log_category is 'syslog'",
+          "ts_column": "rda_gw_timestamp",
+          "resizableColumns": true,
           "remote_searchable": true,
           "remote_searchable_cols": [
-            "ip_address",
-            "protocol",
-            "used_cred",
-            "auth_state"
+            "message"
           ],
-          "max_rows": 50,
           "columns": {
-            "ip_address": {
-              "title": "IP Address",
-              "defaultWidth": 150,
-              "key": true
+            "rda_gw_timestamp": {
+              "title": "Event Time",
+              "type": "DATETIME"
             },
-            "protocol": {
-              "title": "Protocol",
-              "defaultWidth": 150
-            },
-            "used_cred": {
-              "title": "Credential Name",
-              "defaultWidth": 200
-            },
-            "reason": {
-              "title": "Reason",
-              "defaultWidth": 200
-            },
-            "auth_state": {
-              "title": "Authentication State",
-              "defaultWidth": 150,
-              "htmlTemplateForRow": "{% raw %}<span class='badge' style='background-color: {{ row.auth_state_color}}' > {{ row.auth_state }} </span>{% endraw %}"
-            },
-            "auth_state_color": {
-              "type": "COLOR-MAP",
-              "source-column": "auth_state",
-              "color-map": {
-                "Success": "#008000",
-                "Failed": "#FF0000",
-                "success": "#008000",
-                "failed": "#FF0000"
-              }
-            },
-            "timestamp": {
-              "title": "Last Access Check Time",
-              "type": "DATETIME",
-              "visible": true
-            }
+            "rda_gw_client_ip": "Host",
+            "raw": "Message",
+            "syslog_severity": "Severity"
           },
-          "actions": [
-            {
-              "permission": "rda:github:view",
-              "title": "Access Verification",
-              "type": "POPUP_FORM",
-              "selectionType": "NONE",
-              "identifier": "saas-service-action:userdashboard-add-yaml",
-              "api-endpoint": {
-                "service-name": "saas-reports",
-                "methodName": "getForm",
-                "stringified-params": true,
-                "parse-output": false,
-                "params": [
-                  {
-                    "formId": "rda.saas.dynamic.form",
-                    "formActionList": {
-                      "formActions": [
-                        {
-                          "identifier": "Submit",
-                          "actionLabel": "Run"
-                        }
-                      ]
-                    },
-                    "formDefinition": {
-                      "id": "rda.saas.dynamic.form",
-                      "refreshRequired": true,
-                      "formFieldList": [
-                        {
-                          "help": "Do you want to Run the Access Check?",
-                          "dataType": "string",
-                          "controlType": "LABEL",
-                          "required": false,
-                          "editable": false,
-                          "label": "Do you want to Run the Access Check?",
-                          "hidden": false,
-                          "fieldId": "note"
-                        },
-                        {
-                          "help": "Select network devices for which you want to run discovery",
-                          "dataType": "string",
-                          "required": true,
-                          "editable": true,
-                          "label": "Network Devices",
-                          "hidden": false,
-                          "fieldId": "Others",
-                          "controlType": "SELECTOR_TABLE",
-                          "controlPropertyList": [
-                            {
-                              "attribute": "column-key",
-                              "value": "device_ip"
-                            },
-                            {
-                              "attribute": "selection",
-                              "value": "MULTIPLE"
-                            }
-                          ],
-                          "widget": {
-                            "title": "Device Details",
-                            "timebased": false,
-                            "max_width": 12,
-                            "height": 8,
-                            "min_width": 12,
-                            "extra_filter": "customer_tag contains '{{CUST_TAG}}' or customer_tag is empty",
-                            "stream": "discovery",
-                            "ts_column": "timestamp",
-                            "sorting": [],
-                            "columns": {
-                              "device_ip": {
-                                "title": "IP Address",
-                                "key": true
-                              },
-                              "discovery_scope": {
-                                "title": "discovery Scope",
-                                "key": true,
-                                "visible": false
-                              }
-                            }
-                          }
-                        }
-                      ]
-                    },
-                    "actions": [
-                      {
-                        "type": "RUN_PIPELINE",
-                        "pipelineName": "access_verification_main_pipeline",
-                        "isSync": false,
-                        "workerGroup": "{{CUST_TAG}}.*"
-                      }
-                    ]
-                  }
-                ]
-              }
-            }
-          ],
-          "widget_id": "4c2cfdd7"
+          "widget_id": "3d7466a3"
         }
       ]
     }
