@@ -1,2 +1,45 @@
-@snowflake:native-query dbname is "CX_DB" and warehouse is "CX_DMP_RPT_WH" and query is "WITH UniqueCombinations AS (SELECT CONTRACT_NUMBER, PRODUCT_NAME, COVERAGE, COVERED_LINE_STATUS, BUSINESS_ENTITY, BUSINESS_SUB_ENTITY, COUNT(*) AS combination_count FROM CX_DB.CX_DMP_EBV.BV_ASSET WHERE GU_NAME = 'AT&T INC' AND ASSET_TYPE = 'Hardware' GROUP BY CONTRACT_NUMBER, PRODUCT_NAME, COVERAGE, COVERED_LINE_STATUS, BUSINESS_ENTITY, BUSINESS_SUB_ENTITY ) SELECT DISTINCT a.BK_END_OF_LIFE_REQUEST_NUM, a.BK_EOL_BULLETIN_PRODUCT_TYP_CD, a.BUSINESS_ENTITY, a.BUSINESS_SUB_ENTITY, a.CONTRACT_NUMBER,a.COVERAGE, a.COVERED_LINE_STATUS, a.END_OF_NEW_SVC_ATTACHMENT_DT, a.END_OF_ROUTINE_FAIL_ANLYSYS_DT, a.END_OF_SOFTWARE_MAINTENANCE_DT, a.END_OF_SVC_CONTRACT_RNWL_DT, a.EOL_EXTERNAL_ANNOUNCE_DT, a.EOL_PRODUCT_NAME, a.GU_NAME,a.ITEM_TYPE, a.LAST_DATE_OF_SALE, a.LAST_DATE_OF_SUPPORT, a.PRODUCT_DESCRIPTION, a.PRODUCT_FAMILY, a.PRODUCT_FAMILY_DESCRIPTION, a.PRODUCT_NAME, a.PRODUCT_TYPE, u.combination_count FROM CX_DB.CX_DMP_EBV.BV_ASSET a JOIN UniqueCombinations u ON a.CONTRACT_NUMBER = u.CONTRACT_NUMBER AND a.PRODUCT_NAME = u.PRODUCT_NAME AND a.COVERAGE = u.COVERAGE AND a.COVERED_LINE_STATUS = u.COVERED_LINE_STATUS AND a.BUSINESS_ENTITY = u.BUSINESS_ENTITY AND a.BUSINESS_SUB_ENTITY = u.BUSINESS_SUB_ENTITY WHERE a.GU_NAME = 'AT&T INC' AND a.ASSET_TYPE = 'Hardware' LIMIT 10;"
- --> @rn:write-stream name is "test-stream"
+
+ ## Bernie Wynia, Cisco Systems, 2025
+
+ ## It doesn't seem to have trouble with the following error cases:
+
+ ## -- no email addresses are found for template (valid template id)
+
+ ## -- invalid template ID (passed in inpute stream)
+
+ ## -- malforemd email addressneed
+
+ ## Because there is always at least 1 row (potentially with empty columns), this didn't seem to have any impact --> *exec:if-shape num_rows > 0
+
+ ## It doesn't seem to be needed because the apply-template and sendmail seem to complete regardless (so we resume on the read-stream)
+
+ ## The one case it doesn't handle is if the GenericEmailTemplates references a Template Name that doesn't exist in "Formatting Templates"
+@c:new-block
+ ## Wait for a request to send an email
+
+ --> @rn:read-stream name = "genericEmailSender" & group = "group_genericEmailSender"
+ ## When we get one, fetch the template details
+
+ --> @dm:enrich dict = 'GenericEmailTemplates' & src_key_cols = 'Template_Id' & dict_key_cols = 'Template_Id' & enrich_cols = "Subject,Template_Name"
+ ## Formulate the Subject line by appending the Suffix, if provided
+
+ --> @dm:add-missing-columns columns = 'Subject_Suffix' & value = ''
+ --> @dm:eval Merged_Subject = "Subject + Subject_Suffix"
+ ## Figure out who to send it to
+
+ --> @dm:enrich dict = 'GenericEmailRecipients' & src_key_cols = 'Template_Id' & dict_key_cols = 'Template_Id' & enrich_cols = "Recipient,User_Enabled" & dedup_dict = "no"
+ --> *dm:filter User_Enabled != 'no'
+ ## Format the email content
+
+ --> @dm:add-missing-columns columns = 'lType' & value = "html"
+ --> @dm:apply-template-by-row template_name = "{{row.Template_Name}}" & output_col = "fMessage" & status_col = "Template_Result"
+ ## Note that if we fetch an invald template name, the pipeline will abort in the above line (contrary to documentation)
+
+ ## It may be helful to uncomment this line when debugging
+
+ ## --> @dm:save name = "delete-me-email-working-data"
+
+ --> *dm:filter Template_Result = 'ok'
+ --> *exec:if-shape num_rows > 0
+ --> @email:sendmail-bulk recipient_col = 'Recipient' & message_mime_type_col = 'lType' & subject_col = 'Merged_Subject' & message_col = 'fMessage'
+ --> @exec:end-if
